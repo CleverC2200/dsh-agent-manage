@@ -1,5 +1,5 @@
 {
-  "name": "dsh-agent-plugins-market-docs",
+  "name": "dsh-agent-manage-docs",
   "private": true,
   "type": "module",
   "dependencies": {

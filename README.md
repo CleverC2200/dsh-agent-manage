@@ -1,14 +1,14 @@
 <img src="docs-site/public/favicon.svg" alt="" width="48" height="48" />
 
-# dsh-agent-plugins-market
+# dsh-agent-manage
 
 **A plugin marketplace and agent capability workspace for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).**
 
 Reuse supported content from Claude Code, Codex, Cursor, Kimi and other recognized layouts. Manage your own skills, commands, agent personas, MCP services and LSP servers in the DSH Web GUI. Supported layouts are read in place, without converting manifests or manually copying files into DSH. See the capability matrix for format-specific limits.
 
-English | [简体中文](README.zh.md) | [Documentation](https://sivan757.github.io/dsh-agent-plugins-market/) | [npm](https://www.npmjs.com/package/dsh-agent-plugins-market)
+English | [简体中文](README.zh.md) | [Documentation](https://github.com/CleverC2200/dsh-agent-manage/tree/main/docs/guides)
 
-[![npm version](https://img.shields.io/npm/v/dsh-agent-plugins-market)](https://www.npmjs.com/package/dsh-agent-plugins-market) [![License](https://img.shields.io/github/license/Sivan757/dsh-agent-plugins-market)](LICENSE)
+[![License](https://img.shields.io/github/license/CleverC2200/dsh-agent-manage)](LICENSE)
 
 [Quick start](#quick-start) · [Everyday use](#everyday-use) · [Compatibility](#compatibility-and-boundaries) · [FAQ](#faq)
 
@@ -23,12 +23,14 @@ English | [简体中文](README.zh.md) | [Documentation](https://sivan757.github
 
 ## Quick start
 
+This fork uses the package name `dsh-agent-manage`; publication of the new npm package has not been performed or verified here. Use the GitHub source below. When replacing the old package, remove its profile entry before installing this package to avoid duplicate loading. Existing `dsh-agent-plugins-market` settings and data paths remain compatible.
+
 You need Node.js 22+, Git for Git sources, and a DSH Web profile with the skill service enabled. This repository declares DSH peer packages in the `^0.1.2-rc.1` range; individual capabilities also depend on the services in your profile. See [host requirements](docs/guides/usage.md#host-requirements).
 
 Install into your profile, replacing `<name>` with its name:
 
 ```sh
-dsh plugin --profile <name> add dsh-agent-plugins-market
+dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
 1. Restart DSH and open **Settings → Agent Plugins Market**. Older shells may show a top-level page entry instead.

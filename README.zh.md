@@ -1,14 +1,14 @@
 <img src="docs-site/public/favicon.svg" alt="" width="48" height="48" />
 
-# dsh-agent-plugins-market
+# dsh-agent-manage
 
 **[DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness)的插件市场与 Agent 能力管理工作区。**
 
 复用 Claude Code、Codex、Cursor、Kimi 等已识别布局中支持的内容及社区兼容布局，在 DSH Web 界面管理自己的技能、命令、代理角色、MCP 服务和 LSP 服务。支持的布局原地读取，无需转换清单或手动将文件复制到 DSH。各格式的具体限制见能力矩阵。
 
-[English](README.md) | 简体中文 | [文档站](https://sivan757.github.io/dsh-agent-plugins-market/) | [npm](https://www.npmjs.com/package/dsh-agent-plugins-market)
+[English](README.md) | 简体中文 | [文档站](https://github.com/CleverC2200/dsh-agent-manage/tree/main/docs/guides)
 
-[![npm version](https://img.shields.io/npm/v/dsh-agent-plugins-market)](https://www.npmjs.com/package/dsh-agent-plugins-market) [![License](https://img.shields.io/github/license/Sivan757/dsh-agent-plugins-market)](LICENSE)
+[![License](https://img.shields.io/github/license/CleverC2200/dsh-agent-manage)](LICENSE)
 
 [快速开始](#快速开始) · [日常使用](#日常使用) · [兼容性](#兼容性与运行边界) · [常见问题](#常见问题)
 
@@ -23,12 +23,14 @@
 
 ## 快速开始
 
+本分支的包名为 `dsh-agent-manage`；新 npm 包尚未在本次工作中发布或验证，使用下方 GitHub 来源。替换旧包时应先移除旧 profile 中的插件条目，再安装新包，避免双重加载。已有 `dsh-agent-plugins-market` 设置命名空间与数据路径保留兼容。
+
 需要 Node.js 22+、启用了技能服务的 DSH Web profile；使用 Git 来源还需要 Git。当前仓库声明的 DSH peer 包版本范围为 `^0.1.2-rc.1`，各项能力还取决于 profile 提供的宿主服务，详见[宿主要求](docs/guides/usage.zh.md#宿主要求)。
 
 将 `<name>` 替换为你的 profile 名称后安装：
 
 ```sh
-dsh plugin --profile <name> add dsh-agent-plugins-market
+dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
 1. 重启 DSH，打开 **设置 → Agent Plugins 市场**。旧版外壳可能显示为顶层页面入口。

@@ -2,8 +2,8 @@
 import Base from '../layouts/Base.astro';
 ---
 <Base
-  title="Install the agent workspace in DeepSeek Harness — dsh-agent-plugins-market guide"
-  description="Step-by-step guide: install dsh-agent-plugins-market in a DSH profile, add a Claude Code marketplace repo as a source, and install plugin suites with skills, MCP servers, hooks and slash commands."
+  title="Install the agent workspace in DeepSeek Harness — dsh-agent-manage guide"
+  description="Step-by-step guide: install dsh-agent-manage in a DSH profile, add a Claude Code marketplace repo as a source, and install plugin suites with skills, MCP servers, hooks and slash commands."
 >
   <h1>Install the agent workspace in DeepSeek Harness</h1>
   <p>
@@ -17,14 +17,8 @@ import Base from '../layouts/Base.astro';
   </ul>
 
   <h2>Step 1 — Install the plugin</h2>
-  <p>npm registry (recommended):</p>
-  <pre><code># inside a dsh profile
-pnpm add dsh-agent-plugins-market
-
-# or via the dsh CLI
-dsh plugin --profile &lt;name&gt; add dsh-agent-plugins-market</code></pre>
-  <p>Or install directly from GitHub:</p>
-  <pre><code>dsh plugin --profile &lt;name&gt; add github:Sivan757/dsh-agent-plugins-market</code></pre>
+  <p>Install this fork from GitHub. The new npm package has not been published or verified in this change. Remove the old package's profile entry before replacing it to avoid duplicate loading; existing settings and data paths remain compatible.</p>
+  <pre><code>dsh plugin --profile &lt;name&gt; add github:CleverC2200/dsh-agent-manage</code></pre>
 
   <h2>Step 2 — Restart dsh and open the market</h2>
   <p>
@@ -51,7 +45,7 @@ dsh plugin --profile &lt;name&gt; add dsh-agent-plugins-market</code></pre>
     <li>Commands become slash entries. Role delegation through <code>subagents_run</code> uses a dynamic role catalog and requires host agents, tools, LLM and subagent services.</li>
     <li>LSP requires host LSP packages and a profile exposing the LSP tool; check LSP servers for diagnostics.</li>
   </ul>
-  <p>See the <a href="https://github.com/Sivan757/dsh-agent-plugins-market/blob/main/docs/guides/usage.md">usage guide</a> for host requirements and configuration.</p>
+  <p>See the <a href="https://github.com/CleverC2200/dsh-agent-manage/blob/main/docs/guides/usage.md">usage guide</a> for host requirements and configuration.</p>
 
   <h2>Troubleshooting</h2>
   <ul>

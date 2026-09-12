@@ -60,3 +60,5 @@ MCP 详情移除启用控件，将重试与 OAuth 重置分开。后端能力决
 ## 关联
 
 - 扩展 [2026-09-01-source-acquisition-expansion](2026-09-01-source-acquisition-expansion.md) 的删除语义（`.sources/<id>` 检出获得可选物理删除，仅 `.sources/` 之外的本地目录受保护）。
+
+反馈仓库归属由 [fork 身份决策](2026-09-12-fork-package-identity.zh.md) 更新；本记录继续定义设置开关、注册与本地回退机制。
