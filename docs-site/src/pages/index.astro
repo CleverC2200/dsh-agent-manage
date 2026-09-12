@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
 ---
 <Base
-  title="dsh-agent-plugins-market — Plugin marketplace and agent workspace for DeepSeek Harness"
+  title="dsh-agent-manage — Plugin marketplace and agent workspace for DeepSeek Harness"
   description="Install ecosystem suites and manage skills, commands, agent personas, MCP services and LSP servers in the DSH Web GUI."
 >
   <section class="hero">
@@ -16,8 +16,8 @@ const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL :
     </p>
     <p>
       <a class="cta" href={`${base}install/`}>Get started</a>
-      <a class="cta ghost" href="https://github.com/Sivan757/dsh-agent-plugins-market">GitHub</a>
-      <a class="cta ghost" href="https://www.npmjs.com/package/dsh-agent-plugins-market">npm</a>
+      <a class="cta ghost" href="https://github.com/CleverC2200/dsh-agent-manage">GitHub</a>
+      <a class="cta ghost" href="https://github.com/CleverC2200/dsh-agent-manage/releases">Releases</a>
     </p>
     <img class="shot" src={`${base}assets/screenshot-workspace.png`} alt="The six-tab Agent Plugins workspace inside the DeepSeek Harness Web GUI" width="100%" />
   </section>
@@ -40,7 +40,7 @@ const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL :
   </table>
 
   <h2>Quick install</h2>
-  <pre><code>dsh plugin --profile &lt;name&gt; add dsh-agent-plugins-market</code></pre>
+  <pre><code>dsh plugin --profile &lt;name&gt; add github:CleverC2200/dsh-agent-manage</code></pre>
   <p>Requires Node.js 22+ and a DSH Web profile with the skill service. Current DSH peer declarations use ^0.1.2-rc.1; feature availability depends on host services. See the <a href={`${base}install/`}>install guide</a> for details.</p>
 
   <h2>Learn more</h2>

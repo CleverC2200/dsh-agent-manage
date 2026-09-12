@@ -58,3 +58,5 @@ The legacy page adapter mounts its workspace only when opened and does not compe
 - `pnpm run check:refactor` (typecheck, lint, format, routes+contracts tests, dependency-cruiser) green.
 - New tests: `tests/user-panels.test.ts` (store CRUD, disable round-trip, provider discovery, frontmatter helpers), `tests/feedback-tool.test.ts` (local spool, cooldown, body rendering), route tests for conditional panel routes and `deleteCheckout` pass-through, and a source-acquisition case proving an adopted `.sources` checkout is removed under `deleteCheckout: true` while an external `local` directory survives.
 - Full `pnpm run test`: 46 files, 300+ tests green.
+
+Feedback repository ownership is updated by the [fork identity decision](2026-09-12-fork-package-identity.md); this note continues to own the settings gate, registration and local fallback.

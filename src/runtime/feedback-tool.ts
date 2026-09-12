@@ -22,8 +22,8 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView } from '@deepseek-ai/dsh-tools'
 
 /** The GitHub repository experience feedback files issues against. */
-export const FEEDBACK_REPO_OWNER = 'Sivan757'
-export const FEEDBACK_REPO_NAME = 'dsh-agent-plugins-market'
+export const FEEDBACK_REPO_OWNER = 'CleverC2200'
+export const FEEDBACK_REPO_NAME = 'dsh-agent-manage'
 
 /** Label applied to every tool-filed issue so they are filterable. */
 export const FEEDBACK_LABEL = 'agent-feedback'

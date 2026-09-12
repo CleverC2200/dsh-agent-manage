@@ -18,11 +18,11 @@ Security fixes are prioritized for the `main` branch and the latest published re
 
 **请不要在公开 issue 中报告安全漏洞。** 请使用 GitHub 私密报告流程：
 
-[Report a vulnerability privately / 私密报告漏洞](https://github.com/Sivan757/dsh-agent-plugins-market/security/advisories/new)
+[Report a vulnerability privately / 私密报告漏洞](https://github.com/CleverC2200/dsh-agent-manage/security/advisories/new)
 
-If private vulnerability reporting is unavailable, send a private message to [@Sivan757](https://github.com/Sivan757) on GitHub and state that the message is a security report. Do not include secrets in the first message unless they are essential and have been redacted where possible.
+If private vulnerability reporting is unavailable, send a private message to [@CleverC2200](https://github.com/CleverC2200) on GitHub and state that the message is a security report. Do not include secrets in the first message unless they are essential and have been redacted where possible.
 
-如果私密漏洞报告功能不可用，请在 GitHub 私下联系 [@Sivan757](https://github.com/Sivan757)，并注明这是安全报告。除非确有必要，不要在首条消息中包含秘密信息；如必须提供，请尽可能先脱敏。
+如果私密漏洞报告功能不可用，请在 GitHub 私下联系 [@CleverC2200](https://github.com/CleverC2200)，并注明这是安全报告。除非确有必要，不要在首条消息中包含秘密信息；如必须提供，请尽可能先脱敏。
 
 Please include as much of the following as you can safely share:
 
@@ -57,6 +57,6 @@ Reports are especially valuable for issues involving source checkout isolation, 
 
 涉及源 checkout 隔离、路径穿越、清单解析、HTTP 路由授权、hook 或 MCP 挂载、依赖供应链风险、凭据泄露或发布构建产物的问题尤其值得报告。第三方市场内容可能不受信任；启用套件前请先审阅。
 
-For non-sensitive bugs and hardening suggestions, use the normal [bug report form](https://github.com/Sivan757/dsh-agent-plugins-market/issues/new?template=bug_report.yml) after removing sensitive details.
+For non-sensitive bugs and hardening suggestions, use the normal [bug report form](https://github.com/CleverC2200/dsh-agent-manage/issues/new?template=bug_report.yml) after removing sensitive details.
 
-对于非敏感 bug 和加固建议，请在删除敏感细节后使用普通的[问题报告表单](https://github.com/Sivan757/dsh-agent-plugins-market/issues/new?template=bug_report.yml)。
+对于非敏感 bug 和加固建议，请在删除敏感细节后使用普通的[问题报告表单](https://github.com/CleverC2200/dsh-agent-manage/issues/new?template=bug_report.yml)。

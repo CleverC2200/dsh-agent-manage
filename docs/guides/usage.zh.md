@@ -20,18 +20,18 @@ Codex 项目 MCP 从 `.codex/config.toml` 读取，保留启停、环境变量�
 推荐的 CLI 命令见[快速开始](../../README.zh.md#快速开始)。也可以在 profile 中安装：
 
 ```sh
-pnpm add dsh-agent-plugins-market
+pnpm add github:CleverC2200/dsh-agent-manage
 ```
 
 从 GitHub 安装：
 
 ```sh
-dsh plugin --profile <name> add github:Sivan757/dsh-agent-plugins-market
+dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
 npm 包包含构建后的 `lib/` 和 `client/`。GitHub 安装通过 `prepare` 构建，安装机器需要 Node.js 和 pnpm。
 
-手动管理 profile 时，安装包后，将 `dsh-agent-plugins-market` 加入 profile 的 `dsh.profile.bundles` 数组，保留已有 bundles。包中的 `cordis.patch.yml` 提供插件配置行。依赖版本沿用包管理器写入的值。
+手动管理 profile 时，安装包后，将 `dsh-agent-manage` 加入 profile 的 `dsh.profile.bundles` 数组，保留已有 bundles。包中的 `cordis.patch.yml` 提供插件配置行。依赖版本沿用包管理器写入的值。
 
 ## 配置市场源
 
@@ -40,7 +40,7 @@ npm 包包含构建后的 `lib/` 和 `client/`。GitHub 安装通过 `prepare` �
 源持久化在 `~/.dsh/agent-plugins/state.json`，也可用 cordis 配置预置（也是“持久种子”，启动时自动补齐缺失源）：
 
 ```yaml
-- id: dsh-agent-plugins-market
+- id: dsh-agent-manage
   config:
     sources:
       - { id: agent-plugins, url: 'https://github.com/Sivan757/agent-plugins.git' }
@@ -59,7 +59,7 @@ npm 包包含构建后的 `lib/` 和 `client/`。GitHub 安装通过 `prepare` �
 git/压缩包获取可通过宿主配置调优：
 
 ```yaml
-- id: dsh-agent-plugins-market
+- id: dsh-agent-manage
   config:
     git:
       proxy: 'http://127.0.0.1:7890' # 以 git http/https 代理注入

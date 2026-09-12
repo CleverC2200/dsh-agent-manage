@@ -53,7 +53,7 @@ interface SuiteClientContext {
   remote: { credentials: CredentialRemote }
 }
 
-export const name = 'dsh-agent-plugins-market'
+export const name = 'dsh-agent-manage'
 export const inject = ['slots', 'locale', 'remote', 'remote.credentials']
 export const REQUIRED_PRIMITIVES = ['Button', 'Input', 'Modal', 'Toast', 'Tooltip'] as const
 

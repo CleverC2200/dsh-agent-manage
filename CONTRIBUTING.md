@@ -11,14 +11,14 @@ This project brings Claude Code, Codex, Cursor, Kimi, and agent-plugins.org mark
 ## Before you start / 开始前
 
 - Search existing issues and pull requests before opening a new one.
-- For a reproducible defect, use the [bug report form](https://github.com/Sivan757/dsh-agent-plugins-market/issues/new?template=bug_report.yml).
-- For a proposal, use the [feature request form](https://github.com/Sivan757/dsh-agent-plugins-market/issues/new?template=feature_request.yml).
+- For a reproducible defect, use the [bug report form](https://github.com/CleverC2200/dsh-agent-manage/issues/new?template=bug_report.yml).
+- For a proposal, use the [feature request form](https://github.com/CleverC2200/dsh-agent-manage/issues/new?template=feature_request.yml).
 - Never publish credentials, private marketplace URLs, session data, or unredacted logs. Read [SECURITY.md](SECURITY.md) before reporting a vulnerability.
 - Keep one user-visible goal per pull request. Small, focused pull requests are easier to review and safer to merge.
 
 - 提交新 issue 或 PR 前，请先搜索已有的 issue 和 PR。
-- 可复现的问题请使用[问题报告表单](https://github.com/Sivan757/dsh-agent-plugins-market/issues/new?template=bug_report.yml)。
-- 功能建议请使用[功能请求表单](https://github.com/Sivan757/dsh-agent-plugins-market/issues/new?template=feature_request.yml)。
+- 可复现的问题请使用[问题报告表单](https://github.com/CleverC2200/dsh-agent-manage/issues/new?template=bug_report.yml)。
+- 功能建议请使用[功能请求表单](https://github.com/CleverC2200/dsh-agent-manage/issues/new?template=feature_request.yml)。
 - 不要发布凭据、私有市场 URL、会话数据或未脱敏日志；报告漏洞前请先阅读 [SECURITY.md](SECURITY.md)。
 - 每个 PR 聚焦一个用户可感知的目标；小而集中的 PR 更容易审查，也更安全。
 
@@ -172,6 +172,6 @@ Do not report vulnerabilities in a public issue. Use [SECURITY.md](SECURITY.md) 
 
 ## Questions / 问题
 
-For a usage question, first check the [README](README.md), [Chinese README](README.zh.md), and the [documentation site](https://sivan757.github.io/dsh-agent-plugins-market/). If the answer is not covered, open the appropriate issue form with a minimal reproducible example.
+For a usage question, first check the [README](README.md), [Chinese README](README.zh.md), and the [documentation site](https://github.com/CleverC2200/dsh-agent-manage/tree/main/docs/guides). If the answer is not covered, open the appropriate issue form with a minimal reproducible example.
 
-使用问题请先查看 [README](README.md)、[中文 README](README.zh.md) 和[文档站](https://sivan757.github.io/dsh-agent-plugins-market/)。如果仍未解决，请使用对应 issue 表单，并提供最小可复现示例。
+使用问题请先查看 [README](README.md)、[中文 README](README.zh.md) 和[文档站](https://github.com/CleverC2200/dsh-agent-manage/tree/main/docs/guides)。如果仍未解决，请使用对应 issue 表单，并提供最小可复现示例。

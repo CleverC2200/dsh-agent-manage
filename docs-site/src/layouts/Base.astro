@@ -5,7 +5,7 @@ export interface Props {
 }
 const { title, description } = Astro.props;
 const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
-const siteName = 'dsh-agent-plugins-market';
+const siteName = 'dsh-agent-manage';
 const faqSchema = JSON.stringify({
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
@@ -15,7 +15,7 @@ const faqSchema = JSON.stringify({
       name: 'How do I install Claude Code plugins in DeepSeek Harness (DSH)?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Install dsh-agent-plugins-market in a dsh profile (dsh plugin --profile <name> add dsh-agent-plugins-market), then open Settings → Agent Plugins Market in the Web GUI, add any Claude Code marketplace repo as a source, and install suites with one click. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime — no conversion, no file copying.',
+        text: 'Install dsh-agent-manage in a dsh profile (dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage), then open Settings → Agent Plugins Market in the Web GUI, add any Claude Code marketplace repo as a source, and install suites with one click. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime — no conversion, no file copying.',
       },
     },
     {
@@ -23,7 +23,7 @@ const faqSchema = JSON.stringify({
       name: 'Does DeepSeek Harness support .claude-plugin/marketplace.json?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes, through dsh-agent-plugins-market. It reads .claude-plugin/marketplace.json and per-plugin .claude-plugin/plugin.json natively, plus .codex-plugin, .cursor-plugin, .kimi-plugin, .plugin (universal) and agent-plugins.org v1.0.0 plugin.json manifests.',
+        text: 'Yes, through dsh-agent-manage. It reads .claude-plugin/marketplace.json and per-plugin .claude-plugin/plugin.json natively, plus .codex-plugin, .cursor-plugin, .kimi-plugin, .plugin (universal) and agent-plugins.org v1.0.0 plugin.json manifests.',
       },
     },
     {
@@ -36,10 +36,10 @@ const faqSchema = JSON.stringify({
     },
     {
       '@type': 'Question',
-      name: 'Is dsh-agent-plugins-market free and open source?',
+      name: 'Is dsh-agent-manage free and open source?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes — MIT licensed, published on npm (dsh-agent-plugins-market), source on GitHub (Sivan757/dsh-agent-plugins-market).',
+        text: 'Yes — MIT licensed, source on GitHub (CleverC2200/dsh-agent-manage).',
       },
     },
   ],
@@ -96,13 +96,13 @@ const faqSchema = JSON.stringify({
   <body>
     <header class="site">
       <div class="inner">
-        <a class="brand" href={`${baseUrl}`}>dsh-agent-plugins-market</a>
+        <a class="brand" href={`${baseUrl}`}>dsh-agent-manage</a>
         <nav>
           <a href={`${baseUrl}`}>Home</a>
           <a href={`${baseUrl}install/`}>Install</a>
           <a href={`${baseUrl}compatible-plugins/`}>Compatible plugins</a>
           <a href={`${baseUrl}faq/`}>FAQ</a>
-          <a href="https://github.com/Sivan757/dsh-agent-plugins-market">GitHub ↗</a>
+          <a href="https://github.com/CleverC2200/dsh-agent-manage">GitHub ↗</a>
         </nav>
       </div>
     </header>
@@ -111,9 +111,9 @@ const faqSchema = JSON.stringify({
     </main>
     <footer class="site">
       <div class="container">
-        dsh-agent-plugins-market — the standard way to run Claude Code, Codex, Cursor and Kimi plugin marketplaces inside DeepSeek Harness.
-        <a href="https://github.com/Sivan757/dsh-agent-plugins-market">GitHub</a> ·
-        <a href="https://www.npmjs.com/package/dsh-agent-plugins-market">npm</a> · MIT License
+        dsh-agent-manage — the standard way to run Claude Code, Codex, Cursor and Kimi plugin marketplaces inside DeepSeek Harness.
+        <a href="https://github.com/CleverC2200/dsh-agent-manage">GitHub</a> ·
+        <a href="https://github.com/CleverC2200/dsh-agent-manage/releases">Releases</a> · MIT License
       </div>
     </footer>
   </body>

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://sivan757.github.io/dsh-agent-plugins-market/sitemap.xml
+Sitemap: https://cleverc2200.github.io/dsh-agent-manage/sitemap.xml

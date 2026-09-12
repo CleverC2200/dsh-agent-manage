@@ -1,6 +1,6 @@
 {
-  "name": "dsh-agent-plugins-market",
-  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) — zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
+  "name": "dsh-agent-manage",
+  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) \u2014 zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
   "version": "0.6.2",
   "type": "module",
   "main": "lib/index.js",
@@ -60,7 +60,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Sivan757/dsh-agent-plugins-market.git"
+    "url": "git+https://github.com/CleverC2200/dsh-agent-manage.git"
   },
   "keywords": [
     "deepseek",
@@ -146,5 +146,8 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "homepage": "https://www.npmjs.com/package/dsh-agent-plugins-market"
+  "homepage": "https://github.com/CleverC2200/dsh-agent-manage",
+  "bugs": {
+    "url": "https://github.com/CleverC2200/dsh-agent-manage/issues"
+  }
 }

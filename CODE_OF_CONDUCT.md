@@ -48,9 +48,9 @@ This code applies in project spaces, including GitHub issues, pull requests, rev
 
 ## Reporting / 报告方式
 
-If you experience or witness unacceptable behavior, contact the project maintainer privately through [@Sivan757 on GitHub](https://github.com/Sivan757). Do not create a public issue containing personal information or an unpatched security vulnerability. Include the relevant links, approximate time, and any evidence that can be shared safely.
+If you experience or witness unacceptable behavior, contact the project maintainer privately through [@CleverC2200 on GitHub](https://github.com/CleverC2200). Do not create a public issue containing personal information or an unpatched security vulnerability. Include the relevant links, approximate time, and any evidence that can be shared safely.
 
-如果你经历或看到不可接受的行为，请通过 GitHub 私下联系项目维护者 [@Sivan757](https://github.com/Sivan757)。不要创建包含个人信息或未修复安全漏洞的公开 issue。请提供相关链接、大致时间，以及可以安全分享的证据。
+如果你经历或看到不可接受的行为，请通过 GitHub 私下联系项目维护者 [@CleverC2200](https://github.com/CleverC2200)。不要创建包含个人信息或未修复安全漏洞的公开 issue。请提供相关链接、大致时间，以及可以安全分享的证据。
 
 Security vulnerabilities must follow [SECURITY.md](SECURITY.md) and should be submitted through the private security-advisory channel rather than the conduct-report channel.
 

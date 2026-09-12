@@ -20,18 +20,18 @@ Codex project MCP is read from `.codex/config.toml`. Its enabled flags, environm
 The recommended CLI command is in the [quick start](../../README.md#quick-start). Alternatively, install inside the profile:
 
 ```sh
-pnpm add dsh-agent-plugins-market
+pnpm add github:CleverC2200/dsh-agent-manage
 ```
 
 For a GitHub installation:
 
 ```sh
-dsh plugin --profile <name> add github:Sivan757/dsh-agent-plugins-market
+dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
 npm packages contain built `lib/` and `client/` artifacts. GitHub installs build them through `prepare` and require Node.js and pnpm on the installing machine.
 
-If managing the profile manually, install the package and include `dsh-agent-plugins-market` in the profile's `dsh.profile.bundles` array, alongside its existing bundles. The package's `cordis.patch.yml` supplies the plugin row. Keep the dependency version written by your package manager.
+If managing the profile manually, install the package and include `dsh-agent-manage` in the profile's `dsh.profile.bundles` array, alongside its existing bundles. The package's `cordis.patch.yml` supplies the plugin row. Keep the dependency version written by your package manager.
 
 ## Configure marketplace sources
 
@@ -40,7 +40,7 @@ The published bundle does not preconfigure sources. The following is an optional
 Sources persist in `~/.dsh/agent-plugins/state.json`; cordis config seeds them (and re-adds missing ids on every boot):
 
 ```yaml
-- id: dsh-agent-plugins-market
+- id: dsh-agent-manage
   config:
     sources:
       - { id: agent-plugins, url: 'https://github.com/Sivan757/agent-plugins.git' }
@@ -59,7 +59,7 @@ The source strip at the top of the market page is an equal-width grid of pills: 
 Git/archive acquisition is tunable through the host config:
 
 ```yaml
-- id: dsh-agent-plugins-market
+- id: dsh-agent-manage
   config:
     git:
       proxy: 'http://127.0.0.1:7890' # injected as git http/https proxy
