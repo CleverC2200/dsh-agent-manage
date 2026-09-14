@@ -35,6 +35,7 @@ import { mountFeedbackTool } from './runtime/feedback-tool.js'
 import { createUserPanelStores } from './runtime/user-panels.js'
 import { UserPanelSkillProvider } from './runtime/user-panels.js'
 import { UserCommandMountRegistry } from './runtime/user-commands.js'
+import { mountGeaMcp, type GeaMcpConsumer } from './runtime/gea-mcp.js'
 import type { SourceRef } from './model/types.js'
 
 export const name = 'dsh-agent-manage'
@@ -42,6 +43,8 @@ export const inject = ['skills', 'commands']
 
 /** Host configuration. */
 export interface Config {
+  /** Registered GEA Consumer for automatic MCP discovery after GEA plugin login. */
+  geaMcp?: GeaMcpConsumer | false
   /** User-dimension suite root; defaults to `~/.dsh/agent-plugins` (`$DSH_HOME/agent-plugins`). */
   userRoot?: string
   /** Legacy mutable data root to migrate; writes always use the canonical root/data. */
@@ -66,6 +69,7 @@ export interface Config {
 }
 
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
+  if (config.geaMcp !== false) mountGeaMcp(ctx, config.geaMcp)
   const userRoot = resolveUserRoot(config.userRoot)
   const dataRoot = resolveDataRoot(config.dataRoot, userRoot)
   const migration = await migratePluginStorage(config)

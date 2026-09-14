@@ -211,3 +211,9 @@ Only when you tick **also delete the managed market directory** in the confirmat
 - [Domain glossary](CONTEXT.md) · [Architecture](docs/adr/0001-catalog-centered-modular-refactor.md).
 
 See [agent roles and storage](docs/guides/agent-roles.md) for installed-resource editing, model routing and migration.
+
+Switch the download region under Settings → Plugins → Plugin configuration → Agent Plugins Market. A saved manual choice updates the selected segment immediately; a failed write displays an error and retains the previous choice.
+
+When the GEA plugin is loaded, GEA login automatically discovers its authorized MCP tools. See [GEA login and MCP](docs/guides/gea-mcp.md) for Consumer selection, lifecycle and verification boundaries.
+
+GEA MCP calls and model-visible tools are restricted to the local DSH `gea-readonly` preset (the demand forecast entry). Set `geaMcp.agentPreset` alongside the Consumer fields to choose another local preset. Consumer authorization and local preset selection are separate boundaries. Other presets and calls without an Agent are denied; login refreshes, live agents, new agents and empty-session preset switches retain this boundary. Agents inheriting the same preset also inherit access. The host MCP status remains visible for diagnostics. Hosts without `agents` or `agentPresets` do not mount this integration.

@@ -361,9 +361,9 @@ export function McpDetailModal({
         : entry.reason === undefined
           ? null
           : h('div', { className: css.reasonBox }, h('span', { className: css.reasonLabel }, t('mcpReasonLabel')), h('p', { className: css.reasonText }, entry.reason)),
-      entry.kind === 'direct' && !entry.managed ? h('div', { className: css.reasonBox }, h('p', { className: css.reasonText }, t('mcpDirectBoundary'))) : null,
+      entry.kind === 'direct' && !entry.managed ? h('p', { className: css.reasonText }, t('mcpDirectBoundary')) : null,
       entry.credentialRefs?.length === 0 || entry.credentialRefs === undefined ? null : h(McpCredentialEditor, { t, api: credentials, refs: entry.credentialRefs }),
-      h(
+      entry.kind === 'plugin' || entry.managed === true ? h(
         'section',
         { className: css.detailSection },
         h('h4', { className: css.detailHead }, t('mcpConfig')),
@@ -376,7 +376,7 @@ export function McpDetailModal({
             void onRefresh(entry.id).catch(reason => setFeedback({ error: true, text: t('mcpSavedStatusUnknown') + ': ' + String(reason) }))
           }
         })
-      ),
+      ) : null,
       h(
         'section',
         { className: css.detailSection },

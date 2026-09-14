@@ -92,6 +92,7 @@ export function createTransport(
       // public on the SDK class and completes the browser leg's code
       // exchange inside this transport generation.
       const transport = new StreamableHTTPClientTransport(new URL(config.url), {
+        ...(config.fetch === undefined ? {} : { fetch: config.fetch }),
         requestInit: { headers: config.headers },
         ...(oauthProvider === undefined ? {} : { authProvider: oauthProvider })
       }) as AuthCapableTransport
