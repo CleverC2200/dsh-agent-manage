@@ -20,7 +20,7 @@
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js'
+import { ListToolsResultSchema, ReadResourceResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { JsonSchemaNode } from './json-schema-subset.js'
@@ -205,6 +205,27 @@ export async function syncTools(client: Client, host: ToolHost, opts: ToolBridge
     cursor = response.nextCursor
   } while (cursor)
 
+  if (client.getServerCapabilities?.()?.resources) {
+    const rawName = 'dsh_read_resource'
+    const name = publicToolName(opts.serverName, rawName)
+    if (definitions.has(name)) throw new Error('MCP_RESOURCE_TOOL_NAME_CONFLICT')
+    definitions.set(name, {
+      name,
+      description:
+        'Read a resource URI returned by this MCP server (including resource_link results). Pass the exact URI; do not fetch it as an HTTP URL. / 读取本 MCP 服务返回的资源链接正文，传入完整 URI。',
+      parameters: { type: 'object', properties: { uri: { type: 'string', minLength: 1 } }, required: ['uri'], additionalProperties: false },
+      output: createOutput(rawName, undefined),
+      async execute(args, exec) {
+        if (!args || typeof args !== 'object' || !('uri' in args) || typeof args.uri !== 'string' || !args.uri) throw new Error('MCP_RESOURCE_URI_REQUIRED')
+        const response = await client.request({ method: 'resources/read', params: { uri: args.uri } }, ReadResourceResultSchema, {
+          signal: exec.signal,
+          timeout: opts.toolCallTimeoutMs
+        })
+        return { content: response.contents.map(resource => ({ type: 'resource', resource })) }
+      }
+    })
+  }
+
   // Phase 2: swap generations.
   for (const dispose of previous.values()) dispose()
   const disposers: ToolDisposers = new Map()
@@ -237,6 +258,7 @@ interface McpContentBlock {
   data?: string
   name?: string
   uri?: string
+  resource?: { text?: string; blob?: string; uri?: string }
 }
 
 /** Async rich projection staged for one exact ToolRuntime execution. */
@@ -573,7 +595,9 @@ function projectContent(
         text.push(`[audio result unsupported: ${block.mimeType ?? 'unknown media type'}; raw audio data remains available to programmatic callers]`)
         break
       case 'resource':
-        text.push('[embedded resource unsupported; raw resource data remains available to programmatic callers]')
+        text.push(
+          typeof block.resource?.text === 'string' ? block.resource.text : '[binary resource: no text content; raw resource data remains available to programmatic callers]'
+        )
         break
       default:
         text.push(`[unsupported MCP content type: ${block.type}]`)
