@@ -9,6 +9,100 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 <!-- The 0.5.0 section will be created by the first release-please PR, -->
 <!-- covering all commits after the v0.4.5 bootstrap-sha. -->
 
+## [0.6.2](https://github.com/CleverC2200/dsh-agent-manage/compare/dsh-agent-manage-v0.6.2...dsh-agent-manage-v0.6.2) (2026-09-15)
+
+
+### Features
+
+* add MCP status surface and shared catalog toolbar ([4930e73](https://github.com/CleverC2200/dsh-agent-manage/commit/4930e7375cc73784879e9a0f1a28772651fbdae3))
+* **api:** source kind/sha256 on add/update and the adopt route ([c04f079](https://github.com/CleverC2200/dsh-agent-manage/commit/c04f07979bd44eeced9da26815af8a6df3e1dba0))
+* **catalog:** discover inline lspServers declarations with fail-closed validation ([baf1708](https://github.com/CleverC2200/dsh-agent-manage/commit/baf1708a6d84216bb40aaac50f382b96a3a92d45))
+* **catalog:** one layout registry behind unified dialect precedence ([f989b55](https://github.com/CleverC2200/dsh-agent-manage/commit/f989b55a4b1bfd19e5e2411b48db8b5ee477bd6d))
+* **catalog:** per-dialect schema fixtures and a compatibility report ([769c87b](https://github.com/CleverC2200/dsh-agent-manage/commit/769c87b1e0c13b25fad3f1c80460a7ea5544b496))
+* **direct:** user-configured LSP servers alongside suite declarations ([ac43606](https://github.com/CleverC2200/dsh-agent-manage/commit/ac43606d389eea46a9c30852194358e5c2144a9a))
+* discover native project layouts (.claude/.agents) in place with project-first skill dedup ([7348a30](https://github.com/CleverC2200/dsh-agent-manage/commit/7348a30c7c7187d7f6f2818fa3dd801d02f4ce1d))
+* graphical MCP override layer over source-owned mcp.json ([01480f9](https://github.com/CleverC2200/dsh-agent-manage/commit/01480f9b59d868ffe564d2f6ce4978839590519b))
+* **lsp-status:** aggregated status surface and structured suite detail ([01e9bb9](https://github.com/CleverC2200/dsh-agent-manage/commit/01e9bb9f8088b557928d2a303145489d94d03b7a))
+* **market:** adopt flow, source editor kinds, and download-region control ([9d38064](https://github.com/CleverC2200/dsh-agent-manage/commit/9d3806494e0e171439801ec29c093dbdeac13e91))
+* **market:** fold the equal-width source strip in place ([3f7dbf5](https://github.com/CleverC2200/dsh-agent-manage/commit/3f7dbf5bd3e61d26146c74acf2df53be8d8c5fc0))
+* **market:** fold the source strip, unify panel chrome, and refresh docs ([271e336](https://github.com/CleverC2200/dsh-agent-manage/commit/271e336b64f9f0de2721b390d16dc8819918e9ad))
+* **market:** wire the LSP surface into catalog, reconciler, and host entry ([9e45f3c](https://github.com/CleverC2200/dsh-agent-manage/commit/9e45f3c864567a45ca3b8de97515874dea3a5d8e))
+* **mcp:** backend switch on the plugin settings page (built-in bridge vs host dsh-mcp-client) ([7db693c](https://github.com/CleverC2200/dsh-agent-manage/commit/7db693c41066224b76ac7dba8a1b4350e3f08852))
+* **mcp:** credential-aware MCP configuration base shared by the LSP panel ([eed5c85](https://github.com/CleverC2200/dsh-agent-manage/commit/eed5c8514b5009c7ef263f521ab8f44d09d15c3a))
+* **mcp:** move the backend switch to the host plugin-config tab as an enhancement toggle ([62af1cf](https://github.com/CleverC2200/dsh-agent-manage/commit/62af1cfe47dd8d3ef15b7c8db958ef01d9aad5ad))
+* **mcp:** name the matching tools in the foreign-namespace skip diagnostic ([9d11112](https://github.com/CleverC2200/dsh-agent-manage/commit/9d11112cab49ebd0eca1554f895e26176417d798))
+* **mcp:** name the plugin-config card after the market and disclose the enhancement switch ([0393e9b](https://github.com/CleverC2200/dsh-agent-manage/commit/0393e9b497ff862ed1fc9db7066b4926959d6d3e))
+* **mcp:** re-authorize action drops a grant to widen a chosen scope ([77053de](https://github.com/CleverC2200/dsh-agent-manage/commit/77053de8cd5a0afd85d28557eb8c43f410275e73))
+* **mcp:** self-built MCP client bridge with OAuth; drop the host dsh-mcp-client runtime dependency ([bc4b653](https://github.com/CleverC2200/dsh-agent-manage/commit/bc4b653a6cedd0fc1a4ce0c7924ea212014e6c3f))
+* **mcp:** separate reconnect from OAuth reset in the service detail dialog ([404c595](https://github.com/CleverC2200/dsh-agent-manage/commit/404c595449485998dc3374e91acedbb9f11ef2ae))
+* **mcp:** simplify the plugin-config card copy and follow the region on refresh ([24713be](https://github.com/CleverC2200/dsh-agent-manage/commit/24713be4263d382473daa36447d5090e6d4f0e2c))
+* **mcp:** skip mounting into a foreign mcp__ namespace with a clear diagnostic ([7735ae6](https://github.com/CleverC2200/dsh-agent-manage/commit/7735ae60415cb020945e482341780157ea65d107))
+* **mcp:** surface a foreign mount as an informational state, not a red failure ([79f557a](https://github.com/CleverC2200/dsh-agent-manage/commit/79f557a8dbfcf51abdb43e9364ec5258e2291cac))
+* **panel:** LSP status panel mirroring the MCP panel's visual system ([5b8fbb3](https://github.com/CleverC2200/dsh-agent-manage/commit/5b8fbb3100ddd2a60935fdf5b7db1f1e249e0dc6))
+* per-surface enable toggles for installed suites ([df63243](https://github.com/CleverC2200/dsh-agent-manage/commit/df632433cdde3572557d33fc1c3387c31c16c5f6))
+* **personas:** subagent catalog and project agent roles ([4c7c05b](https://github.com/CleverC2200/dsh-agent-manage/commit/4c7c05b6276766b3970f7a1eba4de3d588fd82c1))
+* **release:** accept an explicit version input alongside automatic versioning ([24e329f](https://github.com/CleverC2200/dsh-agent-manage/commit/24e329f117f77a4852f4cea44dbe53e778a3b13c))
+* **release:** explicit version input for release-please ([211d458](https://github.com/CleverC2200/dsh-agent-manage/commit/211d4587ff0776947de256d186cf9bdb9d6cc563))
+* resolve host-side injected copy from the harness locale preference ([35b843f](https://github.com/CleverC2200/dsh-agent-manage/commit/35b843f9c0c99c7dd170e365cbe431282528ec0e))
+* **resources:** release company archives and region-selection fixes ([51eeb81](https://github.com/CleverC2200/dsh-agent-manage/commit/51eeb81430b1559508f05570fbe411df5aa69778))
+* **resources:** release private archives and download-region selection fixes ([d03e10a](https://github.com/CleverC2200/dsh-agent-manage/commit/d03e10a4f2d69fcbd0afa7800985f33816a45ce7))
+* **runtime:** mount enabled suites' LSP servers as dsh-lsp-stdio instances ([d790efc](https://github.com/CleverC2200/dsh-agent-manage/commit/d790efca7026375e61c4c45447a509cb3ddb5a8d))
+* **runtime:** wire panels and layouts through the runtime seams ([dc03b46](https://github.com/CleverC2200/dsh-agent-manage/commit/dc03b46f41c65229ddbe499a5f0c5fabf8c11e90))
+* **settings:** market settings namespace with the download-region field ([c5fdbe4](https://github.com/CleverC2200/dsh-agent-manage/commit/c5fdbe444129e49ac387b6f957cfd29de619e541))
+* **source:** acquisition kinds, git acceleration, and download regions ([680029c](https://github.com/CleverC2200/dsh-agent-manage/commit/680029c74f93fdae15d88a18fe41013de107c35e))
+* workspace panels, layout registry, and MCP detail action split (0.6.2) ([f355d7c](https://github.com/CleverC2200/dsh-agent-manage/commit/f355d7c5933d495e41299ffde19744f100aed224))
+* **workspace:** one tabbed workspace with user panels and personas ([ad924ec](https://github.com/CleverC2200/dsh-agent-manage/commit/ad924ece3abacc768dab376d5593359bdb8e02c5))
+* **workspace:** user panels with direct MCP/LSP server editing ([f2d26da](https://github.com/CleverC2200/dsh-agent-manage/commit/f2d26da05644e22026d57ad457a6e638336d2d9c))
+
+
+### Bug Fixes
+
+* align DSH dependencies to rc.8 and repair CI ([1e4e634](https://github.com/CleverC2200/dsh-agent-manage/commit/1e4e634f8396572c71ecb85d50f9d0d8e589a545))
+* **archive:** drain validated entries without unbounded file writes ([e713ada](https://github.com/CleverC2200/dsh-agent-manage/commit/e713ada89ba2926b5524bd8e99d65ece7128ead3))
+* **archive:** readlink-based symlink containment and extraction bomb limits ([6ce0561](https://github.com/CleverC2200/dsh-agent-manage/commit/6ce0561b36edbf3adb532638c7c46799b110d2be))
+* **archive:** restore Windows source synchronization ([cda74ae](https://github.com/CleverC2200/dsh-agent-manage/commit/cda74ae292e1f2a19a088dc5798bc525f8864d21))
+* **archive:** support Windows source refresh in company.4 ([8e33b74](https://github.com/CleverC2200/dsh-agent-manage/commit/8e33b74bccc581a37aee96c42f67a647d453ac03))
+* **catalog:** expire the user snapshot so out-of-band edits become visible ([98fce0a](https://github.com/CleverC2200/dsh-agent-manage/commit/98fce0a0f4dec626acf5e51f08e5ba6b791d9976))
+* **client:** adapt to the host remote.credentials service ([8b48cdb](https://github.com/CleverC2200/dsh-agent-manage/commit/8b48cdbd9ac92db0c0ff016a487b1ef2d86c0000))
+* inject project-dimension agents as agent-* skills ([f7bff1f](https://github.com/CleverC2200/dsh-agent-manage/commit/f7bff1f4a030812eb045459909e6cba75823a157))
+* **lsp-status:** report a starting state while the mount pass is in flight ([e06ad14](https://github.com/CleverC2200/dsh-agent-manage/commit/e06ad147646c148114db8ed519f4f6e2adb89431))
+* **lsp:** key unmount diagnostics and live mounts by the qualified suite id ([b5229e0](https://github.com/CleverC2200/dsh-agent-manage/commit/b5229e08fd90cf2ddb4bfe26236e70943875c393))
+* **market:** confirm injected surfaces before install; prove process teardown on disable/uninstall ([1509f67](https://github.com/CleverC2200/dsh-agent-manage/commit/1509f6708d6e9beaffa54b84502d323c8f042584))
+* **market:** serialize MCP teardown and align install confirmation copy ([cd9effe](https://github.com/CleverC2200/dsh-agent-manage/commit/cd9effea72bc61f9e6ef64c350ecd55750b9436d))
+* **market:** show locked source commit in the install confirmation dialog ([9d77a00](https://github.com/CleverC2200/dsh-agent-manage/commit/9d77a008e4616d08418fb3075353e33124ef2042))
+* **mcp:** align override note, connect label, and migration destination ([c407451](https://github.com/CleverC2200/dsh-agent-manage/commit/c4074516aad5d624ed2a72592d0041e3b1225af5))
+* **mcp:** align the plugin-config card with the host PluginCard chrome ([d00cf28](https://github.com/CleverC2200/dsh-agent-manage/commit/d00cf28f12c4077a6769849403c3b0aecbc33498))
+* **mcp:** derive serverNames from the identity, not a source-name prefix ([00573bb](https://github.com/CleverC2200/dsh-agent-manage/commit/00573bb58351df37b7733b9346a902f021a73b27))
+* **mcp:** expose same-server resource reads and text content ([732a0b4](https://github.com/CleverC2200/dsh-agent-manage/commit/732a0b45217b828d1639a0f6d3b0745b79fd7960))
+* **mcp:** qualify mount diagnostics and attribute status rows to their source ([85ba99e](https://github.com/CleverC2200/dsh-agent-manage/commit/85ba99e5ae144d1e7c48037506ab008e1060dd8d))
+* **mcp:** register the plugin-config card's settings namespace so the tab serves it ([f40f8f1](https://github.com/CleverC2200/dsh-agent-manage/commit/f40f8f19a0db3a089a6381e9503220230edc75c0))
+* **mcp:** release company login integration for desktop ([5f4d1f5](https://github.com/CleverC2200/dsh-agent-manage/commit/5f4d1f59d8ecb4741e2e4d20676eca018e148dcd))
+* **mcp:** resolve the credentials store lazily for re-authorize ([565f07d](https://github.com/CleverC2200/dsh-agent-manage/commit/565f07daaae8af330f52de1961ece6fb2d385039))
+* **mcp:** reuse the shared ToggleSwitch in the plugin-config card ([1b13d01](https://github.com/CleverC2200/dsh-agent-manage/commit/1b13d01de22c7ce14407b4d23359f38c2fda6e04))
+* **mcp:** ride the primary button fill for the switch ON track ([375e34c](https://github.com/CleverC2200/dsh-agent-manage/commit/375e34c56afa378cc2b3067b8441fc59fd45130f))
+* **mcp:** show the owning suite id in the detail dialog, not on the card ([dc0a9fa](https://github.com/CleverC2200/dsh-agent-manage/commit/dc0a9fa10499e0722b212ab49701c290e4f53c70))
+* **mcp:** two-layer serverNames with a duplicate-mount skip, not name mangling ([3915b37](https://github.com/CleverC2200/dsh-agent-manage/commit/3915b370c802e5abfb8f5af6745bfa84f43e4d34))
+* **packaging:** align fork identity with dsh-agent-manage ([#1](https://github.com/CleverC2200/dsh-agent-manage/issues/1)) ([3bd9c4a](https://github.com/CleverC2200/dsh-agent-manage/commit/3bd9c4a5fbceed4cffaa6d65e4788a98ffc311f6))
+* **release:** make the release-PR reset step repo-explicit ([7d2176f](https://github.com/CleverC2200/dsh-agent-manage/commit/7d2176fee1d911c6f980f0c98cdb8c10369f7b63))
+* **release:** make the reset step repo-explicit ([87d1135](https://github.com/CleverC2200/dsh-agent-manage/commit/87d1135e768d5080de5a4191d952d2c1a931316e))
+* **release:** reset the open release PR when a version is forced ([9cd311a](https://github.com/CleverC2200/dsh-agent-manage/commit/9cd311a233ae53a272bcf28ccfe452dda7b0384e))
+* **release:** reset the open release PR when a version is forced ([207083e](https://github.com/CleverC2200/dsh-agent-manage/commit/207083ec240f431d4687d496cacc08f450cd6424))
+* **runtime:** reconcile runtime surfaces concurrently ([d959326](https://github.com/CleverC2200/dsh-agent-manage/commit/d9593261bcbf7e22279bd78f04d29a3200c1b886))
+* **runtime:** remove redundant agent_plugins tool ([f0e9fdf](https://github.com/CleverC2200/dsh-agent-manage/commit/f0e9fdf066c11c60c94ff996d5897106855fe1c7))
+* **runtime:** scope suite identity by source across mounts, overrides, and data ([0326afe](https://github.com/CleverC2200/dsh-agent-manage/commit/0326afe01c76bc893bd30c72b119ef1cc7d9ce8e))
+* **runtime:** source-qualify every suite-keyed surface — identity, status, overrides, data ([32811fd](https://github.com/CleverC2200/dsh-agent-manage/commit/32811fd5254f2378d8a2a4a7914cd8926b02dae6))
+* **scan:** resolve declared skills paths and require real containment ([b559b08](https://github.com/CleverC2200/dsh-agent-manage/commit/b559b082adb76264259b6f56128491103c4f36f3))
+
+
+### Performance Improvements
+
+* **catalog:** scan only sources with an enabled install ([86c81c3](https://github.com/CleverC2200/dsh-agent-manage/commit/86c81c332b16e8351e05cb0b098a6914f929a194))
+
+
+### Miscellaneous Chores
+
+* **release:** pin this release to 0.6.2 ([0f22966](https://github.com/CleverC2200/dsh-agent-manage/commit/0f229664495dbd8007bf187ebb531e9114a9dbf0))
+
 ## [0.6.2](https://github.com/Sivan757/dsh-agent-plugins-market/compare/dsh-agent-plugins-market-v0.6.1...dsh-agent-plugins-market-v0.6.2) (2026-09-10)
 
 
