@@ -102,7 +102,11 @@ function mountProjectSurface(
   create: (scope: Context, agent: ProjectAgent) => ProjectRegistry,
   withoutProject = false
 ): { refresh(): Promise<void>; dispose(): Promise<void> } {
-  const host = ctx as unknown as { agents: { list(): ProjectAgent[] } }
+  // The legacy event remains runtime-compatible but is absent from DSH 0.1.6 declarations.
+  const host = ctx as unknown as {
+    agents: { list(): ProjectAgent[] }
+    on(event: 'agent/session-start', listener: (payload: { agent: ProjectAgent }) => Promise<void>): () => void
+  }
   const mounts = new Map<ProjectAgent, AgentMount>()
   let disposed = false
   const warn = (error: unknown): void => ctx.logger?.warn(`[dsh-agent-plugins-market] project ${service}: ${String(error)}`)
@@ -141,11 +145,14 @@ function mountProjectSurface(
     mounts.delete(agent)
     await mount?.fiber.dispose()
   }
-  const unwatchCreated = ctx.on('agent/created', ({ agent }) => attach(agent as unknown as ProjectAgent))
+  const unwatchCreated = ctx.on('agent/created', async ({ agent }) => {
+    attach(agent as unknown as ProjectAgent)
+    await mounts.get(agent as unknown as ProjectAgent)?.refresh()
+  })
   const unwatchDisposed = ctx.on('agent/disposed', ({ agent }) => {
     void detach(agent as unknown as ProjectAgent).catch(warn)
   })
-  const unwatchStart = ctx.on('agent/session-start', async ({ agent }) => {
+  const unwatchStart = host.on('agent/session-start', async ({ agent }) => {
     attach(agent as unknown as ProjectAgent)
     await mounts.get(agent as unknown as ProjectAgent)?.refresh()
   })
