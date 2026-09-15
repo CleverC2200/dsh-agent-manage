@@ -133,6 +133,10 @@ describe('archive acquisition', () => {
     expect(await readFile(join(dest, 'manifest.json'), 'utf8')).toContain('fixture')
     expect(await readFile(join(dest, 'skills', 'demo', 'SKILL.md'), 'utf8')).toContain('demo skill')
     expect(await stat(join(dest, 'wrapper')).catch(() => undefined)).toBeUndefined()
+    await writeFile(join(dest, 'stale.txt'), 'previous checkout')
+    await archiveInstall(`${baseUrl}/fixture.zip`, dest, { allowHttp: true, sha256 })
+    expect(await readFile(join(dest, 'skills', 'demo', 'SKILL.md'), 'utf8')).toContain('demo skill')
+    expect(await stat(join(dest, 'stale.txt')).catch(() => undefined)).toBeUndefined()
     await rm(dest, { recursive: true, force: true })
   })
 

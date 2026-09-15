@@ -16,7 +16,7 @@
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { mkdir, open, readdir, readFile, readlink, rename, rm, stat } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { Unzip, UnzipInflate, type FlateError } from 'fflate'
 
@@ -193,7 +193,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
   }
   const unzip = new Unzip()
   unzip.register(UnzipInflate)
-  const writes: Array<Promise<void>> = []
+  const entries: Array<{ target: string; chunks: Buffer[] }> = []
   unzip.onfile = file => {
     if (failure !== undefined) return
     entryCount += 1
@@ -210,7 +210,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
       return
     }
     const target = join(dest, normalized)
-    if (target !== dest && !target.startsWith(`${dest}/`)) {
+    if (target !== dest && !target.startsWith(`${dest}${sep}`)) {
       fail(new Error(`zip entry escapes the extraction root: ${file.name}`))
       return
     }
@@ -232,7 +232,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
         return
       }
       chunks.push(Buffer.from(data))
-      if (final) writes.push(writeZipEntry(target, chunks))
+      if (final) entries.push({ target, chunks })
     }
     file.start()
   }
@@ -243,7 +243,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
     unzip.push(view.subarray(offset, Math.min(offset + slice, view.length)), offset + slice >= view.length)
   }
   if (failure !== undefined) throw failure
-  await Promise.all(writes)
+  for (const { target, chunks } of entries) await writeZipEntry(target, chunks)
 }
 
 /** Write one buffered zip entry to disk after its data completed inflating. */
@@ -337,7 +337,7 @@ async function assertNoEscapingSymlinks(root: string): Promise<void> {
         // bogus in-root path and the escape survives extraction.
         const target = await readlink(path, 'utf8').catch(() => '')
         const resolved = resolve(dir, target)
-        if (resolved !== root && !resolved.startsWith(`${root}/`)) {
+        if (resolved !== root && !resolved.startsWith(`${root}${sep}`)) {
           throw new Error(`archive contains a symlink escaping the extraction root: ${entry.name} -> ${target}`)
         }
         continue
