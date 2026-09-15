@@ -75,7 +75,7 @@ export function McpPluginCard({ t, scope, probe }: McpPluginCardProps): ReactNod
   const regionSetting = scope.region()
   // The highlighted segment is the route clones actually take: the explicit
   // choice, or the language-resolved one while the setting is still auto.
-  const effectiveRegion = probeInfo?.downloadRegion.effective ?? (regionSetting === 'china' ? 'china' : 'global')
+  const effectiveRegion = regionSetting === 'auto' ? (probeInfo?.downloadRegion.effective ?? 'global') : regionSetting
   // Compat mode requires the host client to resolve; the enhanced (built-in)
   // client is always available because it ships inside this plugin.
   const hostUsable = probeInfo?.hostClient.available === true
@@ -165,6 +165,7 @@ export function McpPluginCard({ t, scope, probe }: McpPluginCardProps): ReactNod
                     type: 'button',
                     disabled: busy || !writable,
                     className: effectiveRegion === region ? css.regionSegOn : css.regionSegBtn,
+                    'aria-pressed': effectiveRegion === region,
                     onClick: () => {
                       if (regionSetting === region) return
                       setBusy(true)

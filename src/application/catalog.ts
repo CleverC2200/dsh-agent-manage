@@ -1107,6 +1107,7 @@ export class Catalog {
     await mkdir(sourcesDir(this.options.userRoot), { recursive: true })
     if (kind === 'archive') {
       const { sha256 } = await archiveInstall(source.url, checkout, {
+        ...(process.env['DSH_AGENT_MANAGE_GITHUB_TOKEN'] === undefined ? {} : { githubToken: process.env['DSH_AGENT_MANAGE_GITHUB_TOKEN'] }),
         ...(source.sha256 === undefined ? {} : { sha256: source.sha256 }),
         ...(this.options.git?.timeoutMs === undefined ? {} : { timeoutMs: this.options.git.timeoutMs }),
         ...(this.options.git?.allowHttpArchives === true ? { allowHttp: true } : {})

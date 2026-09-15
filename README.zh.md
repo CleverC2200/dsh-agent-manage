@@ -211,3 +211,7 @@ MCP 读取根 `.mcp.json`、`.cursor/mcp.json`，以及 `.qoder/settings.json`�
 GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需求预测入口）。可在 Consumer 字段旁通过 `geaMcp.agentPreset` 指定其他本地预设；服务端 Consumer 授权与本地预设限制是两个独立边界。其他预设及不携带 Agent 的调用均被拒绝；登录刷新、已有和新建 Agent、空会话切换预设均维持此限制。继承相同预设的子 Agent 同样拥有访问权。宿主 MCP 状态页仍保留连接信息用于诊断。宿主缺少 `agents` 或 `agentPresets` 服务时不挂载此集成。
 
 声明 resources 能力的 MCP 服务会提供带服务名前缀的 `dsh_read_resource` 工具。传入该服务返回的完整资源 URI，通过原连接、授权、取消信号和超时读取。文本资源写入工具结果及会话记录；二进制资源明确显示为非文本结果。不会将资源 URI 当作任意 HTTP 地址下载。
+
+私有 GitHub 套件可使用显式 archive 来源，例如 `https://api.github.com/repos/OWNER/REPO/zipball/REF`。桌面管理员在启动环境提供 `DSH_AGENT_MANAGE_GITHUB_TOKEN`，授权只发送给首次 HTTPS GitHub API 请求，不发送到重定向目标，也不写入来源配置。下载失败保留已安装内容。
+
+下载区域选择立即反映显式选择；自动模式跟随探测结果。

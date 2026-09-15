@@ -38,6 +38,8 @@ export const DEFAULT_ARCHIVE_TIMEOUT_MS = 180_000
 
 /** Options for one archive acquisition. */
 export interface ArchiveOptions {
+  /** Caller-owned GitHub API credential; never persisted or sent to redirects. */
+  githubToken?: string
   /** Required SHA-256 hex digest of the payload; mismatch rejects the install. */
   sha256?: string
   /** Download timeout; defaults to 180s. */
@@ -64,6 +66,7 @@ export type ArchiveFormat = 'zip' | 'tar' | 'targz'
 /** Classify an archive URL by extension; undefined when unsupported. */
 export function archiveFormatOf(url: string): ArchiveFormat | undefined {
   const clean = url.trim().toLowerCase()
+  if (/^https:\/\/api\.github\.com\/repos\/[^/]+\/[^/]+\/zipball\/[^?#]+$/.test(clean)) return 'zip'
   if (clean.endsWith('.zip')) return 'zip'
   if (clean.endsWith('.tar.gz') || clean.endsWith('.tgz')) return 'targz'
   if (clean.endsWith('.tar')) return 'tar'
@@ -77,7 +80,30 @@ export async function downloadArchive(url: string, tempFile: string, options: Ar
     throw new Error(`archive source requires an https:// URL: ${trimmed}`)
   }
   const timeoutMs = options.timeoutMs ?? DEFAULT_ARCHIVE_TIMEOUT_MS
-  const response = await fetch(trimmed, { signal: AbortSignal.timeout(timeoutMs), redirect: 'follow' })
+  const initial = new URL(trimmed)
+  if (initial.username || initial.password) throw new Error('archive URL cannot contain credentials')
+  let target = initial
+  let response: Response | undefined
+  const signal = AbortSignal.timeout(timeoutMs)
+  for (let redirects = 0; redirects < 5; redirects++) {
+    response = await fetch(target, {
+      signal,
+      redirect: 'manual',
+      headers:
+        redirects === 0 && initial.origin === 'https://api.github.com' && options.githubToken !== undefined
+          ? { Authorization: `Bearer ${options.githubToken}`, Accept: 'application/vnd.github+json' }
+          : {}
+    })
+    if (![301, 302, 303, 307, 308].includes(response.status)) break
+    const location = response.headers.get('location')
+    if (location === null) throw new Error('archive redirect is missing a location')
+    target = new URL(location, target)
+    if ((target.protocol !== 'https:' && !(options.allowHttp === true && target.protocol === 'http:')) || target.username || target.password)
+      throw new Error('archive redirect rejected')
+    await response.body?.cancel()
+    response = undefined
+  }
+  if (response === undefined) throw new Error('archive redirect limit exceeded')
   if (!response.ok) throw new Error(`archive download failed: HTTP ${response.status} for ${trimmed}`)
   const declared = Number(response.headers.get('content-length') ?? '0')
   if (Number.isFinite(declared) && declared > ARCHIVE_MAX_BYTES) {
