@@ -441,3 +441,24 @@ describe('bridge apply', () => {
     await expect(apply(ctx, { ...httpConfig(), serverName: 'not valid!' } as Config)).rejects.toThrow(/serverName/)
   })
 })
+
+describe('MCP resources', () => {
+  it('offers a same-server reader and returns embedded text to the model', async () => {
+    const host = createFakeHost()
+    const client = { ...createMockClient([]), getServerCapabilities: () => ({ resources: {} }) }
+    client.request.mockImplementation(async request =>
+      request.method === 'tools/list' ? { tools: [] } : { contents: [{ uri: 'data-artifact://gateway/result', mimeType: 'application/json', text: '{"rows":[1]}' }] }
+    )
+    const disposers = await syncTools(client as never, host, defaultOpts, new Map())
+    const reader = host.registered.get('mcp__srv__dsh_read_resource')
+    expect(reader).toBeDefined()
+    const result = await reader!.execute({ uri: 'data-artifact://gateway/result' }, { signal: testToolSignal })
+    expect(reader!.output.render({}, result as never)).toEqual([{ type: 'text', text: '{"rows":[1]}' }])
+    expect(client.request).toHaveBeenLastCalledWith({ method: 'resources/read', params: { uri: 'data-artifact://gateway/result' } }, expect.anything(), {
+      signal: testToolSignal,
+      timeout: 60000
+    })
+    for (const dispose of disposers.values()) dispose()
+    expect(host.registered.size).toBe(0)
+  })
+})

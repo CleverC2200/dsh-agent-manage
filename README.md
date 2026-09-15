@@ -211,3 +211,15 @@ Only when you tick **also delete the managed market directory** in the confirmat
 - [Domain glossary](CONTEXT.md) · [Architecture](docs/adr/0001-catalog-centered-modular-refactor.md).
 
 See [agent roles and storage](docs/guides/agent-roles.md) for installed-resource editing, model routing and migration.
+
+Switch the download region under Settings → Plugins → Plugin configuration → Agent Plugins Market. A saved manual choice updates the selected segment immediately; a failed write displays an error and retains the previous choice.
+
+When the GEA plugin is loaded, GEA login automatically discovers its authorized MCP tools. See [GEA login and MCP](docs/guides/gea-mcp.md) for Consumer selection, lifecycle and verification boundaries.
+
+GEA MCP calls and model-visible tools are restricted to the local DSH `gea-readonly` preset (the demand forecast entry). Set `geaMcp.agentPreset` alongside the Consumer fields to choose another local preset. Consumer authorization and local preset selection are separate boundaries. Other presets and calls without an Agent are denied; login refreshes, live agents, new agents and empty-session preset switches retain this boundary. Agents inheriting the same preset also inherit access. The host MCP status remains visible for diagnostics. Hosts without `agents` or `agentPresets` do not mount this integration.
+
+MCP servers advertising resources also expose `dsh_read_resource` under their server prefix. Pass the exact resource URI returned by that server; reads use the same connection, authorization, cancellation and timeout. Text resources enter the recorded tool result; binary resources remain explicit non-text results. Resources are not fetched as arbitrary HTTP URLs.
+
+Private GitHub suites can use an explicit archive source such as `https://api.github.com/repos/OWNER/REPO/zipball/REF`. The desktop administrator supplies `DSH_AGENT_MANAGE_GITHUB_TOKEN` in the launch environment. Authorization is sent only to the initial HTTPS GitHub API request, never to redirect destinations; it is not stored in source settings. Download failures preserve installed content.
+
+The download-region selector immediately reflects an explicit choice; automatic mode follows the detected region.

@@ -51,3 +51,10 @@ it('shows close but no connection actions for external servers', async () => {
   expect(button('mcpRetryConnection')).toBeUndefined()
   expect(button('mcpReauthorize')).toBeUndefined()
 })
+
+it('does not request configuration for an observed unowned MCP connection', async () => {
+  await mount({ ...base, kind: 'direct', state: 'connected', transport: 'observed', canReauthorize: false })
+  expect(button('edit-config')).toBeUndefined()
+  expect(document.body.textContent).not.toContain('mcpConfig')
+  expect(document.body.textContent).toContain('mcpDirectBoundary')
+})
