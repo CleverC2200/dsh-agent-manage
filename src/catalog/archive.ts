@@ -193,7 +193,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
   }
   const unzip = new Unzip()
   unzip.register(UnzipInflate)
-  const writes: Array<Promise<void>> = []
+  const entries: Array<{ target: string; chunks: Buffer[] }> = []
   unzip.onfile = file => {
     if (failure !== undefined) return
     entryCount += 1
@@ -232,7 +232,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
         return
       }
       chunks.push(Buffer.from(data))
-      if (final) writes.push(writeZipEntry(target, chunks))
+      if (final) entries.push({ target, chunks })
     }
     file.start()
   }
@@ -243,7 +243,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
     unzip.push(view.subarray(offset, Math.min(offset + slice, view.length)), offset + slice >= view.length)
   }
   if (failure !== undefined) throw failure
-  await Promise.all(writes)
+  for (const { target, chunks } of entries) await writeZipEntry(target, chunks)
 }
 
 /** Write one buffered zip entry to disk after its data completed inflating. */
