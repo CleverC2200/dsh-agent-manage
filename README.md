@@ -1,5 +1,7 @@
 <img src="docs-site/public/favicon.svg" alt="" width="48" height="48" />
 
+Company build 0.6.3-company.4 fixes ZIP source synchronization on Windows while retaining extraction containment checks.
+
 # dsh-agent-manage
 
 **A plugin marketplace and agent capability workspace for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).**

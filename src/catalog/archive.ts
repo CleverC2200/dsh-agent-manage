@@ -16,7 +16,7 @@
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { mkdir, open, readdir, readFile, readlink, rename, rm, stat } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { Unzip, UnzipInflate, type FlateError } from 'fflate'
 
@@ -210,7 +210,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
       return
     }
     const target = join(dest, normalized)
-    if (target !== dest && !target.startsWith(`${dest}/`)) {
+    if (target !== dest && !target.startsWith(`${dest}${sep}`)) {
       fail(new Error(`zip entry escapes the extraction root: ${file.name}`))
       return
     }
@@ -337,7 +337,7 @@ async function assertNoEscapingSymlinks(root: string): Promise<void> {
         // bogus in-root path and the escape survives extraction.
         const target = await readlink(path, 'utf8').catch(() => '')
         const resolved = resolve(dir, target)
-        if (resolved !== root && !resolved.startsWith(`${root}/`)) {
+        if (resolved !== root && !resolved.startsWith(`${root}${sep}`)) {
           throw new Error(`archive contains a symlink escaping the extraction root: ${entry.name} -> ${target}`)
         }
         continue

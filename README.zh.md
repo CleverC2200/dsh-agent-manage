@@ -1,5 +1,7 @@
 <img src="docs-site/public/favicon.svg" alt="" width="48" height="48" />
 
+公司版 0.6.3-company.4 修复 Windows ZIP 来源同步，保留解压目录越界检查。
+
 # dsh-agent-manage
 
 **[DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness)的插件市场与 Agent 能力管理工作区。**
