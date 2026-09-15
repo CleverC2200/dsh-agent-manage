@@ -78,6 +78,8 @@ export interface StdioConfig extends McpServerPolicy {
 
 /** Config for connecting to an MCP server over Streamable HTTP. */
 export interface StreamableHttpConfig extends McpServerPolicy {
+  /** In-process transport capability; never read from or persisted to suite configuration. */
+  fetch?: typeof fetch
   /** Selects Streamable HTTP transport. */
   transport: 'streamable-http'
   /** Stable local namespace — see {@link StdioConfig.serverName}. */

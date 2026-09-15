@@ -140,3 +140,5 @@ Git 获取通过 `execFile` 执行，不经过 shell；刷新使用 shallow fetc
 一个来源可以包含多种布局方言。套件清单与 Marketplace 目录索引遵循[同一布局优先级](../../README.zh.md#布局识别优先级)。清单选择第一个存在的文件，无效时给出诊断，不会尝试低优先级清单。索引扫描采用第一个能产出套件的索引，并按支持的规则补充发现；无效或空索引允许继续尝试后续候选。根 `marketplace.json` 是最后的共享回退。远程引用卡片不能直接安装，需要先添加对应仓库为来源。
 
 `schemas/1.0.0/` 的 schema 内置自 [agent-plugins-spec](https://github.com/agentplugins/agent-plugins-spec)，校验时不在线下载。领域用语和开发检查见[领域词汇](../../CONTEXT.md)与[贡献指南](../../CONTRIBUTING.md)。
+
+下载区域手动选择以宿主保存的设置为准，成功后无需关闭重开设置；失败时显示错误并保留原选择。仅自动模式使用语言解析后的线路查询结果。
