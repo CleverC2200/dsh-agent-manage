@@ -109,6 +109,60 @@ describe('project command lifecycle', () => {
     expect(listeners.size).toBe(0)
   })
 
+  it.each(['agent/created', 'agent/session-start'])('waits for project commands through %s before releasing initialization', async event => {
+    const current = agent(await project('Delayed initialization'))
+    const userRoot = await project('User directory')
+    const catalog = new Catalog({ userRoot, dataRoot: join(userRoot, 'data'), onChanged: () => {} })
+    await catalog.load()
+    const snapshot = await catalog.readProjectCatalog(current.session.header.cwd)
+    let release!: () => void
+    let entered!: () => void
+    const pending = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const reading = new Promise<void>(resolve => {
+      entered = resolve
+    })
+    const delayedCatalog = {
+      readProjectCatalog: async () => {
+        entered()
+        await pending
+        return snapshot
+      }
+    }
+    const listeners = new Map<string, (payload: { agent: unknown }) => unknown>()
+    const context = {
+      agents: { list: () => [] },
+      on: (name: string, listener: (payload: { agent: unknown }) => unknown) => {
+        listeners.set(name, listener)
+        return () => {
+          listeners.delete(name)
+        }
+      },
+      logger: { warn: () => {} }
+    }
+    const mounted = mountProjectCommands(context as unknown as Context, delayedCatalog as unknown as Catalog, bindHostLocale(undefined))
+    let initialized = false
+    const initialization = Promise.resolve(listeners.get(event)!({ agent: current })).then(() => {
+      initialized = true
+    })
+    try {
+      await reading
+      await Promise.resolve()
+      expect(initialized).toBe(false)
+      expect(current.definitions.size).toBe(0)
+      release()
+      await initialization
+      expect(current.definitions.has('review')).toBe(true)
+    } finally {
+      release()
+      await initialization
+      await mounted.dispose()
+    }
+    expect(current.definitions.size).toBe(0)
+    expect(listeners.size).toBe(0)
+  })
+
   it('does not resurrect a disposed agent while its catalog read is in flight', async () => {
     const current = agent(await project('Pending project'))
     let release!: () => void

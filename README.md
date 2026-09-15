@@ -23,6 +23,8 @@ English | [简体中文](README.zh.md) | [Documentation](https://github.com/Clev
 - **Keep project resources in place.** Project `.claude/` and `.agents/` skills and agents are discovered without an installation step or file copying.
 - **Manage services where you use them.** Add your own MCP services and LSP servers, configure credentials and authorization for installed ones, inspect status, and diagnose unavailable services from one workspace.
 
+DSH 0.1.6 waits for project commands and suite instructions through asynchronous `agent/created`; the legacy `agent/session-start` listener remains for 0.1.5 hosts. Initialization completes before the first model request.
+
 ## Quick start
 
 This fork uses the package name `dsh-agent-manage`; publication of the new npm package has not been performed or verified here. Use the GitHub source below. When replacing the old package, remove its profile entry before installing this package to avoid duplicate loading. Existing `dsh-agent-plugins-market` settings and data paths remain compatible.

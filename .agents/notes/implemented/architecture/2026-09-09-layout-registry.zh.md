@@ -16,6 +16,8 @@ Status: implemented
 
 注册表、三种新方言、项目角色查找和 Agent 作用域命令/MCP/hooks 生命周期已实现。原生 JSON 和 Codex TOML MCP 明确项目执行根目录。经用户批准的 `smol-toml` 负责解析 TOML；工具过滤与超时传递到桥，不被丢弃。无效清单拒绝回退，marketplace 路径按 realpath 检查归属。[ADR](../../../../docs/adr/2026-09-09-layout-registry.md)记录受支持格式、证据与边界。
 
+两种创建协议均等待同一个作用域刷新。DSH 0.1.6 串行等待 `agent/created`，0.1.5 等待 `agent/session-start`；保留两个监听，不猜测宿主版本即可兼容现有桌面。仅挂载 fiber 不能证明异步目录协调已完成。
+
 ## Alternatives considered
 
 **继续扩展独立分支。** 重复现有维护问题，类型与扫描路径容易不同步。
