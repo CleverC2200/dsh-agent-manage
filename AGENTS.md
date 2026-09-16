@@ -53,3 +53,5 @@ pnpm run build               # tsc emits lib/, tsdown bundles client/
 ## 公司插件发行
 
 涉及公司 DSH 插件发版、GitLab 发行库或桌面更新频道时，使用 `dsh-plugin-release` 技能；它是公司版发布入口，旧 GitHub/npm 流程不自动适用于公司版。普通开发继续遵循本仓库规则。
+
+本仓库只交付 Agent Manage 插件，不构建客户端安装包。资源来源、安装启用、MCP/LSP 和 GEA MCP 接入改动默认只发布插件；在桌面中验证插件不等于重打客户端。需要改变 Electron 壳、启动器、内置运行时、安装或桌面更新协议时，记录兼容要求并转到 `dsh-gea-plugin/desktop/` 处理。
