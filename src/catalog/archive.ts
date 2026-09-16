@@ -1,3 +1,4 @@
+/** 文件作用：安全下载并解压外部插件归档，执行 HTTPS、校验和、大小及路径边界。 */
 /**
  * Archive source acquisition: HTTPS download, SHA-256 verification, and safe
  * extraction of zip / tar.gz / tgz / tar payloads into a source checkout.
@@ -13,6 +14,7 @@
  * `application/catalog.ts`, which is why extraction and layout normalization
  * live here instead of inline in the manager.
  */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { mkdir, open, readdir, readFile, readlink, rename, rm, stat } from 'node:fs/promises'
@@ -23,47 +25,61 @@ import { Unzip, UnzipInflate, type FlateError } from 'fflate'
 const run = promisify(execFile)
 
 /** Hard cap on archive download size (mirrors Claude Code's archive limit). */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const ARCHIVE_MAX_BYTES = 256 * 1024 * 1024
 
 /** Hard cap on the total decompressed bytes one archive may write. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const ARCHIVE_MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
 
 /** Hard cap on the number of files one archive may write. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const ARCHIVE_MAX_ENTRIES = 20_000
 
 /** Hard cap on the decompressed size of a single archive entry. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const ARCHIVE_MAX_ENTRY_BYTES = 128 * 1024 * 1024
 
 export const DEFAULT_ARCHIVE_TIMEOUT_MS = 180_000
 
 /** Options for one archive acquisition. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ArchiveOptions {
   /** Caller-owned GitHub API credential; never persisted or sent to redirects. */
+  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   githubToken?: string
   /** Required SHA-256 hex digest of the payload; mismatch rejects the install. */
+  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   sha256?: string
   /** Download timeout; defaults to 180s. */
+  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   timeoutMs?: number
   /** Allow plain `http://` (intranet mirrors); defaults to HTTPS-only. */
+  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   allowHttp?: boolean
   /**
    * Explicit format for URLs whose extension does not reveal the payload
    * (e.g. a codeload tarball ending in a branch path). Overrides
    * {@link archiveFormatOf}; the caller owns the correctness of the hint.
    */
+  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   format?: ArchiveFormat
 }
 
 /** Result of one successful archive install. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ArchiveInstallResult {
   /** SHA-256 hex digest of the downloaded payload (usable as a lock value). */
+  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   sha256: string
 }
 
 /** Recognized archive payload kinds. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export type ArchiveFormat = 'zip' | 'tar' | 'targz'
 
 /** Classify an archive URL by extension; undefined when unsupported. */
+/** 根据 URL 后缀识别支持的归档格式，未知格式返回 undefined 交给调用方诊断。 */
 export function archiveFormatOf(url: string): ArchiveFormat | undefined {
   const clean = url.trim().toLowerCase()
   if (/^https:\/\/api\.github\.com\/repos\/[^/]+\/[^/]+\/zipball\/[^?#]+$/.test(clean)) return 'zip'
@@ -74,6 +90,7 @@ export function archiveFormatOf(url: string): ArchiveFormat | undefined {
 }
 
 /** Download the payload to a temp file, enforcing the size cap and digest. */
+/** 下载归档并校验 HTTPS、大小和可选 SHA-256，返回实际临时文件路径。 */
 export async function downloadArchive(url: string, tempFile: string, options: ArchiveOptions = {}): Promise<string> {
   const trimmed = url.trim()
   if (options.allowHttp !== true && !trimmed.startsWith('https://')) {
@@ -142,6 +159,7 @@ export async function downloadArchive(url: string, tempFile: string, options: Ar
  * sibling temp directory, normalize a single top-level wrapper directory,
  * then swap into `dest`. Returns the payload digest.
  */
+/** 下载、解包、检查符号链接并归一化单根目录，输出可作为 checkout 的目录。 */
 export async function archiveInstall(url: string, dest: string, options: ArchiveOptions = {}): Promise<ArchiveInstallResult> {
   const format = options.format ?? archiveFormatOf(url)
   if (format === undefined) throw new Error(`unsupported archive format (expected .zip, .tar.gz, .tgz, or .tar): ${url}`)
@@ -183,11 +201,13 @@ export async function archiveInstall(url: string, dest: string, options: Archive
  * within fflate's synchronous push recursion overflows the stack); the
  * chunked feed halts at the next slice.
  */
+/** 解压 ZIP 并逐条限制数量、路径、单项及总展开大小，拒绝 zip-slip。 */
 async function extractZip(archiveFile: string, dest: string): Promise<void> {
   const compressed = await readFile(archiveFile)
   let totalBytes = 0
   let entryCount = 0
   let failure: Error | undefined
+  /** 中文：记录解压过程中的首个失败，供流式回调结束后统一抛出。 */
   const fail = (error: Error): void => {
     failure ??= error
   }
@@ -237,6 +257,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
     file.start()
   }
   // Feed in small slices so the failure flag halts processing promptly.
+  // 中文：分片读取并及时检查失败标记，避免已超限后继续消耗资源。
   const view = new Uint8Array(compressed.buffer, compressed.byteOffset, compressed.byteLength)
   const slice = 64 * 1024
   for (let offset = 0; offset < view.length && failure === undefined; offset += slice) {
@@ -247,6 +268,7 @@ async function extractZip(archiveFile: string, dest: string): Promise<void> {
 }
 
 /** Write one buffered zip entry to disk after its data completed inflating. */
+/** 将 ZIP 条目临时内容写入目标文件并创建父目录。 */
 async function writeZipEntry(target: string, chunks: Buffer[]): Promise<void> {
   await mkdir(resolve(target, '..'), { recursive: true })
   const handle = await open(target, 'w')
@@ -257,6 +279,7 @@ async function writeZipEntry(target: string, chunks: Buffer[]): Promise<void> {
   }
 }
 
+/** 校验归档条目名称不含绝对路径或 `..` 穿越片段。 */
 function assertSafeEntryName(name: string): void {
   if (name.startsWith('/') || name === '..' || name.startsWith('../') || name.includes('/../')) {
     throw new Error(`archive entry escapes the extraction root: ${name}`)
@@ -270,6 +293,7 @@ function assertSafeEntryName(name: string): void {
  * exhaust the disk. The system tar streams to disk, so the cap runs on the
  * output tree rather than on a decompressed in-memory buffer.
  */
+/** 通过 tar 工具解压后执行树边界和大小检查，避免软链接逃逸。 */
 async function extractTar(archiveFile: string, dest: string, format: ArchiveFormat): Promise<void> {
   const args = format === 'targz' ? ['-xzf', archiveFile] : ['-xf', archiveFile]
   args.push('--no-same-owner')
@@ -278,6 +302,7 @@ async function extractTar(archiveFile: string, dest: string, format: ArchiveForm
 }
 
 /** Post-extraction disk bounds shared by tar formats. */
+/** 递归统计解压树条目和字节，执行归档资源上限。 */
 async function assertBoundedTree(root: string): Promise<void> {
   const stack: string[] = [root]
   let entriesSeen = 0
@@ -319,6 +344,7 @@ async function assertBoundedTree(root: string): Promise<void> {
 }
 
 /** Walk the extracted tree and reject any symlink whose target resolves outside `root`. */
+/** 检查解压树中的符号链接最终目标仍在根目录内。 */
 async function assertNoEscapingSymlinks(root: string): Promise<void> {
   const stack = [root]
   while (stack.length > 0) {
@@ -335,6 +361,7 @@ async function assertNoEscapingSymlinks(root: string): Promise<void> {
         // readlink, not readFile: readFile would follow the link and return the
         // target's *content*, so a link pointing outside the root resolves to a
         // bogus in-root path and the escape survives extraction.
+        // 中文：必须读取链接本身而不是跟随读取内容，否则外链可能被错误判断为根内路径。
         const target = await readlink(path, 'utf8').catch(() => '')
         const resolved = resolve(dir, target)
         if (resolved !== root && !resolved.startsWith(`${root}${sep}`)) {
@@ -348,15 +375,18 @@ async function assertNoEscapingSymlinks(root: string): Promise<void> {
 }
 
 /** Test seam: run the symlink-containment walk against a prepared tree. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const assertNoEscapingSymlinksForTest = assertNoEscapingSymlinks
 
 /** If the extraction produced exactly one top-level directory and nothing else, use it as the root. */
+/** 若归档只有一个顶层目录则展开该目录，否则保留解压根。 */
 async function unwrapSingleRoot(extractDir: string): Promise<string> {
   const entries = await readdir(extractDir, { withFileTypes: true })
   if (entries.length === 1 && entries[0]!.isDirectory()) return join(extractDir, entries[0]!.name)
   return extractDir
 }
 
+/** 复制归档归一化后的目录树，避免目标目录外写入。 */
 async function copyTree(from: string, to: string): Promise<void> {
   await mkdir(to, { recursive: true })
   for (const entry of await readdir(from, { withFileTypes: true })) {
@@ -375,6 +405,7 @@ async function copyTree(from: string, to: string): Promise<void> {
 }
 
 /** Probe whether a path exists and is a directory. */
+/** 以 stat 判断路径是否为目录；不存在或不可读时返回 false。 */
 export async function isDirectory(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isDirectory()

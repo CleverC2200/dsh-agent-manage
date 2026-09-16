@@ -1,4 +1,5 @@
-/** Pre-install confirmation modal: concise surface counts plus a risk notice. */
+/** Pre-install confirmation modal: concise surface counts plus a risk notice. 中文：安装前集中展示能力数量与可执行风险。 */
+/** 文件作用：安装前确认弹窗；把套件来源、版本、能力数量和可执行风险汇总给用户确认。 */
 import { createElement as h, type ReactNode } from 'react'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SuiteCardData } from '../../api.js'
@@ -8,8 +9,10 @@ import css from '../../market.module.css'
 export interface InstallConfirmState {
   suite: SuiteCardData
   /** Locked source commit shown in the confirm dialog; undefined for local sources. */
+  /** 中文：远端数据源显示锁定提交号，本地数据源没有不可变提交号。 */
   lockCommit?: string
   /** True when the source is a local working tree (no immutable commit). */
+  /** 中文：标记当前来源是否为本地工作树。 */
   localSource?: boolean
 }
 
@@ -22,6 +25,7 @@ export interface InstallConfirmModalProps {
 }
 
 /** Surface count tags shown on the card; keys mirror SuiteCard's tag list. */
+/** 中文：能力标签键与 SuiteCard 保持一致，用于显示非零能力数量。 */
 const SURFACE_TAGS: Array<{ key: 'skills' | 'mcp' | 'hooks' | 'commands' | 'agents' | 'lsp'; labelKey: 'surfaceSkills' | 'surfaceMcp' | 'surfaceHooks' | 'surfaceCommands' | 'surfaceAgents' | 'surfaceLsp' }> = [
   { key: 'skills', labelKey: 'surfaceSkills' },
   { key: 'mcp', labelKey: 'surfaceMcp' },
@@ -31,6 +35,7 @@ const SURFACE_TAGS: Array<{ key: 'skills' | 'mcp' | 'hooks' | 'commands' | 'agen
   { key: 'lsp', labelKey: 'surfaceLsp' }
 ]
 
+/** 根据套件安装状态展示确认信息，并把确认/取消动作回传给市场页。 */
 export function InstallConfirmModal(props: InstallConfirmModalProps): ReactNode {
   const { t, state, busy } = props
   const surfaces = state.suite.surfaces
@@ -54,6 +59,7 @@ export function InstallConfirmModal(props: InstallConfirmModalProps): ReactNode 
           variant: 'primary',
           disabled: busy,
           onClick: () => {
+            // 中文：确认按钮只触发父级异步安装，具体忙碌和关闭状态由父级控制。
             void props.onConfirm()
           }
         },

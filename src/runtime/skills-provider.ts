@@ -1,3 +1,4 @@
+/** 文件作用：将已安装套件技能投影给宿主技能注册表，并处理优先级和路径替换。 */
 /**
  * Skill provider feeding installed suites into `ctx.skills`.
  *
@@ -12,6 +13,7 @@
  * resource base points at the skill directory, so CC-authored skills work
  * verbatim under the harness.
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { readFile } from 'node:fs/promises'
 import type { SkillCandidate, SkillDefinition, SkillLookupOptions, SkillProvider, SkillSource } from '@deepseek-ai/dsh-skill'
 import type { Catalog } from '../application/catalog.js'
@@ -44,14 +46,17 @@ interface LocatedSkill {
 export class SuiteSkillProvider implements SkillProvider {
   readonly name = 'agent-plugin'
 
+  /** 保存目录管理器，后续查询从其当前套件快照定位技能。 */
   constructor(private readonly manager: Catalog) {}
 
+  /** 按 cwd 查询项目/用户套件技能，排序去重后返回宿主候选项。 */
   async list(options: SkillLookupOptions): Promise<SkillCandidate[]> {
     const located = await this.locate(options.cwd)
     located.sort((a, b) => a.rank - b.rank || a.suite.id.localeCompare(b.suite.id) || a.skill.name.localeCompare(b.skill.name))
     // Dedupe by skill name across dimensions: the sort above puts project
     // suites (250) ahead of user suites (450), so a project's own skill
     // always wins over an installed suite shipping a skill of the same name.
+    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const seen = new Set<string>()
     const unique: LocatedSkill[] = []
     for (const entry of located) {
@@ -62,6 +67,7 @@ export class SuiteSkillProvider implements SkillProvider {
     return unique.map(entry => this.candidateFor(entry))
   }
 
+  /** 根据候选定位原文，替换插件根变量并返回可执行技能定义。 */
   async get(candidate: SkillCandidate, _options: SkillLookupOptions): Promise<SkillDefinition | undefined> {
     const locator = candidate.locator as SkillLocator
     let text: string
@@ -93,6 +99,7 @@ export class SuiteSkillProvider implements SkillProvider {
     }
   }
 
+  /** 将内部定位记录投影为宿主候选，保留来源、优先级和资源目录。 */
   private candidateFor(entry: LocatedSkill): SkillCandidate {
     return {
       name: entry.skill.name,
@@ -114,6 +121,7 @@ export class SuiteSkillProvider implements SkillProvider {
     }
   }
 
+  /** 合并项目、用户和套件技能来源，保持各来源优先级边界。 */
   private async locate(cwd: string | undefined): Promise<LocatedSkill[]> {
     const located: LocatedSkill[] = []
     const userSuites = await this.manager.enabledUserSuites()
@@ -133,6 +141,7 @@ export class SuiteSkillProvider implements SkillProvider {
     return located
   }
 
+  /** 在当前项目目录下定位项目维度套件技能。 */
   private async locateProject(cwd: string): Promise<LocatedSkill[]> {
     const snapshot = await this.manager.readProjectCatalog(cwd)
     const located: LocatedSkill[] = []

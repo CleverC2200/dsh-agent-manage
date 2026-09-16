@@ -1,3 +1,7 @@
+/**
+ * 文件作用：展示宿主观察到的 MCP 服务和工具状态。
+ * 业务职责：按来源/搜索筛选服务，协调重试、重新授权、凭据配置和直接新增，并在详情关闭或保存后刷新权威状态。
+ */
 import { useEffect, useState, type ReactNode } from 'react'
 import { createElement as h } from 'react'
 import { Button, Input, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -33,6 +37,8 @@ const EMPTY_STATUS: McpStatusPayload = {
 }
 
 /** DSH-native MCP inventory with a per-state overview and per-service detail. */
+/** 中文：每行状态来自宿主观察和运行时诊断，详情页只操作当前权威服务。 */
+/** 渲染 MCP 清单、筛选器和单服务详情弹窗。 */
 export function McpStatusPanel({ t, credentials }: McpStatusPanelProps): ReactNode {
   const [payload, setPayload] = useState<McpStatusPayload>(EMPTY_STATUS)
   const [loading, setLoading] = useState(true)
@@ -43,6 +49,7 @@ export function McpStatusPanel({ t, credentials }: McpStatusPanelProps): ReactNo
   const [selected, setSelected] = useState<McpStatusEntry | undefined>(undefined)
   const [adding, setAdding] = useState(false)
 
+  /** 刷新 MCP 状态并定位目标服务，防止对过期条目执行操作。 */
   const observe = async (id: string): Promise<McpStatusEntry> => {
     const refreshed = await fetchMcpStatus()
     setPayload(refreshed)
@@ -51,17 +58,20 @@ export function McpStatusPanel({ t, credentials }: McpStatusPanelProps): ReactNo
     setSelected(current)
     return current
   }
+  /** 请求宿主重试所有失败挂载，再返回目标服务的最新状态。 */
   const retry = (id: string): Promise<McpStatusEntry> =>
     withBusyOperation(async () => {
       await retryMcpMounts()
       return observe(id)
     })
+  /** 清除指定服务 OAuth 授权并重新挂载，返回重新授权后的状态。 */
   const reauthorize = (id: string, serverName: string): Promise<McpStatusEntry> =>
     withBusyOperation(async () => {
       await reauthorizeMcpServer(serverName)
       return observe(id)
     })
 
+  /** 读取全量 MCP 状态，控制首屏加载态和错误提示。 */
   const refresh = (): void => {
     setLoading(true)
     setError(undefined)
@@ -73,6 +83,7 @@ export function McpStatusPanel({ t, credentials }: McpStatusPanelProps): ReactNo
       .finally(() => setLoading(false))
   }
 
+  // 中文：进入面板时读取一次；后续动作明确要求刷新时复用同一入口。
   useEffect(() => {
     refresh()
   }, [])
@@ -81,6 +92,8 @@ export function McpStatusPanel({ t, credentials }: McpStatusPanelProps): ReactNo
   const { activeEntries, filtered, filterCounts } = viewModel
   // Hide the summary bar entirely while every active row is connected: the
   // green confirmation above an all-green list is noise, not information.
+  // 中文：全绿列表不再额外显示绿色汇总提示，减少重复信息。
+  // 中文：全部活跃服务已连接时隐藏汇总条，避免重复展示无信息增量的绿色提示。
 
   return h(
     'div',
@@ -155,6 +168,7 @@ export function McpStatusPanel({ t, credentials }: McpStatusPanelProps): ReactNo
  * state that most needs attention, and the whole bar collapses to a single
  * "all connected" confirmation when nothing is wrong.
  */
+/** 渲染 MCP 服务的紧凑状态卡片，详情和危险操作放在弹窗中。 */
 function McpCard({ entry, t, onClick }: { entry: McpStatusEntry; t: Translate; onClick: () => void }): ReactNode {
   const interactive = {
     role: 'button' as const,
@@ -162,6 +176,7 @@ function McpCard({ entry, t, onClick }: { entry: McpStatusEntry; t: Translate; o
     onClick,
     onKeyDown: (event: { key: string; preventDefault: () => void }) => {
       // Enter and Space activate a role="button" the same way a native one does.
+      // 中文：键盘 Enter/Space 与鼠标点击使用同一详情打开行为，满足无障碍交互。
       if (event.key !== 'Enter' && event.key !== ' ') return
       event.preventDefault()
       onClick()
@@ -188,10 +203,12 @@ function McpCard({ entry, t, onClick }: { entry: McpStatusEntry; t: Translate; o
       // Reason text, the state pill, and every action (retry, configure,
       // details) live in the detail dialog: the card keeps only the identity
       // line and the endpoint, so a wall of red cards stays scannable.
+      // 中文：重试、配置和详情集中在弹窗，卡片只保留身份与端点以维持可扫描性。
     )
   )
 }
 
+/** 根据 MCP 来源绘制套件或用户直配图标。 */
 function McpSourceIcon({ kind }: { kind: 'plugin' | 'direct' }): ReactNode {
   const common = { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true } as const
   return kind === 'plugin'
@@ -205,6 +222,7 @@ function McpSourceIcon({ kind }: { kind: 'plugin' | 'direct' }): ReactNode {
     : h('svg', common, h('circle', { cx: 8, cy: 5, r: 2.2 }), h('path', { d: 'M3.5 13c.6-2.2 2.1-3.3 4.5-3.3s3.9 1.1 4.5 3.3' }))
 }
 
+/** 为 MCP 来源筛选器提供统一图标。 */
 function McpFilterIcon({ kind }: { kind: Filter }): ReactNode {
   if (kind === 'plugin') return h(McpSourceIcon, { kind: 'plugin' })
   if (kind === 'direct') return h(McpSourceIcon, { kind: 'direct' })
@@ -220,6 +238,7 @@ function McpFilterIcon({ kind }: { kind: Filter }): ReactNode {
  * credentials, config, tools, and the retry control with its in-place result
  * echo. The state pill is dropped entirely — the dot and the reason box carry
  * that information without a second red stamp.
+ * 中文：详情弹窗是服务操作的单一入口，集中展示状态、原因、配置、凭据和工具。
  */
 export function McpDetailModal({
   entry,
@@ -243,6 +262,7 @@ export function McpDetailModal({
   const [confirmAuth, setConfirmAuth] = useState(false)
   const [feedback, setFeedback] = useState<{ error: boolean; text: string }>()
   const actions = mcpDetailActions(entry)
+  /** 执行重试或重新授权，并把“已连接/仍不可用/失败”反馈给用户。 */
   const run = async (authorize: boolean): Promise<void> => {
     setConfirmAuth(false)
     setPending(true)
@@ -340,6 +360,7 @@ export function McpDetailModal({
           // Source and transport moved here from the card meta row. The
           // qualified suite id disambiguates same-named servers from
           // different sources (e.g. two context7 installs).
+          // 中文：详情补充来源和传输；限定 suite ID 区分不同 source 下的同名服务。
           h(
             'p',
             { className: css.detailEndpoint },
@@ -350,6 +371,7 @@ export function McpDetailModal({
       // A foreign mount is informational: the localized hint (per cause —
       // another plugin, or another source's identical suite) replaces the raw
       // English reason, which drops to a dim secondary line for its details.
+      // 中文：foreign mount 只是提示；界面按原因给出本地化说明，原始英文仅作次要诊断。
       entry.state === 'foreign'
         ? h(
             'div',
@@ -400,12 +422,14 @@ export function McpDetailModal({
   })
 }
 
+/** 校验并新增一个用户直配 MCP 服务，成功后交回父面板刷新。 */
 function McpAddModal({ t, onClose, onSaved }: { t: Translate; onClose: () => void; onSaved: () => void }): ReactNode {
   const [name, setName] = useState('')
   const [config, setConfig] = useState('{"type":"stdio","command":""}')
   const [valid, setValid] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  /** 解析 JSON 配置并提交新增请求，统一处理异步忙碌和错误。 */
   const save = (): void => {
     setBusy(true)
     setError(undefined)
@@ -449,6 +473,7 @@ function McpAddModal({ t, onClose, onSaved }: { t: Translate; onClose: () => voi
   })
 }
 
+/** 把 MCP 来源筛选值转换为当前语言的标签。 */
 function filterLabel(t: Translate, kind: Filter): string {
   if (kind === 'plugin') return t('mcpPlugin')
   if (kind === 'direct') return t('mcpDirect')
@@ -456,6 +481,8 @@ function filterLabel(t: Translate, kind: Filter): string {
 }
 
 /** Hover/aria explanation for each MCP filter tab. */
+/** 中文：为每个 MCP 来源筛选项提供悬浮和无障碍统计口径说明。 */
+/** 返回筛选器的悬浮/无障碍说明，解释统计口径而非只显示数量。 */
 function mcpFilterHint(t: Translate, kind: Filter): string {
   if (kind === 'plugin') return t('mcpFilterPluginHint')
   if (kind === 'direct') return t('mcpFilterDirectHint')

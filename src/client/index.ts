@@ -4,6 +4,9 @@
  * guarded legacy top-level page fallback for older shells. The bundle's
  * browser externals are React, ReactDOM, and the injected `dsh.client.inject`
  * module table, so it cannot reach packages the host does not serve.
+ *
+ * 文件作用：插件客户端入口，向宿主注册翻译、忙碌遮罩、设置区工作台和旧版页面回退。
+ * 业务职责：检查宿主 UI 能力、绑定设置命名空间，并把配置读写委托给宿主服务；入口本身不承载市场业务数据。
  */
 import { createElement as h } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -22,6 +25,7 @@ const NS = 'dsh-agent-plugins-market'
 export type Translate = (key: LocaleKey, params?: Record<string, unknown>) => string
 
 /** The subset of the locale service this plugin touches. */
+/** 中文：插件只依赖翻译注册/绑定能力，避免耦合宿主完整 locale 实现。 */
 interface LocaleService {
   register(namespace: string, dicts: { zh: Record<string, string>; en: Record<string, string> }): unknown
   bind(namespace: string): Translate
@@ -29,12 +33,14 @@ interface LocaleService {
 }
 
 /** The subset of the slots service this plugin touches. */
+/** 中文：插件只依赖 slot 注册能力，具体页面容器由宿主提供。 */
 interface SlotsService {
   inject(slot: string, register: () => unknown): void
   register(meta: Record<string, unknown>, component: () => unknown): unknown
 }
 
 /** The subset of the host settings-scope service this plugin touches. */
+/** 中文：只读取/写入市场设置命名空间，不直接操作宿主配置文件。 */
 interface SettingsScopeService {
   bind(options: { namespace: string }): {
     getSnapshot(): { value?: { mcpEnhanced?: boolean; downloadRegion?: string; feedbackEnabled?: boolean; scanProjectLayouts?: boolean }; writable: boolean }
@@ -44,9 +50,11 @@ interface SettingsScopeService {
 }
 
 /** The client cordis context this plugin relies on (structural subset). */
+/** 中文：声明客户端入口实际需要的最小 Cordis 能力集合。 */
 interface SuiteClientContext {
   effect(callback: () => unknown, label?: string): void
   /** Late service resolution; absent on hosts predating cross-plugin inject. */
+  /** 中文：兼容旧宿主晚绑定或没有跨插件注入能力的场景。 */
   inject?(services: string[], callback: (resolved: Record<string, unknown>) => void): void
   locale: LocaleService
   slots: SlotsService
@@ -65,10 +73,12 @@ export const REQUIRED_PRIMITIVES = ['Button', 'Input', 'Modal', 'Toast', 'Toolti
  */
 
 /** Detect host primitives that predate the exports this UI relies on. */
+/** 检查宿主是否提供市场 UI 依赖的基础组件，缺失时返回能力缺口。 */
 export function missingPrimitives(module: Record<string, unknown>, required: readonly string[] = REQUIRED_PRIMITIVES): string[] {
   return required.filter(name => module[name] === undefined)
 }
 
+/** 注册客户端插件的所有宿主效果，并选择设置标签页或旧版页面挂载方式。 */
 export function apply(ctx: SuiteClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-agent-plugins: dictionaries')
   const t = ctx.locale.bind(NS)
@@ -97,16 +107,19 @@ export function apply(ctx: SuiteClientContext): void {
     subscribeLocale: ctx.locale.subscribe === undefined ? undefined : (listener) => ctx.locale.subscribe!(listener),
   }), 'dsh-agent-plugins-market: legacy page mode')
 
-  // The host 插件配置 tab card. Registration rides the injected scope's slots
-  // (the dshmarket / dsh-rewind pattern), and the card state binds the
-  // market's settings namespace — the namespace the node half registers,
-  // which is also what makes the tab serve our card at all.
+    // The host 插件配置 tab card. Registration rides the injected scope's slots
+    // (the dshmarket / dsh-rewind pattern), and the card state binds the
+    // market's settings namespace — the namespace the node half registers,
+    // which is also what makes the tab serve our card at all.
+    // 中文：配置卡注册依赖晚到的 settingsScope 和 slots；命名空间由节点侧注册后才真正提供卡片。
+  // 中文：等待宿主晚到的 settingsScope；拿到后注册配置卡，并把持久化设置包装成卡片所需的 scope。
   ctx.inject?.(['settingsScope'], (scoped: { settingsScope?: SettingsScopeService; slots?: SlotsService }) => {
     const service = scoped.settingsScope
     const slots = scoped.slots
     if (service === undefined || slots === undefined) return
     const tCard = ctx.locale.bind(NS)
     const scope = service.bind({ namespace: NS })
+    // 中文：下面的 scope 方法把宿主快照投影成卡片需要的读写接口，所有写入仍由 settingsScope 执行。
     slots.inject('settings.plugin.item', () =>
       slots.register({
         name: 'settings.plugin.item',
@@ -135,11 +148,13 @@ export function apply(ctx: SuiteClientContext): void {
     )
   })
 
+  // 中文：settings.section 是新宿主的正式挂载位；卸载时撤销能力标记，让旧版回退重新获得判断机会。
   ctx.slots.inject('settings.section', () => {
     settingsSurfaceAvailable = true
     notifyPageModeSurfaceChange()
     // One section, six top tabs (market / skills / commands / personas /
     // MCP / LSP) — the PluginWorkspace owns the tab row and per-tab scroll.
+    // 中文：设置区只挂一个工作台入口，六个业务表面的标签和滚动由 PluginWorkspace 管理。
     const workspaceDispose = ctx.slots.register({
       name: 'settings.section',
       id: 'agent-plugin-workspace',
@@ -160,6 +175,7 @@ export function apply(ctx: SuiteClientContext): void {
   })
 }
 
+/** 广播设置区能力变化，让旧版页面适配器及时挂载或卸载回退面板。 */
 function notifyPageModeSurfaceChange(): void {
   if (typeof document !== 'undefined') document.dispatchEvent(new Event(LEGACY_PAGE_MODE_SURFACE_EVENT))
 }

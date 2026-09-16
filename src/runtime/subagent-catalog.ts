@@ -1,4 +1,6 @@
+/** 文件作用：把可用子 Agent 目录发布到会话前置步骤，并避免重复发布。 */
 /** Durable role catalogs follow DSH tool-skill's pre-step publication and session-surface recovery. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm'
@@ -6,6 +8,7 @@ import type { HostTranslate } from './host-locale.js'
 
 export interface SubagentCatalogEntry {
   /** Exact execution identity, independent of the human-readable title. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   name: string
   title: string
   description: string
@@ -28,6 +31,7 @@ declare module '@deepseek-ai/dsh-llm' {
 }
 
 /** Structural host contract avoids a second installation of the agent/session runtimes. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface CatalogAgent {
   session: {
     seq: number
@@ -41,11 +45,13 @@ export type CatalogStepListener = (payload: { agent: CatalogAgent; signal: Abort
 
 interface CatalogHost {
   tools: { get(name: string, agent: CatalogAgent): unknown }
+  /** 中文：注册会话前置监听，返回可撤销的监听句柄。 */
   on(name: 'agent/pre-step', listener: CatalogStepListener): () => void
   logger?: { warn(message: string): void }
 }
 
 /** Register after the exact tool definition; teardown removes guidance before execution. */
+/** 注册 agent/pre-step 监听，将最新目录发布到会话并返回卸载函数。 */
 export function mountSubagentCatalog(
   ctx: Context,
   tool: { name: string },
@@ -54,6 +60,7 @@ export function mountSubagentCatalog(
 ): () => void {
   const host = ctx as unknown as CatalogHost
   let disposed = false
+  /** pre-step 回调：在执行前刷新目录，并按摘要去重或删除过期提示。 */
   const dispose = host.on('agent/pre-step', async ({ agent, signal }, next) => {
     const decision = await next()
     if (decision.kind === 'reject' || disposed) return decision
@@ -91,10 +98,12 @@ export function mountSubagentCatalog(
   }
 }
 
+/** 转义目录文本中的控制字符，避免注入会话消息格式。 */
 function escapeText(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')
 }
 
+/** 将角色目录渲染成一次可见的宿主用户消息。 */
 function renderCatalog(entries: readonly SubagentCatalogEntry[], update: boolean, t: HostTranslate): UserMessage {
   const lines = entries.map(entry => {
     const route = [entry.provider, entry.model].filter(value => value !== undefined).join('/') || t('subagentCatalogInherit')
@@ -119,6 +128,7 @@ function renderCatalog(entries: readonly SubagentCatalogEntry[], update: boolean
   })
 }
 
+/** 计算目录内容摘要，用于避免同一 Agent 重复发布未变化目录。 */
 function digestEntries(entries: readonly SubagentCatalogEntry[]): string {
   return createHash('sha256')
     .update(entries.map(entry => JSON.stringify([entry.name, entry.title, entry.description, entry.provider, entry.model, entry.reasoningEffort])).join('\n'))
@@ -126,6 +136,7 @@ function digestEntries(entries: readonly SubagentCatalogEntry[]): string {
 }
 
 /** Resumed and forked seeds may carry unvalidated source fields; ignore unreadable catalogs. */
+/** 从事件消息来源读取并校验角色条目，非法来源返回 undefined。 */
 function readEntries(source: unknown): readonly SubagentCatalogEntry[] | undefined {
   if (typeof source !== 'object' || source === null || !('kind' in source) || source.kind !== 'subagent-catalog' || !('entries' in source) || !Array.isArray(source.entries))
     return undefined
@@ -147,6 +158,7 @@ function readEntries(source: unknown): readonly SubagentCatalogEntry[] | undefin
   return entries
 }
 
+/** 从 Agent 事件历史恢复已发布摘要和发布状态。 */
 function catalogHistory(agent: CatalogAgent): { visibleDigest?: string; published: boolean } {
   const visible = new Set(agent.session.surface.nodes)
   let published = false
@@ -162,6 +174,7 @@ function catalogHistory(agent: CatalogAgent): { visibleDigest?: string; publishe
   return { published }
 }
 
+/** 在历史用户消息中寻找最近一次角色目录消息及其条目。 */
 function catalogMessage(messages: readonly UserMessage[]): { message: UserMessage; entries: readonly SubagentCatalogEntry[] } | undefined {
   for (const message of messages) {
     const entries = readEntries(message.source)

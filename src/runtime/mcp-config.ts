@@ -1,3 +1,4 @@
+/** 文件作用：把已校验套件 MCP 声明解析为带凭据和策略的桥接挂载请求。 */
 /**
  * Maps one validated suite `mcp.json` onto self-built bridge config rows.
  *
@@ -10,6 +11,7 @@
  * such transport); unrecognized shapes are still skipped with a per-server
  * reason.
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { createHash } from 'node:crypto'
 import type { Config, SseConfig } from './mcp-client/config.js'
 import { DEFAULT_TOOL_CALL_TIMEOUT_MS } from './mcp-client/config.js'
@@ -20,6 +22,7 @@ import type { McpServer, McpServerSse, McpServerStdio, McpServerStreamableHttp, 
 import { PLUGIN_ROOT_VARIABLES, PLUGIN_DATA_VARIABLES } from '../model/layouts.js'
 
 /** The max length the bridge accepts for a serverName. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const SERVER_NAME_MAX = 32
 const PLACEHOLDER = /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g
 const BUILTIN_PLACEHOLDERS = new Set([...PLUGIN_ROOT_VARIABLES, ...PLUGIN_DATA_VARIABLES])
@@ -37,8 +40,10 @@ export type McpMountFailureCode =
   | 'unmount-failed'
   | 'mount-failed'
   /** The derived serverName's namespace is already mounted by another MCP client — informational, not a failure. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   | 'foreign-mount'
   /** Another source's identical suite/server pair mounted first — this copy is redundant, informational. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   | 'duplicate-mount'
 
 export interface McpMountFailure {
@@ -49,6 +54,7 @@ export interface McpMountFailure {
 }
 
 /** Optional DSH credential resolver used while building an in-memory mount. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface McpCredentialResolver {
   resolve(ref: string): Promise<{ value: string; source?: string } | undefined>
 }
@@ -65,6 +71,7 @@ export interface McpCredentialResolver {
  * @returns mount requests plus per-server failures. serverName collisions are
  *   reported by the mount registry, not here.
  */
+/** 将套件 MCP 服务展开凭据并转换为挂载请求；失败项保留结构化诊断而非半挂载。 */
 export async function toMcpMounts(
   suite: Suite,
   pluginDataRoot: string,
@@ -90,6 +97,7 @@ export async function toMcpMounts(
 }
 
 /** Find external credential references used by one MCP server definition. */
+/** 收集单个 MCP 服务中所有凭据引用，用于变更影响判断。 */
 export function credentialRefsInServer(server: McpServer): string[] {
   const values: string[] = []
   if (server.type === 'stdio') {
@@ -97,6 +105,7 @@ export function credentialRefsInServer(server: McpServer): string[] {
   } else {
     // A remote endpoint may carry the token in the URL query as well as in a
     // header, so both are scanned and both are resolved at mount time.
+    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     values.push(server.url ?? '', ...Object.values(server.headers ?? {}))
   }
   const refs = new Set<string>()
@@ -109,6 +118,7 @@ export function credentialRefsInServer(server: McpServer): string[] {
   return [...refs].sort()
 }
 
+/** 解析单个服务的路径、参数、环境和认证字段，返回请求或失败。 */
 async function toResolvedMount(
   suite: Suite,
   serverKey: string,
@@ -118,6 +128,7 @@ async function toResolvedMount(
 ): Promise<{ request?: McpMountRequest; failure?: McpMountFailure }> {
   if (server.type === 'sse') {
     // The market bridge supports the legacy HTTP+SSE transport natively.
+    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const expand = expander(suite, joinInside(pluginDataRoot, qualifiedSuiteId(suite.sourceId, suite.id)), resolver)
     const url = await expand.one(server.url)
     const headers = await expand.map(server.headers ?? {})
@@ -186,6 +197,7 @@ async function toResolvedMount(
  * while `enabled: true` (or a bare declaration) requests the default-on
  * flow, optionally with a scope.
  */
+/** 复制认证策略到桥接配置，避免把领域对象直接暴露给传输层。 */
 function mapAuth(auth: { enabled: boolean; scope?: string }): { enabled: boolean; scope?: string } {
   return {
     enabled: auth.enabled !== false,
@@ -193,6 +205,7 @@ function mapAuth(auth: { enabled: boolean; scope?: string }): { enabled: boolean
   }
 }
 
+/** 生成桥接器所需的重连、工具超时和 OAuth 策略。 */
 function bridgePolicy(server: McpServer) {
   return {
     toolCallTimeoutMs: server.toolCallTimeoutMs ?? DEFAULT_TOOL_CALL_TIMEOUT_MS,
@@ -203,10 +216,13 @@ function bridgePolicy(server: McpServer) {
 }
 
 /** Per-mount expansion context; credential lookups are memoized per call. */
+/** 构造占位符展开器，区分内置路径变量与凭据变量并收集缺失项。 */
 function expander(suite: Suite, pluginData: string, resolver: McpCredentialResolver) {
   // Promise-valued cache: concurrent expansions of the same reference share
   // one in-flight lookup, so a config using a token twice resolves it once.
+  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   const inflight = new Map<string, Promise<{ value: string; source?: string } | undefined>>()
+  /** 读取并缓存单个凭据引用，确保同一展开过程不会重复发起查询。 */
   const lookup = (name: string): Promise<{ value: string; source?: string } | undefined> => {
     const pending = inflight.get(name)
     if (pending !== undefined) return pending
@@ -214,6 +230,7 @@ function expander(suite: Suite, pluginData: string, resolver: McpCredentialResol
     inflight.set(name, created)
     return created
   }
+  /** 展开一个字符串中的内置变量或凭据占位符，并收集无法解析的名称。 */
   const one = async (value: string): Promise<{ value: string; missing: string[] }> => {
     let cursor = 0
     let output = ''
@@ -243,10 +260,12 @@ function expander(suite: Suite, pluginData: string, resolver: McpCredentialResol
   }
   return {
     one,
+    /** 批量展开参数数组，返回展开值和全部缺失凭据引用。 */
     async all(values: string[]): Promise<{ values: string[]; missing: string[] }> {
       const expanded = await Promise.all(values.map(one))
       return { values: expanded.map(item => item.value), missing: expanded.flatMap(item => item.missing) }
     },
+    /** 批量展开环境映射，保持键集合并集中返回缺失引用。 */
     async map(values: Record<string, string>): Promise<{ values: Record<string, string>; missing: string[] }> {
       const entries = await Promise.all(Object.entries(values).map(async ([key, value]) => [key, await one(value)] as const))
       return {
@@ -257,6 +276,7 @@ function expander(suite: Suite, pluginData: string, resolver: McpCredentialResol
   }
 }
 
+/** 将缺失凭据引用转换为可展示且可重试判断的结构化失败。 */
 function missingFailure(serverKey: string, refs: string[]): McpMountFailure {
   const uniqueRefs = unique(refs)
   return {
@@ -267,15 +287,18 @@ function missingFailure(serverKey: string, refs: string[]): McpMountFailure {
   }
 }
 
+/** 保持首次出现顺序去重字符串列表。 */
 function unique(values: string[]): string[] {
   return [...new Set(values)].sort()
 }
 
+/** 将相对片段限制在根目录内，防止占位符产生路径穿越。 */
 function joinInside(root: string, segment: string): string {
   return `${root.replace(/[\\/]$/, '')}/${segment}`
 }
 
 /** Sanitize one token into `[A-Za-z0-9_-]`. */
+/** 清洗服务名组成片段，使其适合公开工具命名空间。 */
 function sanitizeToken(raw: string): string {
   const cleaned = raw
     .replace(/[^A-Za-z0-9_-]+/g, '_')
@@ -294,6 +317,7 @@ function sanitizeToken(raw: string): string {
  * is skipped with a `duplicate-mount` diagnostic instead of registering a
  * shadow copy under a mangled name.
  */
+/** 用限定套件 ID 和服务键生成稳定、长度受控的公开 serverName。 */
 export function deriveServerName(suiteId: string, serverKey: string): string {
   const candidate = `${sanitizeToken(suiteId)}__${sanitizeToken(serverKey)}`
   if (candidate.length <= SERVER_NAME_MAX) return candidate

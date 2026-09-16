@@ -1,4 +1,5 @@
-/** A suite card in the market grid/list. */
+/** A suite card in the market grid/list. 中文：市场网格或列表中的单个套件卡片。 */
+/** 文件作用：渲染一个市场套件卡片，展示来源、布局、能力数量、诊断信息和安装状态操作。 */
 import { createElement as h, type ReactElement, type ReactNode } from 'react'
 import { Button, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SuiteCardData } from '../../api.js'
@@ -20,6 +21,7 @@ export interface SuiteCardProps {
   onUninstall: () => void
 }
 
+/** 将套件数据投影为卡片视图，并区分远端来源、已安装和未安装操作。 */
 export function SuiteCard(props: SuiteCardProps): ReactNode {
   const { t, suite, busy } = props
   const tags: Array<[string, number]> = (
@@ -35,11 +37,14 @@ export function SuiteCard(props: SuiteCardProps): ReactNode {
   const layoutLabel = suiteLayoutLabel(suite.layout, t)
   const isRemote = suite.remoteUrl !== undefined
   const hasTagRow = tags.length > 0 || suite.errors.length > 0 || (suite.mcpErrors?.length ?? 0) > 0
+  /** 阻止卡片点击冒泡后执行具体按钮动作，避免打开详情覆盖操作。 */
   const stop = (callback: () => void) => (event: { stopPropagation(): void }) => {
+    // 卡片本身可点击打开详情，按钮动作必须先截断冒泡。
     event.stopPropagation()
     callback()
   }
   // Installed cards carry the MCP card's left accent: green = enabled, gray = disabled.
+  // 中文：已安装卡片沿用 MCP 状态色，绿色表示启用，灰色表示停用。
   return h(
     ResourceCard,
     { className: css.card, state: suite.installed && suite.enabled ? 'active' : 'disabled', onClick: props.onOpen },
@@ -93,6 +98,7 @@ export function SuiteCard(props: SuiteCardProps): ReactNode {
                 )
               ),
               // The enable switch reads last, at the card's trailing edge.
+              // 中文：启停开关固定放在操作区最右侧，保持卡片动作顺序一致。
               h(ToggleSwitch, {
                 key: 'toggle',
                 on: suite.enabled,

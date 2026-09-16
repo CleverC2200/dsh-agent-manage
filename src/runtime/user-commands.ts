@@ -1,3 +1,4 @@
+/** 文件作用：把用户命令面板条目挂载为宿主斜杠命令并按目录变化对账。 */
 /**
  * User command mounting: every enabled entry of the user commands panel
  * registers as a dsh slash command, so user-authored quick replies behave
@@ -6,6 +7,7 @@
  * change, keyed `user/<name>`.
  * @module runtime/user-commands
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { HostTranslate } from './host-locale.js'
@@ -13,6 +15,7 @@ import { USER_ENTRY_NAME } from './user-store.js'
 import type { UserPanelStore } from './user-panels.js'
 
 /** Host surface this registry touches (mirrors commands-mounts.ts). */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface CommandsHost {
   commands?: {
     register(definition: {
@@ -29,6 +32,7 @@ interface InboxAgent {
 }
 
 /** One reconciled user command's spec. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface UserCommandSpec {
   name: string
   description: string
@@ -37,10 +41,13 @@ interface UserCommandSpec {
 }
 
 /** Register/unregister user-panel commands to match the panel's enabled entries. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export class UserCommandMountRegistry {
   private readonly fingerprints = new Map<string, string>()
   private readonly live = new Map<string, () => void>()
 
+  /** 保存用户面板和宿主命令服务，后续对账从面板读取当前条目。 */
+  /** 绑定用户命令面板和宿主命令服务，建立用户命令生命周期边界。 */
   constructor(
     private readonly ctx: Context,
     private readonly store: UserPanelStore,
@@ -48,6 +55,7 @@ export class UserCommandMountRegistry {
   ) {}
 
   /** Sync the live registrations with the panel's enabled entries. */
+  /** 对账用户命令：移除删除/禁用项，注册新增项并返回诊断名称。 */
   async reconcile(): Promise<string[]> {
     const diagnostics: string[] = []
     const entries = await this.store.list()
@@ -101,6 +109,7 @@ export class UserCommandMountRegistry {
   }
 
   /** Dispose every registration (plugin teardown). */
+  /** 释放所有用户命令注册，供面板卸载或宿主销毁调用。 */
   disposeAll(): void {
     for (const disposer of [...this.live.values()]) disposer()
     this.live.clear()

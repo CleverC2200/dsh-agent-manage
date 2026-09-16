@@ -1,4 +1,6 @@
+/** 文件作用：读取项目原生 MCP 配置，区分真实服务器定义和无关设置。 */
 /** Read native project configuration without treating unrelated settings as server definitions. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readFile, realpath } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { McpSuiteConfig } from '../model/types.js'
@@ -8,6 +10,7 @@ import { normalizeCodexMcp } from './codex-mcp.js'
 import type { ProjectMcpFormat } from '../model/layouts.js'
 
 /** Later files override earlier keys; a malformed layer invalidates the whole layout's table. */
+/** 读取多层项目 MCP 配置，后层覆盖前层；任一层格式坏则整张表失败关闭。 */
 export async function discoverProjectMcp(
   projectRoot: string,
   files: readonly string[],
@@ -58,6 +61,7 @@ export async function discoverProjectMcp(
 }
 
 /** Missing is undefined; malformed/unreadable is null and carries a diagnostic. */
+/** 读取项目配置文件并解析为对象；缺失跳过，格式错误写入诊断。 */
 export async function readProjectDocument(
   projectRoot: string,
   file: string,
