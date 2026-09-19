@@ -1,8 +1,11 @@
 /** zh/en dictionaries for the Agent Plugins Market section. */
+/** 文件作用：集中维护市场客户端所有用户可见的中英文文案，保证同一业务键成对存在。 */
+/** 中文：zh/en 字典共同构成客户端文案契约，键缺失会在加载时被检测。 */
 
 export type Dictionary = Record<string, string>
 
 /** Chinese is the source-of-truth key set; English is checked against it below. */
+/** 中文字典是键集合的事实来源，英文集合在文件末尾做一致性校验。 */
 export const zh = {
   nav: 'Agent Plugins 市场',
   detailPreview: '预览',

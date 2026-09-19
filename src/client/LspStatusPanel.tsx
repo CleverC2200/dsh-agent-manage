@@ -8,6 +8,9 @@
  * the same summary chips, cards, and state pills from mcp-status.module.css.
  * Cards stay lean (state dot + name + command + one state pill); the source
  * suite and the full extension map live in the detail dialog.
+ *
+ * 文件作用：展示套件声明与用户直配的 LSP 服务状态。
+ * 业务职责：按来源和搜索条件筛选服务，轮询启动中的挂载结果，并提供只针对用户直配 LSP 的新增与详情入口。
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { createElement as h } from 'react'
@@ -46,17 +49,20 @@ const FILTER_LABEL_KEYS: Record<Filter, 'lspAll' | 'lspPlugin' | 'lspDirect'> = 
 }
 
 /** Tooltip text per filter: the counts alone do not explain the grouping. */
+/** 中文：筛选提示补充统计口径，避免用户只看到数量却不知分组含义。 */
 const FILTER_HINT_KEYS: Partial<Record<Filter, 'lspFilterAllHint' | 'lspFilterPluginHint' | 'lspFilterDirectHint'>> = {
   all: 'lspFilterAllHint',
   plugin: 'lspFilterPluginHint',
   direct: 'lspFilterDirectHint',
 }
+/** 判断一条 LSP 状态是否属于当前来源筛选器。 */
 function matches(entry: LspStatusEntry, filter: Filter): boolean {
   if (filter === 'all') return true
   if (filter === 'plugin' || filter === 'direct') return entry.kind === filter
   return false
 }
 
+/** 为状态排序：失败/冲突优先，健康挂载最后，便于先处理风险。 */
 function severity(entry: LspStatusEntry): number {
   if (entry.state === 'failed') return 0
   if (entry.state === 'conflict') return 1
@@ -67,6 +73,8 @@ function severity(entry: LspStatusEntry): number {
 }
 
 /** Language-server inventory with per-state overview and per-server detail. */
+/** 中文：按状态总览和单服务详情展示语言服务器清单。 */
+/** 渲染 LSP 清单、状态筛选和服务详情/新增弹窗。 */
 export function LspStatusPanel({ t }: LspStatusPanelProps): ReactNode {
   const [payload, setPayload] = useState<LspStatusPayload>(EMPTY_STATUS)
   const [loading, setLoading] = useState(true)
@@ -77,6 +85,7 @@ export function LspStatusPanel({ t }: LspStatusPanelProps): ReactNode {
   const [selected, setSelected] = useState<LspStatusEntry | undefined>(undefined)
   const [editorOpen, setEditorOpen] = useState(false)
 
+  /** 读取最新 LSP 状态并把请求中的错误映射到面板提示。 */
   const refresh = (): void => {
     setLoading(true)
     setError(undefined)
@@ -88,6 +97,7 @@ export function LspStatusPanel({ t }: LspStatusPanelProps): ReactNode {
       .finally(() => setLoading(false))
   }
 
+  // 中文：首次进入面板读取一次；启动中的服务由下方后台轮询继续收敛状态。
   useEffect(() => {
     refresh()
   }, [])
@@ -96,7 +106,10 @@ export function LspStatusPanel({ t }: LspStatusPanelProps): ReactNode {
   // process after discovery, so an early read can observe `starting` rows.
   // Poll quietly until every row settles (or the window closes) instead of
   // freezing a stale verdict on screen.
+  // 中文：发现完成与挂载完成可能有竞态，首屏不把 starting 误判为最终状态。
+  // 中文：启动态不是最终结论，轮询直到状态收敛或窗口结束。
   const anyStarting = payload.entries.some(entry => entry.state === 'starting')
+  // 中文：宿主协调器可能晚于首屏完成挂载，因此仅在存在 starting 行时静默轮询。
   useEffect(() => {
     if (!anyStarting) return
     let cancelled = false
@@ -182,6 +195,7 @@ export function LspStatusPanel({ t }: LspStatusPanelProps): ReactNode {
  * Code's `lspServers` table. The host validates with the same fail-closed
  * rules as suite declarations and mounts direct servers on the next
  * reconcile pass.
+ * 中文：新增弹窗只负责收集用户直配名称和 JSON，最终校验/挂载由宿主协调器完成。
  */
 function LspConfigEditor({ t, onClose, onSaved }: { t: Translate; onClose: () => void; onSaved: () => void }): ReactNode {
   const [text, setText] = useState('{"command":"","extensionToLanguage":{}}')
@@ -190,6 +204,7 @@ function LspConfigEditor({ t, onClose, onSaved }: { t: Translate; onClose: () =>
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
 
+  /** 解析并提交用户直配 LSP，成功后交回父面板刷新状态。 */
   const save = async (): Promise<void> => {
     setBusy(true)
     setError(undefined)
@@ -228,7 +243,9 @@ function LspConfigEditor({ t, onClose, onSaved }: { t: Translate; onClose: () =>
 
 /** Lean row: state dot, server key, command. The card accent + status dot
  *  carry the state; no redundant pill for the healthy case. Kind badge shows
- *  where the declaration comes from (suite vs user configuration). */
+ *  where the declaration comes from (suite vs user configuration).
+ * 中文：用紧凑卡片表达单个服务的来源、命令和挂载状态，点击后查看完整诊断。
+ */
 function LspRow({ entry, t, onOpen }: { entry: LspStatusEntry; t: Translate; onOpen: () => void }): ReactNode {
   const interactive = {
     role: 'button' as const,
@@ -262,6 +279,7 @@ function LspRow({ entry, t, onOpen }: { entry: LspStatusEntry; t: Translate; onO
   )
 }
 
+/** 展示单个 LSP 的来源、原因和经过校验的配置详情。 */
 function LspDetailModal({ entry, t, onClose }: { entry: LspStatusEntry; t: Translate; onClose: () => void }): ReactNode {
   return h(DetailModal, {
     open: true,
@@ -284,6 +302,7 @@ function LspDetailModal({ entry, t, onClose }: { entry: LspStatusEntry; t: Trans
           { className: css.detailHeroText },
           // The status dot carries the healthy verdict; only non-healthy
           // states get an explicit pill.
+          // 中文：健康状态由状态点直接表达，只有非健康状态额外显示文字徽章。
           entry.state === 'mounted' ? null : h('span', { className: `${css.statePill} ${css[`state${pillClass(entry.state)}`]}` }, stateLabel(t, entry.state)),
           h('p', { className: css.detailEndpoint }, `${entry.suiteName} · ${entry.sourceId}`)
         )
@@ -303,7 +322,9 @@ function LspDetailModal({ entry, t, onClose }: { entry: LspStatusEntry; t: Trans
 
 /** Filter icons mirroring McpFilterIcon's language: shared glyph shapes for
  *  all/plugin/direct so the two panels read as one system, plus a warning
- *  triangle for the blocked state. */
+ *  triangle for the blocked state.
+ * 中文：为来源筛选器提供一致的图标，不参与筛选逻辑。
+ */
 function LspFilterIcon({ k }: { k: string }): ReactNode {
   const common = { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true } as const
   if (k === 'plugin') {
@@ -319,18 +340,21 @@ function LspFilterIcon({ k }: { k: string }): ReactNode {
 }
 
 /** The status-dot CSS suffix (lowercase state names in the stylesheet). */
+/** 将宿主状态归一为状态点使用的 CSS 后缀。 */
 function dotClass(state: LspStatusState): string {
   return state === 'host-missing' ? 'host-missing' : state
 }
 
 /** The state-pill CSS suffix; conflict borrows the failed palette and
  *  starting borrows the warn palette. */
+/** 将冲突/启动状态映射到已有状态胶囊配色，避免新增视觉语义。 */
 function pillClass(state: LspStatusState): string {
   if (state === 'conflict') return 'failed'
   if (state === 'starting') return 'host-missing'
   return state
 }
 
+/** 把 LSP 状态值转换为当前语言的短标签。 */
 function stateLabel(t: Translate, state: LspStatusState): string {
   if (state === 'mounted') return t('lspMounted')
   if (state === 'starting') return t('lspStarting')

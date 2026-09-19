@@ -1,3 +1,4 @@
+/** 文件作用：验证 MCP 工具输出 Schema 是否属于可无损桥接的 JSON 子集。 */
 /**
  * Local port of the harness's enforced JSON Schema subset validator
  * (`@deepseek-ai/dsh-tools` `json-schema.ts`, rc.2) — narrowed to the one use
@@ -14,11 +15,14 @@
  *
  * @module runtime/mcp-client/json-schema-subset
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 /** Scalar JSON values supported by `enum` and `const`. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type JsonSchemaScalar = string | number | boolean | null
 
 /** Single-type keywords accepted by the enforced subset. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type JsonSchemaType = 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null'
 
 /**
@@ -26,50 +30,68 @@ export type JsonSchemaType = 'object' | 'array' | 'string' | 'number' | 'integer
  * the external wire schema; {@link assertSupportedJsonSchema} rejects invalid
  * combinations before a caller treats the node as trusted.
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface JsonSchemaNode {
   /** Omit with no constraints for any JSON value, or use `oneOf`. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   type?: JsonSchemaType
   /** Exactly one branch must validate; at least two branches are required. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   oneOf?: JsonSchemaNode[]
   /** Nested property schemas (`type: 'object'` only). */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   properties?: Record<string, JsonSchemaNode>
   /** Required property names; each must appear in `properties`. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   required?: string[]
   /** `false` rejects undeclared keys; absent/`true` follows JSON Schema's open default. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   additionalProperties?: boolean
   /** Item schema (`type: 'array'` only); absent accepts any JSON item. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   items?: JsonSchemaNode
   /** Allowed values for a scalar node. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   enum?: JsonSchemaScalar[]
   /** The single allowed value for a scalar node. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   const?: JsonSchemaScalar
   /** Annotation, ignored for validation. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   description?: string
   /** Annotation, ignored for validation. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   title?: string
   /** Annotation, ignored for validation but required to be lossless JSON. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   default?: JsonSchemaScalar | Record<string, unknown> | unknown[]
   /** Annotation, ignored for validation but required to be lossless JSON. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   examples?: JsonSchemaScalar | Record<string, unknown> | unknown[]
 }
 
 /** Constraint keywords the subset enforces; anything else rejects. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const CONSTRAINT_KEYWORDS = new Set(['type', 'oneOf', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const'])
 /** Annotation keywords accepted but never enforced. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const ANNOTATION_KEYWORDS = new Set(['description', 'title', 'default', 'examples'])
 const SCHEMA_TYPES: readonly JsonSchemaType[] = ['object', 'array', 'string', 'number', 'integer', 'boolean', 'null']
 
 /** Narrow a raw value to a plain string-keyed record. */
+/** 判断未知值是否为非空普通对象。 */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /** Whether a value is a JSON scalar (the only `enum`/`const` vocabulary). */
+/** 判断值是否为 JSON Schema 支持的标量。 */
 function isJsonScalar(value: unknown): value is JsonSchemaScalar {
   return value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
 }
 
 /** Whether a value is a lossless JSON composite (round-trip checked). */
+/** 判断默认值等候选是否可无损表示为 JSON。 */
 function isLosslessJson(value: unknown): boolean {
   if (!isRecord(value) && !Array.isArray(value)) return isJsonScalar(value)
   try {
@@ -80,6 +102,7 @@ function isLosslessJson(value: unknown): boolean {
 }
 
 /** Whether one scalar satisfies a declared schema type (integers include whole numbers). */
+/** 检查标量值与声明类型是否一致，避免桥接器错误投影。 */
 function scalarMatches(schemaType: JsonSchemaType | undefined, value: JsonSchemaScalar): boolean {
   if (schemaType === undefined) return true
   switch (schemaType) {
@@ -94,6 +117,7 @@ function scalarMatches(schemaType: JsonSchemaType | undefined, value: JsonSchema
     case 'null':
       return value === null
     /* v8 ignore next -- scalar values never satisfy the container types */
+    /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
     case 'object':
     case 'array':
       return false
@@ -106,6 +130,7 @@ function scalarMatches(schemaType: JsonSchemaType | undefined, value: JsonSchema
  * @param schema - untrusted raw JSON Schema.
  * @throws Error listing every violation when the schema leaves the subset.
  */
+/** 递归验证工具输出 Schema 子集；发现不支持结构时抛出完整路径诊断。 */
 export function assertSupportedJsonSchema(schema: unknown): asserts schema is JsonSchemaNode {
   const violations: string[] = []
   checkSchemaNode(schema, 'schema', violations, new Set())
@@ -115,6 +140,7 @@ export function assertSupportedJsonSchema(schema: unknown): asserts schema is Js
 }
 
 /** Depth-first walk of one schema node; violations accumulate in walk order. */
+/** 深度优先检查一个 Schema 节点，并检测循环引用和不支持关键字。 */
 function checkSchemaNode(node: unknown, path: string, violations: string[], seen: Set<unknown>): void {
   if (seen.has(node)) {
     violations.push(`${path} is recursive; the subset does not accept recursive schemas`)

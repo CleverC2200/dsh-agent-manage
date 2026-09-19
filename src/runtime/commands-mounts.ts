@@ -1,3 +1,4 @@
+/** 文件作用：把启用套件里的命令 Markdown 挂载为宿主斜杠命令，并负责增量对账。 */
 /**
  * Claude Code command compatibility: `commands/*.md` of enabled suites
  * register as dsh slash commands.
@@ -10,6 +11,7 @@
  * broken command file or an unavailable `ctx.commands` is contained per
  * command and reported as a diagnostic.
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import type { Context } from '@deepseek-ai/cordis'
 import { parse as parseYaml } from 'yaml'
 import { stripFrontmatter } from '../catalog/skills-parse.js'
@@ -53,12 +55,14 @@ export class CommandMountRegistry {
   private readonly fingerprints = new Map<string, string>()
   private readonly live = new Map<string, () => void>()
 
+  /** 绑定宿主命令面和翻译器，后续 reconcile 在此上下文注册命令。 */
   constructor(
     private readonly ctx: Context,
     private readonly t: HostTranslate = bindHostLocale(undefined)
   ) {}
 
   /** Register/unregister suite commands to match the enabled suites exactly. */
+  /** 对账启用套件命令：卸载失效项，逐项读取并注册，单项失败转为诊断。 */
   async reconcile(enabledSuites: Suite[]): Promise<CommandMountDiagnostic[]> {
     const diagnostics: CommandMountDiagnostic[] = []
     const wanted = new Map<string, CommandSpec & { suiteId: string; suiteName: string }>()
@@ -67,6 +71,7 @@ export class CommandMountRegistry {
       for (const spec of specs) {
         // The registry key is source-qualified: bare suite ids are unique per
         // source only, so two sources' same-named suites would collide.
+        // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         const suiteKey = qualifiedSuiteId(suite.sourceId, suite.id)
         const key = `${suiteKey}/${spec.name}`
         if (wanted.has(key)) {
@@ -115,6 +120,7 @@ export class CommandMountRegistry {
   }
 
   /** Dispose every registered command; used at plugin teardown. */
+  /** 释放全部活动命令注册，供禁用插件或宿主销毁时调用。 */
   disposeAll(): void {
     for (const disposer of [...this.live.values()]) disposer()
     this.live.clear()
@@ -123,6 +129,7 @@ export class CommandMountRegistry {
 }
 
 /** Parse `commands/*.md` of one suite root (Claude Code format). */
+/** 读取套件命令资源，校验命名/frontmatter，并返回可注册的命令规格。 */
 export async function readCommands(root: string, resources?: SuiteMarkdownResource[]): Promise<CommandSpec[]> {
   const entries = resources ?? (await defaultMarkdownResources(root, 'commands'))
   const specs: CommandSpec[] = []
@@ -153,6 +160,7 @@ interface CommandMeta {
   hint?: string
 }
 
+/** 从命令 Markdown frontmatter 提取描述和参数提示。 */
 function commandMeta(text: string): CommandMeta | undefined {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)
   if (match === null) return undefined
@@ -171,6 +179,7 @@ function commandMeta(text: string): CommandMeta | undefined {
   }
 }
 
+/** 获取正文首个非空行，作为缺失描述时的稳定回退。 */
 function firstLine(text: string): string | undefined {
   const line = text
     .split('\n')

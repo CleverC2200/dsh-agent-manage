@@ -1,5 +1,10 @@
+/**
+ * 文件作用：定义浏览器端凭据面板使用的最小接口，并适配宿主凭据服务。
+ * 业务职责：只传递“是否已配置、来源、是否可写”等无密值视图；密文本身仅在保存时单向发送，不进入 React 状态。
+ */
 import { withBusyOperation } from './ui/busy-operation.js'
 /** Browser-safe structural subset of the Host credentials wire. */
+/** 中文：浏览器只保留无密状态字段，不暴露宿主凭据完整接口。 */
 
 export interface CredentialView {
   configured: boolean
@@ -26,6 +31,7 @@ interface CredentialMutationResponse {
 }
 
 /** Read one value-free credential view; secret values never enter the browser state. */
+/** 读取单个凭据引用的无密状态，避免把 secret 带入浏览器状态。 */
 export async function describeCredential(api: CredentialApi | undefined, ref: string): Promise<CredentialView | undefined> {
   if (api === undefined) return undefined
   const response = (await api.describe({ refs: [ref] })) as CredentialDescribeResponse
@@ -33,6 +39,7 @@ export async function describeCredential(api: CredentialApi | undefined, ref: st
   return response.result.value?.credentials?.[ref]
 }
 
+/** 保存凭据值；请求完成后组件只刷新无密状态。 */
 export async function setCredential(api: CredentialApi, ref: string, value: string): Promise<void> {
   return withBusyOperation(async () => {
     const response = (await api.set({ ref, value })) as CredentialMutationResponse
@@ -40,6 +47,7 @@ export async function setCredential(api: CredentialApi, ref: string, value: stri
   })
 }
 
+/** 删除凭据值并保留宿主返回的配置状态作为后续事实来源。 */
 export async function unsetCredential(api: CredentialApi, ref: string): Promise<void> {
   return withBusyOperation(async () => {
     const response = (await api.unset({ ref })) as CredentialMutationResponse
@@ -48,6 +56,7 @@ export async function unsetCredential(api: CredentialApi, ref: string): Promise<
 }
 
 /** Current Host remote service; methods return unwrapped RPC results. */
+/** 中文：宿主当前凭据远端服务，方法返回已解包的 RPC 结果。 */
 export interface CredentialRemote {
   describe(refs: string[]): Promise<{ ok: boolean; value?: Record<string, CredentialView>; error?: { message?: string } }>
   set(ref: string, value: string): Promise<unknown>
@@ -55,6 +64,7 @@ export interface CredentialRemote {
 }
 
 /** Adapt the current Host service to the credential editor's wire contract. */
+/** 把宿主当前的直接方法适配成凭据编辑器使用的 result 包装协议。 */
 export function credentialApi(remote: CredentialRemote): CredentialApi {
   return {
     describe: async ({ refs }) => {

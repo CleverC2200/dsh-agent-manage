@@ -1,4 +1,6 @@
+/** 文件作用：在运行时启动前合并插件存储目录，安全保留符号链接和冲突项。 */
 /** Consolidate plugin-owned storage before stores, routes, or providers are exposed. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { constants } from 'node:fs'
 import { copyFile, lstat, mkdir, readdir, readFile, rename, rmdir, unlink, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
@@ -6,9 +8,11 @@ import { expandHome, resolveDataRoot, resolveDshHome, resolveUserRoot } from '..
 
 export interface StorageMigrationResult {
   /** Conflicting or symbolic-link entries retained at their original paths. */
+  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   conflicts: string[]
 }
 
+/** 读取文件状态；只把不存在视为空，其余错误继续抛出以保护迁移证据。 */
 async function info(path: string) {
   try {
     return await lstat(path)
@@ -19,6 +23,7 @@ async function info(path: string) {
 }
 
 /** Move only successfully copied entries; never traverse links or overwrite a destination. */
+/** 递归合并一个存储树；只移动成功复制项，不穿越链接或覆盖目标。 */
 export async function mergeStorageTree(from: string, to: string, result: StorageMigrationResult): Promise<void> {
   if (resolve(from) === resolve(to)) return
   const source = await info(from)
@@ -50,11 +55,13 @@ export async function mergeStorageTree(from: string, to: string, result: Storage
   } else {
     await mkdir(dirname(to), { recursive: true })
     // COPYFILE_EXCL also protects against a destination created during migration.
+    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     await copyFile(from, to, constants.COPYFILE_EXCL)
   }
   await unlink(from)
 }
 
+/** 判断 child 是否位于 parent 内，用于限制迁移路径边界。 */
 function contains(parent: string, child: string): boolean {
   const path = relative(parent, child)
   return path === '' || (!path.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) && path !== '..' && !isAbsolute(path))
@@ -65,6 +72,7 @@ function contains(parent: string, child: string): boolean {
  * Unknown files in override directories remain untouched. Conflicts remain at
  * the old path and are returned to block activation; reruns are safe.
  */
+/** 计算旧/新根目录并执行全部迁移，同时返回冲突和不支持项清单。 */
 export async function migratePluginStorage(config: { userRoot?: string; dataRoot?: string } = {}): Promise<StorageMigrationResult> {
   const userRoot = resolveUserRoot()
   const dataRoot = resolveDataRoot()
@@ -94,6 +102,7 @@ export async function migratePluginStorage(config: { userRoot?: string; dataRoot
     const current = await info(currentState)
     // Validate before relocating any checkouts: malformed state must remain
     // beside its original sources so recovery does not require finding them.
+    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     if (previous?.isFile() === true) JSON.parse(await readFile(legacyState, 'utf8'))
     if (previous !== undefined && (!previous.isFile() || (current !== undefined && (!current.isFile() || !(await readFile(legacyState)).equals(await readFile(currentState)))))) {
       rootConflicts.push(legacyState)
@@ -101,6 +110,7 @@ export async function migratePluginStorage(config: { userRoot?: string; dataRoot
     if (rootConflicts.length > 0) {
       // The install state and its checkouts are one ownership unit. Moving only
       // one half would orphan installs or make the retained state unusable.
+      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       result.conflicts.push(...rootConflicts)
     } else {
       if (sourceInfo?.isDirectory() === true) {
@@ -124,6 +134,7 @@ export async function migratePluginStorage(config: { userRoot?: string; dataRoot
 }
 
 /** Retain all state fields while rebasing adopted checkouts moved with a root. */
+/** 将旧用户源 URL 记录迁移到新用户目录，保持管理来源可追踪。 */
 async function relocateManagedSourceUrls(userRoot: string, legacyUserRoot: string): Promise<void> {
   const path = join(userRoot, 'state.json')
   if ((await info(path)) === undefined) return
@@ -144,6 +155,7 @@ async function relocateManagedSourceUrls(userRoot: string, legacyUserRoot: strin
   }
 }
 
+/** 扫描无法安全搬迁的条目并写入冲突清单，不做破坏性删除。 */
 async function collectUnsupportedEntries(path: string, conflicts: string[]): Promise<void> {
   const entry = await info(path)
   if (entry === undefined) return

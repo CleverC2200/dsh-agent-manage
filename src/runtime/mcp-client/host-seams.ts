@@ -1,3 +1,4 @@
+/** 文件作用：封装内置 MCP 客户端访问宿主凭据、附件和环境变量的最小接口。 */
 /**
  * Local ports of the tiny host seams the self-built MCP client needs.
  *
@@ -13,18 +14,23 @@
  *
  * @module runtime/mcp-client/host-seams
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 // ---- dsh-timeout: MAX_TIMER_DELAY_MS (packages/util/timeout/src/index.ts) ----
+// 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
 
 /**
  * The largest delay `setTimeout` accepts without overflowing to a 1ms clamp
  * (2^31 - 1). Shared guard for reconnect and callback timers.
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const MAX_TIMER_DELAY_MS = 2_147_483_647
 
 // ---- dsh-subprocess: scrubbedParentEnv (packages/subprocess/subprocess/src/index.ts) ----
+// 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
 
 /** `DSH_*` environment namespace owned by the harness. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const DSH_ENV_PREFIX = 'DSH_' as const
 
 /**
@@ -33,6 +39,7 @@ export const DSH_ENV_PREFIX = 'DSH_' as const
  * spawned server implicitly). Deliberately supplied env entries survive
  * because the config's explicit env merges after the scrub.
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const SENSITIVE_ENV_PATTERN = /KEY|PASSWORD|SECRET|TOKEN/i
 
 /**
@@ -44,6 +51,7 @@ export const SENSITIVE_ENV_PATTERN = /KEY|PASSWORD|SECRET|TOKEN/i
  * would otherwise survive and read back as `$env:DSH_*` in the child.
  * @returns a fresh environment object safe to hand to a child spawn.
  */
+/** 返回剔除敏感父进程变量的子进程环境，避免凭据意外下传。 */
 export function scrubbedParentEnv(): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
@@ -53,12 +61,15 @@ export function scrubbedParentEnv(): Record<string, string> {
 }
 
 // ---- dsh-credentials: key grammar (packages/credentials/credentials/src/index.ts) ----
+// 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
 
 /** A credential record key: `<scope>/<id>` with both segments in the grammar below. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 declare const credentialKeyBrand: unique symbol
 export type CredentialKey = string & { readonly [credentialKeyBrand]: true }
 
 /** Key segments are lowercase hyphenated identifiers. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const KEY_SEGMENT_PATTERN = /^[a-z][a-z0-9-]*$/
 
 /**
@@ -68,6 +79,7 @@ const KEY_SEGMENT_PATTERN = /^[a-z][a-z0-9-]*$/
  * @returns the branded key.
  * @throws TypeError when either segment is not a lowercase hyphenated identifier.
  */
+/** 构造宿主凭据服务使用的稳定作用域/标识键。 */
 export function credentialKey(scope: string, id: string): CredentialKey {
   for (const segment of [scope, id]) {
     if (!KEY_SEGMENT_PATTERN.test(segment)) {
@@ -83,6 +95,7 @@ export function credentialKey(scope: string, id: string): CredentialKey {
  * optional `credentials` service; the OAuth provider narrows at runtime and
  * falls back to memory-only state when the service is absent.
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface CredentialRecordStore {
   describeRecord(key: CredentialKey): Promise<{ configured: boolean; writable: boolean }>
   readRecord(key: CredentialKey): Promise<unknown>
@@ -90,8 +103,10 @@ export interface CredentialRecordStore {
 }
 
 // ---- dsh-attachment: image admission error routing (packages/attachment/attachment/src/error.ts) ----
+// 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
 
 /** Caller-correctable attachment failure codes raised while admitting image input. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const IMAGE_ADMISSION_ERROR_CODES = [
   'TOO_MANY_IMAGES',
   'IMAGES_TOO_LARGE',
@@ -105,6 +120,7 @@ const IMAGE_ADMISSION_ERROR_CODES = [
 ] as const
 
 /** Runtime membership for structurally compatible errors crossing package boundaries. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const IMAGE_ADMISSION_ERROR_CODE_SET: ReadonlySet<string> = new Set(IMAGE_ADMISSION_ERROR_CODES)
 
 /**
@@ -112,16 +128,20 @@ const IMAGE_ADMISSION_ERROR_CODE_SET: ReadonlySet<string> = new Set(IMAGE_ADMISS
  * so an admission refusal projects text diagnostics while a storage fault is
  * reported as such.
  */
+/** 判断附件服务错误是否表示当前模型不接收图片，而非连接故障。 */
 export function isImageAdmissionError(error: unknown): boolean {
   return error instanceof Error && 'code' in error && typeof (error as { code?: unknown }).code === 'string' && IMAGE_ADMISSION_ERROR_CODE_SET.has((error as { code: string }).code)
 }
 
 // ---- dsh-attachment: durable image vocabulary (structural mirror) ----
+// 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
 
 /** Raster formats supported by the durable attachment vocabulary. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type ImageMediaType = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'
 
 /** One decoded image handed to the host attachment store. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface SaveImageAttachment {
   data: Buffer
   mediaType: ImageMediaType
@@ -133,6 +153,7 @@ export interface SaveImageAttachment {
  * image blocks; typed `unknown` here and narrowed by the model content
  * contract at the projection site.
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface AttachmentStoreLike {
   saveImages(images: readonly SaveImageAttachment[]): Promise<readonly unknown[]>
 }

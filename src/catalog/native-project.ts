@@ -1,3 +1,4 @@
+/** 文件作用：只读发现项目原生 Agent 目录，转换为不安装/不修改的合成套件。 */
 /**
  * Native project-layout discovery: read a coding agent's own project-local
  * directories from the shared layout registry in place as read-only suites.
@@ -9,6 +10,7 @@
  * pipeline. The directories are the repository's own: they are never
  * installed, uninstalled, or mutated by this manager.
  */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { join } from 'node:path'
 import { stat } from 'node:fs/promises'
 import { sanitizeId } from './paths.js'
@@ -23,6 +25,7 @@ import { discoverMarkdownResources } from './component-files.js'
  * Project-local directory conventions, in precedence order. Each entry maps
  * one agent convention onto the content subdirectories it owns.
  */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const NATIVE_PROJECT_DIRS: readonly NativeProjectDir[] = PROJECT_LAYOUTS
 
 export type NativeProjectDir = ProjectLayout
@@ -32,6 +35,7 @@ export type NativeProjectDir = ProjectLayout
  * convention directory that carries content becomes one synthetic suite;
  * empty or absent directories contribute nothing.
  */
+/** 只读发现项目布局中的技能/MCP/hooks/Agent 目录并生成合成套件。 */
 export async function discoverNativeProjectSuites(projectRoot: string, dimension: SuiteDimension): Promise<Suite[]> {
   const suites: Suite[] = []
   for (const native of NATIVE_PROJECT_DIRS) {
@@ -56,6 +60,7 @@ export async function discoverNativeProjectSuites(projectRoot: string, dimension
     // Skills live in `<dir>/skills/<name>/SKILL.md` — the same shape as the
     // ordinary skills container; agents/commands only surface as counts here
     // and are read by the runtime providers directly from the same files.
+    // 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
     const skills = await discoverSkills(root, errors)
     const mcp = await discoverProjectMcp(projectRoot, native.mcpFiles ?? [], errors, native.mcpFormat)
     const hooks = await discoverProjectHooks(projectRoot, native.hookFiles ?? [], errors, native.hookFormat)

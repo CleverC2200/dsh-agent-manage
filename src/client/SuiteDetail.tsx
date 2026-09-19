@@ -9,6 +9,9 @@
  * The MCP region is intentionally read-only: credentials and per-server
  * overrides are configured on the MCP services panel (their own detail
  * dialog), not inside the suite detail preview.
+ *
+ * 文件作用：提供单个套件的只读详情预览和能力面开关。
+ * 业务职责：读取套件清单、延迟读取技能正文、展示经过校验的 MCP/LSP/Hook 内容，并把启停能力操作交回宿主。
  */
 import { createElement as h, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -23,6 +26,7 @@ import { createLatestRequestGuard } from './features/suite-detail/suite-detail-r
 import css from './market.module.css'
 
 /** Toggleable surface keys paired with their translation keys. */
+/** 中文：可切换表面与翻译键一一对应，详情页只提交这些受控能力开关。 */
 const SURFACE_TOGGLE_ROWS = [
   ['skills', 'surfaceSkills'],
   ['mcp', 'surfaceMcp'],
@@ -40,9 +44,11 @@ export interface SuiteDetailModalProps {
   onClose: () => void
 }
 
+/** 加载并展示套件详情，同时隔离技能预览和能力面开关的状态流。 */
 export function SuiteDetailModal({ t, sourceId, suiteId, onClose }: SuiteDetailModalProps): ReactNode {
   // MarkdownText's chrome (code copy buttons, footnotes heading) is
   // Cordis-free and takes its copy through this labels object.
+  // 中文：Markdown 预览的复制按钮和脚注标题不依赖 Cordis，文案由此对象传入。
   const [detail, setDetail] = useState<SuiteDetail | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
   const [openSkill, setOpenSkill] = useState<string | undefined>(undefined)
@@ -52,6 +58,7 @@ export function SuiteDetailModal({ t, sourceId, suiteId, onClose }: SuiteDetailM
   const [openMcp, setOpenMcp] = useState<string | undefined>(undefined)
   const [openPreview, setOpenPreview] = useState<string | undefined>(undefined)
 
+  // 中文：套件标识变化时清空旧详情和技能请求，避免迟到响应覆盖新套件。
   useEffect(() => {
     let cancelled = false
     skillRequestGuard.current.invalidate()
@@ -72,6 +79,7 @@ export function SuiteDetailModal({ t, sourceId, suiteId, onClose }: SuiteDetailM
     }
   }, [sourceId, suiteId])
 
+  /** 展开/收起技能并按最新请求保护加载到的 Markdown 正文。 */
   const toggleSkill = async (name: string): Promise<void> => {
     const requestId = skillRequestGuard.current.next()
     if (openSkill === name) {
@@ -91,11 +99,13 @@ export function SuiteDetailModal({ t, sourceId, suiteId, onClose }: SuiteDetailM
     }
   }
 
+  /** 展开或收起一个只读 MCP 配置预览。 */
   const toggleMcp = (key: string): void => {
     setOpenMcp(openMcp === key ? undefined : key)
   }
 
   const [surfaceBusy, setSurfaceBusy] = useState(false)
+  /** 持久化套件能力面开关，再重新读取详情确认宿主结果。 */
   const toggleSurface = async (surface: string, enabled: boolean): Promise<void> => {
     setSurfaceBusy(true)
     try {
@@ -259,6 +269,7 @@ export function SuiteDetailModal({ t, sourceId, suiteId, onClose }: SuiteDetailM
                                 // Read-only preview of the validated config.
                                 // Credentials and overrides are configured on
                                 // the MCP services panel, not here.
+                                // 中文：此处只读展示已校验配置；凭据和覆盖必须在 MCP 服务面板维护。
                                 h('pre', { className: css.mono }, JSON.stringify(server, null, 2))
                               )
                             : null
@@ -362,16 +373,20 @@ export function SuiteDetailModal({ t, sourceId, suiteId, onClose }: SuiteDetailM
   })
 }
 
+/** 为 MCP 详情行生成 transport-aware 的一行摘要。 */
 function mcpSummary(server: McpServerDetail): string {
   if (server.type === 'stdio') return server.command ?? server.type
   return server.url ?? server.type
 }
 
 /** One-line summary of a declared LSP server: command plus mapped extension list. */
+/** 中文：LSP 摘要由启动命令和扩展映射组成，避免展开完整配置占用空间。 */
+/** 生成 LSP 详情行的启动命令和扩展映射摘要。 */
 function lspSummary(server: { command: string; extensions: Record<string, string> }): string {
   return [server.command, Object.keys(server.extensions).join(' ')].join(' · ')
 }
 
+/** 渲染命令、代理、Hook、LSP 等统一的可展开预览行。 */
 function PreviewRow(props: { t: Translate; name: string; description?: string; open: boolean; onToggle: () => void; children: ReactNode }): ReactNode {
   const { name, description, open, onToggle, children } = props
   return h(

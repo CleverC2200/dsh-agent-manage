@@ -1,3 +1,4 @@
+/** 文件作用：定义套件来源和安装状态的持久化模型，并提供安全读写所需类型。 */
 /**
  * Persisted suite state: configured sources and per-suite install entries.
  *
@@ -5,6 +6,9 @@
  * only writer (through manager actions and the HTTP routes); the manager
  * re-reads the file whenever a mutation races, keeping the on-disk copy
  * authoritative like the market profile state this pattern follows.
+ *
+ * 中文：本文件负责读写 suite 的持久化状态，内容包括已配置源和安装记录。
+ * 状态保存在各维度根目录的 `state.json`，磁盘副本是权威数据，并通过临时文件重命名实现原子更新。
  */
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
@@ -12,7 +16,7 @@ import { SUITE_SURFACE_KEYS, type InstalledEntry, type SourceRef, type SuiteStat
 
 export const EMPTY_STATE: SuiteState = { version: 1, sources: [], installed: {} }
 
-/** Parse persisted state; unreadable or wrong-version files yield a contained empty state. */
+/** Parse persisted state; unreadable or wrong-version files yield a contained empty state. 中文：读取并规范化状态文件，缺失、损坏或版本不匹配时安全退回空状态。 */
 export async function loadState(statePath: string): Promise<SuiteState> {
   try {
     const text = await readFile(statePath, 'utf8')
@@ -26,6 +30,7 @@ export async function loadState(statePath: string): Promise<SuiteState> {
   }
 }
 
+/** 将已初步确认的 JSON 对象转换为可信的 SuiteState，丢弃类型错误的源和安装字段。 */
 function normalizeState(record: Record<string, unknown>): SuiteState {
   const sources: SourceRef[] = Array.isArray(record['sources'])
     ? (record['sources'] as unknown[]).flatMap((entry): SourceRef[] => {
@@ -68,7 +73,7 @@ function normalizeState(record: Record<string, unknown>): SuiteState {
   return { version: 1, sources, installed }
 }
 
-/** Parse a persisted `surfaces` override record, keeping only valid boolean keys. */
+/** Parse a persisted `surfaces` override record, keeping only valid boolean keys. 中文：解析单个 suite 的 surface 开关，只保留已知键与布尔值。 */
 function parseSurfaceOverrides(raw: unknown): { surfaces?: SurfaceOverrides } {
   if (typeof raw !== 'object' || raw === null) return {}
   const record = raw as Record<string, unknown>
@@ -84,7 +89,7 @@ function parseSurfaceOverrides(raw: unknown): { surfaces?: SurfaceOverrides } {
   return hasAny ? { surfaces: overrides } : {}
 }
 
-/** Persist state atomically through a sibling-temp rename. */
+/** Persist state atomically through a sibling-temp rename. 中文：先写同目录临时文件再重命名，避免崩溃时留下半个 JSON。 */
 export async function saveState(statePath: string, state: SuiteState): Promise<void> {
   await mkdir(dirname(statePath), { recursive: true })
   const temp = `${statePath}.${process.pid}.tmp`
