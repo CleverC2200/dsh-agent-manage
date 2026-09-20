@@ -37,7 +37,7 @@ DSH 0.1.6 通过异步 `agent/created` 等待项目命令和套件指令就绪�
 dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
-1. 重启 DSH，打开 **设置 → Agent Plugins 市场**。旧版外壳可能显示为顶层页面入口。
+1. 重启 DSH，打开 **设置 → 智能体市场**。旧版外壳可能显示为顶层页面入口。
 2. 在**插件市场**添加来源，例如 `https://github.com/anthropics/claude-plugins-official`。插件不预置来源。
 3. 打开套件查看内容，确认后安装，并确保套件已启用。
 4. 如果套件提供技能，先在**技能**页签查看，再在聊天中输入 `/` 查找允许手动调用的技能。如果提供 MCP，前往 **MCP 服务**检查状态，处理凭据或连接提示后再使用工具。
@@ -208,7 +208,7 @@ MCP 读取根 `.mcp.json`、`.cursor/mcp.json`，以及 `.qoder/settings.json`�
 
 已安装资源编辑、角色模型路由与目录迁移见[代理角色与存储](docs/guides/agent-roles.zh.md)。
 
-下载区域在「设置 → 插件 → 插件配置 → Agent Plugins 市场」中切换。手动选择保存后立即更新选中状态；保存失败显示错误并保留原选择。
+下载区域在「设置 → 插件 → 插件配置 → 智能体市场」中切换。手动选择保存后立即更新选中状态；保存失败显示错误并保留原选择。
 
 同时加载 GEA 插件时，GEA 登录后自动发现获授权的 MCP 工具。Consumer 选择、生命周期和验收边界见 [GEA 登录与 MCP](docs/guides/gea-mcp.zh.md)。
 

@@ -37,7 +37,7 @@ Install into your profile, replacing `<name>` with its name:
 dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
-1. Restart DSH and open **Settings → Agent Plugins Market**. Older shells may show a top-level page entry instead.
+1. Restart DSH and open **Settings → Agent Marketplace**. Older shells may show a top-level page entry instead.
 2. In **Market**, add a source, for example `https://github.com/anthropics/claude-plugins-official`. No sources are preconfigured.
 3. Open a suite, review its contents, then install it and ensure it is enabled.
 4. For a suite with skills, check the **Skills** tab and type `/` in chat to find its user-invocable skills. For an MCP suite, check **MCP services** and resolve any credential or connection notices before using its tools.
@@ -216,7 +216,7 @@ Only when you tick **also delete the managed market directory** in the confirmat
 
 See [agent roles and storage](docs/guides/agent-roles.md) for installed-resource editing, model routing and migration.
 
-Switch the download region under Settings → Plugins → Plugin configuration → Agent Plugins Market. A saved manual choice updates the selected segment immediately; a failed write displays an error and retains the previous choice.
+Switch the download region under Settings → Plugins → Plugin configuration → Agent Marketplace. A saved manual choice updates the selected segment immediately; a failed write displays an error and retains the previous choice.
 
 When the GEA plugin is loaded, GEA login automatically discovers its authorized MCP tools. See [GEA login and MCP](docs/guides/gea-mcp.md) for Consumer selection, lifecycle and verification boundaries.
 
