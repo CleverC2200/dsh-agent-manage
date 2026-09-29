@@ -37,7 +37,7 @@
   max-height: 36px;
   padding-top: 0;
   padding-bottom: 0;
-  font-size: 12px;
+  font-size: calc(var(--workbench-font-size) * 12 / 14);
   line-height: 20px;
 }
 
@@ -51,19 +51,19 @@
   min-width: 54px;
   height: 36px;
   padding: 7px 9px;
-  color: var(--dsw-alias-label-secondary, #6b7280);
+  color: var(--workbench-body);
   border: none;
   border-bottom: 2px solid transparent;
   background: none;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: calc(var(--workbench-font-size) * 13 / 14);
   white-space: nowrap;
 }
 
 .filterOn {
-  color: var(--dsw-alias-brand-primary, #4f6ef7);
-  border-bottom-color: var(--dsw-alias-brand-primary, #4f6ef7);
+  color: var(--workbench-brand);
+  border-bottom-color: var(--workbench-brand);
   font-weight: 600;
 }
 
@@ -87,7 +87,7 @@
   justify-content: center;
   width: 34px;
   height: 36px;
-  color: var(--dsw-alias-label-tertiary, #9ca3af);
+  color: var(--workbench-muted);
   border: none;
   border-bottom: 2px solid transparent;
   background: none;
@@ -103,28 +103,28 @@
   gap: 6px;
   height: 36px;
   padding: 0 10px;
-  color: var(--dsw-alias-label-tertiary, #9ca3af);
+  color: var(--workbench-muted);
   border: none;
   border-bottom: 2px solid transparent;
   background: none;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: calc(var(--workbench-font-size) * 13 / 14);
   white-space: nowrap;
 }
 
 .extraAction:hover {
-  color: var(--dsw-alias-label-primary, #1f2328);
+  color: var(--workbench-text);
 }
 
 .viewSwitch:hover {
-  color: var(--dsw-alias-label-primary, #1f2328);
+  color: var(--workbench-text);
 }
 
 .viewSwitch:focus-visible,
 .filter:focus-visible,
 .filterOn:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary, #4f6ef7);
+  outline: 2px solid var(--workbench-brand);
   outline-offset: 2px;
 }
 

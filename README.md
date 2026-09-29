@@ -229,3 +229,5 @@ Private GitHub suites can use an explicit archive source such as `https://api.gi
 The download-region selector immediately reflects an explicit choice; automatic mode follows the detected region.
 
 The isolated plugin-split workspace targets the sibling DSH 0.2.0-rc.1 source build. DSH peers are pinned to that version; client icons consume its Regular exports. The UI primitives development link resolves to that same checkout, and tests deduplicate React across the link. Run the source compatibility check from the sibling GEA repository before using this combination.
+
+Management pages consume workbench theme resource `1.0.0` from the isolated DSH ui-theme build. The resource version and SHA-256 are verified by the sibling workbench sync check; do not copy its palette into this plugin. Theme, font size and semantic status colors remain host-owned.

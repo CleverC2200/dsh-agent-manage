@@ -6,6 +6,10 @@
  */
 
 .workspace {
+  --dsw-alias-button-primary-fill: var(--workbench-brand);
+  --dsw-alias-button-primary-hover: var(--workbench-brand-hover);
+  --dsw-alias-label-dimmed: var(--workbench-muted);
+  --dsw-alias-interactive-bg-hover: var(--workbench-hover);
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -13,7 +17,9 @@
   flex: 1;
   flex-direction: column;
   gap: 12px;
-  color: var(--dsw-alias-label-primary, #1f2328);
+  color: var(--workbench-text);
+  font-family: var(--workbench-font-family);
+  font-size: var(--workbench-font-size);
 }
 
 /* Page mode is a fixed shell; settings mode stretches to the host column.
@@ -31,7 +37,7 @@
   gap: 4px;
   align-items: center;
   overflow-x: auto;
-  border-bottom: 1px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1));
+  border-bottom: 1px solid var(--workbench-border);
   scrollbar-width: none;
 }
 
@@ -43,21 +49,21 @@
   border: none;
   border-radius: 8px 8px 0 0;
   background: transparent;
-  color: var(--dsw-alias-label-secondary, #6b7280);
+  color: var(--workbench-body);
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
+  font-size: calc(var(--workbench-font-size) * 13 / 14);
   line-height: 20px;
   white-space: nowrap;
 }
 
 .tab:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgba(38, 49, 72, 0.06));
-  color: var(--dsw-alias-label-primary, #1f2328);
+  background: var(--workbench-hover);
+  color: var(--workbench-text);
 }
 
 .tabOn {
-  color: var(--dsw-alias-label-primary, #1f2328);
+  color: var(--workbench-selected-text);
   font-weight: 600;
 }
 
@@ -68,7 +74,7 @@
   left: 10px;
   height: 2px;
   border-radius: 2px;
-  background: var(--dsw-alias-brand-primary);
+  background: var(--workbench-brand);
   content: '';
 }
 
@@ -77,4 +83,9 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
+}
+
+.workspace :focus-visible {
+  outline: 2px solid var(--workbench-brand);
+  outline-offset: 2px;
 }
