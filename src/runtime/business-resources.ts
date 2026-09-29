@@ -2,6 +2,9 @@
 import { readFile, realpath, mkdir, writeFile, rm } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
+import { parseSkillFrontmatter } from '../catalog/skills-parse.js'
+
+const mountedResources = new Set<string>()
 
 /** Read only files contained in the assembled resource, including after symlink resolution. */
 async function resourceFile(directory: string, reference: unknown): Promise<string> {
@@ -18,9 +21,10 @@ export async function loadBusinessResources(directory: string, input: { id: stri
   const promptPath = await resourceFile(directory, input.prompt)
   const skill = await readFile(skillPath, 'utf8')
   const prompt = JSON.parse(await readFile(promptPath, 'utf8'))
+  const parsedSkill = parseSkillFrontmatter(skill, input.id)
   if (
     !/^[a-z][a-z0-9-]*$/.test(input.id) ||
-    new RegExp(`^name:\\s*${input.id}\\s*$`, 'm').test(skill) === false ||
+    typeof parsedSkill === 'string' ||
     prompt.consumerCode !== input.consumerCode ||
     typeof prompt.persona !== 'string' ||
     !prompt.persona.trim() ||
@@ -36,24 +40,41 @@ export async function loadBusinessResources(directory: string, input: { id: stri
     profile: { label: prompt.label ?? input.id, consumerCode: input.consumerCode, persona: prompt.persona, skills: [input.id] },
     source: { provider: 'dsh-agent-manage', skillPath, promptPath },
     /** Publish through the existing native Skill filesystem roots, scoped to this plugin effect. */
-    async mount(ctx: Context, home: string): Promise<void> {
-      for (const area of ['skills', 'gea-business-skills']) {
-        const target = resolve(home, area, input.id)
-        await mkdir(target, { recursive: true })
-        const file = resolve(target, 'SKILL.md')
-        let previous: string | undefined
-        try {
-          previous = await readFile(file, 'utf8')
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-        }
-        await writeFile(file, skill, { mode: 0o600 })
-        ctx.effect(() => async () => {
-          // A later owner or user edit must survive this mount's teardown.
-          if ((await readFile(file, 'utf8').catch(() => undefined)) !== skill) return
+    async mount(ctx: Pick<Context, 'effect'>, home: string): Promise<void> {
+      const key = resolve(await realpath(home), input.id)
+      if (mountedResources.has(key)) throw new Error('AGENT_RESOURCE_ALREADY_MOUNTED')
+      mountedResources.add(key)
+      const files: Array<{ file: string; previous?: string }> = []
+      let closed = false
+      const dispose = async () => {
+        if (closed) return
+        for (const { file, previous } of files) {
+          // Preserve edits made after this publication.
+          if ((await readFile(file, 'utf8').catch(() => undefined)) !== skill) continue
           if (previous === undefined) await rm(file, { force: true })
           else await writeFile(file, previous, { mode: 0o600 })
-        })
+        }
+        closed = true
+        mountedResources.delete(key)
+      }
+      try {
+        for (const area of ['skills', 'gea-business-skills']) {
+          const target = resolve(home, area, input.id)
+          await mkdir(target, { recursive: true })
+          const file = resolve(target, 'SKILL.md')
+          let previous: string | undefined
+          try {
+            previous = await readFile(file, 'utf8')
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+          }
+          files.push({ file, previous })
+          await writeFile(file, skill, { mode: 0o600 })
+        }
+        ctx.effect(() => dispose)
+      } catch (error) {
+        await dispose()
+        throw error
       }
     }
   }

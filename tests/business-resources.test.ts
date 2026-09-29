@@ -39,3 +39,27 @@ describe('Agent-owned workbench resources', () => {
     await expect(loadBusinessResources(root, { ...input, skill: 'outside.md' })).rejects.toThrow('INVALID_AGENT_RESOURCE_PATH')
   })
 })
+
+it('refuses overlapping Skill owners and preserves edits during disposal', async () => {
+  const { root, input } = await fixture()
+  const resource = await loadBusinessResources(root, input)
+  const disposals: Array<() => Promise<void>> = []
+  const host = {
+    effect: (setup: () => () => Promise<void>) => {
+      disposals.push(setup())
+    }
+  } as Pick<import('@deepseek-ai/cordis').Context, 'effect'>
+  const home = join(root, 'home')
+  await mkdir(home)
+  await resource.mount(host, home)
+  await expect(resource.mount(host, home)).rejects.toThrow('AGENT_RESOURCE_ALREADY_MOUNTED')
+  const file = join(home, 'skills/inventory-fc/SKILL.md')
+  expect(await readFile(file, 'utf8')).toBe(resource.skill)
+  await disposals[0]!()
+  await resource.mount(host, home)
+  await disposals[0]!()
+  expect(await readFile(file, 'utf8')).toBe(resource.skill)
+  await writeFile(file, 'user edit')
+  await disposals[1]!()
+  expect(await readFile(file, 'utf8')).toBe('user edit')
+})
