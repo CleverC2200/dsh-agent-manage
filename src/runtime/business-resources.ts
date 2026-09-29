@@ -45,6 +45,7 @@ export async function loadBusinessResources(directory: string, input: { id: stri
   return {
     skill,
     profile: { label: prompt.label ?? input.id, consumerCode: input.consumerCode, persona: prompt.persona, skills: [input.id] },
+    /** Allowed page interpreters; GEA still checks installation, Session preset and each Consumer grant. */
     pageAgents: prompt.pageAgents ?? [`gea-html-${input.id}`],
     source: { provider: 'dsh-agent-manage', skillPath, promptPath },
     /** Publish through the existing native Skill filesystem roots, scoped to this plugin effect. */

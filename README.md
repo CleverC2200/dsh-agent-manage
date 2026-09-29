@@ -236,4 +236,6 @@ Management pages consume workbench theme resource `1.0.0` from the isolated DSH 
 
 `business-resources/inventory-fc` owns the migrated read-only Skill, persona, MCP declaration and capability metadata. The workbench build assembles these files with its page through the existing `declarations.page/capability` references. The exported `dsh-agent-manage/business-resources` loader reads and validates Skill/persona identity; GEA validates Consumer, page IDs and effects before mounting. Native Skill paths remain compatible, and teardown preserves later edits. Resource configuration contains no credentials; GEA still owns login and governed execution. Legacy HTML bundles without `agentResources` retain their existing path. The `pageAgents` list in `prompt.json` permits installed presets to interpret this page without granting cross-Consumer access. The branch stock page lists branch stock and full-chain inventory; GEA separately checks installation and the current login's Consumer authorization.
 
+See [branch stock page Agent choices](docs/guides/branch-stock-page-agents.md) for the configuration and Session rules.
+
 The resource loader rejects overlapping mounts of the same module in one native Skill home. GEA likewise rejects overlapping persona replacements for the same existing preset, so an older disposer cannot remove or revive another owner.
