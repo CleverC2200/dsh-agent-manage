@@ -1,0 +1,43 @@
+{
+  "id": "inventory-fc",
+  "label": "分仓库存",
+  "data": {
+    "consumerCode": "branch-inventory",
+    "tables": [
+      "agent_branch_detail_publication",
+      "agents_scm_base_stock_batch",
+      "agents_scm_branch_budget_monthly",
+      "agents_scm_branch_inventory_snapshot",
+      "agents_scm_branch_operation_fact",
+      "agents_scm_branch_pending_order",
+      "agents_scm_branch_plan",
+      "agents_scm_branch_production_plan",
+      "agents_scm_branch_transfer_detail",
+      "agents_scm_order_fulfillment"
+    ],
+    "rules": [
+      "- 数据和登录复用 GEA 公共插件受控查询；HTML 不持有凭据，不直连数据库，不启动业务后端。\n- 页面联动需要当前会话绑定页面；独立范围查询使用已授权的 gea_cube_query，无需打开页面。权限失败时说明缺口，不换身份或回退演示数据。\n- 此版本是迁移联调版。已迁移业务页面与只读计算；正式保存、审批、下单及部分历史归档尚未接入 GEA。当前页部分查询失败时，不得把其余已显示数据当成完整业务证据。\n- 上下文为当前页面摘要，长数组可能截断。先检查 `parts`、缺失说明和覆盖范围，不得对截断明细重新汇总成全量指标。\n- `filter` 已接入：先读 `parts.pageFilters` 的字段、可选范围和当前值，再提交需要改变的字段；省略的条件保留。等待页面查询完成再读取证据。",
+      "- 单分仓问题先锁定仓库名/ID，再取同仓快照与数量。base_name等基地归属字段可能包含多个分仓，不替代warehouse_name等仓库实体；地名相同不证明实体相同。无唯一映射时给带类型的候选及相应范围，结论保持未确认，不先报基地总量再用脚注纠正。\n- 导航 1 至 5 是步骤序号，不能作为订单数或风险数。\n- 当前订单缺口是近60天口径，满足率是本月履约口径，二者不能相减推出新指标。\n- 补货采用 order-net-gap-v3：备单剩余量=备单中量−已占用量；订单扣减后可供库存=可用库存−备单剩余量；计划日均=ceil(本月出货计划/月天数)；目标库存=(周期天数+3)×计划日均；建议量=ceil(max(0,max(缺货量,目标库存−订单扣减后可供库存)−调拨中量))。调拨中量包含所有月份未发和发出未收数量，只扣一次。任一必要输入缺失时建议量未知，禁止按零处理；展望30日安全库存差异是辅助指标，不替代 V3。\n- 部分汇总的正建议 SKU 数不是已计算 SKU 数；使用 computedOverview.calculated 的 computedCount / missingCount。\n- 大日期和滞库按各自业务规则判定，集合可能重叠；并集量=A+B−交集量，无交集证据不能给并集，也不能断言实际一定重叠。滞库涉及动销/消化与需求。本包没有定义统一起算日或阈值，不能"
+    ]
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["inventory-fc"],
+  "routing": {
+    "keywords": [
+      "分仓库存",
+      "inventory-fc",
+      "agent_branch_detail_publication",
+      "agents_scm_base_stock_batch",
+      "agents_scm_branch_budget_monthly",
+      "agents_scm_branch_inventory_snapshot",
+      "agents_scm_branch_operation_fact",
+      "agents_scm_branch_pending_order",
+      "agents_scm_branch_plan",
+      "agents_scm_branch_production_plan",
+      "agents_scm_branch_transfer_detail",
+      "agents_scm_order_fulfillment"
+    ],
+    "summary": "在 DSH 分仓库存业务页读取当前 GEA 证据、调整筛选、解释指标，并在右侧 DSH 会话中整理分析方案。"
+  }
+}

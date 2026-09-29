@@ -1,6 +1,6 @@
 {
   "name": "dsh-agent-manage",
-  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) — zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
+  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) \u2014 zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
   "version": "0.6.3-company.6",
   "type": "module",
   "main": "lib/index.js",
@@ -12,7 +12,11 @@
     },
     "./client": "./client/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./business-resources": {
+      "types": "./lib/types/runtime/business-resources.d.ts",
+      "default": "./lib/runtime/business-resources.js"
+    }
   },
   "files": [
     "lib",
@@ -21,7 +25,8 @@
     "cordis.patch.yml",
     "LICENSE",
     "README.md",
-    "README.zh.md"
+    "README.zh.md",
+    "business-resources"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",

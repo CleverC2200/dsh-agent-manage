@@ -231,3 +231,7 @@ The download-region selector immediately reflects an explicit choice; automatic 
 The isolated plugin-split workspace targets the sibling DSH 0.2.0-rc.1 source build. DSH peers are pinned to that version; client icons consume its Regular exports. The UI primitives development link resolves to that same checkout, and tests deduplicate React across the link. Run the source compatibility check from the sibling GEA repository before using this combination.
 
 Management pages consume workbench theme resource `1.0.0` from the isolated DSH ui-theme build. The resource version and SHA-256 are verified by the sibling workbench sync check; do not copy its palette into this plugin. Theme, font size and semantic status colors remain host-owned.
+
+## Branch inventory split resources
+
+`business-resources/inventory-fc` owns the migrated read-only Skill, persona, MCP declaration and capability metadata. The workbench build assembles these files with its page through the existing `declarations.page/capability` references. The exported `dsh-agent-manage/business-resources` loader reads and validates Skill/persona identity; GEA validates Consumer, page IDs and effects before mounting. Native Skill paths remain compatible, and teardown preserves later edits. Resource configuration contains no credentials; GEA still owns login and governed execution. Legacy HTML bundles without `agentResources` retain their existing path.

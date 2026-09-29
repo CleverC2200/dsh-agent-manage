@@ -223,3 +223,7 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 插件拆分隔离工作区面向同级 DSH 0.2.0-rc.1 源码构建，DSH peer 固定到该版本；图标使用新的 Regular 导出。UI primitives 开发链接指向同一源码，测试对 React 去重。使用此组合前从同级 GEA 仓执行源码兼容检查。
 
 管理页面消费隔离 DSH ui-theme 构建中的工作台主题资源 `1.0.0`。资源版本与 SHA-256 由同级工作台同步检查核验，不在本插件复制调色板。明暗主题、字号和状态颜色仍由宿主管理。
+
+## 分仓库存分离资源
+
+`business-resources/inventory-fc` 持有迁移后的只读 Skill、提示词、MCP 声明和能力元数据。工作台构建通过已有 `declarations.page/capability` 引用将其与页面组合。导出的 `dsh-agent-manage/business-resources` 装载器读取并校验 Skill/提示词身份；GEA 在装载前校验 Consumer、页面 ID 和影响等级。沿用原生 Skill 路径，卸载保留后续编辑。资源配置不包含凭据，登录与受控执行仍归 GEA。不含 `agentResources` 的旧 HTML 包继续使用原兼容入口。
