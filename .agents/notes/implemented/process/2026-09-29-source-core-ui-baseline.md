@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-09-29-source-core-ui-baseline.zh.md)
+
 ## Problem
 
 The isolated migration workspace targets DSH 0.2.0-rc.1 while the previous UI development dependency exports older icon names. Rendering tests must consume the same UI library as the target runtime.

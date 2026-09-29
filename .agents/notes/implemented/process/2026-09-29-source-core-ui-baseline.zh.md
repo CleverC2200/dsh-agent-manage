@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-09-29-source-core-ui-baseline.md) | 中文
+
 ## 问题
 
 隔离迁移工作区面向 DSH 0.2.0-rc.1，而原 UI 开发依赖导出旧图标名。渲染测试必须使用与目标运行时相同的 UI 库。
