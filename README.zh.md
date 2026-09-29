@@ -226,6 +226,6 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 
 ## 分仓库存分离资源
 
-`business-resources/inventory-fc` 持有迁移后的只读 Skill、提示词、MCP 声明和能力元数据。工作台构建通过已有 `declarations.page/capability` 引用将其与页面组合。导出的 `dsh-agent-manage/business-resources` 装载器读取并校验 Skill/提示词身份；GEA 在装载前校验 Consumer、页面 ID 和影响等级。沿用原生 Skill 路径，卸载保留后续编辑。资源配置不包含凭据，登录与受控执行仍归 GEA。不含 `agentResources` 的旧 HTML 包继续使用原兼容入口。
+`business-resources/inventory-fc` 持有迁移后的只读 Skill、提示词、MCP 声明和能力元数据。工作台构建通过已有 `declarations.page/capability` 引用将其与页面组合。导出的 `dsh-agent-manage/business-resources` 装载器读取并校验 Skill/提示词身份；GEA 在装载前校验 Consumer、页面 ID 和影响等级。沿用原生 Skill 路径，卸载保留后续编辑。资源配置不包含凭据，登录与受控执行仍归 GEA。不含 `agentResources` 的旧 HTML 包继续使用原兼容入口。 `prompt.json` 的 `pageAgents` 只列出允许解读本页的预设，不增加跨 Consumer 权限。当前分仓页列出分仓库存与全链库存两项；GEA 还会逐项检查预设是否安装、当前登录是否得到该 Consumer 的授权。
 
 同一个原生 Skill 根目录中，装载器拒绝同模块的重叠装载；GEA 同样拒绝同一现有 preset 的重叠提示词替换，避免旧卸载动作删除或复活其他拥有者。

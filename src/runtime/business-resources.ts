@@ -31,13 +31,21 @@ export async function loadBusinessResources(directory: string, input: { id: stri
     !Array.isArray(prompt.skills) ||
     prompt.skills.length !== 1 ||
     prompt.skills[0] !== input.id ||
-    prompt.crossConsumers !== undefined
+    prompt.crossConsumers !== undefined ||
+    (prompt.pageAgents !== undefined &&
+      (!Array.isArray(prompt.pageAgents) ||
+        prompt.pageAgents.length < 1 ||
+        prompt.pageAgents.length > 4 ||
+        new Set(prompt.pageAgents).size !== prompt.pageAgents.length ||
+        !prompt.pageAgents.includes(`gea-html-${input.id}`) ||
+        prompt.pageAgents.some((id: unknown) => typeof id !== 'string' || !/^gea-html-inventory-[a-z]+$/.test(id))))
   ) {
     throw new Error('INVALID_AGENT_RESOURCE_IDENTITY')
   }
   return {
     skill,
     profile: { label: prompt.label ?? input.id, consumerCode: input.consumerCode, persona: prompt.persona, skills: [input.id] },
+    pageAgents: prompt.pageAgents ?? [`gea-html-${input.id}`],
     source: { provider: 'dsh-agent-manage', skillPath, promptPath },
     /** Publish through the existing native Skill filesystem roots, scoped to this plugin effect. */
     async mount(ctx: Pick<Context, 'effect'>, home: string): Promise<void> {

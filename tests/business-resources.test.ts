@@ -23,6 +23,7 @@ describe('Agent-owned workbench resources', () => {
     const result = await loadBusinessResources(root, input)
     expect(result.skill).toContain('缺失不按零处理')
     expect(result.profile.persona).toBe('分仓分析')
+    expect(result.pageAgents).toEqual(['gea-html-inventory-fc'])
     expect(result.source.provider).toBe('dsh-agent-manage')
     expect(await readFile(result.source.skillPath, 'utf8')).toBe(result.skill)
   })
@@ -30,6 +31,14 @@ describe('Agent-owned workbench resources', () => {
     const { root, input } = await fixture()
     await expect(loadBusinessResources(root, { ...input, consumerCode: 'other' })).rejects.toThrow('INVALID_AGENT_RESOURCE_IDENTITY')
     await writeFile(join(root, 'prompt.json'), JSON.stringify({ consumerCode: 'branch-inventory', persona: '分仓分析', skills: ['inventory-fc'], crossConsumers: ['other'] }))
+    await expect(loadBusinessResources(root, input)).rejects.toThrow('INVALID_AGENT_RESOURCE_IDENTITY')
+  })
+  it('keeps page Agent choices separate from cross-Consumer grants', async () => {
+    const { root, input } = await fixture()
+    const prompt = { consumerCode: 'branch-inventory', persona: '分仓分析', skills: ['inventory-fc'], pageAgents: ['gea-html-inventory-fc', 'gea-html-inventory-qll'] }
+    await writeFile(join(root, 'prompt.json'), JSON.stringify(prompt))
+    expect((await loadBusinessResources(root, input)).pageAgents).toEqual(prompt.pageAgents)
+    await writeFile(join(root, 'prompt.json'), JSON.stringify({ ...prompt, pageAgents: ['gea-html-inventory-qll'] }))
     await expect(loadBusinessResources(root, input)).rejects.toThrow('INVALID_AGENT_RESOURCE_IDENTITY')
   })
   it('refuses resource paths escaping through a symlink', async () => {
