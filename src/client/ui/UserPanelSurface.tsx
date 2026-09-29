@@ -10,7 +10,7 @@
  * @module client/ui/UserPanelSurface
  */
 import { createElement as h, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { IconEditOutline16, IconTrashOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconEditOutlineRegular, IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ToggleSwitch } from './ToggleSwitch.js'
 import { createUserPanelEntry, deleteUserPanelEntry, fetchUserPanel, updateUserPanelEntry, type UserPanelEntry, type UserPanelKind } from '../api.js'
 import type { Translate } from '../index.js'
@@ -309,7 +309,7 @@ function UserEntryRow(props: {
     h(
       'div',
       { className: css.entryActions },
-      h('button', { type: 'button', className: css.iconBtn, 'aria-label': t('panelEditTitle'), disabled: props.busy, title: t('panelEditTitle'), onClick: props.onEdit }, h(IconEditOutline16)),
+      h('button', { type: 'button', className: css.iconBtn, 'aria-label': t('panelEditTitle'), disabled: props.busy, title: t('panelEditTitle'), onClick: props.onEdit }, h(IconEditOutlineRegular)),
       h(
         'button',
         {
@@ -320,7 +320,7 @@ function UserEntryRow(props: {
           title: t('panelDelete'),
           onClick: props.onDelete
         },
-        h(IconTrashOutline16)
+        h(IconTrashOutlineRegular)
       ),
       h(ToggleSwitch, { on: !entry.disabled, disabled: props.busy, title: entry.disabled ? t('enable') : t('disable'), onChange: props.onToggle })
     )

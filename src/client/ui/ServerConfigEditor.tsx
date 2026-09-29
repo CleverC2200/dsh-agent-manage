@@ -1,6 +1,6 @@
 /** 文件作用：提供 MCP/LSP 配置的表单模式与原始 JSON 模式，维护字段兼容性、必填校验和局部编辑。 */
 import { createElement as h, useEffect, useState, type ReactNode } from 'react'
-import { Button, IconPlusOutline16, IconTrashOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconPlusOutlineRegular, IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Translate } from '../index.js'
 import { changeTransport, parseServerConfig, serverFormCompatible, type ServerKind, type ServerConfig } from './server-form.js'
 import css from './detail.module.css'
@@ -257,7 +257,7 @@ function StringRows(props: {
             'aria-label': `${props.t('panelDelete')} ${props.label} ${index + 1}`,
             onClick: () => change(rows.filter((_, i) => i !== index))
           },
-          h(IconTrashOutline16)
+          h(IconTrashOutlineRegular)
         )
       )
     ),
@@ -265,7 +265,7 @@ function StringRows(props: {
     h(
       Button,
       { variant: 'ghost', size: 'sm', title: props.t('panelAdd'), 'aria-label': `${props.t('panelAdd')} ${props.label}`, onClick: () => change([...rows, ['', '']]) },
-      h(IconPlusOutline16),
+      h(IconPlusOutlineRegular),
       props.t('panelAdd')
     )
   )

@@ -227,3 +227,5 @@ MCP servers advertising resources also expose `dsh_read_resource` under their se
 Private GitHub suites can use an explicit archive source such as `https://api.github.com/repos/OWNER/REPO/zipball/REF`. The desktop administrator supplies `DSH_AGENT_MANAGE_GITHUB_TOKEN` in the launch environment. Authorization is sent only to the initial HTTPS GitHub API request, never to redirect destinations; it is not stored in source settings. Download failures preserve installed content.
 
 The download-region selector immediately reflects an explicit choice; automatic mode follows the detected region.
+
+The isolated plugin-split workspace targets the sibling DSH 0.2.0-rc.1 source build. DSH peers are pinned to that version; client icons consume its Regular exports. The UI primitives development link resolves to that same checkout, and tests deduplicate React across the link. Run the source compatibility check from the sibling GEA repository before using this combination.

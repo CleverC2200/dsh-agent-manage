@@ -4,7 +4,7 @@
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { createElement as h } from 'react'
-import { Button, Input, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, IconRefreshOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DetailModal } from './ui/DetailModal.js'
 import { ServerConfigEditor } from './ui/ServerConfigEditor.js'
 import { ServerConfigDetail } from './ui/ServerConfigDetail.js'
@@ -302,7 +302,7 @@ export function McpDetailModal({
                 void run(false)
               }
             },
-            h(IconRefreshOutline16),
+            h(IconRefreshOutlineRegular),
             t('mcpRetryConnection')
           )
         : null,

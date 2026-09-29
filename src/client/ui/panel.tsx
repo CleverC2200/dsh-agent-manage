@@ -14,7 +14,7 @@
  * @module client/ui/panel
  */
 import { createElement as h, useEffect, useState, type ReactNode } from 'react'
-import { Button, Input, Modal, IconLoadingOutline16, IconPlusOutline16, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Modal, IconLoadingOutlineRegular, IconPlusOutlineRegular, IconRefreshOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './panel.module.css'
 import { beginBusyOperation } from './busy-operation.js'
 import { DetailModal } from './DetailModal.js'
@@ -38,8 +38,8 @@ export interface PanelAction {
 export function PanelActions(props: { addLabel?: string; onAdd?: () => void; refreshLabel?: string; onRefresh?: () => void; busy?: boolean }): ReactNode {
   /** 渲染面板右侧新增/刷新动作，并在忙碌时统一禁用按钮。 */
   return h('div', { className: css.headerActions },
-    props.onAdd === undefined ? null : h(Button, { variant: 'ghost', size: 'sm', disabled: props.busy, title: props.addLabel, 'aria-label': props.addLabel, onClick: props.onAdd }, h(IconPlusOutline16), props.addLabel),
-    props.onRefresh === undefined ? null : h(Button, { variant: 'ghost', size: 'sm', disabled: props.busy, title: props.refreshLabel, 'aria-label': props.refreshLabel, onClick: props.onRefresh }, h(IconRefreshOutline16)))
+    props.onAdd === undefined ? null : h(Button, { variant: 'ghost', size: 'sm', disabled: props.busy, title: props.addLabel, 'aria-label': props.addLabel, onClick: props.onAdd }, h(IconPlusOutlineRegular), props.addLabel),
+    props.onRefresh === undefined ? null : h(Button, { variant: 'ghost', size: 'sm', disabled: props.busy, title: props.refreshLabel, 'aria-label': props.refreshLabel, onClick: props.onRefresh }, h(IconRefreshOutlineRegular)))
 }
 
 /** Shared heading geometry for all resource tabs. */
@@ -94,7 +94,7 @@ export function BusyIndicator(props: { label?: string; overlay?: boolean }): Rea
   return h(
     'div',
     { className: css.busyLine, role: 'status' },
-    h('span', { className: `${css.spinner} ${css.spinning}`, 'aria-hidden': true }, h(IconLoadingOutline16)),
+    h('span', { className: `${css.spinner} ${css.spinning}`, 'aria-hidden': true }, h(IconLoadingOutlineRegular)),
     props.label === undefined ? null : h('span', { className: css.busyLabel }, props.label)
   )
 }
