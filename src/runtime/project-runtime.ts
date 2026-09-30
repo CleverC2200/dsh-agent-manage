@@ -115,12 +115,6 @@ function mountProjectSurface(
   create: (scope: Context, agent: ProjectAgent) => ProjectRegistry,
   withoutProject = false
 ): { refresh(): Promise<void>; dispose(): Promise<void> } {
-  // The legacy event remains runtime-compatible but is absent from DSH 0.1.6 declarations.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
-  const host = ctx as unknown as {
-    agents: { list(): ProjectAgent[] }
-    on(event: 'agent/session-start', listener: (payload: { agent: ProjectAgent }) => Promise<void>): () => void
-  }
   const mounts = new Map<ProjectAgent, AgentMount>()
   let disposed = false
   /** 记录项目表面挂载或刷新失败，不中断其他 Agent 的生命周期处理。 */
@@ -164,17 +158,13 @@ function mountProjectSurface(
     await mount?.fiber.dispose()
   }
   const unwatchCreated = ctx.on('agent/created', async ({ agent }) => {
-    attach(agent as unknown as ProjectAgent)
-    await mounts.get(agent as unknown as ProjectAgent)?.refresh()
+    attach(agent)
+    await mounts.get(agent)?.refresh()
   })
   const unwatchDisposed = ctx.on('agent/disposed', ({ agent }) => {
-    void detach(agent as unknown as ProjectAgent).catch(warn)
+    void detach(agent).catch(warn)
   })
-  const unwatchStart = host.on('agent/session-start', async ({ agent }) => {
-    attach(agent as unknown as ProjectAgent)
-    await mounts.get(agent as unknown as ProjectAgent)?.refresh()
-  })
-  for (const agent of host.agents.list()) attach(agent)
+  for (const agent of ctx.agents.list()) attach(agent)
   return {
     refresh: async () => {
       await Promise.all([...mounts.values()].map(mount => mount.refresh()))
@@ -183,7 +173,6 @@ function mountProjectSurface(
       disposed = true
       unwatchCreated()
       unwatchDisposed()
-      unwatchStart()
       await Promise.all([...mounts.keys()].map(detach))
     }
   }

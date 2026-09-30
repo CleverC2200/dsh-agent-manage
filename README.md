@@ -23,7 +23,7 @@ English | [简体中文](README.zh.md) | [Documentation](https://github.com/Clev
 - **Keep project resources in place.** Project `.claude/` and `.agents/` skills and agents are discovered without an installation step or file copying.
 - **Manage services where you use them.** Add your own MCP services and LSP servers, configure credentials and authorization for installed ones, inspect status, and diagnose unavailable services from one workspace.
 
-DSH 0.1.6 waits for project commands and suite instructions through asynchronous `agent/created`; the legacy `agent/session-start` listener remains for 0.1.5 hosts. Initialization completes before the first model request.
+This isolated project supports only its registered current core source and public interfaces. Project commands and suite instructions finish through asynchronous `agent/created` before the first model request; the obsolete `agent/session-start` listener is removed.
 
 ## Quick start
 
@@ -234,7 +234,7 @@ Management pages consume workbench theme resource `1.0.0` from the isolated DSH 
 
 ## Branch inventory split resources
 
-`business-resources/inventory-fc` owns the migrated read-only Skill, persona, MCP declaration and capability metadata. The workbench build assembles these files with its page through the existing `declarations.page/capability` references. The exported `dsh-agent-manage/business-resources` loader reads and validates Skill/persona identity; GEA validates Consumer, page IDs and effects before mounting. Native Skill paths remain compatible, and teardown preserves later edits. Resource configuration contains no credentials; GEA still owns login and governed execution. Legacy HTML bundles without `agentResources` retain their existing path. The `pageAgents` list in `prompt.json` permits installed presets to interpret this page without granting cross-Consumer access. The branch stock page lists branch stock and full-chain inventory; GEA separately checks installation and the current login's Consumer authorization.
+`business-resources/inventory-fc` owns the migrated read-only Skill, persona, MCP declaration and capability metadata. The workbench build assembles these files with its page through the existing `declarations.page/capability` references. The exported `dsh-agent-manage/business-resources` loader reads and validates Skill/persona identity; GEA validates Consumer, page IDs and effects before mounting. Native Skill paths remain compatible, and teardown preserves later edits. Resource configuration contains no credentials; GEA still owns login and governed execution. HTML resources require current v2 and explicit Agent Manage declarations; legacy manifests are rejected. The `pageAgents` list in `prompt.json` permits installed presets to interpret this page without granting cross-Consumer access. The branch stock page lists branch stock and full-chain inventory; GEA separately checks installation and the current login's Consumer authorization.
 
 See [branch stock page Agent choices](docs/guides/branch-stock-page-agents.md) for the configuration and Session rules.
 

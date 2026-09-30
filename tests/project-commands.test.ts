@@ -109,7 +109,7 @@ describe('project command lifecycle', () => {
     expect(listeners.size).toBe(0)
   })
 
-  it.each(['agent/created', 'agent/session-start'])('waits for project commands through %s before releasing initialization', async event => {
+  it.each(['agent/created'])('waits for project commands through %s before releasing initialization', async event => {
     const current = agent(await project('Delayed initialization'))
     const userRoot = await project('User directory')
     const catalog = new Catalog({ userRoot, dataRoot: join(userRoot, 'data'), onChanged: () => {} })

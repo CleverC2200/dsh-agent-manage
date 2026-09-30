@@ -23,7 +23,7 @@
 - **沿用项目资源。** 直接发现项目 `.claude/`、`.agents/` 中的技能与代理，无需安装或复制文件。
 - **集中管理服务。** 自行新增 MCP 服务和 LSP 服务，为已安装的服务配置凭据与授权，查看 MCP / LSP 状态，在同一工作区定位服务不可用的原因。
 
-DSH 0.1.6 通过异步 `agent/created` 等待项目命令和套件指令就绪；保留 `agent/session-start` 监听以兼容 0.1.5 宿主。初始化完成后才开始首次模型请求。
+本隔离项目只支持登记的当前核心源码与公开接口。项目命令和套件指令通过异步 `agent/created` 初始化，完成后才开始首次模型请求；旧 `agent/session-start` 监听已删除。
 
 ## 快速开始
 
@@ -226,7 +226,7 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 
 ## 分仓库存分离资源
 
-`business-resources/inventory-fc` 持有迁移后的只读 Skill、提示词、MCP 声明和能力元数据。工作台构建通过已有 `declarations.page/capability` 引用将其与页面组合。导出的 `dsh-agent-manage/business-resources` 装载器读取并校验 Skill/提示词身份；GEA 在装载前校验 Consumer、页面 ID 和影响等级。沿用原生 Skill 路径，卸载保留后续编辑。资源配置不包含凭据，登录与受控执行仍归 GEA。不含 `agentResources` 的旧 HTML 包继续使用原兼容入口。 `prompt.json` 的 `pageAgents` 只列出允许解读本页的预设，不增加跨 Consumer 权限。当前分仓页列出分仓库存与全链库存两项；GEA 还会逐项检查预设是否安装、当前登录是否得到该 Consumer 的授权。
+`business-resources/inventory-fc` 持有迁移后的只读 Skill、提示词、MCP 声明和能力元数据。工作台构建通过已有 `declarations.page/capability` 引用将其与页面组合。导出的 `dsh-agent-manage/business-resources` 装载器读取并校验 Skill/提示词身份；GEA 在装载前校验 Consumer、页面 ID 和影响等级。沿用原生 Skill 路径，卸载保留后续编辑。资源配置不包含凭据，登录与受控执行仍归 GEA。HTML 资源必须使用当前 v2 协议和显式 Agent Manage 声明；旧 manifest 明确拒绝。 `prompt.json` 的 `pageAgents` 只列出允许解读本页的预设，不增加跨 Consumer 权限。当前分仓页列出分仓库存与全链库存两项；GEA 还会逐项检查预设是否安装、当前登录是否得到该 Consumer 的授权。
 
 配置及 Session 约束见[分仓页面的 Agent 能力选择](docs/guides/branch-stock-page-agents.zh.md)。
 
