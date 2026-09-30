@@ -44,9 +44,6 @@ export interface MarketSectionProps {
   /** Host credentials wire used for write-only MCP env configuration. */
   /** 中文：宿主凭据线用于 MCP 引用的只写配置，组件不读取 secret。 */
   credentials?: CredentialApi
-  /** The host surface controls only outer spacing; data and actions stay shared. */
-  /** 中文：宿主 surface 只控制外层间距，业务数据和操作逻辑保持共享。 */
-  mode?: 'settings' | 'page'
 }
 
 type Tab = MarketFilter
@@ -73,7 +70,7 @@ function progressStepLabel(t: Translate, step: string): string {
 }
 
 /** 维护市场总览、筛选器和源/套件操作的页面状态。 */
-export function MarketSection({ t, credentials, mode = 'settings' }: MarketSectionProps): ReactNode {
+export function MarketSection({ t, credentials }: MarketSectionProps): ReactNode {
   const [overview, setOverview] = useState<OverviewData>(() => loadOverview().initial)
   const [loading, setLoading] = useState(() => loadOverview().revalidating)
   const [search, setSearch] = useState('')
@@ -192,7 +189,7 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
     fallback: error => h('div', { className: css.empty }, `${t('actionFail')}: ${error.message}`),
     children: h(
       'div',
-      { className: mode === 'page' ? `${css.market} ${css.pageMode}` : css.market },
+      { className: css.market },
       h(
         'div',
         { className: css.header },

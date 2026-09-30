@@ -32,12 +32,11 @@ export interface PluginWorkspaceProps {
   credentials?: CredentialApi
   /** The host surface controls only outer spacing; data and actions stay shared. */
   /** 中文：宿主挂载面只负责外层布局，具体面板数据仍由各组件管理。 */
-  mode?: 'settings' | 'page'
 }
 
 /** One page with six top tabs; state is local so switching is instant. */
 /** 渲染六个顶层业务标签，并同步 hash 深链接和当前宿主能力。 */
-export function PluginWorkspace({ t, credentials, mode = 'settings' }: PluginWorkspaceProps): ReactNode {
+export function PluginWorkspace({ t, credentials }: PluginWorkspaceProps): ReactNode {
   const [active, setActive] = useState<WorkspaceTab>('market')
 
   // Deep links: a `#/agent-plugins/<tab>` hash selects the tab directly, and
@@ -83,7 +82,7 @@ export function PluginWorkspace({ t, credentials, mode = 'settings' }: PluginWor
 
   return h(
     'div',
-    { className: mode === 'page' ? `${css.workspace} ${css.pageMode}` : css.workspace, 'data-agent-plugins-workspace': true },
+    { className: css.workspace, 'data-agent-plugins-workspace': true },
     h(
       'nav',
       { className: css.tabRow, role: 'tablist' },
@@ -102,15 +101,15 @@ export function PluginWorkspace({ t, credentials, mode = 'settings' }: PluginWor
         )
       )
     ),
-    h('div', { className: css.tabPanel, role: 'tabpanel' }, renderTab(active, t, credentials, mode))
+    h('div', { className: css.tabPanel, role: 'tabpanel' }, renderTab(active, t, credentials))
   )
 }
 
 /** 把标签标识映射为对应业务面板，统一传递翻译器、凭据和宿主模式。 */
-function renderTab(tab: WorkspaceTab, t: Translate, credentials: CredentialApi | undefined, mode: 'settings' | 'page'): ReactNode {
+function renderTab(tab: WorkspaceTab, t: Translate, credentials: CredentialApi | undefined): ReactNode {
   switch (tab) {
     case 'market':
-      return h(MarketSection, { t, credentials, mode })
+      return h(MarketSection, { t, credentials })
     case 'skills':
       return h(UserPanelSurface, { t, kind: 'skills' })
     case 'commands':

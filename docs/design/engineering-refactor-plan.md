@@ -106,7 +106,6 @@ src/
       suite-detail/
     ui/
     compat/
-      legacy-page-mode.tsx
 
   manager.ts
 ```
@@ -213,9 +212,7 @@ Mutations include source management, install state, and enable state.
 
 Market suite cards and MCP service cards remain distinct because their actions and presentation semantics differ.
 
-`compat/legacy-page-mode.tsx` isolates the old DOM-driven fallback. The normal `settings.section` integration remains the primary UI path.
-
-The legacy adapter must centralize its shell selectors, insertion anchor, visibility policy, and panel event handling. It must never be allowed to hide unrelated conversation content based on loose DOM assumptions.
+The current `settings.section` integration is the only UI path. Older shell DOM adapters and page-mode modules are removed; unsupported hosts do not receive a fallback surface.
 
 ## Compatibility policy
 

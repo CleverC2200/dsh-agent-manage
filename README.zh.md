@@ -37,7 +37,7 @@ DSH 0.1.6 通过异步 `agent/created` 等待项目命令和套件指令就绪�
 dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
-1. 重启 DSH，打开 **设置 → 智能体市场**。旧版外壳可能显示为顶层页面入口。
+1. 重启 DSH，打开 **设置 → 智能体市场**。仅支持本项目登记的当前 DSH 源码基线及其 settings.section 正式槽位。
 2. 在**插件市场**添加来源，例如 `https://github.com/anthropics/claude-plugins-official`。插件不预置来源。
 3. 打开套件查看内容，确认后安装，并确保套件已启用。
 4. 如果套件提供技能，先在**技能**页签查看，再在聊天中输入 `/` 查找允许手动调用的技能。如果提供 MCP，前往 **MCP 服务**检查状态，处理凭据或连接提示后再使用工具。

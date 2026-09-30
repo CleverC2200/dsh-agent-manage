@@ -15,17 +15,6 @@
   color: var(--workbench-text);
 }
 
-/* Page mode owns the outer padding; settings mode receives it from the host shell.
-   Page mode is a fixed inset-0 shell, so it owns the height and its lists scroll
-   inside it; settings mode lets the host `.options` container be the only scroller
-   (nested scrollers double-scroll and can paint text outside card bounds). */
-.pageMode {
-  height: 100%;
-  min-height: 0;
-  width: 100%;
-  min-width: 0;
-}
-
 .marketControls {
   display: flex;
   flex-direction: column;
@@ -56,81 +45,6 @@
   background: var(--workbench-brand-soft);
 }
 
-/* Legacy page-mode shell: scoped to the injected data attributes. */
-:global(html[data-dsh-agent-plugins-market-page]) :global([data-pane='conversation']),
-:global(html[data-dsh-agent-plugins-market-page]) :global([class*='centerCol']) {
-  position: relative;
-}
-
-.pageView {
-  position: absolute;
-  inset: 0;
-  display: none;
-  z-index: 60;
-  min-width: 0;
-  min-height: 0;
-  padding: 20px 24px;
-  overflow: hidden;
-  background: var(--workbench-page);
-}
-
-:global(html[data-dsh-agent-plugins-market-page]) .pageView {
-  display: flex;
-}
-
-:global(html[data-dsh-agent-plugins-market-page]) :global([data-pane='conversation']) > :not([data-dsh-agent-plugins-market-page-view]),
-:global(html[data-dsh-agent-plugins-market-page]) :global([class*='centerCol']) > :not([data-dsh-agent-plugins-market-page-view]) {
-  display: none !important;
-}
-
-.pageEntry {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 32px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--workbench-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: calc(var(--workbench-font-size) * 13 / 14);
-  line-height: 20px;
-  text-align: left;
-}
-
-.pageEntry:hover {
-  background: var(--workbench-hover);
-}
-
-.pageEntry:active {
-  background: var(--workbench-brand-soft);
-}
-
-.pageEntry svg {
-  flex-shrink: 0;
-  color: var(--workbench-body);
-}
-
-.pageEntry span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:global([data-dsh-frame][data-sidebar-collapsed]) .pageEntry {
-  justify-content: center;
-  padding-inline: 0;
-}
-
-:global([data-dsh-frame][data-sidebar-collapsed]) .pageEntry span {
-  display: none;
-}
-
-.pageEntry:focus-visible,
 .srcTabMain:focus-visible,
 .srcTabEdit:focus-visible,
 .srcTabDel:focus-visible,
@@ -413,11 +327,7 @@
 
 /* --- card grid ----------------------------------------------------------------- */
 
-/* Both host surfaces scroll inside the market's own list region: page mode is
-   a fixed shell and settings mode stretches the workspace to the section, so
-   the host `.options` container no longer scrolls the market. In-panel
-   scrolling with a stable gutter also removes the layout jitter when a tab
-   switch changes the scrollbar's visibility. */
+/* The settings workspace owns the list scrolling and stable gutter. */
 .grid {
   flex: 1;
   min-height: 0;
@@ -1024,10 +934,6 @@
 }
 
 @media (max-width: 720px) {
-  .pageView {
-    padding: 14px;
-  }
-
   .titleRow {
     flex-wrap: wrap;
   }

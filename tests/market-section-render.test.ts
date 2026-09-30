@@ -81,7 +81,7 @@ async function mountSection(): Promise<HTMLDivElement> {
   document.body.appendChild(host)
   root = createRoot(host)
   await act(async () => {
-    root!.render(h(MarketSection, { t, mode: 'settings' }))
+    root!.render(h(MarketSection, { t }))
   })
   await act(async () => {
     await new Promise(resolve => setTimeout(resolve, 0))

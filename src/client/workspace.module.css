@@ -1,7 +1,6 @@
 /**
  * Plugin workspace layout: the top tab row plus the active tab's scroll
- * region. The workspace owns the height in both host surfaces (settings
- * section and legacy page mode), so each tab's content scrolls inside its
+ * region. The workspace owns the settings section height, so each tab's content scrolls inside its
  * own panel and switching tabs never moves the page.
  */
 
@@ -20,14 +19,6 @@
   color: var(--workbench-text);
   font-family: var(--workbench-font-family);
   font-size: var(--workbench-font-size);
-}
-
-/* Page mode is a fixed shell; settings mode stretches to the host column.
-   The `height: 100%` chain (workspace → tab panel → section) is what keeps
-   every panel's scrollbar inside its own content area. */
-.pageMode {
-  box-sizing: border-box;
-  padding: 4px 0;
 }
 
 .tabRow {
