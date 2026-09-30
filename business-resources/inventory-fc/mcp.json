@@ -7,5 +7,5 @@
   },
   "capabilities": ["governed-sql-read"],
   "transport": "host-provided",
-  "contract": "gea-html-v1"
+  "contract": "gea-html-v2"
 }
