@@ -3,14 +3,14 @@
   "label": "基地库存",
   "data": {
     "consumerCode": "base-safety-stock",
-    "tables": ["agents_scm_safety_stock", "agents_scm_inventory_age", "agents_scm_branch_inventory_snapshot", "agents_scm_order_fulfillment"],
+    "tables": ["agents_scm_safety_stock", "agents_scm_inventory_age", "agents_scm_branch_inventory_snapshot", "agents_scm_order_fulfillment", "agents_scm_branch_pending_order"],
     "rules": ["当前库存使用最新货龄快照的基地仓记录，排除分仓仓库；缺失不补零。", "先锁定基地、物料、快照、目标月份与版本；同月纠偏、月初、滚动依次优先。截断或分页不能替代全量。"]
   },
   "maxEffect": "view",
   "layers": ["read"],
   "skills": ["inventory-aqkc"],
   "routing": {
-    "keywords": ["基地库存", "inventory-aqkc", "base-safety-stock"],
-    "summary": "读取同一授权范围的基地库存列表、筛选和明细，解释已返回数据。"
+    "keywords": ["基地库存", "inventory-aqkc", "base-safety-stock", "基地缺货", "基地货龄", "基地待发订单"],
+    "summary": "读取同一授权范围的基地库存和确定性风险证据，解释目标偏差、当前订单缺口及货龄风险。"
   }
 }
