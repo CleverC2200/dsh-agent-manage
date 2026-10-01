@@ -26,7 +26,7 @@ description: 基地库存页面的只读查询与风险分析：解释目标偏�
 
 ## 风险证据
 
-先核 `parts.queryState.state=ready`，再用 `parts.inventoryInsight.evidence` 的确定性数值、排序、前三对象、覆盖标志与缺失说明解释当前基地范围。`sources` 区分目标月份/版本、目标快照、库存快照及订单快照；页面读取时间另记，不把它当业务快照。`parts.stockOverview.currentOrders` 提供待发、备单、占用及缺口原数值。更换范围、加载中或失败时等待新证据，不能引用旧风险结果。
+先核 `parts.queryState.state=ready`，再用 `parts.inventoryInsight.evidence` 的确定性数值、排序、前三对象、覆盖标志与缺失说明解释当前基地范围。`sources` 区分目标月份/版本、目标快照、库存快照及订单快照；页面读取时间另记，不把它当业务快照。`parts.stockOverview.currentOrders` 提供待发、备单、占用及缺口原数值；字段含义以同一引擎发布的 `parts.stockOverview.orderMetricScopes` 为准，保持原口径与名称，不自行缩成某个订单阶段。更换范围、加载中或失败时等待新证据，不能引用旧风险结果。
 
 SKU解释用当前 `parts.stockDetail` 的查询、风险筛选、排序和分页结果。库存偏低表示低于目标，实际缺货另看已核实的 `shortageQuantity`，两者可重叠；缺失目标不等于正常。货龄页的预警是未来14日新增超龄触发，当前60天以上存量单独解释。只说明引擎实际返回的分类，不自行新增阈值。
 
