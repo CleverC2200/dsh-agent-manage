@@ -44,6 +44,8 @@ export async function loadBusinessResources(directory: string, input: { id: stri
   }
   return {
     skill,
+    skillName: parsedSkill.name,
+    skillDescription: parsedSkill.description,
     profile: { label: prompt.label ?? input.id, consumerCode: input.consumerCode, persona: prompt.persona, skills: [input.id] },
     /** Allowed page interpreters; GEA still checks installation, Session preset and each Consumer grant. */
     pageAgents: prompt.pageAgents ?? [`gea-html-${input.id}`],
@@ -59,7 +61,11 @@ export async function loadBusinessResources(directory: string, input: { id: stri
         if (closed) return
         for (const { file, previous } of files) {
           // Preserve edits made after this publication.
-          if ((await readFile(file, 'utf8').catch(() => undefined)) !== skill) continue
+          const current = await readFile(file, 'utf8').catch((error: NodeJS.ErrnoException) => {
+            if (error.code === 'ENOENT') return undefined
+            throw new Error(`AGENT_RESOURCE_CLEANUP_FAILED: ${file}`, { cause: error })
+          })
+          if (current !== skill) continue
           if (previous === undefined) await rm(file, { force: true })
           else await writeFile(file, previous, { mode: 0o600 })
         }

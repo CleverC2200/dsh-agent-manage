@@ -22,10 +22,18 @@ describe('Agent-owned workbench resources', () => {
     const { root, input } = await fixture()
     const result = await loadBusinessResources(root, input)
     expect(result.skill).toContain('缺失不按零处理')
+    expect(result.skillName).toBe('inventory-fc')
+    expect(result.skillDescription).toBe('库存规则')
     expect(result.profile.persona).toBe('分仓分析')
     expect(result.pageAgents).toEqual(['gea-html-inventory-fc'])
     expect(result.source.provider).toBe('dsh-agent-manage')
     expect(await readFile(result.source.skillPath, 'utf8')).toBe(result.skill)
+  })
+  it('uses the catalog YAML parser for multiline Skill metadata', async () => {
+    const { root, input } = await fixture()
+    await writeFile(join(root, 'skills/SKILL.md'), '---\nname: inventory-fc\ndescription: |\n  库存规则\n  缺失不按零处理\n---\n正文\n')
+    const result = await loadBusinessResources(root, input)
+    expect(result.skillDescription).toBe('库存规则\n缺失不按零处理')
   })
   it('refuses a different Consumer or cross-Consumer permission', async () => {
     const { root, input } = await fixture()
@@ -47,6 +55,30 @@ describe('Agent-owned workbench resources', () => {
     await symlink(join(external.root, 'skills/SKILL.md'), join(root, 'outside.md'))
     await expect(loadBusinessResources(root, { ...input, skill: 'outside.md' })).rejects.toThrow('INVALID_AGENT_RESOURCE_PATH')
   })
+})
+
+it('retains the resource owner when cleanup cannot read a published Skill', async () => {
+  const { root, input } = await fixture()
+  const resource = await loadBusinessResources(root, input)
+  let dispose!: () => Promise<void>
+  const host = {
+    effect: (setup: () => () => Promise<void>) => {
+      dispose = setup()
+    }
+  } as Pick<import('@deepseek-ai/cordis').Context, 'effect'>
+  const home = join(root, 'home')
+  await mkdir(home)
+  await resource.mount(host, home)
+  const file = join(home, 'skills/inventory-fc/SKILL.md')
+  await rm(file)
+  await mkdir(file)
+  await expect(dispose()).rejects.toThrow('AGENT_RESOURCE_CLEANUP_FAILED')
+  await expect(resource.mount(host, home)).rejects.toThrow('AGENT_RESOURCE_ALREADY_MOUNTED')
+  await rm(file, { recursive: true })
+  await writeFile(file, resource.skill)
+  await dispose()
+  await resource.mount(host, home)
+  await dispose()
 })
 
 it('refuses overlapping Skill owners and preserves edits during disposal', async () => {

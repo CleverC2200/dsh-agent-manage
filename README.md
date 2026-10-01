@@ -239,3 +239,5 @@ Management pages consume workbench theme resource `1.0.0` from the isolated DSH 
 See [branch stock page Agent choices](docs/guides/branch-stock-page-agents.md) for the configuration and Session rules.
 
 The resource loader rejects overlapping mounts of the same module in one native Skill home. GEA likewise rejects overlapping persona replacements for the same existing preset, so an older disposer cannot remove or revive another owner.
+
+The business resource loader returns `skillName` and `skillDescription` from the same catalog YAML parser. Consumers do not parse the Skill again. A cleanup read failure other than ENOENT is reported and retains the owner claim; retry cleanup after fixing the file before remounting. Later user edits and deliberate deletion remain untouched.

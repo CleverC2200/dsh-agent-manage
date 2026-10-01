@@ -231,3 +231,5 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 配置及 Session 约束见[分仓页面的 Agent 能力选择](docs/guides/branch-stock-page-agents.zh.md)。
 
 同一个原生 Skill 根目录中，装载器拒绝同模块的重叠装载；GEA 同样拒绝同一现有 preset 的重叠提示词替换，避免旧卸载动作删除或复活其他拥有者。
+
+业务资源装载器通过目录使用的同一 YAML 解析器返回 `skillName` 和 `skillDescription`，消费方不再解析 Skill。清理读取遇到 ENOENT 以外的失败时报告错误并保留归属；修复文件后先重试清理，再重新挂载。后续用户编辑和主动删除仍保留。
