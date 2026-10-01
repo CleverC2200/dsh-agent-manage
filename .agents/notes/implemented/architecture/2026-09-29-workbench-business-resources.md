@@ -8,7 +8,7 @@ Migrating a business page must not leave its persona and Skill owned by the data
 
 ## Decision
 
-Agent Manage owns inventory-fc resources and exports a runtime loader for an assembled workbench resource. The existing page/capability declarations remain the identity source. Its `prompt.json` also lists `pageAgents`: installed presets allowed to interpret this page, including the page's own preset. This list does not grant cross-Consumer access. GEA validates the page Consumer and effect, then checks each selected preset, its Session and its separate Gateway Consumer grant. GEA calls the loader's mount operation to publish the Skill through existing native filesystem roots and installs the loaded persona in its existing profile map. Credentials and execution remain in GEA.
+Agent Manage owns inventory-fc and inventory-aqkc resources and exports a runtime loader for an assembled workbench resource. The existing page/capability declarations remain the identity source. Its `prompt.json` also lists `pageAgents`: installed presets allowed to interpret this page, including the page's own preset. This list does not grant cross-Consumer access. GEA validates the page Consumer and effect, then checks each selected preset, its Session and its separate Gateway Consumer grant. GEA calls the loader's mount operation to publish the Skill through existing native filesystem roots and installs the loaded persona in its existing profile map. Credentials and execution remain in GEA.
 
 ## Alternatives considered
 
