@@ -16,7 +16,7 @@
  *
  * 业务职责：组装 Catalog 与各运行时桥接，串行化变更后的重协调，并负责宿主服务注入、监听和销毁生命周期。
  */
-import { resolve } from 'node:path'
+import { isAbsolute, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillProviderControl } from '@deepseek-ai/dsh-skill'
 import { BusinessResources } from './runtime/business-resources.js'
@@ -222,7 +222,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         requestBody: 'buffered',
         fetch: async request => {
           try {
-            return json(await businessResources.list({ signal: request.signal }))
+            const cwd = new URL(request.url).searchParams.get('cwd')
+            if (!cwd || !cwd.trim() || !isAbsolute(cwd)) throw Error('INVALID_AGENT_RESOURCE_WORKSPACE')
+            return json(await businessResources.list({ cwd, signal: request.signal }))
           } catch (error) {
             return json({ error: String(error) }, 400)
           }
@@ -236,9 +238,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         requestBody: 'streaming',
         fetch: async request => {
           try {
-            const input = (await readJsonRequest(request)) as { id?: unknown }
-            if (!input || typeof input.id !== 'string' || Object.keys(input).some(key => key !== 'id')) throw Error('INVALID_AGENT_RESOURCE_SELECTION')
-            const selection = await businessResources.select(input.id, request.signal)
+            const input = (await readJsonRequest(request)) as { id?: unknown; cwd?: unknown }
+            if (!input || typeof input.id !== 'string' || Object.keys(input).some(key => key !== 'id' && key !== 'cwd')) throw Error('INVALID_AGENT_RESOURCE_SELECTION')
+            if (typeof input.cwd !== 'string' || !input.cwd.trim() || !isAbsolute(input.cwd)) throw Error('INVALID_AGENT_RESOURCE_WORKSPACE')
+            const selection = await businessResources.select(input.id, request.signal, input.cwd)
             return json({ id: selection.id, preset: selection.preset, ...(selection.skill ? { skill: selection.skill } : {}) })
           } catch (error) {
             return json({ error: error instanceof Error ? error.message : String(error) }, error instanceof RequestBodyTooLarge ? 413 : 400)

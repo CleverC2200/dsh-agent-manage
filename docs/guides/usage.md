@@ -144,3 +144,7 @@ The schemas in `schemas/1.0.0/` are vendored from [agent-plugins-spec](https://g
 Manual download-region selection follows the saved host setting without reopening the settings card. A failed write keeps the previous selection and displays the error. Only automatic mode uses the language-resolved probe result.
 
 Private GitHub suites can use an explicit archive source such as `https://api.github.com/repos/OWNER/REPO/zipball/REF`. The desktop administrator supplies `DSH_AGENT_MANAGE_GITHUB_TOKEN` in the launch environment. Authorization is sent only to the initial HTTPS GitHub API request, never to redirect destinations; it is not stored in source settings. Download failures preserve installed content.
+
+### Native resource workspace context
+
+Workbench discovers resources with GET /api/agent-manage/resources?cwd=... and selects with POST /api/agent-manage/resources/select using { id, cwd }. cwd is the same absolute native workspace that owns the new Session. Manage passes it to the existing Skill registry, so project Skills participate in discovery and body lookup without copying resources. Missing or relative paths return INVALID_AGENT_RESOURCE_WORKSPACE.

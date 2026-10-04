@@ -21,6 +21,7 @@ async function route() {
   const routes = new Map<string, ConnectionFetchRoute>()
   const pending: Promise<unknown>[] = []
   const select = vi.spyOn(BusinessResources.prototype, 'select').mockResolvedValue({ id: 'existing', preset: 'original' })
+  const list = vi.spyOn(BusinessResources.prototype, 'list').mockResolvedValue([])
   const context = {
     skills: { registerProvider: () => () => {} },
     agentPresets: { register: async () => async () => {}, resolve: async (id: string) => ({ id }) },
@@ -45,12 +46,12 @@ async function route() {
   }
   await apply(context as never, { geaMcp: false })
   await Promise.all(pending)
-  return { route: routes.get('/api/agent-manage/resources/select')!, select }
+  return { route: routes.get('/api/agent-manage/resources/select')!, listRoute: routes.get('/api/agent-manage/resources')!, select, list }
 }
 
 it.each(['buffered', 'chunked'])('rejects oversized valid selection JSON before selecting a resource (%s)', async mode => {
   const mounted = await route()
-  const payload = JSON.stringify({ id: 'existing' }) + ' '.repeat(65536)
+  const payload = JSON.stringify({ id: 'existing', cwd: '/isolated/project' }) + ' '.repeat(65536)
   let body: string | ReadableStream<Uint8Array> = payload
   if (mode === 'chunked')
     body = new ReadableStream({
@@ -67,10 +68,41 @@ it.each(['buffered', 'chunked'])('rejects oversized valid selection JSON before 
 
 it('accepts valid JSON exactly at the local 64KiB bound', async () => {
   const mounted = await route()
-  const prefix = JSON.stringify({ id: 'existing' })
+  const prefix = JSON.stringify({ id: 'existing', cwd: '/isolated/project' })
   const response = await mounted.route.fetch(
     new Request('https://host.example/api/agent-manage/resources/select', { method: 'POST', body: prefix + ' '.repeat(65536 - prefix.length) })
   )
   expect(response.status).toBe(200)
   expect(mounted.select).toHaveBeenCalledOnce()
+})
+it('passes the same explicit workspace from public discovery and selection to the existing native resource interface', async () => {
+  const mounted = await route()
+  const cwd = '/isolated/project with spaces'
+  const listRequest = new Request('https://host.example/api/agent-manage/resources?' + new URLSearchParams({ cwd }))
+  expect((await mounted.listRoute.fetch(listRequest)).status).toBe(200)
+  expect(mounted.list).toHaveBeenCalledWith({ cwd, signal: listRequest.signal })
+  const selectionRequest = new Request('https://host.example/api/agent-manage/resources/select', { method: 'POST', body: JSON.stringify({ id: 'skill:project', cwd }) })
+  expect((await mounted.route.fetch(selectionRequest)).status).toBe(200)
+  expect(mounted.select).toHaveBeenCalledWith('skill:project', selectionRequest.signal, cwd)
+})
+it.each([undefined, '', 'relative/project', 123, null])('rejects a missing or invalid workspace before resource selection (%s)', async cwd => {
+  const mounted = await route()
+  const response = await mounted.route.fetch(
+    new Request('https://host.example/api/agent-manage/resources/select', { method: 'POST', body: JSON.stringify({ id: 'existing', cwd }) })
+  )
+  expect(response.status).toBe(400)
+  expect(mounted.select).not.toHaveBeenCalled()
+})
+it('rejects invalid discovery paths and unregistered selection fields without falling back to a different workspace', async () => {
+  const mounted = await route()
+  expect((await mounted.listRoute.fetch(new Request('https://host.example/api/agent-manage/resources?cwd=relative'))).status).toBe(400)
+  expect(mounted.list).not.toHaveBeenCalled()
+  expect(
+    (
+      await mounted.route.fetch(
+        new Request('https://host.example/api/agent-manage/resources/select', { method: 'POST', body: JSON.stringify({ id: 'existing', cwd: '/project', root: '/override' }) })
+      )
+    ).status
+  ).toBe(400)
+  expect(mounted.select).not.toHaveBeenCalled()
 })

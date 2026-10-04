@@ -144,3 +144,7 @@ Git 获取通过 `execFile` 执行，不经过 shell；刷新使用 shallow fetc
 下载区域手动选择以宿主保存的设置为准，成功后无需关闭重开设置；失败时显示错误并保留原选择。仅自动模式使用语言解析后的线路查询结果。
 
 私有 GitHub 套件可使用显式 archive 来源，例如 `https://api.github.com/repos/OWNER/REPO/zipball/REF`。桌面管理员在启动环境提供 `DSH_AGENT_MANAGE_GITHUB_TOKEN`，授权只发送给首次 HTTPS GitHub API 请求，不发送到重定向目标，也不写入来源配置。下载失败保留已安装内容。
+
+### 原生资源的工作区上下文
+
+Workbench使用GET /api/agent-manage/resources?cwd=...发现资源，并通过POST /api/agent-manage/resources/select的{id,cwd}选用。cwd与新Session所属原生工作区相同且必须是绝对路径。Manage透传现有Skill registry，项目Skill同时参与发现和正文读取，不复制资源。缺失或相对路径返回INVALID_AGENT_RESOURCE_WORKSPACE。
