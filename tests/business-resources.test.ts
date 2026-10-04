@@ -10,6 +10,57 @@ const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
+it('isolates malformed Skill metadata within one provider and applies the same fail-closed rule to a cached body lookup', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'resource-malformed-'))
+  roots.push(root)
+  await writeFile(join(root, 'bad.md'), '---\nname: broken-skill\ndescription: reason: detail\n---\nBroken body\n')
+  const healthy = '---\nname: healthy-skill\ndescription: Healthy rules\n---\nHealthy exact body\n'
+  await writeFile(join(root, 'healthy.md'), healthy)
+  let provider: SkillProvider
+  const host = {
+    skills: {
+      registerProvider(create: (control: SkillProviderControl) => SkillProvider) {
+        provider = create({ invalidate() {}, signal: new AbortController().signal })
+        return () => {}
+      },
+      async list(options: SkillLookupOptions) {
+        return provider.list(options)
+      }
+    },
+    agentPresets: {
+      async register() {
+        return async () => {}
+      },
+      async resolve(id: string) {
+        return { id }
+      }
+    }
+  }
+  const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  await resources.register([
+    {
+      id: 'broken',
+      label: 'Broken',
+      root,
+      prompt: 'prompt.json',
+      profile: { label: 'Broken', consumerCode: 'known', skills: ['broken-skill'] },
+      skillFiles: { 'broken-skill': 'bad.md' }
+    },
+    { id: 'healthy', label: 'Healthy', root, profile: { label: 'Healthy', consumerCode: 'known', skills: ['healthy-skill'] }, skillFiles: { 'healthy-skill': 'healthy.md' } }
+  ])
+  const candidates = await provider.list({})
+  expect(candidates.map(candidate => candidate.name)).toEqual(['healthy-skill'])
+  expect((await provider.get(candidates[0], {}))?.content).toBe('Healthy exact body\n')
+  const rows = await resources.list()
+  expect(rows.find(row => row.id === 'broken')?.error).toContain('broken-skill')
+  await writeFile(join(root, 'healthy.md'), '---\nname: healthy-skill\ndescription: reason: detail\n---\nChanged body\n')
+  expect(await provider.get(candidates[0], {})).toBeUndefined()
+  const controller = new AbortController()
+  controller.abort()
+  await expect(provider.list({ signal: controller.signal })).rejects.toThrow()
+  await expect(provider.get(candidates[0], { signal: controller.signal })).rejects.toThrow()
+  await resources.dispose()
+})
 it('lists installed prompt metadata before reading the selected original persona and restores only selected identities', async () => {
   const root = await mkdtemp(join(tmpdir(), 'resource-choice-'))
   roots.push(root)

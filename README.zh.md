@@ -243,3 +243,5 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 ### 原生资源选用
 
 `GET /api/agent-manage/resources` 返回提示词和可由用户调用的 Skill 轻量清单，安装启用事实沿用资源所属模块。`POST /api/agent-manage/resources/select` 仅接受 `{ "id": "..." }`，经官方原生 preset/Skill 接口发布所选原资源。工作台在明确配置的隔离工作区新建 Session，Skill 只暂存 `/skill-name` 草稿，不自动请求模型。未安装 Skill 和 Consumer 业务授权分别报告。`selected-resources.json` 只保存已选标识以恢复必要声明，不保存资源正文或凭据。
+
+资源选用只接受同源POST JSON，流式计数不超过64KiB，在选用前拒绝超限正文并返回413，chunked同样受限。坏包内Skill元数据只诊断并跳过该项，健康资源继续可用，取消仍向调用者抛出。

@@ -53,6 +53,14 @@ interface Entry {
 }
 const SKILL_PRESET = 'agent-resource-skill'
 
+/** Strict YAML and normalized Skill identity share one fail-closed metadata decision. */
+function skillMetadata(text: string, name: string): Exclude<ReturnType<typeof parseSkillFrontmatter>, string> | undefined {
+  const record = parseFrontmatterRecord(text)
+  const parsed = parseSkillFrontmatter(text, name)
+  if (typeof parsed === 'string') throw new Error(parsed)
+  return record.disabled === true ? undefined : parsed
+}
+
 /** Resolve a source-controlled reference again at use time; symlinks cannot escape its owner. */
 async function resourceFile(root: string, reference: string): Promise<string> {
   if (!reference) throw Error('INVALID_AGENT_RESOURCE_REFERENCE')
@@ -310,47 +318,54 @@ export class BusinessResources {
       if (entry.definition.enabled === false) continue
       for (const [name, reference] of Object.entries(entry.definition.skillFiles ?? {})) {
         options.signal?.throwIfAborted()
-        let file: string
-        let header: string
         try {
-          file = await resourceFile(entry.definition.root, reference)
-          header = await readSkillHeader(file, options.signal)
+          const file = await resourceFile(entry.definition.root, reference)
+          const header = await readSkillHeader(file, options.signal)
+          options.signal?.throwIfAborted()
+          if (this.closed || entry.owner.signal.aborted || this.entries.get(id) !== entry) continue
+          const parsed = skillMetadata(header, name)
+          if (!parsed) continue
+          result.push({
+            name: parsed.name,
+            description: parsed.description,
+            invocation: parsed.invocation,
+            provider: 'business-resource',
+            source: 'bundled',
+            rank: 600,
+            locator: { id, name },
+            ...(parsed.whenToUse ? { whenToUse: parsed.whenToUse } : {}),
+            path: file,
+            resourceBase: { kind: 'directory', path: dirname(file) }
+          })
         } catch (error) {
           options.signal?.throwIfAborted()
-          entry.error = String(error)
+          entry.error = `${name}: ${String(error)}`
           continue
         }
-        const parsed = parseSkillFrontmatter(header, name)
-        if (typeof parsed === 'string' || parseFrontmatterRecord(header).disabled === true) continue
-        result.push({
-          name: parsed.name,
-          description: parsed.description,
-          invocation: parsed.invocation,
-          provider: 'business-resource',
-          source: 'bundled',
-          rank: 600,
-          locator: { id, name },
-          ...(parsed.whenToUse ? { whenToUse: parsed.whenToUse } : {}),
-          path: file,
-          resourceBase: { kind: 'directory', path: dirname(file) }
-        })
       }
     }
     return result
   }
   private async skillBody(candidate: SkillCandidate, options: SkillLookupOptions): Promise<SkillDefinition | undefined> {
+    options.signal?.throwIfAborted()
     const locator = candidate.locator as { id: string; name: string }
     const entry = this.entries.get(locator.id)
     if (!entry || entry.definition.enabled === false) return undefined
     const reference = entry.definition.skillFiles?.[locator.name]
     if (!reference) return undefined
-    const file = await resourceFile(entry.definition.root, reference)
-    const raw = await readFile(file, { encoding: 'utf8', signal: options.signal })
-    const parsed = parseSkillFrontmatter(raw, locator.name)
-    options.signal?.throwIfAborted()
-    if (this.closed || entry.owner.signal.aborted || this.entries.get(locator.id) !== entry || typeof parsed === 'string' || parseFrontmatterRecord(raw).disabled === true)
+    try {
+      const file = await resourceFile(entry.definition.root, reference)
+      const raw = await readFile(file, { encoding: 'utf8', signal: options.signal })
+      options.signal?.throwIfAborted()
+      if (this.closed || entry.owner.signal.aborted || this.entries.get(locator.id) !== entry) return undefined
+      const parsed = skillMetadata(raw, locator.name)
+      if (!parsed) return undefined
+      return { ...candidate, content: stripFrontmatter(raw), invocation: parsed.invocation }
+    } catch (error) {
+      options.signal?.throwIfAborted()
+      entry.error = `${locator.name}: ${String(error)}`
       return undefined
-    return { ...candidate, content: stripFrontmatter(raw), invocation: parsed.invocation }
+    }
   }
   async dispose(): Promise<void> {
     this.closed = true

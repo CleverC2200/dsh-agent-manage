@@ -20,6 +20,7 @@ import { resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillProviderControl } from '@deepseek-ai/dsh-skill'
 import { BusinessResources } from './runtime/business-resources.js'
+import { readJsonRequest, RequestBodyTooLarge } from './runtime/request-body.js'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import { Catalog } from './application/catalog.js'
 import { RuntimeReconciler } from './runtime/reconciler.js'
@@ -232,15 +233,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       host.connection.fetch.register({
         path: '/api/agent-manage/resources/select',
         methods: ['POST'],
-        requestBody: 'buffered',
+        requestBody: 'streaming',
         fetch: async request => {
           try {
-            const input = (await request.json()) as { id?: unknown }
+            const input = (await readJsonRequest(request)) as { id?: unknown }
             if (!input || typeof input.id !== 'string' || Object.keys(input).some(key => key !== 'id')) throw Error('INVALID_AGENT_RESOURCE_SELECTION')
             const selection = await businessResources.select(input.id, request.signal)
             return json({ id: selection.id, preset: selection.preset, ...(selection.skill ? { skill: selection.skill } : {}) })
           } catch (error) {
-            return json({ error: error instanceof Error ? error.message : String(error) }, 400)
+            return json({ error: error instanceof Error ? error.message : String(error) }, error instanceof RequestBodyTooLarge ? 413 : 400)
           }
         }
       })

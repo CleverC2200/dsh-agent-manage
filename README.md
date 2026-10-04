@@ -247,3 +247,5 @@ The business resource loader returns `skillName` and `skillDescription` from the
 ### Native resource selection
 
 `GET /api/agent-manage/resources` returns lightweight installed/enabled prompt and human-invocable Skill summaries. `POST /api/agent-manage/resources/select` accepts only `{ "id": "..." }` and publishes the selected original resource through the official native preset/Skill interfaces. Workbench starts a new Session in its explicitly configured workspace and stages `/skill-name` without sending a model request. Missing installed Skills are reported separately from Consumer authorization. `selected-resources.json` stores only selected identities for restart recovery; it contains no resource prose or credentials.
+
+Resource selection accepts same-origin POST JSON up to 64KiB, counted from the stream before selection. Oversized buffered or chunked bodies return 413. Malformed packaged Skill metadata is diagnosed at that Skill and skipped; healthy resources remain available, and cancellation propagates.

@@ -19,8 +19,7 @@ import type { MarketService } from './application/queries.js'
 import type { SuiteSurfaceKey } from './model/types.js'
 import type { PanelResourceStore } from './application/panel-resources.js'
 import { readModelCatalog } from './runtime/model-catalog.js'
-
-const MAX_BODY_BYTES = 64 * 1024
+import { MAX_JSON_BODY_BYTES } from './runtime/request-body.js'
 
 export interface WebServerService {
   /** 向主机 Web 服务注册一个精确或前缀路由，并返回解注册函数。 */
@@ -444,7 +443,7 @@ function readJsonBody(request: IncomingMessage): Promise<unknown | undefined> {
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => {
       size += chunk.length
-      if (size > MAX_BODY_BYTES) {
+      if (size > MAX_JSON_BODY_BYTES) {
         resolve(undefined)
         request.destroy()
         return
@@ -452,7 +451,7 @@ function readJsonBody(request: IncomingMessage): Promise<unknown | undefined> {
       chunks.push(chunk)
     })
     request.on('end', () => {
-      if (size > MAX_BODY_BYTES) return
+      if (size > MAX_JSON_BODY_BYTES) return
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')))
       } catch {
