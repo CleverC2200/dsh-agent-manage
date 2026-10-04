@@ -249,3 +249,5 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 Manage 提供 `skill_reference_read`，只读当前模型可见 Skill 正文明确链接的本地相对参考文件。沿宿主文件系统读权限与同一工作区/scope/取消信号，核 UTF-8、大小和行分页限制，并在返回前重新确认安装 owner。MCP 资源仍使用对应服务的 reader。
 
 纯 `forecast_compute` 能力沿调用者工作区核已安装启用的 `sinian-demand-baseline`。原 §5.5 精确十进制算法、缺数据分支、草案与无外写语义保持。结果携算法版本、完整输入 SHA-256 和是否来自实际用户消息的完整 JSON；这些来源事实不核验业务来源、不授予 Consumer 权限，模型声明 `data_mode` 不算来源证明。
+
+本轮开发SDK登记为固定官方 `dsh-v0.2.1-alpha.1` / `5badb15009ae1756c3afe0ae0cef1faafc290ccc` 标准构建。Host/Client类型和真实开发依赖消费同一批官方包，运行peer对应其实际版本。客户端只声明真实slots/locale/settings接口，不保已移除client-runtime alias。Manage资源/MCP的实际implementation和官方Core插件管理继续保持原有独立归属。
