@@ -30,3 +30,5 @@ tools: [read_file, search_files]
 插件管理的用户级存储统一位于 `$DSH_HOME/agent-plugins`，默认 `~/.dsh/agent-plugins`：`.sources` 保存 checkout，`state.json` 保存安装状态，`user/{skills,commands,agents}` 保存自建资源，`data` 保存 suite 可变数据与配置。启动以 `MANAGE_STORAGE_UPGRADE_REQUIRED` 拒绝旧 `userRoot`、`dataRoot` 配置，不扫描、搬移或删除旧存储。确需数据转换时单独授权升级。标准 DSH_HOME、插件用户根、data、user、`.sources` 目录在运行时副作用前核对，拒绝符号链接。项目级和显式外部本地 source 仍按原有就地读取约定处理。
 
 模型路由参考 [DSH Subagent Model Router](https://github.com/CypherNaught-0x/DSH-Subagent-Model-Router)，frontmatter 遵循 [Claude Code subagent 定义](https://code.claude.com/docs/en/sub-agents)。
+
+原生资源 host 同时挂载 `skill_reference_read` 与纯 `forecast_compute`。官方 registry 提供当前调用者 scope 的 Skill 正文和资源目录。参考只接受正文链接的相对路径，沿宿主文件读权限；owner 变化或撤销时不返回旧正文。预测计算要求同工作区已安装启用基线 Skill；它只报告草案结果和输入来源，不依赖 GEA Consumer，也不核验业务来源。

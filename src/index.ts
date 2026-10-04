@@ -16,6 +16,8 @@
  *
  * 业务职责：组装 Catalog 与各运行时桥接，串行化变更后的重协调，并负责宿主服务注入、监听和销毁生命周期。
  */
+import { createForecastTool } from './runtime/forecast-compute.js'
+import { mountSkillReferenceReader } from './runtime/skill-reference.js'
 import { isAbsolute, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillProviderControl } from '@deepseek-ai/dsh-skill'
@@ -214,6 +216,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     await businessResources.load()
     host.effect(() => () => businessResources.dispose())
     host.provide('agentResources', businessResources)
+    host.inject(['tools', 'fs'], toolHost => {
+      mountSkillReferenceReader(toolHost)
+      toolHost.effect(() => toolHost.tools.register(createForecastTool(toolHost.skills)))
+    })
     const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'no-store' } })
     host.effect(() =>
       host.connection.fetch.register({
