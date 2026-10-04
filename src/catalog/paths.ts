@@ -40,19 +40,19 @@ export function resolveDshHome(): string {
   return process.env.DSH_HOME === undefined ? join(homedir(), '.dsh') : resolve(process.env.DSH_HOME)
 }
 
-/** Resolve the canonical user-dimension root. Legacy overrides are migration inputs only. */
+/** Resolve the canonical user-dimension root owned by the current DSH_HOME. */
 /** 解析用户维度插件根目录，统一来源 checkout、状态和数据路径。 */
-export function resolveUserRoot(_configUserRoot?: string): string {
+export function resolveUserRoot(): string {
   return join(resolveDshHome(), 'agent-plugins')
 }
 
 /**
  * Resolve the suite data root hosting `${PLUGIN_DATA}` directories and the
  * MCP overrides. Defaults under the user root so the whole plugin persists
- * into one directory. Legacy overrides are migration inputs only.
+ * into one directory.
  */
-/** 解析插件数据根目录，兼容显式配置并保持用户根边界。 */
-export function resolveDataRoot(_configDataRoot?: string, _configUserRoot?: string): string {
+/** 解析标准用户根目录内的插件数据根目录。 */
+export function resolveDataRoot(): string {
   return join(resolveUserRoot(), 'data')
 }
 

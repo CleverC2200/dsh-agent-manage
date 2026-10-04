@@ -63,6 +63,8 @@ A **source** is where content comes from; a **suite** is an installable unit dis
 
 Your own skills, commands and personas are stored as Markdown under `~/.dsh/agent-plugins/user/`. Project-native resources stay in the project. See [storage and discovery](docs/guides/usage.md#storage-and-discovery) for paths and precedence.
 
+Startup uses the current `$DSH_HOME/agent-plugins` storage only. Retired `userRoot` or `dataRoot` configuration is rejected with `MANAGE_STORAGE_UPGRADE_REQUIRED` before runtime mounting; remove those overrides for a fresh profile. Startup neither reads nor moves old trees or backend `settings.json`. Existing data stays at its original path; any required conversion is a separately authorized upgrade. The canonical home, user/data, authored-user and `.sources` directories must not be symbolic links.
+
 All six tabs share a saved grid/list preference. Add and refresh actions sit at the top right; resource state rails are green when active.
 
 Resource details share a wide dialog. Markdown resources open with rendered content and structured frontmatter; switch to Markdown to edit. MCP/LSP provide fixed forms and JSON editing over the same configuration.
@@ -214,7 +216,7 @@ Only when you tick **also delete the managed market directory** in the confirmat
 - [Security policy](SECURITY.md) · [Release history](CHANGELOG.md) · [MIT license](LICENSE).
 - [Domain glossary](CONTEXT.md) · [Architecture](docs/adr/0001-catalog-centered-modular-refactor.md).
 
-See [agent roles and storage](docs/guides/agent-roles.md) for installed-resource editing, model routing and migration.
+See [agent roles and storage](docs/guides/agent-roles.md) for installed-resource editing, model routing and canonical storage.
 
 Switch the download region under Settings → Plugins → Plugin configuration → Agent Marketplace. A saved manual choice updates the selected segment immediately; a failed write displays an error and retains the previous choice.
 

@@ -63,6 +63,8 @@ MCP 详情将保留凭据的“重试连接”与需要确认的“重新授权�
 
 自建技能、命令和角色以 Markdown 保存于 `~/.dsh/agent-plugins/user/`，项目原生资源继续保留在项目中。路径和优先级见[存储与发现](docs/guides/usage.zh.md#存储与发现)。
 
+启动仅使用当前 `$DSH_HOME/agent-plugins` 标准存储。旧 `userRoot` 或 `dataRoot` 配置在运行时挂载前以 `MANAGE_STORAGE_UPGRADE_REQUIRED` 拒绝；新 profile 应删除这些旧配置。启动不读取或搬移旧树，也不导入旧后端 `settings.json`。原数据保留原位；确需转换时另行授权升级。标准 DSH_HOME、插件用户根、data、user 和 `.sources` 目录不得为符号链接。
+
 ## 兼容性与运行边界
 
 支持的**布局方言（layout dialect）**描述文件如何组织。[统一优先级表](#布局识别优先级)并列列出套件清单与 Marketplace 目录索引。
@@ -206,7 +208,7 @@ MCP 读取根 `.mcp.json`、`.cursor/mcp.json`，以及 `.qoder/settings.json`�
 - [安全政策](SECURITY.md) · [版本记录](CHANGELOG.md) · [MIT 许可](LICENSE)。
 - [领域词汇](CONTEXT.md) · [架构设计](docs/adr/0001-catalog-centered-modular-refactor.md)。
 
-已安装资源编辑、角色模型路由与目录迁移见[代理角色与存储](docs/guides/agent-roles.zh.md)。
+已安装资源编辑、角色模型路由与标准存储见[代理角色与存储](docs/guides/agent-roles.zh.md)。
 
 下载区域在「设置 → 插件 → 插件配置 → 智能体市场」中切换。手动选择保存后立即更新选中状态；保存失败显示错误并保留原选择。
 

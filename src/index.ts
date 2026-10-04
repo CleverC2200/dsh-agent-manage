@@ -24,14 +24,14 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import { Catalog } from './application/catalog.js'
 import { RuntimeReconciler } from './runtime/reconciler.js'
 import { inspectToolRegistry } from './runtime/tool-registry-observer.js'
-import { migratePluginStorage } from './runtime/storage-migration.js'
 import { mountAgentRoleTool } from './runtime/agent-role-router.js'
 import { projectAgentRoles } from './application/project-agent-roles.js'
 import { mountProjectCommands, mountProjectMcp, mountProjectHooks, mountSuiteInstructions } from './runtime/project-runtime.js'
 import { createPanelResources } from './application/panel-resources.js'
 import { resolveDataRoot, resolveUserRoot } from './catalog/paths.js'
+import { assertCanonicalStorageDirectories } from './runtime/storage.js'
 import { mountSuiteRoutes } from './routes.js'
-import { MCP_SETTINGS_NAMESPACE, MarketSettingsSchema, readMcpBackend } from './runtime/mcp-backend.js'
+import { MCP_SETTINGS_NAMESPACE, MarketSettingsSchema } from './runtime/mcp-backend.js'
 import { narrowDownloadRegion } from './runtime/regions.js'
 import { SuiteSkillProvider } from './runtime/skills-provider.js'
 import { loadLspServers } from './runtime/lsp-direct-config.js'
@@ -48,17 +48,11 @@ export const name = 'dsh-agent-manage'
 export const inject = ['skills', 'commands']
 
 /** Host configuration. */
-/** 中文：插件启动时可传入的源目录、迁移目录、初始源和 Git 获取策略。 */
+/** 中文：插件启动时可传入 GEA MCP、初始来源和 Git 获取策略；存储根目录由宿主 DSH_HOME 决定。 */
 export interface Config {
   /** Registered GEA Consumer for automatic MCP discovery after GEA plugin login. */
   /** 中文：GEA 登录后用于自动发现 MCP 的消费者；显式 false 时不挂载。 */
   geaMcp?: GeaMcpConsumer | false
-  /** User-dimension suite root; defaults to `~/.dsh/agent-plugins` (`$DSH_HOME/agent-plugins`). */
-  /** 中文：用户维度套件根目录，默认使用 DSH 用户目录下的 agent-plugins。 */
-  userRoot?: string
-  /** Legacy mutable data root to migrate; writes always use the canonical root/data. */
-  /** 中文：待迁移的旧数据目录；后续写入始终使用规范化的数据目录。 */
-  dataRoot?: string
   /** Initial repository sources, merged into the persisted state on first load. */
   /** 中文：首次加载时并入持久化状态的初始仓库源。 */
   sources?: SourceRef[]
@@ -82,11 +76,11 @@ export interface Config {
 
 /** 启动插件：恢复目录状态，注册运行时资源、设置监听、路由和最终销毁器。 */
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
+  if ('userRoot' in config || 'dataRoot' in config) throw new Error('MANAGE_STORAGE_UPGRADE_REQUIRED: legacy storage overrides require a separately authorized upgrade')
+  await assertCanonicalStorageDirectories()
   if (config.geaMcp !== false) mountGeaMcp(ctx, config.geaMcp)
-  const userRoot = resolveUserRoot(config.userRoot)
-  const dataRoot = resolveDataRoot(config.dataRoot, userRoot)
-  const migration = await migratePluginStorage(config)
-  if (migration.conflicts.length > 0) throw new Error(`Plugin storage migration conflicts (original files retained): ${migration.conflicts.join(', ')}`)
+  const userRoot = resolveUserRoot()
+  const dataRoot = resolveDataRoot()
   let providerControl: SkillProviderControl | undefined
   let userPanelControl: SkillProviderControl | undefined
   // Host runtime copy resolves from the harness `locale.preference` setting;
@@ -337,11 +331,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
       syncProjectLayouts()
       settingsWatchers.push(scope.watch(syncProjectLayouts))
-      // One-time migration from the earlier data-root settings.json choice.
-      // 中文：兼容旧数据目录中的后端选择，只执行一次迁移写回。
-      void readMcpBackend(dataRoot).then(backend => {
-        if (backend === 'host') void scope.update({ mcpEnhanced: false }).catch(() => {})
-      })
       let previousBackend = scope.get().mcpEnhanced !== false
       settingsWatchers.push(
         scope.watch(() => {

@@ -9,15 +9,13 @@
  * `mcpEnhanced: boolean`, default true) registered by the plugin's node half:
  * the registration is what makes the host 插件配置 tab serve our card, the
  * client card binds it for state, and the node half watches it to remount
- * servers when the switch flips. `readMcpBackend` remains only as the
- * one-time migration from the earlier data-root `settings.json` choice.
+ * servers when the switch flips. Retired data-root settings are not read.
  *
  * @module runtime/mcp-backend
  */
 
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 
 /** The MCP mount backend the market uses for suite servers. */
@@ -46,23 +44,6 @@ export const MarketSettingsSchema = z.object({
   /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   feedbackEnabled: z.boolean().default(true)
 })
-
-/** Path of the legacy persisted settings file under the plugin data root. */
-/** 根据数据根返回历史后端设置路径，供迁移读取使用。 */
-export function marketSettingsPath(dataRoot: string): string {
-  return join(dataRoot, 'settings.json')
-}
-
-/** Read the legacy persisted backend; absent or invalid values read as the default. */
-/** 读取历史后端选择；缺失或非法值按内置后端处理，保证兼容启动。 */
-export async function readMcpBackend(dataRoot: string): Promise<McpBackend> {
-  try {
-    const parsed = JSON.parse(await readFile(marketSettingsPath(dataRoot), 'utf8')) as { mcpBackend?: string }
-    return parsed.mcpBackend === 'host' ? 'host' : 'builtin'
-  } catch {
-    return 'builtin'
-  }
-}
 
 /** What the host client probe reports: resolvability plus its version. */
 /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
