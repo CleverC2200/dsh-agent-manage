@@ -60,3 +60,5 @@ The legacy page adapter mounts its workspace only when opened and does not compe
 - Full `pnpm run test`: 46 files, 300+ tests green.
 
 Feedback repository ownership is updated by the [fork identity decision](2026-09-12-fork-package-identity.md); this note continues to own the settings gate, registration and local fallback.
+
+The public main entry is added by [official Workbench entry](../architecture/2026-10-04-official-workbench-entry.md), while this note retains the workspace tabs decision.

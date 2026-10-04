@@ -20,6 +20,8 @@ import { McpPluginCard } from './McpPluginCard.js'
 import { credentialApi, type CredentialRemote } from './credentials.js'
 
 const NS = 'dsh-agent-plugins-market'
+/** The module-loader banner supplies the emitted CSS without installing a global side effect. */
+declare const __dshManageClientCss: string
 
 export type Translate = (key: LocaleKey, params?: Record<string, unknown>) => string
 
@@ -54,7 +56,7 @@ interface SuiteClientContext {
   effect(callback: () => unknown, label?: string): void
   /** Resolve the current host's declared services within their lifetime. */
   /** 中文：在当前宿主声明的服务生命周期内接线。 */
-  inject(services: string[], callback: (resolved: { settingsScope: SettingsScopeService; slots: SlotsService }) => void): void
+  inject(services: string[], callback: (resolved: { settingsScope: SettingsScopeService; slots: SlotsService; effect(callback: () => unknown): void; agentWorkbench: {register(page: {id: string; label: () => string}): () => void} }) => void): void
   locale: LocaleService
   slots: SlotsService
   remote: { credentials: CredentialRemote }
@@ -79,6 +81,14 @@ export function missingPrimitives(module: Record<string, unknown>, required: rea
 
 /** 注册客户端插件的所有宿主效果，仅挂载当前宿主的设置槽位。 */
 export function apply(ctx: SuiteClientContext): void {
+  ctx.effect(() => {
+    if (typeof document === 'undefined' || typeof __dshManageClientCss !== 'string') return
+    const style = document.createElement('style')
+    style.dataset.dshClient = 'dsh-agent-manage'
+    style.textContent = __dshManageClientCss
+    document.head.append(style)
+    return () => style.remove()
+  }, 'dsh-agent-manage: styles')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-agent-plugins: dictionaries')
   const t = ctx.locale.bind(NS)
   const credentials = credentialApi(ctx.remote.credentials)
@@ -139,7 +149,16 @@ export function apply(ctx: SuiteClientContext): void {
     )
   })
 
-  // 中文：settings.section 是唯一工作台挂载位，由宿主声明生命周期管理。
+  ctx.inject(['agentWorkbench'], scoped => {
+    scoped.effect(() => scoped.agentWorkbench.register({id: 'agent-plugin-workspace', label: () => t('nav')}));
+  });
+
+  // Workbench discovers the public main entry; settings retains the same resource workspace.
+  ctx.slots.inject('main', () => ctx.slots.register({
+    name: 'main', key: 'agent-plugin-workspace',
+  }, () => h('section', {className: 'agent-workbench-ui', style: {height: '100%'}}, h(PluginWorkspace, {t, credentials}))));
+
+  // 中文：settings.section 是设置区工作台挂载位，由宿主声明生命周期管理。
   ctx.slots.inject('settings.section', () => {
     // One section, six top tabs (market / skills / commands / personas /
     // MCP / LSP) — the PluginWorkspace owns the tab row and per-tab scroll.

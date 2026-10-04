@@ -11,7 +11,7 @@ Status: implemented
 
 ## Decision
 
-- **共享工作台资源。** 隔离 DSH 0.2 源码组合中的中性色、品牌、悬停与字号消费 ui-theme 提供的 `1.0.0` 资源，不在本插件复制调色板。工作区把基础主按钮和占位文字映射到该资源；状态色与生命周期仍由宿主负责。该选择更新下面的 token 映射，卡片状态表达和操作保持不变。
+- **共享工作台资源。** 隔离 DSH 0.2 源码组合中的中性色、品牌、悬停与字号消费 Workbench 插件提供的 `1.0.0` 资源，不在本插件复制调色板。工作区把基础主按钮和占位文字映射到该资源；状态色与生命周期仍由宿主负责。该选择更新下面的 token 映射，卡片状态表达和操作保持不变。
 - **Token 对齐。** 所有未定义 token 重映射到 design-platform 对应物（fallback 同步更新为平台亮色值）：`bg-hover`/`bg-active` → `interactive-bg-hover`/`-active`；`bg-selected` → `state-business-tertiary`；`bg-success`/`bg-warn` → `state-success-tertiary`/`state-warn-tertiary`；`bg-error` → `interactive-bg-hover-danger`；`state-neutral`（开关关闭态轨道）→ `label-dimmed`（harness 自家开关轨道用 `border-l2`，在本控件 38×22 的尺寸下过淡）；`danger` 按语境拆分——警告框 → `state-warn-label`，破坏性悬停 → `state-error-primary`；`text-2` → `label-secondary`；`accent` → `brand-primary-new-colorprimary-new-color`；`border` → `border-l2`。
 - **卡片示能对齐 MCP 卡片。** 已安装套件带 3px 左侧边条——启用为 success 绿、停用为 `label-tertiary` 灰；未安装无边条。卡片同时获得 MCP 卡片的悬停处理（border-l3、interactive-bg-hover、柔和阴影），因为整卡点击即进入套件详情。
 - **操作扁平化。** 刷新与卸载改为内联扁平图标按钮（透明底、悬停 `interactive-bg-hover`、卸载带破坏性悬停着色），几何沿用 harness `Button` ghost 规格；启用开关移到卡片最右侧。安装/添加源 CTA 保持主色文字按钮。
@@ -32,3 +32,5 @@ Status: implemented
 
 - `grep` 审计：`src/client` 中不再有落在 `design-platform.css` 定义集之外的 `var(--dsw-*)` 引用。
 - 变更后 `pnpm run typecheck`、`lint`、`format:check`、`test:contract` 全绿。
+
+资源提供方及 CSS 生命周期由[官方 Workbench 入口](../architecture/2026-10-04-official-workbench-entry.zh.md)更新。
