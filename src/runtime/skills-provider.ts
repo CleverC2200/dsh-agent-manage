@@ -14,6 +14,8 @@
  * verbatim under the harness.
  */
 /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
+import { componentPath } from '../catalog/component-files.js'
+import { readSkillHeader } from '../catalog/skill-files.js'
 import { readFile } from 'node:fs/promises'
 import type { SkillCandidate, SkillDefinition, SkillLookupOptions, SkillProvider, SkillSource } from '@deepseek-ai/dsh-skill'
 import type { Catalog } from '../application/catalog.js'
@@ -70,6 +72,12 @@ export class SuiteSkillProvider implements SkillProvider {
   /** 根据候选定位原文，替换插件根变量并返回可执行技能定义。 */
   async get(candidate: SkillCandidate, _options: SkillLookupOptions): Promise<SkillDefinition | undefined> {
     const locator = candidate.locator as SkillLocator
+    const user = await this.manager.enabledUserSuites()
+    const project = _options.cwd === undefined ? [] : (await this.manager.readProjectCatalog(_options.cwd)).enabledSuites
+    if (![...user, ...project].some(suite => suite.root === locator.suiteRoot && suite.activeSurfaces?.skills !== false && suite.skills.some(skill => skill.file === locator.file)))
+      return undefined
+    _options.signal?.throwIfAborted()
+    if ((await componentPath(locator.suiteRoot, locator.file, [])) === undefined) return undefined
     let text: string
     try {
       text = locator.content ?? (await readFile(locator.file, 'utf8'))
@@ -128,7 +136,7 @@ export class SuiteSkillProvider implements SkillProvider {
     for (const suite of userSuites) {
       for (const skill of suite.activeSurfaces?.skills === false ? [] : suite.skills) {
         try {
-          if (parseFrontmatterRecord(await readFile(skill.file, 'utf8')).disabled === true) continue
+          if (parseFrontmatterRecord(await readSkillHeader(skill.file)).disabled === true) continue
         } catch {
           continue
         }
@@ -148,7 +156,7 @@ export class SuiteSkillProvider implements SkillProvider {
     for (const suite of snapshot.enabledSuites) {
       for (const skill of suite.activeSurfaces?.skills === false ? [] : suite.skills) {
         try {
-          if (parseFrontmatterRecord(await readFile(skill.file, 'utf8')).disabled === true) continue
+          if (parseFrontmatterRecord(await readSkillHeader(skill.file)).disabled === true) continue
         } catch {
           continue
         }

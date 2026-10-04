@@ -16,8 +16,11 @@
  *
  * 业务职责：组装 Catalog 与各运行时桥接，串行化变更后的重协调，并负责宿主服务注入、监听和销毁生命周期。
  */
+import { resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillProviderControl } from '@deepseek-ai/dsh-skill'
+import { BusinessResources } from './runtime/business-resources.js'
+import type {} from '@deepseek-ai/dsh-client-connection'
 import { Catalog } from './application/catalog.js'
 import { RuntimeReconciler } from './runtime/reconciler.js'
 import { inspectToolRegistry } from './runtime/tool-registry-observer.js'
@@ -211,6 +214,45 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   // 中文：凭据服务按调用时惰性解析，避免插件先启动导致永久保存 undefined。
   const catalog = new Catalog({ userRoot, dataRoot, onChanged, ...(config.git === undefined ? {} : { git: config.git }) })
   await catalog.load()
+  ctx.inject(['agentPresets', 'connection'], async host => {
+    const businessResources = new BusinessResources(host, resolve(dataRoot, 'selected-resources.json'))
+    await businessResources.load()
+    host.effect(() => () => businessResources.dispose())
+    host.provide('agentResources', businessResources)
+    const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'no-store' } })
+    host.effect(() =>
+      host.connection.fetch.register({
+        path: '/api/agent-manage/resources',
+        methods: ['GET'],
+        requestBody: 'buffered',
+        fetch: async request => {
+          try {
+            return json(await businessResources.list({ signal: request.signal }))
+          } catch (error) {
+            return json({ error: String(error) }, 400)
+          }
+        }
+      })
+    )
+    host.effect(() =>
+      host.connection.fetch.register({
+        path: '/api/agent-manage/resources/select',
+        methods: ['POST'],
+        requestBody: 'buffered',
+        fetch: async request => {
+          try {
+            const input = (await request.json()) as { id?: unknown }
+            if (!input || typeof input.id !== 'string' || Object.keys(input).some(key => key !== 'id')) throw Error('INVALID_AGENT_RESOURCE_SELECTION')
+            const selection = await businessResources.select(input.id, request.signal)
+            return json({ id: selection.id, preset: selection.preset, ...(selection.skill ? { skill: selection.skill } : {}) })
+          } catch (error) {
+            return json({ error: error instanceof Error ? error.message : String(error) }, 400)
+          }
+        }
+      })
+    )
+  })
+
   await catalog.mergeSources(config.sources ?? [])
   const resources = createPanelResources(catalog, panels)
   // Mirror oauth.ts's `credentialIdFor`: the record is stored under the folded

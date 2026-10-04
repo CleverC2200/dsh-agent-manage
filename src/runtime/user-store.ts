@@ -9,6 +9,7 @@
  */
 /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
+import { readSkillHeader } from '../catalog/skill-files.js'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parseDocument, stringify } from 'yaml'
@@ -46,11 +47,11 @@ export function parseFrontmatterRecord(text: string): Record<string, unknown> {
 
 /** Read one entry; strict runtime snapshots throw on I/O errors other than a vanished file. */
 /** 读取并解析单个用户 Markdown 条目；strict 决定坏 frontmatter 是抛错还是跳过。 */
-export async function readEntryFile(file: string, fallbackName: string, strict = false): Promise<UserEntryFile | undefined> {
+export async function readEntryFile(file: string, fallbackName: string, strict = false, metadataOnly = false): Promise<UserEntryFile | undefined> {
   if (fallbackName !== '' && !USER_ENTRY_NAME.test(fallbackName)) return undefined
   let text: string
   try {
-    text = await readFile(file, 'utf8')
+    text = metadataOnly ? await readSkillHeader(file) : await readFile(file, 'utf8')
   } catch (error) {
     if (strict && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     return undefined
@@ -106,7 +107,7 @@ export interface UserEntryFile {
 
 /** List `.md` entries; strict runtime snapshots propagate I/O errors instead of publishing partial inventories. */
 /** 扫描目录内 Markdown 条目并稳定排序，坏文件按 strict 策略处理。 */
-export async function listEntryFiles(dir: string, strict = false): Promise<UserEntryFile[]> {
+export async function listEntryFiles(dir: string, strict = false, metadataOnly = false): Promise<UserEntryFile[]> {
   let entries: string[]
   try {
     entries = await readdir(dir)
@@ -125,7 +126,7 @@ export async function listEntryFiles(dir: string, strict = false): Promise<UserE
       if (strict && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       continue
     }
-    const parsed = await readEntryFile(file, entry.slice(0, -3), strict)
+    const parsed = await readEntryFile(file, entry.slice(0, -3), strict, metadataOnly)
     if (parsed !== undefined) found.push(parsed)
   }
   return found

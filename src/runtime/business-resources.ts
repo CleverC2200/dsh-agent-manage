@@ -1,96 +1,366 @@
-/** Agent-owned loading for workbench resources assembled with split declarations. */
-import { readFile, realpath, mkdir, writeFile, rm } from 'node:fs/promises'
-import { resolve, sep } from 'node:path'
+/** Manage owns original resource loading, native publication and selected-id recovery. */
+import { createHash } from 'node:crypto'
+import { readFile, realpath, mkdir, writeFile, rename } from 'node:fs/promises'
+import { resolve, sep, dirname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import { parseSkillFrontmatter } from '../catalog/skills-parse.js'
+import type { SkillCandidate, SkillDefinition, SkillLookupOptions, SkillProviderControl } from '@deepseek-ai/dsh-skill'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
+import { parseSkillFrontmatter, stripFrontmatter } from '../catalog/skills-parse.js'
+import { parseFrontmatterRecord } from './user-store.js'
+import { readSkillHeader } from '../catalog/skill-files.js'
 
-const mountedResources = new Set<string>()
+export interface ExecutionProfile {
+  label: string
+  consumerCode: string
+  skills: string[]
+  crossConsumers?: string[]
+}
+export interface BusinessResourceDefinition {
+  id: string
+  label: string
+  root: string
+  prompt?: string
+  /** A policy JSON file may contain several original profiles. */
+  profileKey?: string
+  profile: ExecutionProfile
+  skillFiles?: Record<string, string>
+  enabled?: boolean
+  /** Existing scoped resource-reference plugin, when required by this resource. */
+  plugins?: Array<{ id: string; name: string }>
+}
+export interface ResourceSummary {
+  id: string
+  label: string
+  kind: 'prompt' | 'skill'
+  installed: boolean
+  enabled: boolean
+  provider: string
+  skills?: string[]
+  missingSkills?: string[]
+  error?: string
+}
+export interface ResourceSelection {
+  id: string
+  preset: string
+  skill?: string
+  profile?: ExecutionProfile
+}
+interface Entry {
+  interpreters?: readonly string[]
+  definition: BusinessResourceDefinition
+  owner: AbortController
+  error?: string
+}
+const SKILL_PRESET = 'agent-resource-skill'
 
-/** Read only files contained in the assembled resource, including after symlink resolution. */
-async function resourceFile(directory: string, reference: unknown): Promise<string> {
-  if (typeof reference !== 'string' || !reference) throw new Error('INVALID_AGENT_RESOURCE_REFERENCE')
-  const root = await realpath(directory)
-  const path = await realpath(resolve(root, reference))
-  if (!path.startsWith(root + sep)) throw new Error('INVALID_AGENT_RESOURCE_PATH')
-  return path
+/** Resolve a source-controlled reference again at use time; symlinks cannot escape its owner. */
+async function resourceFile(root: string, reference: string): Promise<string> {
+  if (!reference) throw Error('INVALID_AGENT_RESOURCE_REFERENCE')
+  const base = await realpath(root)
+  const file = await realpath(resolve(base, reference))
+  if (!file.startsWith(base + sep)) throw Error('INVALID_AGENT_RESOURCE_PATH')
+  return file
 }
 
-/** Load Skill and persona after GEA has validated the existing capability declaration. */
-export async function loadBusinessResources(directory: string, input: { id: string; consumerCode: string; skill: string; prompt: string }) {
-  const skillPath = await resourceFile(directory, input.skill)
-  const promptPath = await resourceFile(directory, input.prompt)
-  const skill = await readFile(skillPath, 'utf8')
-  const prompt = JSON.parse(await readFile(promptPath, 'utf8'))
-  const parsedSkill = parseSkillFrontmatter(skill, input.id)
-  if (
-    !/^[a-z][a-z0-9-]*$/.test(input.id) ||
-    typeof parsedSkill === 'string' ||
-    prompt.consumerCode !== input.consumerCode ||
-    typeof prompt.persona !== 'string' ||
-    !prompt.persona.trim() ||
-    !Array.isArray(prompt.skills) ||
-    prompt.skills.length !== 1 ||
-    prompt.skills[0] !== input.id ||
-    prompt.crossConsumers !== undefined ||
-    (prompt.pageAgents !== undefined &&
-      (!Array.isArray(prompt.pageAgents) ||
-        prompt.pageAgents.length < 1 ||
-        prompt.pageAgents.length > 4 ||
-        new Set(prompt.pageAgents).size !== prompt.pageAgents.length ||
-        !prompt.pageAgents.includes(`gea-html-${input.id}`) ||
-        prompt.pageAgents.some((id: unknown) => typeof id !== 'string' || !/^gea-html-inventory-[a-z]+$/.test(id))))
-  ) {
-    throw new Error('INVALID_AGENT_RESOURCE_IDENTITY')
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    agentResources: BusinessResources
   }
-  return {
-    skill,
-    skillName: parsedSkill.name,
-    skillDescription: parsedSkill.description,
-    profile: { label: prompt.label ?? input.id, consumerCode: input.consumerCode, persona: prompt.persona, skills: [input.id] },
-    /** Allowed page interpreters; GEA still checks installation, Session preset and each Consumer grant. */
-    pageAgents: prompt.pageAgents ?? [`gea-html-${input.id}`],
-    source: { provider: 'dsh-agent-manage', skillPath, promptPath },
-    /** Publish through the existing native Skill filesystem roots, scoped to this plugin effect. */
-    async mount(ctx: Pick<Context, 'effect'>, home: string): Promise<void> {
-      const key = resolve(await realpath(home), input.id)
-      if (mountedResources.has(key)) throw new Error('AGENT_RESOURCE_ALREADY_MOUNTED')
-      mountedResources.add(key)
-      const files: Array<{ file: string; previous?: string }> = []
-      let closed = false
-      const dispose = async () => {
-        if (closed) return
-        for (const { file, previous } of files) {
-          // Preserve edits made after this publication.
-          const current = await readFile(file, 'utf8').catch((error: NodeJS.ErrnoException) => {
-            if (error.code === 'ENOENT') return undefined
-            throw new Error(`AGENT_RESOURCE_CLEANUP_FAILED: ${file}`, { cause: error })
-          })
-          if (current !== skill) continue
-          if (previous === undefined) await rm(file, { force: true })
-          else await writeFile(file, previous, { mode: 0o600 })
+}
+
+export class BusinessResources {
+  private readonly entries = new Map<string, Entry>()
+  private readonly mounted = new Map<string, () => Promise<void>>()
+  private readonly versions = new Map<string, string>()
+  private readonly selected = new Set<string>()
+  private control?: SkillProviderControl
+  private unregisterProvider: () => void
+  private closed = false
+  private readonly lifetime = new AbortController()
+  private pending: Promise<unknown> = Promise.resolve()
+  constructor(
+    private readonly ctx: Pick<Context, 'skills' | 'agentPresets'>,
+    private readonly indexFile: string
+  ) {
+    this.unregisterProvider = ctx.skills.registerProvider(control => {
+      this.control = control
+      return { name: 'business-resource', list: options => this.skillCandidates(options), get: (candidate, options) => this.skillBody(candidate, options) }
+    })
+  }
+  async load(): Promise<void> {
+    let value: unknown
+    try {
+      value = JSON.parse(await readFile(this.indexFile, 'utf8'))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+      throw Error('INVALID_SELECTED_RESOURCE_INDEX', { cause: error })
+    }
+    const state = value as { version?: unknown; selected?: unknown }
+    if (state.version !== 1 || !Array.isArray(state.selected) || state.selected.some(id => typeof id !== 'string' || !/^[a-z][a-z0-9-]*$/.test(id)))
+      throw Error('INVALID_SELECTED_RESOURCE_INDEX')
+    for (const id of state.selected) this.selected.add(id)
+    if (this.selected.has(SKILL_PRESET)) await this.mountSkillPreset()
+  }
+  /** Called by a live installed plugin owner, never by an HTTP-provided directory. */
+  async register(definitions: readonly BusinessResourceDefinition[]): Promise<() => Promise<void>> {
+    if (this.closed) throw Error('AGENT_RESOURCES_DISPOSED')
+    const owner = new AbortController()
+    const ids = new Set<string>()
+    for (const definition of definitions) {
+      if (!/^[a-z][a-z0-9-]*$/.test(definition.id) || ids.has(definition.id) || this.entries.has(definition.id)) throw Error('DUPLICATE_AGENT_RESOURCE')
+      ids.add(definition.id)
+    }
+    for (const definition of definitions) this.entries.set(definition.id, { definition, owner })
+    this.control?.invalidate()
+    for (const id of ids)
+      if (this.selected.has(id)) {
+        try {
+          await this.serialize(() => this.mountPrompt(id, new AbortController().signal))
+        } catch (error) {
+          const entry = this.entries.get(id)
+          if (entry) entry.error = String(error)
         }
-        closed = true
-        mountedResources.delete(key)
       }
-      try {
-        for (const area of ['skills', 'gea-business-skills']) {
-          const target = resolve(home, area, input.id)
-          await mkdir(target, { recursive: true })
-          const file = resolve(target, 'SKILL.md')
-          let previous: string | undefined
-          try {
-            previous = await readFile(file, 'utf8')
-          } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-          }
-          files.push({ file, previous })
-          await writeFile(file, skill, { mode: 0o600 })
+    let released = false
+    return async () => {
+      if (released) return
+      released = true
+      owner.abort()
+      await this.pending.catch(() => {})
+      for (const id of ids)
+        if (this.entries.get(id)?.owner === owner) {
+          this.entries.delete(id)
+          const dispose = this.mounted.get(id)
+          this.mounted.delete(id)
+          await dispose?.()
         }
-        ctx.effect(() => dispose)
+      this.control?.invalidate()
+    }
+  }
+  /** Only a selected, validated original profile can contribute extra page interpreters. */
+  interpreters(id: string): readonly string[] {
+    const entry = this.entries.get(id)
+    return entry?.interpreters ?? [id]
+  }
+  async list(options: SkillLookupOptions = {}): Promise<ResourceSummary[]> {
+    options.signal?.throwIfAborted()
+    const skills = await this.ctx.skills.list(options)
+    options.signal?.throwIfAborted()
+    const available = new Set(skills.map(skill => skill.name))
+    const prompts: ResourceSummary[] = [...this.entries.values()]
+      .filter(entry => entry.definition.prompt)
+      .map(({ definition: d, error }) => {
+        const missingSkills = d.profile.skills.filter(name => !available.has(name))
+        return {
+          id: d.id,
+          label: d.label,
+          kind: 'prompt',
+          installed: true,
+          enabled: d.enabled !== false && !error,
+          provider: 'package',
+          skills: [...d.profile.skills],
+          ...(missingSkills.length ? { missingSkills } : {}),
+          ...(error ? { error } : {})
+        }
+      })
+    return [
+      ...prompts,
+      ...skills
+        .filter(skill => skill.invocation.userInvocable)
+        .map(skill => ({ id: `skill:${skill.name}`, label: skill.name, kind: 'skill' as const, installed: true, enabled: true, provider: skill.provider }))
+    ]
+  }
+  async select(id: string, signal: AbortSignal, cwd?: string): Promise<ResourceSelection> {
+    signal = AbortSignal.any([signal, this.lifetime.signal])
+    return this.serialize(async () => {
+      signal.throwIfAborted()
+      if (this.closed) throw Error('AGENT_RESOURCES_DISPOSED')
+      const wasMounted = this.mounted.has(id.startsWith('skill:') ? SKILL_PRESET : id)
+      const preset = id.startsWith('skill:') ? SKILL_PRESET : id
+      const wasSelected = this.selected.has(preset)
+      try {
+        let skill: string | undefined
+        let profile: ExecutionProfile | undefined
+        if (id.startsWith('skill:')) {
+          skill = id.slice(6)
+          const body = await this.ctx.skills.get(skill, { cwd, signal })
+          if (!body?.invocation.userInvocable) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
+          signal.throwIfAborted()
+          await this.mountSkillPreset()
+        } else {
+          await this.mountPrompt(id, signal)
+          profile = this.entries.get(id)!.definition.profile
+        }
+        signal.throwIfAborted()
+        const added = !this.selected.has(preset)
+        this.selected.add(preset)
+        try {
+          await this.persist()
+        } catch (error) {
+          if (added) this.selected.delete(preset)
+          throw error
+        }
+        signal.throwIfAborted()
+        return {
+          id,
+          preset,
+          ...(skill ? { skill } : {}),
+          ...(profile ? { profile } : {})
+        }
       } catch (error) {
-        await dispose()
+        if (!wasSelected && this.selected.delete(preset)) await this.persist()
+        if (!wasMounted && !this.selected.has(preset)) {
+          const dispose = this.mounted.get(preset)
+          this.mounted.delete(preset)
+          await dispose?.()
+        }
         throw error
       }
+    })
+  }
+  private async persist(): Promise<void> {
+    await mkdir(dirname(this.indexFile), { recursive: true })
+    const temporary = this.indexFile + '.tmp'
+    await writeFile(temporary, JSON.stringify({ version: 1, selected: [...this.selected].sort() }) + '\n', { mode: 0o600 })
+    await rename(temporary, this.indexFile)
+  }
+  private serialize<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.pending.then(operation)
+    this.pending = next.catch(() => {})
+    return next
+  }
+  private async mountSkillPreset(): Promise<void> {
+    if (this.mounted.has(SKILL_PRESET)) return
+    const dispose = await this.ctx.agentPresets.register({ id: SKILL_PRESET, name: 'Skill', plugins: [{ id: 'skill', name: '@deepseek-ai/dsh-tool-skill' }] })
+    if (this.closed) {
+      await dispose()
+      throw Error('AGENT_RESOURCES_DISPOSED')
     }
+    this.mounted.set(SKILL_PRESET, dispose)
+  }
+  private async mountPrompt(id: string, signal: AbortSignal): Promise<void> {
+    const entry = this.entries.get(id)
+    if (!entry || !entry.definition.prompt || entry.definition.enabled === false) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
+    signal = AbortSignal.any([signal, entry.owner.signal])
+    signal.throwIfAborted()
+    const d = entry.definition
+    const file = await resourceFile(d.root, d.prompt!)
+    const raw = JSON.parse(await readFile(file, { encoding: 'utf8', signal }))
+    const profile = d.profileKey ? raw.profiles?.[d.profileKey] : raw
+    signal.throwIfAborted()
+    if (
+      !profile ||
+      typeof profile.persona !== 'string' ||
+      !profile.persona.trim() ||
+      profile.consumerCode !== d.profile.consumerCode ||
+      !Array.isArray(profile.skills) ||
+      profile.skills.some((name: unknown) => typeof name !== 'string' || !d.profile.skills.includes(name)) ||
+      new Set(profile.skills).size !== profile.skills.length ||
+      Object.keys(d.skillFiles ?? {}).some(name => !profile.skills.includes(name)) ||
+      (d.profileKey !== undefined && JSON.stringify(profile.skills) !== JSON.stringify(d.profile.skills)) ||
+      (profile.crossConsumers !== undefined && JSON.stringify(profile.crossConsumers) !== JSON.stringify(d.profile.crossConsumers ?? []))
+    )
+      throw Error('INVALID_AGENT_RESOURCE_IDENTITY')
+    const interpreters: unknown = profile.pageAgents
+    if (
+      interpreters !== undefined &&
+      (!Array.isArray(interpreters) ||
+        interpreters.length < 1 ||
+        interpreters.length > 4 ||
+        !interpreters.includes(id) ||
+        new Set(interpreters).size !== interpreters.length ||
+        interpreters.some(value => typeof value !== 'string' || !/^gea-html-inventory-[a-z]+$/.test(value)))
+    )
+      throw Error('INVALID_AGENT_RESOURCE_IDENTITY')
+    const version = createHash('sha256').update(JSON.stringify(profile)).digest('hex')
+    if (this.mounted.has(id) && this.versions.get(id) === version) return
+    const previous = this.mounted.get(id)
+    if (previous) {
+      this.mounted.delete(id)
+      this.versions.delete(id)
+      await previous()
+    }
+    const dispose = await this.ctx.agentPresets.register({
+      id,
+      name: d.label,
+      plugins: [
+        { id: 'persona', name: '@deepseek-ai/dsh-persona', config: { prefix: profile.persona, suffix: '', complete: false, includeRuntimeContext: false } },
+        { id: 'skill', name: '@deepseek-ai/dsh-tool-skill' },
+        ...(d.plugins ?? [])
+      ]
+    })
+    try {
+      signal.throwIfAborted()
+      if (this.closed || this.entries.get(id) !== entry) throw Error('AGENT_RESOURCE_OWNER_CHANGED')
+      const resolved = await this.ctx.agentPresets.resolve(id)
+      if (resolved.broken) throw Error(resolved.broken)
+      signal.throwIfAborted()
+      this.mounted.set(id, dispose)
+      this.versions.set(id, version)
+      entry.interpreters = interpreters as string[] | undefined
+      delete entry.error
+    } catch (error) {
+      await dispose()
+      throw error
+    }
+  }
+  private async skillCandidates(options: SkillLookupOptions): Promise<SkillCandidate[]> {
+    const result: SkillCandidate[] = []
+    for (const [id, entry] of this.entries) {
+      if (entry.definition.enabled === false) continue
+      for (const [name, reference] of Object.entries(entry.definition.skillFiles ?? {})) {
+        options.signal?.throwIfAborted()
+        let file: string
+        let header: string
+        try {
+          file = await resourceFile(entry.definition.root, reference)
+          header = await readSkillHeader(file, options.signal)
+        } catch (error) {
+          options.signal?.throwIfAborted()
+          entry.error = String(error)
+          continue
+        }
+        const parsed = parseSkillFrontmatter(header, name)
+        if (typeof parsed === 'string' || parseFrontmatterRecord(header).disabled === true) continue
+        result.push({
+          name: parsed.name,
+          description: parsed.description,
+          invocation: parsed.invocation,
+          provider: 'business-resource',
+          source: 'bundled',
+          rank: 600,
+          locator: { id, name },
+          ...(parsed.whenToUse ? { whenToUse: parsed.whenToUse } : {}),
+          path: file,
+          resourceBase: { kind: 'directory', path: dirname(file) }
+        })
+      }
+    }
+    return result
+  }
+  private async skillBody(candidate: SkillCandidate, options: SkillLookupOptions): Promise<SkillDefinition | undefined> {
+    const locator = candidate.locator as { id: string; name: string }
+    const entry = this.entries.get(locator.id)
+    if (!entry || entry.definition.enabled === false) return undefined
+    const reference = entry.definition.skillFiles?.[locator.name]
+    if (!reference) return undefined
+    const file = await resourceFile(entry.definition.root, reference)
+    const raw = await readFile(file, { encoding: 'utf8', signal: options.signal })
+    const parsed = parseSkillFrontmatter(raw, locator.name)
+    options.signal?.throwIfAborted()
+    if (this.closed || entry.owner.signal.aborted || this.entries.get(locator.id) !== entry || typeof parsed === 'string' || parseFrontmatterRecord(raw).disabled === true)
+      return undefined
+    return { ...candidate, content: stripFrontmatter(raw), invocation: parsed.invocation }
+  }
+  async dispose(): Promise<void> {
+    this.closed = true
+    this.lifetime.abort()
+    for (const entry of this.entries.values()) entry.owner.abort()
+    this.unregisterProvider()
+    await this.pending.catch(() => {})
+    for (const dispose of this.mounted.values()) await dispose()
+    this.mounted.clear()
+    this.versions.clear()
+    this.entries.clear()
   }
 }

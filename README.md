@@ -241,3 +241,7 @@ See [branch stock page Agent choices](docs/guides/branch-stock-page-agents.md) f
 The resource loader rejects overlapping mounts of the same module in one native Skill home. GEA likewise rejects overlapping persona replacements for the same existing preset, so an older disposer cannot remove or revive another owner.
 
 The business resource loader returns `skillName` and `skillDescription` from the same catalog YAML parser. Consumers do not parse the Skill again. A cleanup read failure other than ENOENT is reported and retains the owner claim; retry cleanup after fixing the file before remounting. Later user edits and deliberate deletion remain untouched.
+
+### Native resource selection
+
+`GET /api/agent-manage/resources` returns lightweight installed/enabled prompt and human-invocable Skill summaries. `POST /api/agent-manage/resources/select` accepts only `{ "id": "..." }` and publishes the selected original resource through the official native preset/Skill interfaces. Workbench starts a new Session in its explicitly configured workspace and stages `/skill-name` without sending a model request. Missing installed Skills are reported separately from Consumer authorization. `selected-resources.json` stores only selected identities for restart recovery; it contains no resource prose or credentials.

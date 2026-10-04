@@ -1,106 +1,167 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { mkdtemp, mkdir, readFile, writeFile, symlink, rm } from 'node:fs/promises'
+import { afterEach, expect, it } from 'vitest'
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { loadBusinessResources } from '../src/runtime/business-resources.js'
-
+import type { SkillProvider, SkillProviderControl, SkillLookupOptions } from '@deepseek-ai/dsh-skill'
+type NativeHost = ConstructorParameters<typeof BusinessResources>[0]
+type Definition = Parameters<NativeHost['agentPresets']['register']>[0]
+import { BusinessResources } from '../src/runtime/business-resources.js'
 const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
-async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), 'stock-resource-'))
+it('lists installed prompt metadata before reading the selected original persona and restores only selected identities', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'resource-choice-'))
   roots.push(root)
-  await mkdir(join(root, 'skills'))
-  await writeFile(join(root, 'skills/SKILL.md'), '---\nname: inventory-fc\ndescription: 库存规则\n---\n缺失不按零处理\n')
-  await writeFile(join(root, 'prompt.json'), JSON.stringify({ consumerCode: 'branch-inventory', persona: '分仓分析', skills: ['inventory-fc'] }))
-  const input = { id: 'inventory-fc', consumerCode: 'branch-inventory', skill: 'skills/SKILL.md', prompt: 'prompt.json' }
-  return { root, input }
-}
-describe('Agent-owned workbench resources', () => {
-  it('loads the assembled Skill and persona with their file sources', async () => {
-    const { root, input } = await fixture()
-    const result = await loadBusinessResources(root, input)
-    expect(result.skill).toContain('缺失不按零处理')
-    expect(result.skillName).toBe('inventory-fc')
-    expect(result.skillDescription).toBe('库存规则')
-    expect(result.profile.persona).toBe('分仓分析')
-    expect(result.pageAgents).toEqual(['gea-html-inventory-fc'])
-    expect(result.source.provider).toBe('dsh-agent-manage')
-    expect(await readFile(result.source.skillPath, 'utf8')).toBe(result.skill)
-  })
-  it('uses the catalog YAML parser for multiline Skill metadata', async () => {
-    const { root, input } = await fixture()
-    await writeFile(join(root, 'skills/SKILL.md'), '---\nname: inventory-fc\ndescription: |\n  库存规则\n  缺失不按零处理\n---\n正文\n')
-    const result = await loadBusinessResources(root, input)
-    expect(result.skillDescription).toBe('库存规则\n缺失不按零处理')
-  })
-  it('refuses a different Consumer or cross-Consumer permission', async () => {
-    const { root, input } = await fixture()
-    await expect(loadBusinessResources(root, { ...input, consumerCode: 'other' })).rejects.toThrow('INVALID_AGENT_RESOURCE_IDENTITY')
-    await writeFile(join(root, 'prompt.json'), JSON.stringify({ consumerCode: 'branch-inventory', persona: '分仓分析', skills: ['inventory-fc'], crossConsumers: ['other'] }))
-    await expect(loadBusinessResources(root, input)).rejects.toThrow('INVALID_AGENT_RESOURCE_IDENTITY')
-  })
-  it('keeps page Agent choices separate from cross-Consumer grants', async () => {
-    const { root, input } = await fixture()
-    const prompt = { consumerCode: 'branch-inventory', persona: '分仓分析', skills: ['inventory-fc'], pageAgents: ['gea-html-inventory-fc', 'gea-html-inventory-qll'] }
-    await writeFile(join(root, 'prompt.json'), JSON.stringify(prompt))
-    expect((await loadBusinessResources(root, input)).pageAgents).toEqual(prompt.pageAgents)
-    await writeFile(join(root, 'prompt.json'), JSON.stringify({ ...prompt, pageAgents: ['gea-html-inventory-qll'] }))
-    await expect(loadBusinessResources(root, input)).rejects.toThrow('INVALID_AGENT_RESOURCE_IDENTITY')
-  })
-  it('refuses resource paths escaping through a symlink', async () => {
-    const { root, input } = await fixture()
-    const external = await fixture()
-    await symlink(join(external.root, 'skills/SKILL.md'), join(root, 'outside.md'))
-    await expect(loadBusinessResources(root, { ...input, skill: 'outside.md' })).rejects.toThrow('INVALID_AGENT_RESOURCE_PATH')
-  })
-})
-
-it('retains the resource owner when cleanup cannot read a published Skill', async () => {
-  const { root, input } = await fixture()
-  const resource = await loadBusinessResources(root, input)
-  let dispose!: () => Promise<void>
+  const registered: Definition[] = []
+  const providers: SkillProvider[] = []
   const host = {
-    effect: (setup: () => () => Promise<void>) => {
-      dispose = setup()
+    skills: {
+      registerProvider(create: (control: SkillProviderControl) => SkillProvider) {
+        providers.push(create({ invalidate() {}, signal: new AbortController().signal }))
+        return () => {}
+      },
+      async list() {
+        return []
+      }
+    },
+    agentPresets: {
+      async resolve(id: string) {
+        return { id }
+      },
+      async register(value: Definition) {
+        registered.push(value)
+        return async () => {
+          registered.splice(registered.indexOf(value), 1)
+        }
+      }
     }
-  } as Pick<import('@deepseek-ai/cordis').Context, 'effect'>
-  const home = join(root, 'home')
-  await mkdir(home)
-  await resource.mount(host, home)
-  const file = join(home, 'skills/inventory-fc/SKILL.md')
-  await rm(file)
-  await mkdir(file)
-  await expect(dispose()).rejects.toThrow('AGENT_RESOURCE_CLEANUP_FAILED')
-  await expect(resource.mount(host, home)).rejects.toThrow('AGENT_RESOURCE_ALREADY_MOUNTED')
-  await rm(file, { recursive: true })
-  await writeFile(file, resource.skill)
-  await dispose()
-  await resource.mount(host, home)
-  await dispose()
+  }
+  const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  await resources.load()
+  const definition = { id: 'original', label: 'Original', root, prompt: 'prompt.json', profile: { label: 'Original', consumerCode: 'known', skills: [] } }
+  const owner = await resources.register([definition])
+  expect(await resources.list()).toEqual([{ id: 'original', label: 'Original', kind: 'prompt', installed: true, enabled: true, provider: 'package', skills: [] }])
+  expect(registered).toEqual([])
+  await writeFile(join(root, 'prompt.json'), JSON.stringify({ ...definition.profile, persona: 'Original exact words\nSecond line' }))
+  const selected = await resources.select('original', new AbortController().signal)
+  expect(selected.preset).toBe('original')
+  expect((registered[0].plugins[0].config as { prefix: string }).prefix).toBe('Original exact words\nSecond line')
+  expect(JSON.parse(await readFile(join(root, 'selected.json'), 'utf8'))).toEqual({ version: 1, selected: ['original'] })
+  expect(registered).toHaveLength(1)
+  await resources.dispose()
+  expect(registered).toHaveLength(0)
+  const restored = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  await restored.load()
+  await restored.register([definition])
+  expect(registered).toHaveLength(1)
+  await restored.dispose()
+  await owner()
 })
-
-it('refuses overlapping Skill owners and preserves edits during disposal', async () => {
-  const { root, input } = await fixture()
-  const resource = await loadBusinessResources(root, input)
-  const disposals: Array<() => Promise<void>> = []
+it('refuses disabled resources and cleans partial registration on cancellation without writing source files', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'resource-cancel-'))
+  roots.push(root)
+  const source = JSON.stringify({ consumerCode: 'known', skills: [], persona: 'Keep user words' })
+  await writeFile(join(root, 'prompt.json'), source)
+  const controller = new AbortController()
+  let disposed = 0
   const host = {
-    effect: (setup: () => () => Promise<void>) => {
-      disposals.push(setup())
+    skills: {
+      registerProvider() {
+        return () => {}
+      },
+      async list() {
+        return []
+      }
+    },
+    agentPresets: {
+      async register() {
+        controller.abort()
+        return async () => {
+          disposed++
+        }
+      },
+      async resolve(id: string) {
+        return { id }
+      }
     }
-  } as Pick<import('@deepseek-ai/cordis').Context, 'effect'>
-  const home = join(root, 'home')
-  await mkdir(home)
-  await resource.mount(host, home)
-  await expect(resource.mount(host, home)).rejects.toThrow('AGENT_RESOURCE_ALREADY_MOUNTED')
-  const file = join(home, 'skills/inventory-fc/SKILL.md')
-  expect(await readFile(file, 'utf8')).toBe(resource.skill)
-  await disposals[0]!()
-  await resource.mount(host, home)
-  await disposals[0]!()
-  expect(await readFile(file, 'utf8')).toBe(resource.skill)
-  await writeFile(file, 'user edit')
-  await disposals[1]!()
-  expect(await readFile(file, 'utf8')).toBe('user edit')
+  }
+  const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  await resources.load()
+  await resources.register([
+    { id: 'disabled', label: 'Disabled', root, prompt: 'prompt.json', profile: { label: 'Disabled', consumerCode: 'known', skills: [] }, enabled: false },
+    { id: 'original', label: 'Original', root, prompt: 'prompt.json', profile: { label: 'Original', consumerCode: 'known', skills: [] } }
+  ])
+  await expect(resources.select('disabled', new AbortController().signal)).rejects.toThrow('AGENT_RESOURCE_DISABLED_OR_MISSING')
+  await expect(resources.select('original', controller.signal)).rejects.toThrow()
+  expect(disposed).toBe(1)
+  await expect(readFile(join(root, 'selected.json'))).rejects.toThrow()
+  expect(await readFile(join(root, 'prompt.json'), 'utf8')).toBe(source)
+  await resources.dispose()
+})
+it('loads a packaged Skill verbatim, rejects symlink escapes and withdraws an unloaded owner', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'resource-skill-'))
+  roots.push(root)
+  const { symlink } = await import('node:fs/promises')
+  const raw = '---\nname: original-skill\ndescription: Original rules\n---\nOriginal body ${CLAUDE_PLUGIN_ROOT}\n'
+  await writeFile(join(root, 'SKILL.md'), raw)
+  let provider: SkillProvider
+  const host = {
+    skills: {
+      registerProvider(create: (control: SkillProviderControl) => SkillProvider) {
+        provider = create({ invalidate() {}, signal: new AbortController().signal })
+        return () => {}
+      },
+      async list(options: SkillLookupOptions) {
+        return provider.list(options)
+      },
+      async get(name: string, options: SkillLookupOptions) {
+        const candidate = (await provider.list(options)).find(item => item.name === name)
+        return candidate && provider.get(candidate, options)
+      }
+    },
+    agentPresets: {
+      async register() {
+        return async () => {}
+      },
+      async resolve(id: string) {
+        return { id }
+      }
+    }
+  }
+  const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  await resources.load()
+  const remove = await resources.register([
+    {
+      id: 'original',
+      label: 'Original',
+      root,
+      prompt: 'prompt.json',
+      profile: { label: 'Original', consumerCode: 'known', skills: ['original-skill'] },
+      skillFiles: { 'original-skill': 'SKILL.md' }
+    }
+  ])
+  const candidate = (await provider.list({}))[0]
+  expect((await provider.get(candidate, {})).content).toBe('Original body ${CLAUDE_PLUGIN_ROOT}\n')
+  await resources.select('skill:original-skill', new AbortController().signal)
+  await remove()
+  expect(await provider.get(candidate, {})).toBeUndefined()
+  const outside = await mkdtemp(join(tmpdir(), 'resource-outside-'))
+  roots.push(outside)
+  await writeFile(join(outside, 'SKILL.md'), raw)
+  await symlink(join(outside, 'SKILL.md'), join(root, 'escape.md'))
+  await resources.register([
+    {
+      id: 'escape',
+      label: 'Escape',
+      root,
+      prompt: 'prompt.json',
+      profile: { label: 'Escape', consumerCode: 'known', skills: ['original-skill'] },
+      skillFiles: { 'original-skill': 'escape.md' }
+    }
+  ])
+  const rows = await resources.list()
+  expect(rows.find(row => row.id === 'escape')?.error).toContain('INVALID_AGENT_RESOURCE_PATH')
+  expect(await readFile(join(root, 'SKILL.md'), 'utf8')).toBe(raw)
+  await resources.dispose()
 })

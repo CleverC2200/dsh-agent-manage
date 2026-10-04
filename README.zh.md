@@ -237,3 +237,7 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 ## 官方工作台入口与视觉生命周期
 
 在同组官方 DSH 中，通过 **工作台 → Agent 市场**（`agent-plugin-workspace`）打开已有资源工作区；设置区仍呈现同一工作区。目录以官方 `main` 注册为可见性事实，Workbench 注册只提供标题元数据。Manage 的构建 CSS 由插件 `apply` effect 安装和释放，消费 Workbench 插件提供的 `--workbench-*`；不在模块加载时插入永久样式，不同步或修改官方 Core 主题。主题及字号始终由官方宿主持有。
+
+### 原生资源选用
+
+`GET /api/agent-manage/resources` 返回提示词和可由用户调用的 Skill 轻量清单，安装启用事实沿用资源所属模块。`POST /api/agent-manage/resources/select` 仅接受 `{ "id": "..." }`，经官方原生 preset/Skill 接口发布所选原资源。工作台在明确配置的隔离工作区新建 Session，Skill 只暂存 `/skill-name` 草稿，不自动请求模型。未安装 Skill 和 Consumer 业务授权分别报告。`selected-resources.json` 只保存已选标识以恢复必要声明，不保存资源正文或凭据。

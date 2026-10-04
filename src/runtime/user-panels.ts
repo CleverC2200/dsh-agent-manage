@@ -81,8 +81,8 @@ export class UserPanelStore {
 
   /** Every entry, sorted by name; strict snapshots propagate temporary I/O failures. */
   /** 列出面板条目并映射为 HTTP 层模型；strict 控制坏文件是否抛错。 */
-  async list(strict = false): Promise<UserPanelEntry[]> {
-    const files = await listEntryFiles(this.dir, strict)
+  async list(strict = false, metadataOnly = false): Promise<UserPanelEntry[]> {
+    const files = await listEntryFiles(this.dir, strict, metadataOnly)
     return files.map(file => this.serialize(file))
   }
 
@@ -191,7 +191,7 @@ export class UserPanelSkillProvider implements SkillProvider {
   /** 列出启用的用户技能条目并转换为宿主候选。 */
   async list(_options: SkillLookupOptions): Promise<SkillCandidate[]> {
     const candidates: SkillCandidate[] = []
-    const skills = await this.skills.list()
+    const skills = await this.skills.list(false, true)
     for (const entry of skills) {
       if (entry.disabled || !isUserSkillEntryName(entry.name)) continue
       candidates.push({

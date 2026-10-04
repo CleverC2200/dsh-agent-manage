@@ -11,6 +11,7 @@
  * thrown discovery.
  */
 /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
+import { readSkillHeader } from './skill-files.js'
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { parseSkillFrontmatter } from './skills-parse.js'
@@ -125,7 +126,7 @@ async function parseOneSkill(file: string, directory: string, fallbackName: stri
   } else {
     let text: string
     try {
-      text = await readFile(file, 'utf8')
+      text = await readSkillHeader(file)
     } catch (error) {
       errors.push(`skill "${fallbackName}": unreadable SKILL.md (${error instanceof Error ? error.message : String(error)})`)
       return undefined
