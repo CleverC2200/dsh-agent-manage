@@ -26,7 +26,7 @@ afterEach(async () => {
 })
 
 function newAgent(id: string, cwd?: string) {
-  const session = Session.create(SessionId(id), [], { version: 0, id: SessionId(id), createdAt: 0, isSeeded: false, ...(cwd === undefined ? {} : { cwd }) })
+  const session = Session.create(SessionId(id), [], { ...Session.create(SessionId(id)).header, ...(cwd === undefined ? {} : { cwd }) })
   session.append('turn/start', { turn: 1 })
   return { id, session }
 }
@@ -114,7 +114,7 @@ describe('durable subagent catalog on the real host session and tool registries'
       .snapshotEvents()
       .find((event: { type: string; data: UserMessage }) => event.type === 'user/message' && event.data.source.kind === 'subagent-catalog')
     restored.session.append('user/message', createUserMessage({ source: { kind: 'plugin', plugin: 'compact' }, content: [{ type: 'text', text: 'Summary' }] }), {
-      surfaceOp: { op: 'replace', start: catalog.seq, end: catalog.seq },
+      surfaceOp: { op: 'replace', startSeq: catalog.seq, endSeq: catalog.seq },
       sourceEventSeqs: [catalog.seq]
     })
     const [replacement] = publish(restored, await step(restored))
