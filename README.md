@@ -29,7 +29,7 @@ This isolated project supports only its registered current core source and publi
 
 This fork uses the package name `dsh-agent-manage`; publication of the new npm package has not been performed or verified here. Use the GitHub source below. When replacing the old package, remove its profile entry before installing this package to avoid duplicate loading. Existing `dsh-agent-plugins-market` settings and data paths remain compatible.
 
-You need Node.js 22+, Git for Git sources, and a DSH Web profile with the skill service enabled. This repository declares DSH peer packages in the `^0.1.2-rc.1` range; individual capabilities also depend on the services in your profile. See [host requirements](docs/guides/usage.md#host-requirements).
+You need Node.js 24+, Git for Git sources, and a DSH Web profile with the skill service enabled. This repository declares DSH peer packages in the `0.2.1-alpha.1` range; individual capabilities also depend on the services in your profile. See [host requirements](docs/guides/usage.md#host-requirements).
 
 Install into your profile, replacing `<name>` with its name:
 
@@ -230,7 +230,7 @@ Private GitHub suites can use an explicit archive source such as `https://api.gi
 
 The download-region selector immediately reflects an explicit choice; automatic mode follows the detected region.
 
-The isolated plugin-split workspace targets the sibling DSH 0.2.0-rc.1 source build. DSH peers are pinned to that version; client icons consume its Regular exports. The UI primitives development link resolves to that same checkout, and tests deduplicate React across the link. Run the source compatibility check from the sibling GEA repository before using this combination.
+The isolated plugin-split workspace targets the sibling DSH 0.2.1-alpha.1 source build. DSH peers are pinned to that version and Cordis to 4.0.5-alpha.1; client icons consume its Regular exports. The UI primitives development link resolves to that same checkout, and tests deduplicate React across the link. Run the source compatibility check from the sibling GEA repository before using this combination.
 
 Management pages consume resource `1.0.0` installed and released by the Workbench plugin. Manage owns the lifetime of its emitted CSS, with no module-load style insertion or Core theme synchronization. Theme, font size and semantic status colors remain host-owned.
 

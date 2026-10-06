@@ -29,7 +29,7 @@
 
 本分支的包名为 `dsh-agent-manage`；新 npm 包尚未在本次工作中发布或验证，使用下方 GitHub 来源。替换旧包时应先移除旧 profile 中的插件条目，再安装新包，避免双重加载。已有 `dsh-agent-plugins-market` 设置命名空间与数据路径保留兼容。
 
-需要 Node.js 22+、启用了技能服务的 DSH Web profile；使用 Git 来源还需要 Git。当前仓库声明的 DSH peer 包版本范围为 `^0.1.2-rc.1`，各项能力还取决于 profile 提供的宿主服务，详见[宿主要求](docs/guides/usage.zh.md#宿主要求)。
+需要 Node.js 24+、启用了技能服务的 DSH Web profile；使用 Git 来源还需要 Git。当前仓库声明的 DSH peer 包版本范围为 `0.2.1-alpha.1`，各项能力还取决于 profile 提供的宿主服务，详见[宿主要求](docs/guides/usage.zh.md#宿主要求)。
 
 将 `<name>` 替换为你的 profile 名称后安装：
 
@@ -222,7 +222,7 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 
 下载区域选择立即反映显式选择；自动模式跟随探测结果。
 
-插件拆分隔离工作区面向同级 DSH 0.2.0-rc.1 源码构建，DSH peer 固定到该版本；图标使用新的 Regular 导出。UI primitives 开发链接指向同一源码，测试对 React 去重。使用此组合前从同级 GEA 仓执行源码兼容检查。
+插件拆分隔离工作区面向同级 DSH 0.2.1-alpha.1 源码构建，DSH peer 固定到该版本，Cordis 固定为 4.0.5-alpha.1；图标使用新的 Regular 导出。UI primitives 开发链接指向同一源码，测试对 React 去重。使用此组合前从同级 GEA 仓执行源码兼容检查。
 
 管理页面消费 Workbench 插件安装和释放的工作台资源 `1.0.0`。Manage 的构建 CSS 由自身 apply 生命周期管理，不在模块加载时留下样式，也不修改或同步 Core 主题。明暗主题、字号和状态颜色仍由官方宿主持有。
 
