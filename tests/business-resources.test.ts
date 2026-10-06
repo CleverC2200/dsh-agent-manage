@@ -216,3 +216,35 @@ it('loads a packaged Skill verbatim, rejects symlink escapes and withdraws an un
   expect(await readFile(join(root, 'SKILL.md'), 'utf8')).toBe(raw)
   await resources.dispose()
 })
+
+it('publishes only selected validated page Interpreter choices which still have installed enabled resource owners', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'resource-interpreters-'))
+  roots.push(root)
+  const host = {
+    skills: { registerProvider: () => () => {}, list: async () => [] },
+    agentPresets: { register: async () => async () => {}, resolve: async (id: string) => ({ id }) }
+  }
+  const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  await writeFile(
+    join(root, 'prompt.json'),
+    JSON.stringify({
+      persona: 'original',
+      consumerCode: 'branch',
+      skills: [],
+      pageAgents: ['gea-html-inventory-fc', 'gea-html-inventory-qll', 'gea-html-inventory-missing', 'gea-html-inventory-disabled']
+    })
+  )
+  await resources.register([{ id: 'gea-html-inventory-fc', label: 'Branch', root, prompt: 'prompt.json', profile: { label: 'Branch', consumerCode: 'branch', skills: [] } }])
+  const removeOther = await resources.register([
+    { id: 'gea-html-inventory-qll', label: 'Full chain', root, prompt: 'other.json', profile: { label: 'Full chain', consumerCode: 'full-chain', skills: [] } },
+    { id: 'gea-html-inventory-disabled', label: 'Disabled', root, prompt: 'other.json', enabled: false, profile: { label: 'Disabled', consumerCode: 'disabled', skills: [] } }
+  ])
+  expect((await resources.list()).find(row => row.id === 'gea-html-inventory-fc')?.interpreters).toBeUndefined()
+  const selected = await resources.select('gea-html-inventory-fc', new AbortController().signal)
+  expect(selected.interpreters).toEqual(['gea-html-inventory-fc', 'gea-html-inventory-qll'])
+  expect((await resources.list()).find(row => row.id === 'gea-html-inventory-fc')?.interpreters).toEqual(['gea-html-inventory-fc', 'gea-html-inventory-qll'])
+  await removeOther()
+  expect((await resources.select('gea-html-inventory-fc', new AbortController().signal)).interpreters).toEqual(['gea-html-inventory-fc'])
+  expect((await resources.list()).find(row => row.id === 'gea-html-inventory-fc')?.interpreters).toEqual(['gea-html-inventory-fc'])
+  await resources.dispose()
+})

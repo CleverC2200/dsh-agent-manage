@@ -13,3 +13,5 @@ Manage 持有唯一的资源interface与已启用包资源的官方Skill Provide
 Manage 的现有 runtime 同时持有 `skill_reference_read` 与纯 §5.5 `forecast_compute` 能力。官方 Skill registry 是唯一目录与正文加载入口。参考读取核当前可由模型调用的 Skill、正文明确相对链接、宿主文件系统权限、UTF-8/大小/分页与调用者取消；owner 撤销或变化后不返回旧正文。计算沿同工作区核已安装启用的 `sinian-demand-baseline`，保持原十进制算法，并把输入 hash/版本及实际完整用户输入来源与业务授权分开报告。不新增 provider、备用目录、独立运行插件包或 Consumer 权威。
 
 GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/参考 loader、工具包/加载状态和纯计算在当前调用者接上 Manage 与官方 loader 后退出。原 Skill/persona 源不复制改写。离线检查覆盖不变的十四组参考算法、缺十进制数据、来源核对、参考可见性及 owner 撤销；真实安装及 Consumer/model 验收归同组运行。
+
+资源摘要和选用结果返回已选 profile 验证过的页面解释器列表。Manage 每次读取都按当前资源 owner 过滤，owner 卸载后也不返回旧选项。工作台负责选择器和官方 Session 导航。GEA 继续负责预设与 Consumer 授权。已选资源身份的恢复索引保持原格式。

@@ -36,6 +36,8 @@ export interface ResourceSummary {
   enabled: boolean
   provider: string
   skills?: string[]
+  /** Validated selected page choices; labels come from the corresponding resource summaries. */
+  interpreters?: readonly string[]
   missingSkills?: string[]
   error?: string
 }
@@ -44,6 +46,7 @@ export interface ResourceSelection {
   preset: string
   skill?: string
   profile?: ExecutionProfile
+  interpreters?: readonly string[]
 }
 interface Entry {
   interpreters?: readonly string[]
@@ -148,7 +151,12 @@ export class BusinessResources {
   /** Only a selected, validated original profile can contribute extra page interpreters. */
   interpreters(id: string): readonly string[] {
     const entry = this.entries.get(id)
-    return entry?.interpreters ?? [id]
+    return entry?.interpreters
+      ? entry.interpreters.filter(choice => {
+          const target = this.entries.get(choice)
+          return target?.definition.prompt && target.definition.enabled !== false && !target.error
+        })
+      : [id]
   }
   async list(options: SkillLookupOptions = {}): Promise<ResourceSummary[]> {
     options.signal?.throwIfAborted()
@@ -157,7 +165,7 @@ export class BusinessResources {
     const available = new Set(skills.map(skill => skill.name))
     const prompts: ResourceSummary[] = [...this.entries.values()]
       .filter(entry => entry.definition.prompt)
-      .map(({ definition: d, error }) => {
+      .map(({ definition: d, error, interpreters }) => {
         const missingSkills = d.profile.skills.filter(name => !available.has(name))
         return {
           id: d.id,
@@ -167,6 +175,11 @@ export class BusinessResources {
           enabled: d.enabled !== false && !error,
           provider: 'package',
           skills: [...d.profile.skills],
+          ...(interpreters
+            ? {
+                interpreters: this.interpreters(d.id)
+              }
+            : {}),
           ...(missingSkills.length ? { missingSkills } : {}),
           ...(error ? { error } : {})
         }
@@ -213,7 +226,8 @@ export class BusinessResources {
           id,
           preset,
           ...(skill ? { skill } : {}),
-          ...(profile ? { profile } : {})
+          ...(profile ? { profile } : {}),
+          ...(this.entries.get(id)?.interpreters ? { interpreters: this.interpreters(id) } : {})
         }
       } catch (error) {
         if (!wasSelected && this.selected.delete(preset)) await this.persist()

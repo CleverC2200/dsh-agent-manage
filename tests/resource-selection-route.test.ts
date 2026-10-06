@@ -85,6 +85,17 @@ it('passes the same explicit workspace from public discovery and selection to th
   expect((await mounted.route.fetch(selectionRequest)).status).toBe(200)
   expect(mounted.select).toHaveBeenCalledWith('skill:project', selectionRequest.signal, cwd)
 })
+it('the public selection route returns interpreter choices without publishing the resource profile', async () => {
+  const mounted = await route()
+  const id = 'gea-html-inventory-fc'
+  const interpreters = [id, 'gea-html-inventory-qll']
+  mounted.select.mockResolvedValueOnce({ id, preset: id, interpreters, profile: { label: 'Branch', consumerCode: 'branch', skills: [] } })
+  const response = await mounted.route.fetch(
+    new Request('https://host.example/api/agent-manage/resources/select', { method: 'POST', body: JSON.stringify({ id, cwd: '/isolated/project' }) })
+  )
+  expect(response.status).toBe(200)
+  expect(await response.json()).toEqual({ id, preset: id, interpreters })
+})
 it.each([undefined, '', 'relative/project', 123, null])('rejects a missing or invalid workspace before resource selection (%s)', async cwd => {
   const mounted = await route()
   const response = await mounted.route.fetch(
