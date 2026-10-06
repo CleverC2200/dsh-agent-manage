@@ -16,6 +16,10 @@
     "./business-resources": {
       "types": "./lib/types/runtime/business-resources.d.ts",
       "default": "./lib/runtime/business-resources.js"
+    },
+    "./forecast-source": {
+      "types": "./lib/types/runtime/forecast-source.d.ts",
+      "default": "./lib/runtime/forecast-source.js"
     }
   },
   "files": [
