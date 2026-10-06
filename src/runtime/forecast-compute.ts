@@ -1,10 +1,10 @@
 import { Decimal } from 'decimal.js'
 import type { Context } from '@deepseek-ai/cordis'
-import { forecastInputHash, hasUserForecastInput } from './forecast-source.js'
+import { FORECAST_VERSION, forecastSourceProof } from './forecast-source.js'
+export { FORECAST_VERSION } from './forecast-source.js'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 const D = Decimal.clone({ precision: 40 })
-export const FORECAST_VERSION = 'gea-v2-5.5-decimal-1'
 type RecordValue = Record<string, unknown>
 function text(value: unknown, field: string): string {
   if (typeof value !== 'string' || !value.trim()) throw Error(`${field}: required`)
@@ -222,18 +222,17 @@ export function createForecastTool(skills: Context['skills']) {
     execute: async (args, exec) => {
       exec.signal.throwIfAborted()
       const baseline = await skills.get('sinian-demand-baseline', { scope: exec.agent, cwd: exec.agent?.session.header.cwd, signal: exec.signal })
-      if (!baseline?.invocation.modelInvocable) throw Error('FORECAST_CAPABILITY_DISABLED: Select an installed, enabled forecast resource / 请选用已安装启用的预测资源。')
-      const inputHash = forecastInputHash(args)
-      const sourceVerified = hasUserForecastInput(
+      const source = forecastSourceProof(
+        args,
         exec.agent?.session
           .snapshotEvents()
           .filter(event => event.type === 'user/message')
           .map(event => event.data) ?? [],
-        inputHash
+        baseline
       )
       const result = computeForecast(args)
       exec.signal?.throwIfAborted()
-      return JSON.stringify({ ...result, source: { inputHash, calculatorVersion: FORECAST_VERSION, userInputVerified: sourceVerified, businessAuthorization: false } })
+      return JSON.stringify({ ...result, source })
     }
   })
 }

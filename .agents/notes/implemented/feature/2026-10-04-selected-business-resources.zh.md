@@ -15,3 +15,5 @@ Manage 的现有 runtime 同时持有 `skill_reference_read` 与纯 §5.5 `forec
 GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/参考 loader、工具包/加载状态和纯计算在当前调用者接上 Manage 与官方 loader 后退出。原 Skill/persona 源不复制改写。离线检查覆盖不变的十四组参考算法、缺十进制数据、来源核对、参考可见性及 owner 撤销；真实安装及 Consumer/model 验收归同组运行。
 
 资源摘要和选用结果返回已选 profile 验证过的页面解释器列表。Manage 每次读取都按当前资源 owner 过滤，owner 卸载后也不返回旧选项。工作台负责选择器和官方 Session 导航。GEA 继续负责预设与 Consumer 授权。已选资源身份的恢复索引保持原格式。
+
+`forecast-source` 导出让 GEA 使用同一套纯输入与 baseline 校验。GEA 将已保存的计算证据绑定到当前执行、Session 和 subject。baseline 正文或可见性变化使旧证据失效。计算实现仍归 Manage。
