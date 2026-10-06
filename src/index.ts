@@ -248,7 +248,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
             if (!input || typeof input.id !== 'string' || Object.keys(input).some(key => key !== 'id' && key !== 'cwd')) throw Error('INVALID_AGENT_RESOURCE_SELECTION')
             if (typeof input.cwd !== 'string' || !input.cwd.trim() || !isAbsolute(input.cwd)) throw Error('INVALID_AGENT_RESOURCE_WORKSPACE')
             const selection = await businessResources.select(input.id, request.signal, input.cwd)
-            return json({ id: selection.id, preset: selection.preset, ...(selection.skill ? { skill: selection.skill } : {}) })
+            return json({
+              id: selection.id,
+              preset: selection.preset,
+              ...(selection.skill ? { skill: selection.skill } : {}),
+              ...(selection.interpreters ? { interpreters: selection.interpreters } : {})
+            })
           } catch (error) {
             return json({ error: error instanceof Error ? error.message : String(error) }, error instanceof RequestBodyTooLarge ? 413 : 400)
           }
