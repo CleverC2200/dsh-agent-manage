@@ -1,0 +1,8 @@
+{
+  "version": "1",
+  "updatedAt": "2026-08-10",
+  "status": "生效",
+  "priority": ["customer_sku", "sku", "customer", "default"],
+  "exceptions": [],
+  "note": "客户/SKU 业务例外表（业务维护规则包 3.4）：对象层级 customer_sku/sku/customer，命中条件为不可下单、暂缓、控货、停用、下市等；精确匹配，不允许进 RAG。当前无生效记录，由业务维护后台维护后生效。"
+}

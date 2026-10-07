@@ -1,0 +1,45 @@
+{
+  "version": "1",
+  "updatedAt": "2026-08-09",
+  "status": "生效",
+  "cards": [
+    {
+      "key": "operating_achievement",
+      "label": "经营目标达成",
+      "main": { "field": "达成金额", "source": "budget_amount * budget_rate" },
+      "aux": [
+        { "field": "经营目标", "source": "budget_amount" },
+        { "field": "达成进度", "source": "budget_rate" }
+      ]
+    },
+    {
+      "key": "plan_achievement",
+      "label": "计划量达成",
+      "main": { "field": "达成量", "source": "shipped_qty + in_transit_qty" },
+      "aux": [
+        { "field": "计划量", "source": "planned_qty" },
+        { "field": "达成进度", "source": "planned_qty_rate" }
+      ]
+    },
+    {
+      "key": "current_stock",
+      "label": "当前库存",
+      "main": { "field": "当前库存量", "source": "stock_qty + in_transit_qty" },
+      "aux": [
+        { "field": "周转天数", "source": "turnover_days" },
+        { "field": "平均货龄", "source": "avg_stock_age" }
+      ],
+      "note": "当前库存=T-2库存+在途库存；在途库存指未签收或库存日期之后发货量。"
+    },
+    {
+      "key": "suggested_preorder",
+      "label": "建议预订单",
+      "main": { "field": "建议预订单量", "source": "pre_order_qty" },
+      "aux": [
+        { "field": "建议SKU个数", "source": "pre_order_qty > 0 的SKU去重数" },
+        { "field": "客户总SKU个数", "source": "当前客户当前快照和计划月份下的SKU去重数" }
+      ],
+      "note": "建议预订单量不等于正式订单量；人工调整后进入预加购物车，提交DMS前仍需人工确认。"
+    }
+  ]
+}

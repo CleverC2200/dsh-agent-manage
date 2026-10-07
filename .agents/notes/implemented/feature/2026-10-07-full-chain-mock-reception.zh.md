@@ -8,7 +8,7 @@ Status: implemented
 
 ## 决定
 
-Manage将`inventory-qll`声明为固定mock，tables和MCP能力为空。Workbench拥有恢复的业务计算、本地固定输入、UI意图和当前Session页面引用。现有Consumer标识只表示模块，不授予查询能力。
+Manage将`inventory-qll`声明为固定mock，tables和MCP能力为空。Manage通过公开inventory-compute模块拥有恢复的纯业务计算。Workbench拥有本地固定输入、UI意图和当前Session页面引用。现有Consumer标识只表示模块，不授予查询能力。
 
 ## 其它方案
 
@@ -21,3 +21,5 @@ Manage将`inventory-qll`声明为固定mock，tables和MCP能力为空。Workben
 ## 趋势接收
 
 同页与同资源新增原15历史计算和图表，沿用当前模拟接收决定、资源ID与查询权限。固定趋势输入使用当前分布的组织和SKU编码。趋势上下文与一个引用绑定捕获快照及收窄范围，缺失日期保持null。当前页300个目录名额分配为298个结构行、刷新控件和一个趋势引用。UI意图可恢复，历史事实需要重新显式查询。原真实查询和分页保护仍由原15固定Git对象恢复，不进入本批模拟运行时。
+
+[计算归属](../../implemented/architecture/2026-10-07-inventory-calculation-ownership.zh.md)部分替代原所有者说明，其余模拟接收决定继续适用。
