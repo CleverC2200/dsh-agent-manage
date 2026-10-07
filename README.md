@@ -268,6 +268,8 @@ The original category plan resource remains in `business-resources/category-plan
 
 MPS resources in `business-resources/inventory-mps` retain the original mock persona, Skill and view-only declarations. The Workbench assembles them into the existing static MPS page. The Skill reads only the mounted step; UI intent and unfinished text restore in the current Session, while derived mock results never enter a business store. The historical `governed-sql-read` declaration is recorded in `SOURCE.json`; current MCP capabilities are empty.
 
+The inventory-dealer package retains the fixed original rules and loads only the registered 201-row local fixture in this reception stage. Its original consumer ID is preserved, with an empty MCP capability list. Page visibility and resource enablement remain independent. Real authorization and replenishment acceptance remain pending.
+
 The received full-chain distribution resources live in `business-resources/inventory-qll`. They declare fixed mock input and no MCP query capability. Workbench retains the original company/customer calculation and current Session references; real customer data and row authorization remain unverified.
 
 The same `inventory-qll` page includes fixed mock trends for the captured distribution range. Missing dates remain null, historical order gaps use the original calculation, and scope changes withdraw old trend facts and references. Native and live trend acceptance remain open.

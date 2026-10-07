@@ -1,0 +1,7 @@
+{
+  "label": "经销商库存",
+  "consumerCode": "dealer-inventory-replenishment",
+  "persona": "当前页面使用固定本地模拟输入。只解释当前Session关联页面主动发布的MOCK结果，核对客户、页签、页码与覆盖；原健康、库存建议与orderRecommendation保持各自口径。当前输入不代表真实客户授权或库存，缺少价格、政策和主数据时保持未知。未提交草稿只供用户复核，不查询真实业务、不创建模型任务、不提交补货。",
+  "skills": ["inventory-dealer"],
+  "pageAgents": ["gea-html-inventory-dealer"]
+}
