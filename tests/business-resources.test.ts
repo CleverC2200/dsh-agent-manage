@@ -313,3 +313,59 @@ it('selects the restored regional resource through the original Skill provider a
   expect(await readFile(join(originalRoot, 'skills/regional/SKILL.md'), 'utf8')).toContain('name: plan-regional')
   await resources.dispose()
 })
+
+it('selects the retained category prototype resource and keeps its Skill contribution scoped to that owner', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'category-resource-'))
+  roots.push(root)
+  const installedRoot = join(process.cwd(), 'business-resources/category-plan')
+  const registered: Definition[] = []
+  let provider: SkillProvider
+  const host = {
+    skills: {
+      registerProvider(create: (control: SkillProviderControl) => SkillProvider) {
+        provider = create({ invalidate() {}, signal: new AbortController().signal })
+        return () => {}
+      },
+      async list(options: SkillLookupOptions) {
+        return provider.list(options)
+      }
+    },
+    agentPresets: {
+      async resolve(id: string) {
+        return { id }
+      },
+      async register(value: Definition) {
+        registered.push(value)
+        return async () => {
+          registered.splice(registered.indexOf(value), 1)
+        }
+      }
+    }
+  }
+  const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  const release = await resources.register([
+    {
+      id: 'gea-html-category-plan',
+      label: '品类计划原型',
+      root: installedRoot,
+      prompt: 'prompt.json',
+      profile: { label: '品类计划原型', consumerCode: 'category-plan-prototype', skills: ['category-plan'] },
+      skillFiles: { 'category-plan': 'skills/category-plan/SKILL.md' }
+    }
+  ])
+  expect((await resources.list()).find(row => row.id === 'gea-html-category-plan')).toMatchObject({ enabled: true, skills: ['category-plan'] })
+  expect(await resources.select('gea-html-category-plan', new AbortController().signal)).toMatchObject({
+    preset: 'gea-html-category-plan',
+    profile: { consumerCode: 'category-plan-prototype' }
+  })
+  expect((registered[0].plugins[0].config as { prefix: string }).prefix).toBe(
+    '本页面为模拟原型。只解释自述模拟快照，不能把演示数量、建议采纳、任务状态或本地问答当作真实业务、模型调用或系统回执。'
+  )
+  const candidates = await provider.list({})
+  expect(candidates[0]).toMatchObject({ name: 'category-plan', path: join(installedRoot, 'skills/category-plan/SKILL.md') })
+  expect((await provider.get(candidates[0], {}))?.content).toContain('未发文字按真实 Session 恢复')
+  await release()
+  expect(await resources.list()).toEqual([])
+  expect(await provider.get(candidates[0], {})).toBeUndefined()
+  await resources.dispose()
+})

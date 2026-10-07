@@ -259,3 +259,5 @@ Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用�
 客户库存、订单工作台与订单履约资源保存在 `business-resources/inventory-customer`、`inventory-orderworkbench` 和 `inventory-orderfulfillment`。原Prompt与Skill只解释模拟数据。Workbench把资源组装进原页面包，选用后关联官方Core Session，不发送模型请求。MCP能力声明为空，GEA拒绝业务SQL读取。
 
 已有区域原型使用 `business-resources/plan-regional` 中的原 `plan-regional` 资源。Workbench将其组装到当前 `gea-regional-plan` 页面；Manage通过原生资源选用发布原Prompt与Skill。MCP能力列表为空，GEA只授予view访问。恢复UI草稿不代表真实计划保存。
+
+原品类计划资源保存在 `business-resources/category-plan`。Workbench 将它组装进 `lib/static/category`，保留原 `category-plan`、`plan-region-category` 和 `category-plan-prototype` 标识。Skill 区分按 Session 恢复的 UI 意图和未发文字，以及不落库的临时模拟任务。MCP 能力声明仍为空。
