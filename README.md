@@ -273,3 +273,5 @@ The inventory-dealer package retains the fixed original rules and loads only the
 The received full-chain distribution resources live in `business-resources/inventory-qll`. They declare fixed mock input and no MCP query capability. Workbench retains the original company/customer calculation and current Session references; real customer data and row authorization remain unverified.
 
 The same `inventory-qll` page includes fixed mock trends for the captured distribution range. Missing dates remain null, historical order gaps use the original calculation, and scope changes withdraw old trend facts and references. Native and live trend acceptance remain open.
+
+The personal stock resource in `business-resources/inventory-personal` retains the monitoring, priority items and feedback field vocabulary. Batch46 receives fixed mock inputs only, with empty MCP capabilities and `data.mock=true`. The page remains hidden by default. Feedback fields restore in their Session; the page draft action appends unsent plain text through the Core public edit event, preserving resident text and reference chips without queuing a model Task.
