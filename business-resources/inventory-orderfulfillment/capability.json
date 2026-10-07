@@ -1,0 +1,17 @@
+{
+  "id": "inventory-orderfulfillment",
+  "label": "订单履约",
+  "data": {
+    "consumerCode": "orderfulfillment-preview",
+    "mock": true,
+    "tables": [],
+    "rules": ["本页17条订单为固定模拟数据；筛选和分页均是本地演示，不代表真实履约、生成或推送OMS单。不得调用SQL、workspace或真实履约工具。"]
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["inventory-orderfulfillment"],
+  "routing": {
+    "keywords": ["订单履约", "inventory-orderfulfillment"],
+    "summary": "只解释明确标记的模拟订单和当前筛选分页。"
+  }
+}

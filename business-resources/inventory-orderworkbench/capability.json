@@ -1,0 +1,17 @@
+{
+  "id": "inventory-orderworkbench",
+  "label": "订单工作台",
+  "data": {
+    "consumerCode": "orderworkbench-preview",
+    "tables": [],
+    "rules": [],
+    "mock": true
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["inventory-orderworkbench"],
+  "routing": {
+    "keywords": ["订单工作台", "inventory-orderworkbench"],
+    "summary": "订单工作台页面的演示范围与数据边界。"
+  }
+}
