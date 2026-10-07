@@ -23,3 +23,5 @@ The regional page also keeps its existing `gea-regional-plan` identifier and ori
 ## Consequences
 
 The original resource text and page interactions remain available through the shared assembly, with no second resource registry, credential store or Consumer grant. Workbench assembly requires the sibling Manage resource files. Page intent can restore in its current Session, while local report tasks reset when the page is reopened. The pages remain mocks: this reception adds no business query, task dispatch or model request, and local checks do not establish Native or business authorization acceptance.
+
+The existing static MPS page receives `business-resources/inventory-mps` through the same assembly. It retains its original persona, Skill and consumer identity with empty current MCP capabilities. Its authored step data is published after React commits and removed when that step unmounts. UI intent, adjustment input and unfinished text belong to the current Session; derived mock results are recomputed and never stored in a business database. Historical source declarations remain recorded in the resource provenance.
