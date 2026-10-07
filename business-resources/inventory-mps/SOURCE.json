@@ -2,9 +2,7 @@
   "schemaVersion": 1,
   "sourceCommit": "797d33881a494fd0316e3f2241440830da7954a0",
   "sourcePath": "business-resources/inventory-mps",
-  "originalMcpCapabilities": [
-    "governed-sql-read"
-  ],
+  "originalMcpCapabilities": ["governed-sql-read"],
   "reception": "Mock/view resource. Current MCP capabilities are empty; obsolete preview Session presets are omitted. Current UI intent and unfinished draft recover in the Session, and derived mock results do not enter a business store.",
   "originalFilesSha256": {
     "prompt.json": "f0ef0755d5aca303ce3a73c9e5cf3f7261f46860033f4a9483e094d64b9c50ed",
