@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "e8a00c4f4f51f917dd27291f284825b0d98fe4df",
+  "originalConsumer": "full-chain-inventory",
+  "originalTables": ["agents_scm_cust_inventory_daily", "agents_scm_cust_plan_order_analysis"],
+  "originalMcpCapabilities": ["governed-sql-read"],
+  "currentMode": "MOCK_DATA_ONLY",
+  "originalTicketStatus": "14 remains in-progress; real customer dataset and row grants not accepted"
+}
