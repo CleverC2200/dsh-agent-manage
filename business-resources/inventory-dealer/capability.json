@@ -1,0 +1,23 @@
+{
+  "id": "inventory-dealer",
+  "label": "经销商库存",
+  "enabled": true,
+  "data": {
+    "consumerCode": "dealer-inventory-replenishment",
+    "tables": [],
+    "rules": [
+      "当前批次仅固定本地模拟输入，不执行真实业务查询、模型任务或补货写入。",
+      "客户范围由GEA行权限决定，页面筛选不能扩大授权。",
+      "库存建议与原orderRecommendation建议订单保持各自口径；必要输入缺失保持未知。",
+      "当前页不是全量；本地草稿、政策及未取得SAP价格不能冒充正式订单或报价。"
+    ],
+    "mock": true
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["inventory-dealer"],
+  "routing": {
+    "keywords": ["经销商库存", "经销商补货", "inventory-dealer"],
+    "summary": "读取授权客户的库存健康、覆盖与当前补货分析，保留原业务规则和覆盖。"
+  }
+}
