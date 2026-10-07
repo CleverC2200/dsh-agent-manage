@@ -12,7 +12,8 @@
     "declarationDir": "lib/types",
     "rootDir": "src",
     "skipLibCheck": true,
-    "sourceMap": false
+    "sourceMap": false,
+    "resolveJsonModule": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/client/**", "src/**/*.test.ts"],

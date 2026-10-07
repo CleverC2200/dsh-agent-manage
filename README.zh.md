@@ -271,3 +271,5 @@ inventory-dealer保留固定原规则，本批只加载已登记的201条本地�
 同一个`inventory-qll`页面新增当前分布范围的固定模拟趋势。缺失日期保持null，历史订单缺口沿用原计算，切换范围撤回旧趋势与引用。Native与真实趋势验收仍未完成。
 
 个人库存资源保存在 `business-resources/inventory-personal`，保留日监控、优先事项与反馈字段。批次46只接固定模拟输入，MCP能力为空，`data.mock=true`。页面默认隐藏。反馈字段按Session恢复；页面草稿动作通过Core公开编辑事件追加未发送文字，保留已有文字和引用，不排入模型Task。
+
+库存纯计算通过 `dsh-agent-manage/inventory-compute/*` 公开提供。经销商政策、覆盖和补货、全链指标及个人库存日报只接已收窄的输入并返回结果，不读取数据、访问 Session 或授予业务权限。Workbench 装配页面时编译此公开源码导出。接口说明见[计算合同](docs/design/inventory-compute.zh.md)。
