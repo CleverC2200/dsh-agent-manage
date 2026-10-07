@@ -2,6 +2,7 @@ import { afterEach, expect, it } from 'vitest'
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { SkillProvider, SkillProviderControl, SkillLookupOptions } from '@deepseek-ai/dsh-skill'
 type NativeHost = ConstructorParameters<typeof BusinessResources>[0]
 type Definition = Parameters<NativeHost['agentPresets']['register']>[0]
@@ -246,5 +247,69 @@ it('publishes only selected validated page Interpreter choices which still have 
   await removeOther()
   expect((await resources.select('gea-html-inventory-fc', new AbortController().signal)).interpreters).toEqual(['gea-html-inventory-fc'])
   expect((await resources.list()).find(row => row.id === 'gea-html-inventory-fc')?.interpreters).toEqual(['gea-html-inventory-fc'])
+  await resources.dispose()
+})
+
+it('selects the restored regional resource through the original Skill provider and withdraws only its mounted contribution', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'regional-resource-'))
+  roots.push(root)
+  let provider: SkillProvider
+  const registered: Definition[] = []
+  const host = {
+    skills: {
+      registerProvider(create: (control: SkillProviderControl) => SkillProvider) {
+        provider = create({ invalidate() {}, signal: new AbortController().signal })
+        return () => {}
+      },
+      async list(options: SkillLookupOptions) {
+        return provider.list(options)
+      }
+    },
+    agentPresets: {
+      async resolve(id: string) {
+        return { id }
+      },
+      async register(definition: Definition) {
+        registered.push(definition)
+        return async () => {
+          registered.splice(registered.indexOf(definition), 1)
+        }
+      }
+    }
+  }
+  const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  const originalRoot = fileURLToPath(new URL('../business-resources/plan-regional/', import.meta.url))
+  const owner = await resources.register([
+    {
+      id: 'gea-html-plan-regional',
+      label: '区域计划',
+      root: originalRoot,
+      prompt: 'prompt.json',
+      profile: { label: '区域计划', consumerCode: 'regional-plan-prototype', skills: ['plan-regional'] },
+      skillFiles: { 'plan-regional': 'skills/regional/SKILL.md' }
+    }
+  ])
+  const otherOwner = await resources.register([
+    {
+      id: 'gea-html-inventory-orderfulfillment',
+      label: '履约原型',
+      root: fileURLToPath(new URL('../business-resources/inventory-orderfulfillment/', import.meta.url)),
+      prompt: 'prompt.json',
+      profile: { label: '履约原型', consumerCode: 'orderfulfillment-preview', skills: ['inventory-orderfulfillment'] },
+      skillFiles: { 'inventory-orderfulfillment': 'skills/orderfulfillment/SKILL.md' }
+    }
+  ])
+  expect((await resources.list()).find(row => row.id === 'gea-html-plan-regional')).toMatchObject({ enabled: true, skills: ['plan-regional'] })
+  const skill = (await provider.list({})).find(row => row.name === 'plan-regional')
+  expect(skill?.path).toContain('/business-resources/plan-regional/skills/regional/SKILL.md')
+  expect((await resources.select('gea-html-plan-regional', new AbortController().signal)).preset).toBe('gea-html-plan-regional')
+  expect((registered[0].plugins[0].config as { prefix: string }).prefix).toContain('你负责当前区域计划原型的模拟数据解释')
+  await owner()
+  expect((await resources.list()).map(row => row.id)).toEqual(['gea-html-inventory-orderfulfillment', 'skill:inventory-orderfulfillment'])
+  expect((await provider.list({})).map(row => row.name)).toEqual(['inventory-orderfulfillment'])
+  expect(registered).toEqual([])
+  await otherOwner()
+  expect(await resources.list()).toEqual([])
+  expect(await readFile(join(originalRoot, 'skills/regional/SKILL.md'), 'utf8')).toContain('name: plan-regional')
   await resources.dispose()
 })
