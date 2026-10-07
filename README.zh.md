@@ -264,4 +264,6 @@ Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用�
 
 MPS资源 `business-resources/inventory-mps` 保留原模拟Prompt、Skill和view声明，Workbench装配进现有静态MPS页。Skill只读取当前挂载步骤。界面意图和未发送文字在当前Session恢复，模拟派生结果不存业务库。`SOURCE.json`记录历史 `governed-sql-read` 声明，当前MCP能力为空。
 
+全链分布资源保存在 `business-resources/inventory-qll`。当前声明固定mock且MCP查询能力为空。Workbench保留原公司/客户计算与当前Session引用，真实客户数据和行权限仍未验。
+
 个人库存资源保存在 `business-resources/inventory-personal`，保留日监控、优先事项与反馈字段。批次46只接固定模拟输入，MCP能力为空，`data.mock=true`。页面默认隐藏。反馈字段按Session恢复；页面草稿动作通过Core公开编辑事件追加未发送文字，保留已有文字和引用，不排入模型Task。

@@ -268,4 +268,6 @@ The original category plan resource remains in `business-resources/category-plan
 
 MPS resources in `business-resources/inventory-mps` retain the original mock persona, Skill and view-only declarations. The Workbench assembles them into the existing static MPS page. The Skill reads only the mounted step; UI intent and unfinished text restore in the current Session, while derived mock results never enter a business store. The historical `governed-sql-read` declaration is recorded in `SOURCE.json`; current MCP capabilities are empty.
 
+The received full-chain distribution resources live in `business-resources/inventory-qll`. They declare fixed mock input and no MCP query capability. Workbench retains the original company/customer calculation and current Session references; real customer data and row authorization remain unverified.
+
 The personal stock resource in `business-resources/inventory-personal` retains the monitoring, priority items and feedback field vocabulary. Batch46 receives fixed mock inputs only, with empty MCP capabilities and `data.mock=true`. The page remains hidden by default. Feedback fields restore in their Session; the page draft action appends unsent plain text through the Core public edit event, preserving resident text and reference chips without queuing a model Task.
