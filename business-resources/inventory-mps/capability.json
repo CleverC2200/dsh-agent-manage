@@ -1,0 +1,17 @@
+{
+  "id": "inventory-mps",
+  "label": "主生产计划(MPS) · 模拟原型",
+  "data": {
+    "consumerCode": "mps-prototype",
+    "tables": [],
+    "mock": true,
+    "rules": ["- 所有数据与操作均为模拟，禁止真实查询、生产计划提交或写入。"]
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["inventory-mps"],
+  "routing": {
+    "keywords": ["MPS", "主生产计划", "inventory-mps"],
+    "summary": "解释当前MPS模拟页面、需求权重、滚动计划和产能缺口。"
+  }
+}

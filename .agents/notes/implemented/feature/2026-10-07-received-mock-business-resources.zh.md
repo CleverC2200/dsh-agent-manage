@@ -21,3 +21,5 @@ Status: implemented
 ## Consequences
 
 共享装配保留原资源正文与页面交互，不新增资源登记、凭据存储或Consumer授权。Workbench装配依赖相邻Manage的资源文件。页面操作意图可在当前Session恢复，本地报告任务在重新打开页面时重置。页面仍是模拟原型，本次接收不增加业务查询、任务派发或模型请求；本地检查不代替Native或业务授权验收。
+
+现有静态MPS页通过同一装配接收 `business-resources/inventory-mps`，保留原Prompt、Skill和consumer标识，当前MCP能力为空。作者步骤在React提交后发布数据，卸载时移除。界面意图、调整输入和未发送文字归当前Session，模拟派生结果重新计算，不存业务库。资源来源摘要保留历史声明。

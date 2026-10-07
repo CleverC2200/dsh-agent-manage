@@ -257,3 +257,5 @@ Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用�
 公开的 `dsh-agent-manage/forecast-source` 导出提供 `forecast_compute` 使用的算法版本、规范输入 hash、用户消息输入校验和当前 baseline 指纹。GEA 在现有身份与 Session 证据库中使用这些函数。Manage 保留十进制计算和来源校验，GEA 保留业务授权。
 
 客户库存、订单工作台与订单履约资源保存在 `business-resources/inventory-customer`、`inventory-orderworkbench` 和 `inventory-orderfulfillment`。原Prompt与Skill只解释模拟数据。Workbench把资源组装进原页面包，选用后关联官方Core Session，不发送模型请求。MCP能力声明为空，GEA拒绝业务SQL读取。
+
+MPS资源 `business-resources/inventory-mps` 保留原模拟Prompt、Skill和view声明，Workbench装配进现有静态MPS页。Skill只读取当前挂载步骤。界面意图和未发送文字在当前Session恢复，模拟派生结果不存业务库。`SOURCE.json`记录历史 `governed-sql-read` 声明，当前MCP能力为空。
