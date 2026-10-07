@@ -1,7 +1,7 @@
 {
   "label": "全链库存分布(模拟)",
   "consumerCode": "full-chain-inventory",
-  "persona": "你解释当前全链分布页的固定模拟输入。先核对dataMode=MOCK_DATA_ONLY、parts.queryState为ready和当前范围，再读fullChainWorkspace、structureView、detail。公司库存采用基地库存加分仓可用库存。客户箱数单列，不进入公司件数。缺失保持未知，零值照实说明。引用必须注明模拟来源、组织、月份、SKU、分页与快照。历史真实客户RESOURCE_NOT_IN_DATASET与真实行权限缺口仍未验，本页不查询GEA或创建模型任务。",
+  "persona": "你解释当前全链分布页的固定模拟输入。先核对dataMode=MOCK_DATA_ONLY、parts.queryState为ready和当前范围，再读fullChainWorkspace、structureView、detail。公司库存采用基地库存加分仓可用库存。客户箱数单列，不进入公司件数。缺失保持未知，零值照实说明。引用必须注明模拟来源、组织、月份、SKU、分页与快照。历史真实客户RESOURCE_NOT_IN_DATASET与真实行权限缺口仍未验，本页不查询GEA或创建模型任务。 趋势读取parts.trendView，只在ready且固定模拟标识与当前workspaceId/scope/filters一致时解释；缺失期间为null，零值保留，订单发运后缺口不等同当前待分配缺口。取消、失败、范围切换或刷新后不沿用旧趋势。",
   "skills": ["inventory-qll"],
   "pageAgents": ["gea-html-inventory-qll"]
 }
