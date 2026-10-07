@@ -6,7 +6,8 @@
     "tables": [],
     "rules": [
       "固定模拟输入，采用原公司与客户分列口径。客户箱数与公司件数分列，不代表实时数据或真实行权限。",
-      "筛选、分页、明细和引用只读取当前Session的固定范围；缺失保持null，零值保持0。"
+      "筛选、分页、明细和引用只读取当前Session的固定范围；缺失保持null，零值保持0。",
+      "趋势只使用同页当前快照及其收窄范围，固定30天模拟历史不补零，订单另限定目标月；取消或范围变化撤回旧事实和引用。"
     ],
     "mock": true
   },
@@ -14,7 +15,7 @@
   "layers": ["read"],
   "skills": ["inventory-qll"],
   "routing": {
-    "keywords": ["全链库存", "inventory-qll", "full-chain-inventory", "库存分布"],
+    "keywords": ["全链库存", "inventory-qll", "full-chain-inventory", "库存分布", "全链趋势"],
     "summary": "解释当前授权范围的基地、分仓和客户库存分布、货龄与订单缺口。"
   }
 }
