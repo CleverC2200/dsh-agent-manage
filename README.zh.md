@@ -263,3 +263,5 @@ Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用�
 原品类计划资源保存在 `business-resources/category-plan`。Workbench 将它组装进 `lib/static/category`，保留原 `category-plan`、`plan-region-category` 和 `category-plan-prototype` 标识。Skill 区分按 Session 恢复的 UI 意图和未发文字，以及不落库的临时模拟任务。MCP 能力声明仍为空。
 
 MPS资源 `business-resources/inventory-mps` 保留原模拟Prompt、Skill和view声明，Workbench装配进现有静态MPS页。Skill只读取当前挂载步骤。界面意图和未发送文字在当前Session恢复，模拟派生结果不存业务库。`SOURCE.json`记录历史 `governed-sql-read` 声明，当前MCP能力为空。
+
+个人库存资源保存在 `business-resources/inventory-personal`，保留日监控、优先事项与反馈字段。批次46只接固定模拟输入，MCP能力为空，`data.mock=true`。页面默认隐藏。反馈字段按Session恢复；页面草稿动作通过Core公开编辑事件追加未发送文字，保留已有文字和引用，不排入模型Task。
