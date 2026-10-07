@@ -257,3 +257,5 @@ Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用�
 公开的 `dsh-agent-manage/forecast-source` 导出提供 `forecast_compute` 使用的算法版本、规范输入 hash、用户消息输入校验和当前 baseline 指纹。GEA 在现有身份与 Session 证据库中使用这些函数。Manage 保留十进制计算和来源校验，GEA 保留业务授权。
 
 客户库存、订单工作台与订单履约资源保存在 `business-resources/inventory-customer`、`inventory-orderworkbench` 和 `inventory-orderfulfillment`。原Prompt与Skill只解释模拟数据。Workbench把资源组装进原页面包，选用后关联官方Core Session，不发送模型请求。MCP能力声明为空，GEA拒绝业务SQL读取。
+
+已有区域原型使用 `business-resources/plan-regional` 中的原 `plan-regional` 资源。Workbench将其组装到当前 `gea-regional-plan` 页面；Manage通过原生资源选用发布原Prompt与Skill。MCP能力列表为空，GEA只授予view访问。恢复UI草稿不代表真实计划保存。

@@ -18,6 +18,8 @@ Status: implemented
 
 **重新建立独立业务插件。** 这会重新拆出页面与资源owner，与已确认的Workbench、Manage、GEA职责冲突。本项目要求原型进入共享装配。
 
+区域页也保留已有 `gea-regional-plan` 页面标识和原 `plan-regional` Prompt、Skill及空MCP声明。当前作者持有原模型、可见筛选目录和模拟上下文。日期、模块、提报维度与未保存节奏编辑按同一Core Session恢复，派生上下文在恢复后重新自报。资源选用和撤回沿现有Manage owner；不恢复旧conversation适配。
+
 ## Consequences
 
 共享装配保留原资源正文与页面交互，不新增资源登记、凭据存储或Consumer授权。Workbench装配依赖相邻Manage的资源文件。页面操作意图可在当前Session恢复，本地报告任务在重新打开页面时重置。页面仍是模拟原型，本次接收不增加业务查询、任务派发或模型请求；本地检查不代替Native或业务授权验收。
