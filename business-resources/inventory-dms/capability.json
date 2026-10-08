@@ -1,0 +1,17 @@
+{
+  "id": "inventory-dms",
+  "label": "DMS 回写演示（模拟）",
+  "data": {
+    "consumerCode": "dms-writeback-preview",
+    "mock": true,
+    "tables": [],
+    "rules": ["仅 DMS_MOCK 内存样本；模拟确认不授予真实写入。", "状态5且全部分笔回执确认后才进入10；未知结果先对账，原键补齐。"]
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["inventory-dms"],
+  "routing": {
+    "keywords": ["DMS", "模拟回写", "inventory-dms"],
+    "summary": "解释当前DMS模拟状态、分笔回执及未知结果；不执行真实写入。"
+  }
+}

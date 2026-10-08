@@ -23,3 +23,5 @@ This partially supersedes the calculation-ownership statement in [full-chain moc
 ## Consequences
 
 Manage type, lint, format and architecture gates now cover the algorithms. Browser assembly uses the public source condition and records hashes. Only deterministic supplied-input behavior is proved here; this does not close original live tickets or Native acceptance. Unused full-chain `orderDemand` and dealer `metricLabels` are removed for Manage lint. The unused Personal `dailyReportTransport` mode selector is removed rather than publishing Session/legacy transport routing as a calculation. These statements have no current result consumer. Full-chain input retrieval moves to Workbench; its public calculator accepts data and a calculation request without an adapter.
+
+DMS mock reception extends this same ownership decision. Manage owns supplied-input quantity validation and M/Z packet calculation; Workbench keeps its page-local simulator, original workflow projection and scoped selector intent. Mock receipts and completion state are never promoted to restored business authority. No new host execution interface is added.
