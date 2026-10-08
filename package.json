@@ -25,6 +25,11 @@
       "source": "./src/inventory-compute/*.ts",
       "types": "./lib/types/inventory-compute/*.d.ts",
       "default": "./lib/inventory-compute/*.js"
+    },
+    "./aps-compute/*": {
+      "source": "./src/aps-compute/*.ts",
+      "types": "./lib/types/aps-compute/*.d.ts",
+      "default": "./lib/aps-compute/*.js"
     }
   },
   "files": [
@@ -36,7 +41,8 @@
     "README.md",
     "README.zh.md",
     "business-resources",
-    "src/inventory-compute"
+    "src/inventory-compute",
+    "src/aps-compute"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",

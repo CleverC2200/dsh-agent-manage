@@ -19,6 +19,7 @@
 import { createForecastTool } from './runtime/forecast-compute.js'
 import { mountSkillReferenceReader } from './runtime/skill-reference.js'
 import { isAbsolute, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillProviderControl } from '@deepseek-ai/dsh-skill'
 import { BusinessResources } from './runtime/business-resources.js'
@@ -214,6 +215,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   ctx.inject(['agentPresets', 'connection'], async host => {
     const businessResources = new BusinessResources(host, resolve(dataRoot, 'selected-resources.json'))
     await businessResources.load()
+    const releaseApsAnalysis = await businessResources.register([
+      {
+        id: 'aps-analysis-skills',
+        label: '产销分析',
+        root: fileURLToPath(new URL('../business-resources/aps-analysis/', import.meta.url)),
+        profile: { label: '产销分析', consumerCode: 'aps', skills: ['sales-forecast-result-analysis', 'sales-ops-problem-analysis'] },
+        skillFiles: { 'sales-forecast-result-analysis': 'sales-forecast-result-analysis.skill.md', 'sales-ops-problem-analysis': 'sales-ops-problem-analysis.skill.md' }
+      }
+    ])
+    host.effect(() => releaseApsAnalysis)
     host.effect(() => () => businessResources.dispose())
     host.provide('agentResources', businessResources)
     host.inject(['tools', 'fs'], toolHost => {

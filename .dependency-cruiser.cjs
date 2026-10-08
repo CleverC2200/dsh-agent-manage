@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'inventory-calculations-stay-pure',
       severity: 'error',
-      from: { path: '^src/inventory-compute/' },
+      from: { path: '^src/(inventory-compute|aps-compute)/' },
       to: { path: '^src/(application|catalog|client|context|index|routes|runtime)(/|\\.)' }
     },
     {
