@@ -266,7 +266,7 @@ MPS资源 `business-resources/inventory-mps` 保留原模拟Prompt、Skill和vie
 
 inventory-dealer保留固定原规则，本批只加载已登记的201条本地模拟输入。保留原Consumer标识，MCP能力为空。页面可见和资源启用分别控制。真实授权与补货业务验收仍待补测。
 
-全链分布资源保存在 `business-resources/inventory-qll`。当前声明固定mock且MCP查询能力为空。Workbench保留原公司/客户计算与当前Session引用，真实客户数据和行权限仍未验。
+全链分布资源保存在 `business-resources/inventory-qll`。当前源码声明公司只读的七表与 `governed-sql-read`，Workbench经当前GEA grant和公开通道读取固定查询。Manage的 `full-chain-source-rows` 归一化原字段、数量和速度，再交同一公开计算。客户渠道未启用；源码接线和本地fixture不证明当前真实身份、数据或行权限。
 
 同一个`inventory-qll`页面新增当前分布范围的固定模拟趋势。缺失日期保持null，历史订单缺口沿用原计算，切换范围撤回旧趋势与引用。Native与真实趋势验收仍未完成。
 

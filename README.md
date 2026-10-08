@@ -270,7 +270,7 @@ MPS resources in `business-resources/inventory-mps` retain the original mock per
 
 The inventory-dealer package retains the fixed original rules and loads only the registered 201-row local fixture in this reception stage. Its original consumer ID is preserved, with an empty MCP capability list. Page visibility and resource enablement remain independent. Real authorization and replenishment acceptance remain pending.
 
-The received full-chain distribution resources live in `business-resources/inventory-qll`. They declare fixed mock input and no MCP query capability. Workbench retains the original company/customer calculation and current Session references; real customer data and row authorization remain unverified.
+The full-chain resources in `business-resources/inventory-qll` declare seven company read-only tables and `governed-sql-read`. Workbench uses the current GEA grant and public SQL channel; Manage owns original source-row normalization, quantity/velocity rules and the same public calculator. Customer reads are not enabled. Source reception and local fixtures do not prove current identity, data or row permissions.
 
 The same `inventory-qll` page includes fixed mock trends for the captured distribution range. Missing dates remain null, historical order gaps use the original calculation, and scope changes withdraw old trend facts and references. Native and live trend acceptance remain open.
 
