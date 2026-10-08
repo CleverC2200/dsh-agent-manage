@@ -4,14 +4,24 @@
   "enabled": true,
   "data": {
     "consumerCode": "dealer-inventory-replenishment",
-    "tables": [],
+    "tables": [
+      "agents_scm_cust_plan_order_analysis_governed",
+      "agents_scm_wl_cust_stock_age_governed",
+      "agents_scm_cust_stock_age_governed",
+      "agents_scm_cust_inventory_daily",
+      "agents_scm_cust_inventory_daily_keys",
+      "agents_scm_customer_saleable_material",
+      "agents_scm_promotion_policy_scope_view",
+      "agents_scm_customer_car_current",
+      "agents_scm_customer_receive",
+      "agents_scm_cust_pickup_point"
+    ],
     "rules": [
-      "当前批次仅固定本地模拟输入，不执行真实业务查询、模型任务或补货写入。",
+      "使用GEA当前身份受控SQL读取正式库存；拒绝、空结果和缺失保持可见，不使用模拟输入替代。",
       "客户范围由GEA行权限决定，页面筛选不能扩大授权。",
       "库存建议与原orderRecommendation建议订单保持各自口径；必要输入缺失保持未知。",
       "当前页不是全量；本地草稿、政策及未取得SAP价格不能冒充正式订单或报价。"
-    ],
-    "mock": true
+    ]
   },
   "maxEffect": "view",
   "layers": ["read"],
