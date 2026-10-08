@@ -264,7 +264,7 @@ Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用�
 
 MPS资源 `business-resources/inventory-mps` 保留原模拟Prompt、Skill和view声明，Workbench装配进现有静态MPS页。Skill只读取当前挂载步骤。界面意图和未发送文字在当前Session恢复，模拟派生结果不存业务库。`SOURCE.json`记录历史 `governed-sql-read` 声明，当前MCP能力为空。
 
-inventory-dealer保留固定原规则，本批只加载已登记的201条本地模拟输入。保留原Consumer标识，MCP能力为空。页面可见和资源启用分别控制。真实授权与补货业务验收仍待补测。
+inventory-dealer保留原规则，通过公共GEA受控SQL通道读取已登记的10张表。保留原Consumer标识，MCP能力为governed-sql-read。页面可见和资源启用分别控制。201条输入仅用于离线验证。建议采纳与订单校验只保存本地草稿，不提交补货订单。正式接口与数据的实际验证仍待完成。
 
 全链分布资源保存在 `business-resources/inventory-qll`。当前源码声明公司只读的七表与 `governed-sql-read`，Workbench经当前GEA grant和公开通道读取固定查询。Manage的 `full-chain-source-rows` 归一化原字段、数量和速度，再交同一公开计算。客户渠道未启用；源码接线和本地fixture不证明当前真实身份、数据或行权限。
 
