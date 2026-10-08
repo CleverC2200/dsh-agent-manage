@@ -1,0 +1,41 @@
+{
+  "id": "inventory-apsplan",
+  "label": "产销协同经营指标",
+  "data": {
+    "consumerCode": "aps",
+    "tables": [
+      "agents_aps_finance",
+      "agents_aps_plans_source",
+      "agents_aps_sales_budget",
+      "agents_aps_sales_org",
+      "agents_sales_forecast_detail_mi",
+      "agents_sales_plan_detail_mi",
+      "agents_scm_branch_budget_monthly",
+      "agents_scm_branch_inventory_snapshot",
+      "agents_scm_branch_operation_fact",
+      "agents_scm_branch_pending_order",
+      "agents_scm_branch_plan",
+      "agents_scm_branch_production_plan",
+      "agents_scm_cust_deliv_daily",
+      "agents_scm_cust_plan_exe",
+      "agents_scm_demand_accuracy",
+      "agents_scm_inventory_age",
+      "agents_scm_order_fulfillment",
+      "agents_scm_safety_stock",
+      "agents_scm_sales_accuracy",
+      "agents_scm_shortage_supply_match"
+    ],
+    "rules": ["复用原指标计算与固定只读查询；查询周期、快照及单位分别解释。", "缺失、失败、空结果与零分开；组织、品类、物料筛选后仅解释当前页面范围。"]
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["inventory-apsplan", "sales-forecast-result-analysis", "sales-ops-problem-analysis"],
+  "resourceReferences": {
+    "skills": ["sales-forecast-result-analysis", "sales-ops-problem-analysis"],
+    "consumers": ["sales_forecast"]
+  },
+  "routing": {
+    "keywords": ["产销协同", "经营指标", "inventory-apsplan", "aps"],
+    "summary": "读取当前授权范围的产销经营指标、来源和缺失信息；保留现有预测及问题分析资源引用。"
+  }
+}

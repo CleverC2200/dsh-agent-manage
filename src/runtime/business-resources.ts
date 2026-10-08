@@ -20,6 +20,8 @@ export interface BusinessResourceDefinition {
   label: string
   root: string
   prompt?: string
+  /** Owning capability declaration, for explicit references to existing analysis Skills. */
+  capability?: string
   /** A policy JSON file may contain several original profiles. */
   profileKey?: string
   profile: ExecutionProfile
@@ -283,6 +285,36 @@ export class BusinessResources {
       (profile.crossConsumers !== undefined && JSON.stringify(profile.crossConsumers) !== JSON.stringify(d.profile.crossConsumers ?? []))
     )
       throw Error('INVALID_AGENT_RESOURCE_IDENTITY')
+    if (d.capability) {
+      const capabilityFile = await resourceFile(d.root, d.capability)
+      const capability = JSON.parse(await readFile(capabilityFile, { encoding: 'utf8', signal }))
+      const references = capability.resourceReferences
+      if (references !== undefined) {
+        if (!references || typeof references !== 'object' || Array.isArray(references) || Object.keys(references).some(key => !['skills', 'consumers'].includes(key)))
+          throw Error('INVALID_AGENT_RESOURCE_REFERENCES')
+        for (const [key, pattern, own] of [
+          ['skills', /^[a-z][a-z0-9-]*$/, capability.id],
+          ['consumers', /^[a-z][a-z0-9_-]*$/, d.profile.consumerCode]
+        ] as const) {
+          const names = references[key]
+          if (
+            !Array.isArray(names) ||
+            names.length > 8 ||
+            new Set(names).size !== names.length ||
+            names.some((name: unknown) => typeof name !== 'string' || name.length > 80 || !pattern.test(name) || name === own)
+          )
+            throw Error('INVALID_AGENT_RESOURCE_REFERENCES')
+        }
+        if (
+          capability.id !== d.id.replace(/^gea-html-/, '') ||
+          capability.data?.consumerCode !== d.profile.consumerCode ||
+          JSON.stringify(capability.skills) !== JSON.stringify([capability.id, ...references.skills]) ||
+          JSON.stringify(profile.skills) !== JSON.stringify(capability.skills) ||
+          JSON.stringify(profile.crossConsumers ?? []) !== JSON.stringify(references.consumers)
+        )
+          throw Error('INVALID_AGENT_RESOURCE_REFERENCES')
+      }
+    }
     const interpreters: unknown = profile.pageAgents
     if (
       interpreters !== undefined &&
