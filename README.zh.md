@@ -270,7 +270,7 @@ inventory-dealer保留原规则，通过公共GEA受控SQL通道读取已登记�
 
 同一资源解释当前公司范围的GEA库存、订单缺口与货龄趋势。Workbench持有读取、分页和Session临时事实，Manage持有原计算。缺期间保持null，源码/fixture接收不证明当前真实身份、行权限或模型验收。
 
-个人库存资源保存在 `business-resources/inventory-personal`，保留日监控、优先事项与反馈字段。批次46只接固定模拟输入，MCP能力为空，`data.mock=true`。页面默认隐藏。反馈字段按Session恢复；页面草稿动作通过Core公开编辑事件追加未发送文字，保留已有文字和引用，不排入模型Task。
+个人库存资源保存在 `business-resources/inventory-personal`，保留日监控、优先事项与反馈字段。当前以独立Consumer通过公共GEA受控SQL读取已登记的9张表，MCP能力为`governed-sql-read`。固定输入仅用于离线回归，正式接口与数据的实际验收尚未完成。页面默认隐藏。反馈字段按Session恢复；页面草稿动作通过Core公开编辑事件追加未发送文字，保留已有文字和引用，不排入模型Task。
 
 库存纯计算通过 `dsh-agent-manage/inventory-compute/*` 公开提供。经销商政策、覆盖和补货、全链指标及个人库存日报只接已收窄的输入并返回结果，不读取数据、访问 Session 或授予业务权限。Workbench 装配页面时编译此公开源码导出。接口说明见[计算合同](docs/design/inventory-compute.zh.md)。
 

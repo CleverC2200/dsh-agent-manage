@@ -3,13 +3,22 @@
   "label": "库存管理工作台",
   "data": {
     "consumerCode": "inventory-personal-workbench",
-    "tables": [],
+    "tables": [
+      "agents_scm_safety_stock",
+      "agents_scm_inventory_age",
+      "agents_scm_branch_inventory_snapshot",
+      "agents_scm_order_fulfillment",
+      "agents_scm_branch_pending_order",
+      "agents_scm_branch_plan",
+      "agents_scm_branch_operation_fact",
+      "agents_scm_branch_production_plan",
+      "agents_scm_branch_budget_monthly"
+    ],
     "rules": [
-      "本批固定mock输入，realData=false。日监控、优先事项、货龄与拒权仅作模拟接收；不发真实业务查询。",
+      "通过当前公共GEA通道以独立Consumer读取基地日监控与分仓目录、快照；所有分页完整后使用事实，未知、空与失败分别说明。",
       "仅当前Host授权返回的基地/分仓日监控、风险事项与文字草稿；缺失与失败不按零处理。",
       "反馈、事件、责任人、通知及持久业务写入均未接入；展示类型不授予权限。"
-    ],
-    "mock": true
+    ]
   },
   "maxEffect": "view",
   "layers": ["read"],
