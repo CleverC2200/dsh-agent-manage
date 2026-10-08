@@ -268,7 +268,7 @@ inventory-dealer保留固定原规则，本批只加载已登记的201条本地�
 
 全链分布资源保存在 `business-resources/inventory-qll`。当前源码声明公司只读的七表与 `governed-sql-read`，Workbench经当前GEA grant和公开通道读取固定查询。Manage的 `full-chain-source-rows` 归一化原字段、数量和速度，再交同一公开计算。客户渠道未启用；源码接线和本地fixture不证明当前真实身份、数据或行权限。
 
-同一个`inventory-qll`页面新增当前分布范围的固定模拟趋势。缺失日期保持null，历史订单缺口沿用原计算，切换范围撤回旧趋势与引用。Native与真实趋势验收仍未完成。
+同一资源解释当前公司范围的GEA库存、订单缺口与货龄趋势。Workbench持有读取、分页和Session临时事实，Manage持有原计算。缺期间保持null，源码/fixture接收不证明当前真实身份、行权限或模型验收。
 
 个人库存资源保存在 `business-resources/inventory-personal`，保留日监控、优先事项与反馈字段。批次46只接固定模拟输入，MCP能力为空，`data.mock=true`。页面默认隐藏。反馈字段按Session恢复；页面草稿动作通过Core公开编辑事件追加未发送文字，保留已有文字和引用，不排入模型Task。
 

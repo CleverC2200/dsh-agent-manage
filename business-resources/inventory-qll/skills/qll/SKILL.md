@@ -7,7 +7,7 @@ description: 解读当前公司全链库存、趋势与缺口，核当前范围�
 
 1. 读取当前页上下文。只在 `parts.queryState=ready`、`dataMode=GEA_LIVE_READONLY`、`realData=true`、`scope=company` 且filters/workspaceId仍对应当前页时解释。loading、错误、取消、身份或Session变化时先说明当前缺口。
 2. 公司库存采用基地件数加分仓可用件数，实物与可用分开。当前没有客户渠道数据；缺失保持未知，真实0照实解释。页可见不授予跨Consumer、模型或工具权限。
-3. 筛选仅使用当前目录声明的tab、month、search字段，search为完整SKU编码。改动后等待新上下文ready。明细只代表当前组织、品类和页码，不将当前页重新汇总成全量。
+3. asOf为明确读取时点，month为目标月。日期缺失时先请用户选择，不自动使用今天或最新月。筛选仅使用当前目录声明的tab、asOf、month、search字段，search为完整SKU编码。改动后等待新上下文ready。明细只代表当前组织、品类和页码，不将当前页重新汇总成全量。
 4. 引用注明GEA读取来源、月份、组织、SKU、分页总数与各源快照。切页、范围或Session变化后读新页面，旧事实和引用停止使用。页面只读，反馈或建议只作文字，不形成下单、通知或业务写。
 
 ## 趋势与缺口

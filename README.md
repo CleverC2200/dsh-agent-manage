@@ -272,7 +272,7 @@ The inventory-dealer package retains the fixed original rules and loads only the
 
 The full-chain resources in `business-resources/inventory-qll` declare seven company read-only tables and `governed-sql-read`. Workbench uses the current GEA grant and public SQL channel; Manage owns original source-row normalization, quantity/velocity rules and the same public calculator. Customer reads are not enabled. Source reception and local fixtures do not prove current identity, data or row permissions.
 
-The same `inventory-qll` page includes fixed mock trends for the captured distribution range. Missing dates remain null, historical order gaps use the original calculation, and scope changes withdraw old trend facts and references. Native and live trend acceptance remain open.
+The same resource explains company inventory, order gaps and aging trends from current scoped GEA results. Workbench owns reads, paging and Session-bound transient facts; Manage owns original calculation. Missing periods remain null, and source/fixture reception does not prove live identity, row permissions or model acceptance.
 
 The personal stock resource in `business-resources/inventory-personal` retains the monitoring, priority items and feedback field vocabulary. Batch46 receives fixed mock inputs only, with empty MCP capabilities and `data.mock=true`. The page remains hidden by default. Feedback fields restore in their Session; the page draft action appends unsent plain text through the Core public edit event, preserving resident text and reference chips without queuing a model Task.
 
