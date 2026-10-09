@@ -20,12 +20,13 @@ import { createForecastTool } from './runtime/forecast-compute.js'
 import { mountSkillReferenceReader } from './runtime/skill-reference.js'
 import { isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import type { SkillProviderControl } from '@deepseek-ai/dsh-skill'
 import { BusinessResources } from './runtime/business-resources.js'
 import * as StandardPreset from './runtime/standard-preset.js'
 import { readJsonRequest, RequestBodyTooLarge } from './runtime/request-body.js'
 import type {} from '@deepseek-ai/dsh-client-connection'
+import type {} from '@deepseek-ai/dsh-settings'
 import { Catalog } from './application/catalog.js'
 import { RuntimeReconciler } from './runtime/reconciler.js'
 import { inspectToolRegistry } from './runtime/tool-registry-observer.js'
@@ -36,7 +37,7 @@ import { createPanelResources } from './application/panel-resources.js'
 import { resolveDataRoot, resolveUserRoot } from './catalog/paths.js'
 import { assertCanonicalStorageDirectories } from './runtime/storage.js'
 import { mountSuiteRoutes } from './routes.js'
-import { MCP_SETTINGS_NAMESPACE, MarketSettingsSchema } from './runtime/mcp-backend.js'
+import { ManageConfigSchema } from './runtime/mcp-backend.js'
 import { narrowDownloadRegion } from './runtime/regions.js'
 import { SuiteSkillProvider } from './runtime/skills-provider.js'
 import { loadLspServers } from './runtime/lsp-direct-config.js'
@@ -55,6 +56,11 @@ export const inject = ['skills', 'commands']
 /** Host configuration. */
 /** 中文：插件启动时可传入 GEA MCP、初始来源和 Git 获取策略；存储根目录由宿主 DSH_HOME 决定。 */
 export interface Config {
+  /** Live fields belong to the official Loader config and SettingsForms. */
+  mcpEnhanced: Volatile<boolean>
+  downloadRegion: Volatile<'auto' | 'global' | 'china'>
+  feedbackEnabled: Volatile<boolean>
+  scanProjectLayouts: Volatile<boolean>
   /** Registered GEA Consumer for automatic MCP discovery after GEA plugin login. */
   /** 中文：GEA 登录后用于自动发现 MCP 的消费者；显式 false 时不挂载。 */
   geaMcp?: GeaMcpConsumer | false
@@ -79,11 +85,13 @@ export interface Config {
   }
 }
 
+export const Config = ManageConfigSchema
+
 /** 启动插件：恢复目录状态，注册运行时资源、设置监听、路由和最终销毁器。 */
-export async function apply(ctx: Context, config: Config = {}): Promise<void> {
+export async function apply(ctx: Context, config: Config = Config({})): Promise<void> {
   if ('userRoot' in config || 'dataRoot' in config) throw new Error('MANAGE_STORAGE_UPGRADE_REQUIRED: legacy storage overrides require a separately authorized upgrade')
   await assertCanonicalStorageDirectories()
-  ctx.inject(['agentPresets', 'loader'], async host => {
+  const standardInitialization = ctx.inject(['agentPresets', 'loader'], async host => {
     await host.plugin(StandardPreset)
   })
   if (config.geaMcp !== false) mountGeaMcp(ctx, config.geaMcp)
@@ -101,9 +109,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     userPanelControl?.invalidate()
   })
   const hostLocale: { t: HostTranslate } = { t }
-  /** Settings watchers to release at teardown (backend watch + feedback switch). */
-  /** 中文：保存后端、反馈工具和项目布局设置监听器，销毁时统一解除。 */
-  const settingsWatchers: Array<() => void> = []
   const runtime = new RuntimeReconciler(ctx, dataRoot, key => hostLocale.t(key))
 
   // User panel stores (skills / commands / agent personas) and their runtime
@@ -217,6 +222,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   const catalog = new Catalog({ userRoot, dataRoot, onChanged, ...(config.git === undefined ? {} : { git: config.git }) })
   await catalog.load()
   ctx.inject(['agentPresets', 'connection'], async host => {
+    // Selected identities compose the same standard declaration as orchestration.
+    // Wait on that initialization fiber, never the parent Host tree.
+    await standardInitialization
     const businessResources = new BusinessResources(host, resolve(dataRoot, 'selected-resources.json'))
     await businessResources.load()
     const releaseApsAnalysis = await businessResources.register([
@@ -307,95 +315,48 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   catalog.setLspStatusSource(runtime.lsp)
   runtime.lsp.setDirectProvider(async () => (await loadLspServers(dataRoot)).servers)
   runtime.lsp.setDisabledProvider(() => loadDisabledLspServers(dataRoot))
-  // The MCP backend choice is a host settings namespace (the registration is
-  // also what makes the plugin-config tab serve our card). The node half owns
-  // it: the provider derives the mount backend from the scope, the writer
-  // flips the switch, and the watcher remounts servers when it flips. The
-  // same single registration also gates the experience-feedback tool —
-  // `settings.register` throws on a duplicate namespace, so there is exactly
-  // one inject block and one `register` call.
-  //
-  // The whole callback is failure-contained on purpose: a throw here is
-  // INVISIBLE in the UI (the inject resolves asynchronously and cordis only
-  // logs), and it silently removes the namespace from settings.describe —
-  // which is exactly what hides the plugin-config card. Every failure mode
-  // lands in the logger with a loud prefix instead.
-  // 中文：设置命名空间注册和同步器均失败封装在 logger 中，不能让配置卡静默消失。
-  let feedbackDisposer: (() => void) | undefined
-  /** 解析宿主 settings 服务，注册 MCP 后端/区域/反馈设置及其监听。 */
+  // The Loader owns live configuration. SettingsForms projects these fields
+  // using this entry's id; reads and updates share the same volatile references.
+  catalog.setMcpBackendProvider(async () => (config.mcpEnhanced.get() ? 'builtin' : 'host'))
+  catalog.setDownloadRegionProvider(async () => narrowDownloadRegion(config.downloadRegion.get()))
+  await catalog.setScanProjectLayouts(config.scanProjectLayouts.get())
   ctx.inject(['settings'], settingsCtx => {
-    try {
-      ctx.logger?.info?.('[dsh-agent-plugins-market] settings inject resolved — registering namespace')
-      const settings = (
-        settingsCtx as unknown as {
-          settings: {
-            register<T>(
-              ns: string,
-              schema: unknown,
-              options?: { base?: T }
-            ): {
-              /** 中文：读取当前命名空间设置快照，供运行时决定后端和扫描策略。 */
-              get(): T
-              /** 中文：监听设置变化，返回解除监听函数。 */
-              watch(callback: () => void): () => void
-              /** 中文：写入设置补丁并触发相关运行时重协调。 */
-              update(patch: Partial<T>): Promise<void>
-            }
-          }
-        }
-      ).settings
-      const scope = settings.register(MCP_SETTINGS_NAMESPACE, MarketSettingsSchema, {
-        base: { mcpEnhanced: true, downloadRegion: 'auto', feedbackEnabled: true, scanProjectLayouts: true }
-      })
-      ctx.logger?.info?.('[dsh-agent-plugins-market] settings namespace registered — plugin-config card will serve')
-      catalog.setMcpBackendProvider(async () => (scope.get().mcpEnhanced === false ? 'host' : 'builtin'))
-      catalog.setMcpBackendWriter(async backend => {
-        await scope.update({ mcpEnhanced: backend !== 'host' })
-      })
-      catalog.setDownloadRegionProvider(async () => narrowDownloadRegion(scope.get().downloadRegion))
-      /** 根据设置快照同步项目布局扫描开关。 */
-      const syncProjectLayouts = (): void => {
-        void catalog.setScanProjectLayouts(scope.get().scanProjectLayouts !== false).catch(error => {
-          ctx.logger?.error?.(`[dsh-agent-plugins-market] project layout reconciliation failed: ${String(error)}`)
-        })
+    const entry = ctx.fiber.entry
+    if (!entry) throw Error('MANAGE_SETTINGS_ENTRY_REQUIRED')
+    settingsCtx.effect(() => settingsCtx.settings.configure({ auto: false }, ctx.fiber))
+    catalog.setMcpBackendWriter(async backend => {
+      await settingsCtx.settings.update(entry.options.id!, { mcpEnhanced: backend !== 'host' })
+    })
+  })
+  ctx.inject(['tools'], toolHost => {
+    let feedbackDisposer: (() => void) | undefined
+    const syncFeedbackTool = (): void => {
+      if (config.feedbackEnabled.get() && !feedbackDisposer) {
+        feedbackDisposer = mountFeedbackTool(toolHost, dataRoot, (key, params) => hostLocale.t(key as HostLocaleKey, params)) ?? undefined
+      } else if (!config.feedbackEnabled.get() && feedbackDisposer) {
+        feedbackDisposer()
+        feedbackDisposer = undefined
       }
-      syncProjectLayouts()
-      settingsWatchers.push(scope.watch(syncProjectLayouts))
-      let previousBackend = scope.get().mcpEnhanced !== false
-      settingsWatchers.push(
-        scope.watch(() => {
-          const backend = scope.get().mcpEnhanced !== false
-          if (backend === previousBackend) return
-          previousBackend = backend
-          void Promise.all([reconcileMounts(), projectMcp?.refresh()]).catch(() => {})
-        })
-      )
-      // The experience-feedback model tool: gated by the namespace's
-      // `feedbackEnabled` field (default on); the switch unregisters it. The
-      // tool mount is doubly contained — its failure must never take the
-      // settings namespace (and with it the config card) down with it.
-      // 中文：反馈工具受命名空间开关控制；挂载失败只记录日志，不影响设置命名空间。
-      /** 根据 feedbackEnabled 开关挂载或卸载体验反馈工具。 */
-      const syncFeedbackTool = (): void => {
-        try {
-          const state = scope.get() as { feedbackEnabled?: boolean }
-          const wanted = state.feedbackEnabled !== false
-          if (wanted && feedbackDisposer === undefined) {
-            feedbackDisposer = mountFeedbackTool(ctx, dataRoot, (key, params) => hostLocale.t(key as HostLocaleKey, params)) ?? undefined
-          } else if (!wanted && feedbackDisposer !== undefined) {
-            feedbackDisposer()
-            feedbackDisposer = undefined
-          }
-        } catch (error) {
-          ctx.logger?.error?.(`[dsh-agent-plugins-market] feedback tool mount failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
-        }
-      }
-      syncFeedbackTool()
-      settingsWatchers.push(scope.watch(() => syncFeedbackTool()))
-    } catch (error) {
-      ctx.logger?.error?.(
-        `[dsh-agent-plugins-market] settings namespace registration failed — the plugin-config card will be hidden this boot: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
-      )
+    }
+    const stop = ctx.on('loader/volatile-update', paths => {
+      if (paths.some(([field]) => field === 'feedbackEnabled')) syncFeedbackTool()
+    })
+    toolHost.effect(() => () => {
+      stop()
+      feedbackDisposer?.()
+    })
+    syncFeedbackTool()
+  })
+  ctx.on('loader/volatile-update', paths => {
+    if (paths.some(([field]) => field === 'scanProjectLayouts')) {
+      void catalog.setScanProjectLayouts(config.scanProjectLayouts.get()).catch(error => {
+        ctx.logger.error(`[dsh-agent-manage] project layout reconciliation failed: ${String(error)}`)
+      })
+    }
+    if (paths.some(([field]) => field === 'mcpEnhanced')) {
+      void Promise.all([reconcileMounts(), projectMcp?.refresh()]).catch(error => {
+        ctx.logger.error(`[dsh-agent-manage] MCP backend reconciliation failed: ${String(error)}`)
+      })
     }
   })
   runtime.setMcpBackendProvider(() => catalog.mcpBackend())
@@ -492,9 +453,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       if (credentialFlush !== undefined) clearTimeout(credentialFlush)
       credentialFlush = undefined
       pendingCredentialRefs.clear()
-      for (const dispose of settingsWatchers.splice(0)) dispose()
-      feedbackDisposer?.()
-      feedbackDisposer = undefined
       userCommands.disposeAll()
       void runtime.dispose()
     },

@@ -20,6 +20,7 @@ import { McpPluginCard } from './McpPluginCard.js'
 import { credentialApi, type CredentialRemote } from './credentials.js'
 
 const NS = 'dsh-agent-plugins-market'
+const SETTINGS_NAMESPACE = 'dsh-agent-manage'
 /** The module-loader banner supplies the emitted CSS without installing a global side effect. */
 declare const __dshManageClientCss: string
 
@@ -119,12 +120,12 @@ export function apply(ctx: SuiteClientContext): void {
     const service = scoped.settingsScope
     const slots = scoped.slots
     const tCard = ctx.locale.bind(NS)
-    const scope = service.bind({ namespace: NS })
+    const scope = service.bind({ namespace: SETTINGS_NAMESPACE })
     // 中文：下面的 scope 方法把宿主快照投影成卡片需要的读写接口，所有写入仍由 settingsScope 执行。
     slots.inject('settings.plugin.item', () =>
       slots.register({
         name: 'settings.plugin.item',
-        key: NS,
+        key: SETTINGS_NAMESPACE,
         locale: NS,
         inject: () => ({ t: tCard }),
       }, () => h(McpPluginCard, {

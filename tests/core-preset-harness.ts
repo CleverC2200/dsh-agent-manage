@@ -1,5 +1,5 @@
 /** Fixed official libraries and production Loader/Session; only completion is local. */
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile, realpath } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile, realpath, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { onTestFinished } from 'vitest'
@@ -43,13 +43,31 @@ export async function official(name: string) {
   return import(/* @vite-ignore */ await realpath(resolve(pkg.root, path)))
 }
 
-export async function presetHarness() {
-  const home = await realpath(await mkdtemp(join(tmpdir(), 'company-preset-')))
+export interface PresetHarnessOptions {
+  /** Full production Manage entry; the default keeps existing preset tests narrow. */
+  fullManage?: boolean
+  /** Ordinary shipped config is passed through the real Loader Config parser. */
+  manageConfig?: Record<string, unknown>
+  /** Failure tests observe missing routes instead of waiting for publication. */
+  waitForResources?: boolean
+  /** Retain public Logger diagnostics even when app-boot rejects. */
+  startupMessages?: { type: string; args: string[] }[]
+  /** Owned by an independent caller so DSH_HOME is set before this module loads. */
+  home?: string
+  /** Loader's module-import boundary, used only to control real module loading order. */
+  importModule?: (name: string, runtime: Context) => Promise<unknown>
+}
+
+export async function presetHarness(options: PresetHarnessOptions = {}) {
+  const home = await realpath(options.home ?? (await mkdtemp(join(tmpdir(), 'company-preset-'))))
+  const manage = options.fullManage ? await import('../src/index.js') : undefined
   const dir = join(home, 'profiles', 'test')
   const { boot, initProfile, readProfilePatches } = await official('@deepseek-ai/dsh-app-boot')
   initProfile(dir, ['test-bundle'])
   const bundle = join(dir, 'node_modules/test-bundle')
   await mkdir(bundle, { recursive: true })
+  await mkdir(join(dir, 'node_modules/@deepseek-ai'), { recursive: true })
+  await symlink(join(core, 'packages/preset/agent-preset'), join(dir, 'node_modules/@deepseek-ai/dsh-agent-preset'))
   await writeFile(join(home, 'package.json'), '{"name":"preset-test-installation"}\n')
   await writeFile(join(bundle, 'package.json'), JSON.stringify({ name: 'test-bundle', version: '1.0.0', dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
   const base = load(await readFile(join(core, 'packages/bundle/base/cordis.patch.yml'), 'utf8'), { schema: entryListSchema }) as { insert: { id: string; config?: unknown }[] }[]
@@ -93,6 +111,7 @@ export async function presetHarness() {
     'tools',
     'system-prompt',
     'agent-loop',
+    'plugin-manager',
     'fs-sandbox'
   ])
   const entries = base[0].insert
@@ -106,16 +125,17 @@ export async function presetHarness() {
       return row
     })
   const webBase = load(await readFile(join(core, 'packages/bundle/web-app/cordis.patch.yml'), 'utf8'), { schema: entryListSchema }) as { insert?: { id: string }[] }[]
-  const webProviders = new Set(['workspace', 'file-upload', 'session-controller', 'schedule'])
+  const webProviders = new Set(['workspace', 'file-upload', 'session-controller', 'schedule', 'cordis-host-runner', 'cordis-inspect-providers'])
   entries.push(...(webBase.flatMap(patch => patch.insert ?? []).filter(row => webProviders.has(row.id)) as never[]))
   entries.push({ id: 'connection', name: '@deepseek-ai/dsh-client-connection', config: { trustedHosts: [] } } as never)
   entries.push({ id: 'agent-preset-registry', name: '@deepseek-ai/dsh-agent-preset-registry', config: { default: 'auto-negotiation' } } as never)
   entries.push({ id: 'subagent-model-selection-settings', name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings' } as never)
-  for (const id of ['standard', 'minimal', 'ptc']) {
+  for (const id of ['standard', 'minimal', 'ptc', 'cordis']) {
     const rows = load(await readFile(join(core, `packages/bundle/web-app/presets/${id}.patch.yml`), 'utf8'), { schema: entryListSchema }) as { insert: never[] }[]
     entries.push(...rows[0].insert)
   }
-  if (process.env.PRESET_RED_BASELINE !== '1') entries.push({ id: 'company-presets', name: 'cordis:company-presets' } as never)
+  if (options.fullManage) entries.push({ id: 'dsh-agent-manage', name: 'cordis:company-manage', config: { geaMcp: false, sources: [], ...options.manageConfig } } as never)
+  else if (process.env.PRESET_RED_BASELINE !== '1') entries.push({ id: 'company-presets', name: 'cordis:company-presets' } as never)
   const { dump } = await import('js-yaml')
   await writeFile(join(bundle, 'cordis.patch.yml'), dump([{ insert: entries }], { schema: entryListSchema }))
   await writeFile(join(dir, 'cordis.yml'), '[]\n')
@@ -137,9 +157,34 @@ export async function presetHarness() {
     overlays: [],
     telemetryDisabledEnv: undefined
   }
+  const startupMessages: { type: string; args: string[] }[] = options.startupMessages ?? []
   let ctx: Context
   const start = async (): Promise<Context> => {
+    let resourcesReady: Promise<void> | undefined
     ctx = await boot('test', join(dir, 'cordis.yml'), readProfilePatches('test', profile), (runtime: Context) => {
+      if (options.fullManage && options.waitForResources !== false)
+        resourcesReady = new Promise<void>((resolveReady, rejectReady) => {
+          runtime.inject(['agentResources', 'connection'], async host => {
+            try {
+              const response = await host.connection
+                .createSharedFetchHandler('/api')
+                .fetch(new Request(`http://localhost/api/agent-manage/resources?cwd=${encodeURIComponent(home)}`))
+              if (response.status !== 200) throw Error(`MANAGE_RESOURCE_ROUTE_UNAVAILABLE: ${response.status}`)
+              resolveReady()
+            } catch (error) {
+              rejectReady(error)
+              throw error
+            }
+          })
+        })
+      if (options.fullManage)
+        runtime.logger.exporter({
+          levels: { default: 2 },
+          export: ({ type, args }) => {
+            if (type === 'warn' || type === 'error')
+              startupMessages.push({ type, args: args.map(value => (value instanceof Error ? `${value.name}: ${value.message}\n${value.stack ?? ''}` : String(value))) })
+          }
+        })
       runtime.provide('profileContext', profile as never)
       runtime.provide('appReady', {
         onReady(listener: () => void) {
@@ -148,15 +193,17 @@ export async function presetHarness() {
         }
       } as never)
       runtime.loader.builtins['company-presets'] = company
-      runtime.loader.internal = { version: 'v2', import: official } as never
+      if (manage) runtime.loader.builtins['company-manage'] = manage
+      runtime.loader.internal = { version: 'v2', import: (name: string) => (options.importModule ? options.importModule(name, runtime) : official(name)) } as never
     })
+    await resourcesReady
     return ctx
   }
   onTestFinished(async () => {
     await ctx?.fiber.dispose()
-    await rm(home, { recursive: true, force: true })
+    if (!options.home) await rm(home, { recursive: true, force: true })
   })
-  return { ctx: await start(), start, home, profile }
+  return { ctx: await start(), start, home, profile, startupMessages }
 }
 
 export async function agentOn(ctx: Context, id: string, preset?: string, seed?: readonly unknown[], cwd = core) {

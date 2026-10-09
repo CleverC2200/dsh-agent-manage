@@ -23,3 +23,5 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 真实 Core Session 测试核对最终工具、命令、自动与手动压缩、继续执行和选中身份恢复。预设集成入口经过实际 GEA hooks 并核对无业务 profile 的执行拒绝。独立客户端入口使用官方 InputHub，并通过独立 Host process 的回执提供所选资源和真实 Session；它的 wire adapter 提供公开 Session/工作区接口。测试覆盖空草稿、已有文字、取消、重进与旧草稿，不将 Host 编译库装入浏览器源码图。这些离线观察不证明 Native 安装或外部模型、业务执行。
 
 业务 prompt 组合现遵循[业务标准能力](../architecture/2026-10-09-business-standard-capabilities.zh.md)。该决定持有完整 standard 声明、可信 Agent 元数据及通用能力与业务额度的分离。本记录继续持有资源选择、provider 生命周期与恢复规则。
+
+完整 Manage 冷启动恢复在读取选中索引前等待既有 StandardPreset 初始化 fiber，只建立局部等待，不轮询、不回退预设，也不新增就绪权威。公开 app-boot 可能在资源 inject child 完成前返回，因此离线 fixture 等实际 `agentResources` 发布并核 Connection Fetch 路由。普通、模块 import gate 和干净首次启动保留选中预设、包内 Skill、最终工具/命令/压缩、工作区与旧持久 Session；真实模块失败时资源保持不可用，并保留启动诊断。

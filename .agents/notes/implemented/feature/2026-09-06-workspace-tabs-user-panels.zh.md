@@ -30,7 +30,7 @@ MCP 详情移除启用控件，将重试与 OAuth 重置分开。后端能力决
 - **用户存储统一到一个根目录。** `userRoot` 固定解析为 `$DSH_HOME/agent-plugins`（默认 `~/.dsh/agent-plugins`），可变数据位于其 `data/` 下。本决定的自动迁移部分由[标准存储启动](../simplification/2026-10-04-canonical-storage-only.zh.md)取代：激活只核当前目录并拒绝旧根配置，不读取或搬移旧存储。项目维度和显式登记的外部本地来源保留就地读取语义。
 - **代理角色按保存的策略执行。** `subagents_run` 在运行时读取角色 Markdown frontmatter 中的 `model`、`provider`、`reasoning_effort`、`tools` 和 `disallowedTools`，使用[持久子代理目录](../architecture/2026-09-09-subagent-catalog.zh.md)说明的当前一次性 spawn 服务，传入有效模型路由、角色正文 persona 和工具限制。详情编辑器把这些配置放在正文上方，并保存到同一 frontmatter。未指定模型或填写 `inherit` 时沿用父级选择；单独模型 id 必须唯一匹配一个 provider，显式 provider/model 配置则支持 provider 专用 id。无效或歧义配置在启动子代理前报错。
 - **公共构件优先于逐面板复制**（`client/ui/panel.tsx`）：`PanelShell`（标题/操作/滚动体）、`BusyIndicator`（全局进行中加载动画，含浮层变体）、`EntryEditorModal`、`ConfirmModal`、`SourceBadge` 与共享的 `panel.module.css`。三个用户面板在字面上是同一个组件（`UserPanelSurface`）按 kind 参数化；市场与 MCP 面板嵌入同一加载动画，`SearchFilterToolbar` 增加统一的 `＋ 新增` 席位。
-- **反馈工具是 model 工具，不是命令。** `report_market_issue` 通过 `ctx.tools` 注册，受既有 `dsh-agent-plugins-market` 命名空间中 `feedbackEnabled` 设置字段（默认 true）控制；watcher 实时挂载/卸载。存在 `GITHUB_TOKEN`/`GH_TOKEN` 时直接开 GitHub Issue，否则追加 JSONL 到 `data/feedback/` 本地卷宗；时间戳文件以 60 秒为限防止连发。`@deepseek-ai/dsh-tools` 以可选身份加入 peer/dev 依赖——包缺失处工具 simply 不挂载。
+- **反馈工具是 model 工具，不是命令。** `report_market_issue` 通过 `ctx.tools` 注册，受 `dsh-agent-manage` Loader Config 中 `feedbackEnabled` 字段（默认 true）控制；volatile 更新通过已注入 tools context 实时挂载/卸载。[原生 Manage 设置](../bug-fix/2026-10-09-native-manage-configuration.zh.md)持有当前设置 Interface，替代旧命名空间注册。存在 `GITHUB_TOKEN`/`GH_TOKEN` 时直接开 GitHub Issue，否则追加 JSONL 到 `data/feedback/` 本地卷宗；时间戳文件以 60 秒为限防止连发。`@deepseek-ai/dsh-tools` 以可选身份加入 peer/dev 依赖——包缺失处工具 simply 不挂载。
 
 供应商和模型使用联动下拉，读取 DSH 当前 LLM 注册表。`model-catalog` 只返回公开身份字段，每次只读取选中供应商的模型，等待上限为十秒。切换供应商时取消或忽略旧请求；未在目录中的已保存模型仍展示并保留，直到用户主动选择替换。插件启动时不读取模型目录。
 
@@ -61,7 +61,7 @@ MCP 详情移除启用控件，将重试与 OAuth 重置分开。后端能力决
 
 - 扩展 [2026-09-01-source-acquisition-expansion](2026-09-01-source-acquisition-expansion.md) 的删除语义（`.sources/<id>` 检出获得可选物理删除，仅 `.sources/` 之外的本地目录受保护）。
 
-反馈仓库归属由 [fork 身份决策](2026-09-12-fork-package-identity.zh.md) 更新；本记录继续定义设置开关、注册与本地回退机制。
+反馈仓库归属由 [fork 身份决策](2026-09-12-fork-package-identity.zh.md) 更新；本记录继续定义反馈行为；原生 Manage 设置负责当前开关与生命周期。
 
 [官方 Workbench 入口](../architecture/2026-10-04-official-workbench-entry.zh.md)增加公开 main 入口；本决定继续持有工作区标签设计。
 

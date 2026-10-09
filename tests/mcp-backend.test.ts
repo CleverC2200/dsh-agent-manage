@@ -55,7 +55,7 @@ function fakeContext(): { ctx: Record<string, unknown>; mounted: Array<{ module:
 
 describe('MCP backend settings', () => {
   it('exposes the settings namespace and schema the plugin-config tab pairs by', async () => {
-    expect(MCP_SETTINGS_NAMESPACE).toBe('dsh-agent-plugins-market')
+    expect(MCP_SETTINGS_NAMESPACE).toBe('dsh-agent-manage')
     // The schemastery schema resolves a missing section to both defaults.
     const resolved = MarketSettingsSchema(undefined) as { mcpEnhanced?: boolean; downloadRegion?: string }
     expect(resolved.mcpEnhanced).toBe(true)

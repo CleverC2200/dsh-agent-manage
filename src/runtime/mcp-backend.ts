@@ -5,11 +5,9 @@
  * and legacy SSE) or through the host's `@deepseek-ai/dsh-mcp-client`
  * (compatibility mode: no OAuth, no SSE, but the host-native implementation).
  *
- * The choice is a host settings namespace (`dsh-agent-plugins-market`,
- * `mcpEnhanced: boolean`, default true) registered by the plugin's node half:
- * the registration is what makes the host 插件配置 tab serve our card, the
- * client card binds it for state, and the node half watches it to remount
- * servers when the switch flips. Retired data-root settings are not read.
+ * The native SettingsForms namespace is the shipped `dsh-agent-manage`
+ * Loader entry. Its volatile Config fields drive the custom client card and
+ * host reconciler; no separate settings store or namespace is registered.
  *
  * @module runtime/mcp-backend
  */
@@ -24,13 +22,13 @@ export type McpBackend = 'builtin' | 'host'
 
 export const MCP_BACKENDS: readonly McpBackend[] = ['builtin', 'host']
 
-/** Settings namespace this plugin registers; the key the plugin-config tab pairs our card by. */
+/** Shipped Loader entry id used by the native plugin-config card. */
 /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
-export const MCP_SETTINGS_NAMESPACE = 'dsh-agent-plugins-market'
+export const MCP_SETTINGS_NAMESPACE = 'dsh-agent-manage'
 
 /** Schema of the market settings namespace: the MCP enhancement switch, the download region, and the feedback tool switch. */
 /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
-export const MarketSettingsSchema = z.object({
+const MarketSettingsFields = {
   /** ON (default) = the built-in bridge with OAuth and SSE; OFF = host client compat mode. */
   /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   mcpEnhanced: z.boolean().default(true),
@@ -43,7 +41,9 @@ export const MarketSettingsSchema = z.object({
   /** ON (default) = the `report_market_issue` model tool is registered; OFF = unregistered. */
   /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   feedbackEnabled: z.boolean().default(true)
-})
+}
+
+export const MarketSettingsSchema = z.object(MarketSettingsFields)
 
 /** What the host client probe reports: resolvability plus its version. */
 /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
@@ -69,3 +69,11 @@ export async function probeHostMcpClient(): Promise<HostMcpClientProbe> {
     return { available: false }
   }
 }
+
+/** Reuse the same field rules as live Loader Config without changing plain validation. */
+export const ManageConfigSchema = z.object({
+  mcpEnhanced: MarketSettingsFields.mcpEnhanced.volatile(),
+  scanProjectLayouts: MarketSettingsFields.scanProjectLayouts.volatile(),
+  downloadRegion: MarketSettingsFields.downloadRegion.volatile(),
+  feedbackEnabled: MarketSettingsFields.feedbackEnabled.volatile()
+})
