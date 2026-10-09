@@ -73,7 +73,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-gea-plugin
-          ref: bbf948168b891d1b0e7eee783b082275967899db
+          ref: b05ca162e1bf5ffb8443962a0b8b7e8ff8a61e96
           fetch-depth: 0
           path: candidate/dsh-gea-plugin
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
@@ -83,9 +83,10 @@ jobs:
       - name: Bind actual event commit and admitted peers
         run: node scripts/write-ci-input.mjs --root "${{ github.workspace }}" --sha "${{ env.QUALITY_EXPECTED_SHA }}"
       - name: Prepare independent SDK and run the same local gates
+        id: gates
         run: node scripts/run-quality-ci.mjs --phase ${{ matrix.phase }} --prepare-sdk --core-source https://github.com/deepseek-ai/deepseek-harness.git
       - name: Audit known dependency vulnerabilities
-        if: matrix.phase == 'quality'
+        if: always() && matrix.phase == 'quality' && steps.gates.outputs.dependencies-prepared == 'true'
         run: node scripts/run-quality-ci.mjs --phase audit > "${{ github.workspace }}/dependency-audit.raw.log" 2>&1
       - name: Keep audit result including failure
         if: always() && matrix.phase == 'quality'

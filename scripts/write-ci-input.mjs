@@ -14,7 +14,7 @@ writeFileSync(
       repositories: [
         { repo: 'dsh-agent-workbench', path: resolve(root, 'candidate/dsh-agent-workbench'), head: '9b4863692cb29a3edc8a2358e98feb7846526d1b' },
         { repo: 'dsh-agent-manage', path: resolve(root, 'candidate/dsh-agent-manage'), head },
-        { repo: 'dsh-gea-plugin', path: resolve(root, 'candidate/dsh-gea-plugin'), head: 'bbf948168b891d1b0e7eee783b082275967899db' }
+        { repo: 'dsh-gea-plugin', path: resolve(root, 'candidate/dsh-gea-plugin'), head: 'b05ca162e1bf5ffb8443962a0b8b7e8ff8a61e96' }
       ]
     },
     null,

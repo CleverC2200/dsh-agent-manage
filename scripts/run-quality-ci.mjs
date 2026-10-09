@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, appendFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { prepareOfficialSDK, verifyOfficialSDK } from './prepare-official-sdk.mjs'
@@ -38,7 +38,7 @@ try {
     if (process.env.QUALITY_EXPECTED_SHA && own.head !== process.env.QUALITY_EXPECTED_SHA) refuse('CANDIDATE_EVENT_MISMATCH', own.head)
     // Admission is frozen and clean. Ordinary incremental development continues
     // to use check:refactor without this clean-candidate requirement.
-    const expectedPeers = { 'dsh-agent-workbench': '9b4863692cb29a3edc8a2358e98feb7846526d1b', 'dsh-gea-plugin': 'bbf948168b891d1b0e7eee783b082275967899db' }
+    const expectedPeers = { 'dsh-agent-workbench': '9b4863692cb29a3edc8a2358e98feb7846526d1b', 'dsh-gea-plugin': 'b05ca162e1bf5ffb8443962a0b8b7e8ff8a61e96' }
     for (const name of ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin']) {
       const entries = manifest.repositories.filter(entry => entry.repo === name)
       if (entries.length !== 1) refuse('CANDIDATE_PEER_REQUIRED', name)
@@ -59,6 +59,7 @@ try {
       for (const target of targets.filter(path => path.startsWith('../dsh-agent-workbench/'))) readFileSync(resolve(target))
     }
     run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'])
+    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'dependencies-prepared=true\n')
     if (phase === 'quality') {
       run('corepack', ['pnpm', 'run', 'test:ci-inputs'])
       run('corepack', ['pnpm', 'run', 'check:knowledge'])
