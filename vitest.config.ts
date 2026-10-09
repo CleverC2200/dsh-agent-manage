@@ -13,7 +13,10 @@ export default defineConfig({
       'tests/sales-preset-client.test.ts',
       'tests/base-resource-host.test.ts',
       'tests/sales-preset-gea.test.ts',
-      'tests/sales-resource-host.test.ts'
+      'tests/sales-resource-host.test.ts',
+      'tests/inventory-family-preset.test.ts',
+      'tests/inventory-family-client.test.ts',
+      'tests/inventory-family-host.test.ts'
     ],
     environment: 'node',
     testTimeout: 30_000,

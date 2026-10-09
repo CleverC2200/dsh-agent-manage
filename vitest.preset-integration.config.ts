@@ -31,7 +31,9 @@ export default defineConfig({
       'tests/skill-preset-gea.test.ts',
       'tests/base-resource-host.test.ts',
       'tests/sales-preset-gea.test.ts',
-      'tests/sales-resource-host.test.ts'
+      'tests/sales-resource-host.test.ts',
+      'tests/inventory-family-preset.test.ts',
+      'tests/inventory-family-host.test.ts'
     ],
     exclude: []
   }
