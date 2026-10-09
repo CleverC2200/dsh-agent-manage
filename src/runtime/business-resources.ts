@@ -274,18 +274,23 @@ export class BusinessResources {
     return next
   }
   private async mountSkillPreset(): Promise<void> {
-    if (this.mounted.has(SKILL_PRESET)) return
-    const dispose = await this.ctx.agentPresets.register(
-      await composeStandardPreset(this.ctx.agentPresets, {
-        id: SKILL_PRESET,
-        name: 'Skill',
-        description: '使用所选 Skill 开始新任务，保留完整标准工具、上下文压缩与协作能力。'
-      })
-    )
-    this.mounted.set(SKILL_PRESET, dispose)
-    if (this.closed) {
+    if (!this.mounted.has(SKILL_PRESET)) {
+      const dispose = await this.ctx.agentPresets.register(
+        await composeStandardPreset(this.ctx.agentPresets, {
+          id: SKILL_PRESET,
+          name: 'Skill',
+          description: '使用所选 Skill 开始新任务，保留完整标准工具、上下文压缩与协作能力。'
+        })
+      )
+      this.mounted.set(SKILL_PRESET, dispose)
+    }
+    try {
+      if (this.closed) throw Error('AGENT_RESOURCES_DISPOSED')
+      const resolved = await this.ctx.agentPresets.resolve(SKILL_PRESET)
+      if (resolved.broken) throw Error(resolved.broken)
+    } catch (error) {
       await this.unmount(SKILL_PRESET)
-      throw Error('AGENT_RESOURCES_DISPOSED')
+      throw error
     }
   }
   private async mountPrompt(id: string, signal: AbortSignal): Promise<void> {
