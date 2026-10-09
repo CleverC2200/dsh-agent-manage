@@ -44,14 +44,20 @@ function ownedSource(core) {
 }
 
 const webScript = 'pnpm --filter @deepseek-ai/dsh-web-frontend run build'
-const webSources = ['package.json', 'apps/web/package.json', 'apps/web/index.html', 'apps/web/vite.config.ts', 'apps/web/product-isolation.ts', 'scripts/client-build-environment.ts']
+const webSources = [
+  'package.json',
+  'apps/web/package.json',
+  'apps/web/index.html',
+  'apps/web/vite.config.ts',
+  'apps/web/product-isolation.ts',
+  'scripts/client-build-environment.ts'
+]
 const webReceipt = core => resolve(run('git', ['rev-parse', '--absolute-git-dir'], core, true), 'dsh-sdk-web.json')
 
 function webFile(core, path) {
   const dist = resolve(core, 'apps/web/dist')
   const file = resolve(core, path)
-  if (!path.startsWith('apps/web/dist/') || relative(dist, file).startsWith('..') || !existsSync(file))
-    refuse('SDK_WEB_MATERIAL_REQUIRED', path)
+  if (!path.startsWith('apps/web/dist/') || relative(dist, file).startsWith('..') || !existsSync(file)) refuse('SDK_WEB_MATERIAL_REQUIRED', path)
   if (!lstatSync(file).isFile() || realpathSync(file) !== resolve(realpathSync(core), path)) refuse('SDK_WEB_PATH_REJECTED', path)
   return file
 }
@@ -73,14 +79,22 @@ function verifyWeb(core) {
   const receipt = webReceipt(core)
   if (!existsSync(receipt)) refuse('SDK_WEB_RECEIPT_REQUIRED', 'run --prepare-web in the owned prepared checkout')
   const record = json(receipt)
-  if (record.coreCommit !== coreCommit || record.coreLock !== coreLock || record.command !== 'corepack pnpm run build:web' || json(resolve(core, 'package.json')).scripts['build:web'] !== webScript)
+  if (
+    record.coreCommit !== coreCommit ||
+    record.coreLock !== coreLock ||
+    record.command !== 'corepack pnpm run build:web' ||
+    json(resolve(core, 'package.json')).scripts['build:web'] !== webScript
+  )
     refuse('SDK_WEB_SOURCE_MISMATCH', receipt)
-  for (const path of webSources)
-    if (record.sourceHashes?.find(entry => entry.path === path)?.sha256 !== hash(resolve(core, path))) refuse('SDK_WEB_SOURCE_MISMATCH', path)
-  if (!Array.isArray(record.artifacts) || record.artifacts.length < 2 || !record.artifacts.some(entry => entry.path === 'apps/web/dist/index.html') || new Set(record.artifacts.map(entry => entry.path)).size !== record.artifacts.length)
+  for (const path of webSources) if (record.sourceHashes?.find(entry => entry.path === path)?.sha256 !== hash(resolve(core, path))) refuse('SDK_WEB_SOURCE_MISMATCH', path)
+  if (
+    !Array.isArray(record.artifacts) ||
+    record.artifacts.length < 2 ||
+    !record.artifacts.some(entry => entry.path === 'apps/web/dist/index.html') ||
+    new Set(record.artifacts.map(entry => entry.path)).size !== record.artifacts.length
+  )
     refuse('SDK_WEB_RECEIPT_REQUIRED', 'complete produced artifact inventory required')
-  for (const entry of record.artifacts)
-    if (hash(webFile(core, entry.path)) !== entry.sha256) refuse('SDK_WEB_ARTIFACT_CHANGED', entry.path)
+  for (const entry of record.artifacts) if (hash(webFile(core, entry.path)) !== entry.sha256) refuse('SDK_WEB_ARTIFACT_CHANGED', entry.path)
   return { ...record, status: 'prepared' }
 }
 
@@ -98,7 +112,13 @@ function flockTarget(core) {
   if (spec.platform !== platform || binaries?.length !== 1 || Number(process.versions.napi) < 8) refuse('SDK_FLOCK_TARGET_REQUIRED', `${platform}/${libc ?? 'node-api'}/napi8`)
   const path = `native/system/packages/${platform}/${binaries[0].path}`
   if (!path.endsWith('.node') || relative(resolve(core, `native/system/packages/${platform}`), resolve(core, path)).startsWith('..')) refuse('SDK_FLOCK_TARGET_REQUIRED', path)
-  return { platform, ...(libc ? { libc } : {}), napi: 8, path, sourcePaths: ['package.json', 'native/system/scripts/build.ts', 'native/system/packages/entry/src/flock.c', metadata] }
+  return {
+    platform,
+    ...(libc ? { libc } : {}),
+    napi: 8,
+    path,
+    sourcePaths: ['package.json', 'native/system/scripts/build.ts', 'native/system/packages/entry/src/flock.c', metadata]
+  }
 }
 
 function verifyFlock(core) {
@@ -109,7 +129,16 @@ function verifyFlock(core) {
   const receipt = flockReceipt(core)
   if (!existsSync(receipt)) refuse('SDK_FLOCK_RECEIPT_REQUIRED', 'run --prepare-flock in the owned prepared checkout')
   const record = json(receipt)
-  if (record.coreCommit !== coreCommit || record.coreLock !== coreLock || record.command !== 'corepack pnpm run build:native-system' || record.artifact?.path !== target.path || record.platform !== target.platform || record.libc !== target.libc || record.napi !== target.napi || json(resolve(core, 'package.json')).scripts['build:native-system'] !== flockScript)
+  if (
+    record.coreCommit !== coreCommit ||
+    record.coreLock !== coreLock ||
+    record.command !== 'corepack pnpm run build:native-system' ||
+    record.artifact?.path !== target.path ||
+    record.platform !== target.platform ||
+    record.libc !== target.libc ||
+    record.napi !== target.napi ||
+    json(resolve(core, 'package.json')).scripts['build:native-system'] !== flockScript
+  )
     refuse('SDK_FLOCK_SOURCE_MISMATCH', receipt)
   for (const path of target.sourcePaths)
     if (record.sourceHashes?.find(entry => entry.path === path)?.sha256 !== hash(resolve(core, path))) refuse('SDK_FLOCK_SOURCE_MISMATCH', path)
@@ -195,11 +224,20 @@ export function prepareOfficialWeb(options) {
     }
   }
   collect(resolve(core, 'apps/web/dist'))
-  writeFileSync(webReceipt(core), JSON.stringify({
-    coreCommit, coreLock, command: 'corepack pnpm run build:web',
-    sourceHashes: webSources.map(path => ({ path, sha256: hash(resolve(core, path)) })),
-    artifacts: artifacts.sort((a, b) => a.path.localeCompare(b.path))
-  }, null, 2) + '\n')
+  writeFileSync(
+    webReceipt(core),
+    JSON.stringify(
+      {
+        coreCommit,
+        coreLock,
+        command: 'corepack pnpm run build:web',
+        sourceHashes: webSources.map(path => ({ path, sha256: hash(resolve(core, path)) })),
+        artifacts: artifacts.sort((a, b) => a.path.localeCompare(b.path))
+      },
+      null,
+      2
+    ) + '\n'
+  )
   return verifyOfficialSDK({ ...options, withWeb: true })
 }
 
@@ -223,14 +261,25 @@ export function prepareOfficialFlock(options) {
   if (JSON.stringify(before.artifacts) !== JSON.stringify(after.artifacts)) refuse('SDK_FLOCK_CHANGED_SDK', 'flock preparation changed SDK targets')
   if (beforeWeb && JSON.stringify(beforeWeb) !== JSON.stringify(verifyWeb(core))) refuse('SDK_FLOCK_CHANGED_WEB', 'flock preparation changed static Web targets')
   if (!existsSync(resolve(core, target.path))) refuse('SDK_FLOCK_MATERIAL_REQUIRED', target.path)
-  writeFileSync(flockReceipt(core), JSON.stringify({
-    coreCommit, coreLock, command: 'corepack pnpm run build:native-system',
-    platform: target.platform, ...(target.libc ? { libc: target.libc } : {}), napi: target.napi,
-    compiler: { command: compiler, version: tool.stdout.trim() },
-    headers: headerPaths.map(path => ({ path: resolve(headers, path), sha256: hash(resolve(headers, path)) })),
-    sourceHashes: target.sourcePaths.map(path => ({ path, sha256: hash(resolve(core, path)) })),
-    artifact: { path: target.path, sha256: hash(resolve(core, target.path)) }
-  }, null, 2) + '\n')
+  writeFileSync(
+    flockReceipt(core),
+    JSON.stringify(
+      {
+        coreCommit,
+        coreLock,
+        command: 'corepack pnpm run build:native-system',
+        platform: target.platform,
+        ...(target.libc ? { libc: target.libc } : {}),
+        napi: target.napi,
+        compiler: { command: compiler, version: tool.stdout.trim() },
+        headers: headerPaths.map(path => ({ path: resolve(headers, path), sha256: hash(resolve(headers, path)) })),
+        sourceHashes: target.sourcePaths.map(path => ({ path, sha256: hash(resolve(core, path)) })),
+        artifact: { path: target.path, sha256: hash(resolve(core, target.path)) }
+      },
+      null,
+      2
+    ) + '\n'
+  )
   return verifyOfficialSDK({ ...options, withFlock: true })
 }
 
@@ -265,9 +314,22 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const i = args.indexOf(name)
       return i < 0 ? undefined : args[i + 1]
     }
-    if (['--prepare', '--prepare-web', '--prepare-flock'].filter(mode => args.includes(mode)).length > 1) refuse('SDK_PREPARATION_MODE_CONFLICT', 'choose cold, web-only or flock-only preparation')
-    const options = { core: value('--core') ?? '../../official-latest-standard', consumer: value('--consumer') ?? process.cwd(), source: value('--source'), withWeb: args.includes('--with-web'), withFlock: args.includes('--with-flock') }
-    const result = args.includes('--prepare-flock') ? prepareOfficialFlock(options) : args.includes('--prepare-web') ? prepareOfficialWeb(options) : args.includes('--prepare') ? prepareOfficialSDK(options) : verifyOfficialSDK(options)
+    if (['--prepare', '--prepare-web', '--prepare-flock'].filter(mode => args.includes(mode)).length > 1)
+      refuse('SDK_PREPARATION_MODE_CONFLICT', 'choose cold, web-only or flock-only preparation')
+    const options = {
+      core: value('--core') ?? '../../official-latest-standard',
+      consumer: value('--consumer') ?? process.cwd(),
+      source: value('--source'),
+      withWeb: args.includes('--with-web'),
+      withFlock: args.includes('--with-flock')
+    }
+    const result = args.includes('--prepare-flock')
+      ? prepareOfficialFlock(options)
+      : args.includes('--prepare-web')
+        ? prepareOfficialWeb(options)
+        : args.includes('--prepare')
+          ? prepareOfficialSDK(options)
+          : verifyOfficialSDK(options)
     const receipt = value('--receipt')
     if (receipt) {
       mkdirSync(dirname(resolve(receipt)), { recursive: true })
