@@ -263,7 +263,7 @@ it('preserves the enabled official Web Host orientation and standard runtime con
   const webServer = await official('@deepseek-ai/dsh-host-webserver')
   await f.ctx.plugin(webServer.default ?? webServer, { host: '127.0.0.1', port: 0 }).await()
   await f.ctx.plugin(await official('@deepseek-ai/dsh-web-app'), { openBrowser: false, printUrl: false, surfaceContext: true, trustedHosts: [] }).await()
-  f.ctx.effect(() => f.ctx.systemPrompt.section({ name: 'genui:fence', text: 'Controlled optional GenUI section provider; original instructions' }))
+  f.ctx.effect(() => f.ctx.systemPrompt.section({ name: 'genui:fence', order: 10_200, text: 'Controlled optional GenUI section provider; original instructions' }))
   const reference = await agentOn(f.ctx, 'host-orientation-reference', 'standard')
   const standard = await f.ctx.systemPrompt.assemble({ scope: reference, agent: reference } as never)
   const business = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
