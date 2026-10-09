@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, realpathSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, writeFileSync, mkdirSync, readdirSync, lstatSync } from 'node:fs'
 import { dirname, resolve, relative, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -34,7 +34,56 @@ function source(core, writing) {
   if (Number(process.versions.node.split('.')[0]) !== 24) refuse('SDK_TOOLCHAIN_MISMATCH', `Node ${process.versions.node}; expected 24`)
 }
 
-export function verifyOfficialSDK({ core, consumer }) {
+function ownedSource(core) {
+  const owner = spawnSync('git', ['config', '--local', '--get', 'dsh.sdkPreparation'], { cwd: core, encoding: 'utf8' })
+  if (owner.status !== 0 || owner.stdout.trim() !== 'independent-fixed-core')
+    refuse('SDK_PRIVATE_CHECKOUT_REQUIRED', 'use --source with a new checkout; an existing shared SDK is read-only')
+  source(core, true)
+  if (run('corepack', ['pnpm', '--version'], core, true) !== '11.7.0') refuse('SDK_TOOLCHAIN_MISMATCH', 'pnpm')
+}
+
+const webScript = 'pnpm --filter @deepseek-ai/dsh-web-frontend run build'
+const webSources = ['package.json', 'apps/web/package.json', 'apps/web/index.html', 'apps/web/vite.config.ts', 'apps/web/product-isolation.ts', 'scripts/client-build-environment.ts']
+const webReceipt = core => resolve(run('git', ['rev-parse', '--absolute-git-dir'], core, true), 'dsh-sdk-web.json')
+
+function webFile(core, path) {
+  const dist = resolve(core, 'apps/web/dist')
+  const file = resolve(core, path)
+  if (!path.startsWith('apps/web/dist/') || relative(dist, file).startsWith('..') || !existsSync(file))
+    refuse('SDK_WEB_MATERIAL_REQUIRED', path)
+  if (!lstatSync(file).isFile() || realpathSync(file) !== resolve(realpathSync(core), path)) refuse('SDK_WEB_PATH_REJECTED', path)
+  return file
+}
+
+function webIndex(core) {
+  const html = readFileSync(webFile(core, 'apps/web/dist/index.html'), 'utf8')
+  let localAssets = 0
+  for (const [, target] of html.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/g)) {
+    if (/^(?:[a-z]+:|\/\/|#)/i.test(target)) continue
+    const path = target.split(/[?#]/)[0].replace(/^\//, '')
+    webFile(core, `apps/web/dist/${path}`)
+    localAssets++
+  }
+  if (!localAssets || !/<script\b[^>]*\btype=["']module["']/.test(html)) refuse('SDK_WEB_ENTRY_REQUIRED', 'built module entry and its local assets required')
+}
+
+function verifyWeb(core) {
+  webIndex(core)
+  const receipt = webReceipt(core)
+  if (!existsSync(receipt)) refuse('SDK_WEB_RECEIPT_REQUIRED', 'run --prepare-web in the owned prepared checkout')
+  const record = json(receipt)
+  if (record.coreCommit !== coreCommit || record.coreLock !== coreLock || record.command !== 'corepack pnpm run build:web' || json(resolve(core, 'package.json')).scripts['build:web'] !== webScript)
+    refuse('SDK_WEB_SOURCE_MISMATCH', receipt)
+  for (const path of webSources)
+    if (record.sourceHashes?.find(entry => entry.path === path)?.sha256 !== hash(resolve(core, path))) refuse('SDK_WEB_SOURCE_MISMATCH', path)
+  if (!Array.isArray(record.artifacts) || record.artifacts.length < 2 || !record.artifacts.some(entry => entry.path === 'apps/web/dist/index.html') || new Set(record.artifacts.map(entry => entry.path)).size !== record.artifacts.length)
+    refuse('SDK_WEB_RECEIPT_REQUIRED', 'complete produced artifact inventory required')
+  for (const entry of record.artifacts)
+    if (hash(webFile(core, entry.path)) !== entry.sha256) refuse('SDK_WEB_ARTIFACT_CHANGED', entry.path)
+  return { ...record, status: 'prepared' }
+}
+
+export function verifyOfficialSDK({ core, consumer, withWeb = false }) {
   core = resolve(core)
   consumer = resolve(consumer)
   source(core, false)
@@ -78,8 +127,40 @@ export function verifyOfficialSDK({ core, consumer }) {
     node: process.version,
     packageManager: 'pnpm@11.7.0',
     packages: packages.size,
-    artifacts: [...artifacts].sort().map(file => ({ path: relative(core, file).split(sep).join('/'), sha256: hash(file) }))
+    artifacts: [...artifacts].sort().map(file => ({ path: relative(core, file).split(sep).join('/'), sha256: hash(file) })),
+    ...(withWeb ? { web: verifyWeb(core) } : {})
   }
+}
+
+/** Build only the official static Web product in an already-owned, prepared SDK. */
+export function prepareOfficialWeb(options) {
+  const core = resolve(options.core)
+  ownedSource(core)
+  const before = verifyOfficialSDK({ ...options, withWeb: false })
+  if (json(resolve(core, 'package.json')).scripts['build:web'] !== webScript) refuse('SDK_WEB_SOURCE_MISMATCH', 'official build:web script')
+  run('corepack', ['pnpm', 'run', 'build:web'], core)
+  source(core, true)
+  const after = verifyOfficialSDK({ ...options, withWeb: false })
+  if (JSON.stringify(before.artifacts) !== JSON.stringify(after.artifacts)) refuse('SDK_WEB_CHANGED_SDK', 'static Web preparation changed SDK targets')
+  webIndex(core)
+  const artifacts = []
+  function collect(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const file = resolve(directory, entry.name)
+      if (entry.isDirectory() && realpathSync(file) === file) collect(file)
+      else {
+        const path = relative(core, file).split(sep).join('/')
+        artifacts.push({ path, sha256: hash(webFile(core, path)) })
+      }
+    }
+  }
+  collect(resolve(core, 'apps/web/dist'))
+  writeFileSync(webReceipt(core), JSON.stringify({
+    coreCommit, coreLock, command: 'corepack pnpm run build:web',
+    sourceHashes: webSources.map(path => ({ path, sha256: hash(resolve(core, path)) })),
+    artifacts: artifacts.sort((a, b) => a.path.localeCompare(b.path))
+  }, null, 2) + '\n')
+  return verifyOfficialSDK({ ...options, withWeb: true })
 }
 
 export function prepareOfficialSDK(options) {
@@ -91,11 +172,7 @@ export function prepareOfficialSDK(options) {
     run('git', ['checkout', '--detach', coreCommit], core)
     run('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], core)
   }
-  const owner = spawnSync('git', ['config', '--local', '--get', 'dsh.sdkPreparation'], { cwd: core, encoding: 'utf8' })
-  if (owner.status !== 0 || owner.stdout.trim() !== 'independent-fixed-core')
-    refuse('SDK_PRIVATE_CHECKOUT_REQUIRED', 'use --source with a new checkout; an existing shared SDK is read-only')
-  source(core, true)
-  if (run('corepack', ['pnpm', '--version'], core, true) !== '11.7.0') refuse('SDK_TOOLCHAIN_MISMATCH', 'pnpm')
+  ownedSource(core)
   // These are the official build:lib host/client SDK stages. The desktop
   // bundle, installer, native system build, upload and runtime are excluded.
   run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], core)
@@ -104,7 +181,7 @@ export function prepareOfficialSDK(options) {
   run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'], core)
   run(process.execPath, [tsc, '-b', 'tsconfig.client.json'], core)
   run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'], core)
-  return verifyOfficialSDK(options)
+  return options.withWeb ? prepareOfficialWeb(options) : verifyOfficialSDK(options)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -114,8 +191,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const i = args.indexOf(name)
       return i < 0 ? undefined : args[i + 1]
     }
-    const options = { core: value('--core') ?? '../../official-latest-standard', consumer: value('--consumer') ?? process.cwd(), source: value('--source') }
-    const result = args.includes('--prepare') ? prepareOfficialSDK(options) : verifyOfficialSDK(options)
+    if (args.includes('--prepare') && args.includes('--prepare-web')) refuse('SDK_PREPARATION_MODE_CONFLICT', 'choose cold preparation or web-only preparation')
+    const options = { core: value('--core') ?? '../../official-latest-standard', consumer: value('--consumer') ?? process.cwd(), source: value('--source'), withWeb: args.includes('--with-web') }
+    const result = args.includes('--prepare-web') ? prepareOfficialWeb(options) : args.includes('--prepare') ? prepareOfficialSDK(options) : verifyOfficialSDK(options)
     const receipt = value('--receipt')
     if (receipt) {
       mkdirSync(dirname(resolve(receipt)), { recursive: true })

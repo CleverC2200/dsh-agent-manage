@@ -36,6 +36,32 @@ node scripts/prepare-official-sdk.mjs --core /absolute/job-root/official-latest-
 
 The implementation runs the official host tsc/tsdown and client tsc/tsdown SDK stages, including Typert generation and package-local bundles. It omits the desktop bundle appended to the official host script, native-system build, installers, uploads and runtime startup. All outputs and dependencies belong to this job. / 沿官方 host/client 的 tsc/tsdown SDK 阶段生成 Typert 和包产物，省去 desktop bundle、native-system 构建、安装包、上传和启动；输出与依赖归本 job。
 
+### Optional static Web product / 可选 Web 静态产物
+
+The default SDK-only preparation and verification remain unchanged. A source Web launch also needs the real `apps/web/dist/index.html` and its assets. Cold jobs opt in to the same preparation module with `--prepare --with-web`; it completes the SDK stages, then runs the fixed Core's original `corepack pnpm run build:web` (`pnpm --filter @deepseek-ai/dsh-web-frontend run build`). / 默认 SDK-only 行为保持。源码 Web 启动另需真实 index 与资产；冷 job 用同一模块的 prepare + with-web，先准备 SDK，再执行固定 Core 原 build:web。
+
+```sh
+node scripts/prepare-official-sdk.mjs --prepare --with-web \
+  --source https://github.com/deepseek-ai/deepseek-harness.git \
+  --core /absolute/job-root/official-latest-standard \
+  --consumer /absolute/job-root/candidate/dsh-gea-plugin --receipt /absolute/job-root/sdk-web.json
+```
+
+For an already-prepared owned Core, `--prepare-web` runs only that static build: no installation, tsc or tsdown repetition. The writing checks still require the independent ownership marker, physical checkout, fixed commit/lock and Node/pnpm toolchain. / 已准备且归本 job 的 Core 用 prepare-web，只执行静态构建，不重复安装或 SDK 编译；仍核归属标记、物理路径、固定提交/锁及工具链。
+
+```sh
+node scripts/prepare-official-sdk.mjs --prepare-web \
+  --core /absolute/job-root/official-latest-standard \
+  --consumer /absolute/job-root/candidate/dsh-gea-plugin --receipt /absolute/job-root/sdk-web.json
+node scripts/prepare-official-sdk.mjs --with-web \
+  --core /absolute/job-root/official-latest-standard \
+  --consumer /absolute/job-root/candidate/dsh-gea-plugin --receipt /absolute/job-root/sdk-web-verified.json
+```
+
+The exported interface is `prepareOfficialSDK({ core, consumer, source, withWeb: true })` for cold preparation, `prepareOfficialWeb({ core, consumer })` for the Web-only stage, and `verifyOfficialSDK({ core, consumer, withWeb: true })` for read-only verification. The result retains the SDK artifacts and adds `web` with the build command, source hashes and produced-file hashes. An owned clone's local Git metadata stores that inventory; missing index, linked entry assets, inventory files or changed bytes are rejected. Static preparation checks that the consumer's SDK artifact hashes stayed unchanged. It does not start a server, desktop or Native process, contact GEA, install or upload a package. / 回执保留 SDK 摘要并追加 web 来源和逐产物摘要；清单存独立克隆的本地 Git 元数据。缺入口、入口引用资产、清单产物或字节变化均拒绝，静态构建前后 SDK 摘要须相同。不启动服务或客户端、不联系 GEA、不安装或上传包。
+
+The inventory verifies the produced static files, not browser execution or an arbitrary JavaScript dependency graph. Remote Ubuntu/Windows execution still needs separate receipts. / 清单核实际静态文件，不称浏览器执行或任意 JS 依赖图证明；远端 Ubuntu/Windows 仍需另有回执。
+
 The frozen input JSON uses ticket 01's existing `core` and `repositories: [{repo, path, head}]` interface. Workbench and GEA refs are explicit in [write-ci-input](../scripts/write-ci-input.mjs) and the workflow, while Manage uses the actual PR head or push SHA. Full Git history and credential persistence disabled are required. All three checkouts must be clean; package locks must match their commits. / 输入沿票01公开格式，peer 固定来源明确，Manage 绑定实际事件 SHA，三仓必须干净且锁与提交相符。
 
 ## Platforms and rejection / 平台与拒绝

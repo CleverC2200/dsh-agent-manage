@@ -28,3 +28,11 @@ test('preparation refuses an existing checkout owned by another SDK consumer', (
   assert.match(result.stderr, /SDK_PRIVATE_CHECKOUT_REQUIRED/)
   assert.equal(existsSync(join(checkout, 'node_modules')), false)
 })
+
+test('web-only preparation refuses an unowned checkout without installing or generating HTML', () => {
+  const result = spawnSync(process.execPath, ['scripts/prepare-official-sdk.mjs', '--prepare-web', '--core', checkout, '--consumer', process.cwd()], { encoding: 'utf8' })
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /SDK_PRIVATE_CHECKOUT_REQUIRED/)
+  assert.equal(existsSync(join(checkout, 'node_modules')), false)
+  assert.equal(existsSync(join(checkout, 'apps/web/dist/index.html')), false)
+})

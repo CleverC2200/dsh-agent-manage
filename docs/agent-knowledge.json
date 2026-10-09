@@ -8,6 +8,10 @@
   "paths": ["src/runtime/business-resources.ts", "src/inventory-compute", "src/aps-compute", "tsconfig.official-paths.json"],
   "scripts": ["check:knowledge", "check:architecture", "test:contract", "check:refactor", "test:knowledge", "sdk:verify", "sdk:prepare", "quality:ci", "test:ci-inputs"],
   "exports": false,
+  "peers": ["../../official-latest-standard"],
+  "commandRoots": {
+    "docs/clean-ci.md": ["../../official-latest-standard"]
+  },
   "history": [
     "docs/release",
     "docs/research",
