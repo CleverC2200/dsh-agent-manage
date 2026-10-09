@@ -1,3 +1,4 @@
+import { officialStandardDocument } from './core-preset-harness.js'
 import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -29,6 +30,7 @@ it('isolates malformed Skill metadata within one provider and applies the same f
       }
     },
     agentPresets: {
+      readDocument: officialStandardDocument,
       async register() {
         return async () => {}
       },
@@ -78,6 +80,7 @@ it('lists installed prompt metadata before reading the selected original persona
       }
     },
     agentPresets: {
+      readDocument: officialStandardDocument,
       async resolve(id: string) {
         return { id }
       },
@@ -93,12 +96,12 @@ it('lists installed prompt metadata before reading the selected original persona
   await resources.load()
   const definition = { id: 'original', label: 'Original', root, prompt: 'prompt.json', profile: { label: 'Original', consumerCode: 'known', skills: [] } }
   const owner = await resources.register([definition])
-  expect(await resources.list()).toEqual([{ id: 'original', label: 'Original', kind: 'prompt', installed: true, enabled: true, provider: 'package', skills: [] }])
+  expect(await resources.list()).toMatchObject([{ id: 'original', label: 'Original', kind: 'prompt', installed: true, enabled: true, provider: 'package', skills: [] }])
   expect(registered).toEqual([])
   await writeFile(join(root, 'prompt.json'), JSON.stringify({ ...definition.profile, persona: 'Original exact words\nSecond line' }))
   const selected = await resources.select('original', new AbortController().signal)
   expect(selected.preset).toBe('original')
-  expect((registered[0].plugins[0].config as { prefix: string }).prefix).toBe('Original exact words\nSecond line')
+  expect((registered[0].plugins[0].config as { prefix: string }).prefix).toContain('Original exact words\nSecond line')
   expect(JSON.parse(await readFile(join(root, 'selected.json'), 'utf8'))).toEqual({ version: 1, selected: ['original'] })
   expect(registered).toHaveLength(1)
   await resources.dispose()
@@ -127,6 +130,7 @@ it('refuses disabled resources and cleans partial registration on cancellation w
       }
     },
     agentPresets: {
+      readDocument: officialStandardDocument,
       async register() {
         controller.abort()
         return async () => {
@@ -173,6 +177,7 @@ it('loads a packaged Skill verbatim, rejects symlink escapes and withdraws an un
       }
     },
     agentPresets: {
+      readDocument: officialStandardDocument,
       async register() {
         return async () => {}
       },
@@ -223,7 +228,7 @@ it('publishes only selected validated page Interpreter choices which still have 
   roots.push(root)
   const host = {
     skills: { registerProvider: () => () => {}, list: async () => [] },
-    agentPresets: { register: async () => async () => {}, resolve: async (id: string) => ({ id }) }
+    agentPresets: { readDocument: officialStandardDocument, register: async () => async () => {}, resolve: async (id: string) => ({ id }) }
   }
   const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
   await writeFile(
@@ -266,6 +271,7 @@ it('selects the restored regional resource through the original Skill provider a
       }
     },
     agentPresets: {
+      readDocument: officialStandardDocument,
       async resolve(id: string) {
         return { id }
       },
@@ -331,6 +337,7 @@ it('selects the retained category prototype resource and keeps its Skill contrib
       }
     },
     agentPresets: {
+      readDocument: officialStandardDocument,
       async resolve(id: string) {
         return { id }
       },
@@ -358,7 +365,7 @@ it('selects the retained category prototype resource and keeps its Skill contrib
     preset: 'gea-html-category-plan',
     profile: { consumerCode: 'category-plan-prototype' }
   })
-  expect((registered[0].plugins[0].config as { prefix: string }).prefix).toBe(
+  expect((registered[0].plugins[0].config as { prefix: string }).prefix).toContain(
     '本页面为模拟原型。只解释自述模拟快照，不能把演示数量、建议采纳、任务状态或本地问答当作真实业务、模型调用或系统回执。'
   )
   const candidates = await provider.list({})
@@ -392,6 +399,7 @@ async function releaseFixture() {
       }
     },
     agentPresets: {
+      readDocument: officialStandardDocument,
       async register(definition: Definition) {
         if (mounted.has(definition.id)) throw Error('HOST_PRESET_ALREADY_MOUNTED')
         mounted.set(definition.id, definition)

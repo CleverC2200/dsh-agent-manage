@@ -1,0 +1,25 @@
+{
+  "entries": [
+    "AGENTS.md",
+    "docs/current-development.md",
+    ".agents/notes/implemented/process/2026-10-09-current-agent-knowledge.md",
+    ".agents/notes/implemented/process/2026-10-09-current-agent-knowledge.zh.md"
+  ],
+  "paths": ["src/runtime/business-resources.ts", "src/inventory-compute", "src/aps-compute", "tsconfig.official-paths.json"],
+  "scripts": ["check:knowledge", "check:architecture", "test:contract", "check:refactor", "test:knowledge"],
+  "exports": false,
+  "history": [
+    "docs/release",
+    "docs/research",
+    "docs/promotion",
+    "docs/upstream-proposal",
+    "docs/design/engineering-refactor-plan.md",
+    "docs/design/compat-layouts-plan.md",
+    "docs/design/host-compat-matrix-plan.md",
+    "docs/design/source-acquisition-and-expansion-plan.md",
+    "docs/design/lsp-surface-support.md",
+    ".agents/notes/archived",
+    ".agents/skills/market-release",
+    ".agents/skills/market-pre-push-checks"
+  ]
+}

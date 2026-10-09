@@ -7,6 +7,7 @@ import type { SkillCandidate, SkillDefinition, SkillLookupOptions, SkillProvider
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import { parseSkillFrontmatter, stripFrontmatter } from '../catalog/skills-parse.js'
 import { parseFrontmatterRecord } from './user-store.js'
+import { composeStandardPreset } from './standard-preset.js'
 import { readSkillHeader } from '../catalog/skill-files.js'
 
 export interface ExecutionProfile {
@@ -18,6 +19,9 @@ export interface ExecutionProfile {
 export interface BusinessResourceDefinition {
   id: string
   label: string
+  /** Agent catalog metadata; the business page keeps its separate title. */
+  presetName?: string
+  description?: string
   root: string
   prompt?: string
   /** Owning capability declaration, for explicit references to existing analysis Skills. */
@@ -33,6 +37,7 @@ export interface BusinessResourceDefinition {
 export interface ResourceSummary {
   id: string
   label: string
+  description?: string
   kind: 'prompt' | 'skill'
   installed: boolean
   enabled: boolean
@@ -57,6 +62,11 @@ interface Entry {
   error?: string
 }
 const SKILL_PRESET = 'agent-resource-skill'
+
+/** The registry and resource discovery project the same trusted Agent metadata. */
+function promptDescription(definition: BusinessResourceDefinition): string {
+  return definition.description ?? `${definition.profile.label}业务角色，支持上下文压缩、文件操作、规划、任务和协作；业务执行遵循当前身份与资源授权。`
+}
 
 /** Strict YAML and normalized Skill identity share one fail-closed metadata decision. */
 function skillMetadata(text: string, name: string): Exclude<ReturnType<typeof parseSkillFrontmatter>, string> | undefined {
@@ -174,8 +184,9 @@ export class BusinessResources {
         const missingSkills = d.profile.skills.filter(name => !available.has(name))
         return {
           id: d.id,
-          label: d.label,
+          label: d.presetName ?? d.profile.label,
           kind: 'prompt',
+          description: promptDescription(d),
           installed: true,
           enabled: d.enabled !== false && !error && !owner.signal.aborted,
           provider: 'package',
@@ -193,7 +204,15 @@ export class BusinessResources {
       ...prompts,
       ...skills
         .filter(skill => skill.invocation.userInvocable)
-        .map(skill => ({ id: `skill:${skill.name}`, label: skill.name, kind: 'skill' as const, installed: true, enabled: true, provider: skill.provider }))
+        .map(skill => ({
+          id: `skill:${skill.name}`,
+          label: skill.name,
+          description: skill.description,
+          kind: 'skill' as const,
+          installed: true,
+          enabled: true,
+          provider: skill.provider
+        }))
     ]
   }
   async select(id: string, signal: AbortSignal, cwd?: string): Promise<ResourceSelection> {
@@ -256,7 +275,13 @@ export class BusinessResources {
   }
   private async mountSkillPreset(): Promise<void> {
     if (this.mounted.has(SKILL_PRESET)) return
-    const dispose = await this.ctx.agentPresets.register({ id: SKILL_PRESET, name: 'Skill', plugins: [{ id: 'skill', name: '@deepseek-ai/dsh-tool-skill' }] })
+    const dispose = await this.ctx.agentPresets.register(
+      await composeStandardPreset(this.ctx.agentPresets, {
+        id: SKILL_PRESET,
+        name: 'Skill',
+        description: '使用所选 Skill 开始新任务，保留完整标准工具、上下文压缩与协作能力。'
+      })
+    )
     this.mounted.set(SKILL_PRESET, dispose)
     if (this.closed) {
       await this.unmount(SKILL_PRESET)
@@ -330,15 +355,13 @@ export class BusinessResources {
     const version = createHash('sha256').update(JSON.stringify(profile)).digest('hex')
     if (this.mounted.has(id) && this.versions.get(id) === version && !entry.error) return
     await this.unmount(id)
-    const dispose = await this.ctx.agentPresets.register({
-      id,
-      name: d.label,
-      plugins: [
-        { id: 'persona', name: '@deepseek-ai/dsh-persona', config: { prefix: profile.persona, suffix: '', complete: false, includeRuntimeContext: false } },
-        { id: 'skill', name: '@deepseek-ai/dsh-tool-skill' },
-        ...(d.plugins ?? [])
-      ]
-    })
+    const definition = await composeStandardPreset(
+      this.ctx.agentPresets,
+      { id, name: d.presetName ?? d.profile.label, description: promptDescription(d) },
+      { personaPrefix: profile.persona, plugins: d.plugins }
+    )
+    signal.throwIfAborted()
+    const dispose = await this.ctx.agentPresets.register(definition)
     this.mounted.set(id, dispose)
     try {
       signal.throwIfAborted()

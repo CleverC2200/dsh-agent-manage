@@ -19,3 +19,6 @@ docs/compat-report.json
 
 # Fixed original business rules are byte-checked by the migration golden test.
 src/inventory-compute/dealer-config/
+
+# Fixed sales assets retain SOURCE.json hashes; bundled-sales-skills.test.ts checks every file.
+business-resources/sinian-demand-forecast/

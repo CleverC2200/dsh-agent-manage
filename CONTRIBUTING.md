@@ -1,8 +1,8 @@
 # Contributing / 贡献指南
 
-Thank you for helping improve `dsh-agent-plugins-market`.
+Thank you for helping improve `dsh-agent-manage`.
 
-感谢你帮助改进 `dsh-agent-plugins-market`。
+感谢你帮助改进 `dsh-agent-manage`。
 
 This project brings Claude Code, Codex, Cursor, Kimi, and agent-plugins.org marketplace suites into DeepSeek Harness (DSH). Contributions are welcome across the host runtime, Web UI, documentation, tests, and plugin-layout fixtures.
 
@@ -45,16 +45,15 @@ Issue、PR 和文档均可使用英文或简体中文。为了方便审查，如
 ### Setup / 安装
 
 ```sh
-corepack enable
-pnpm install
+corepack pnpm install --frozen-lockfile --ignore-scripts
 ```
 
-For a CI-equivalent install, use the frozen lockfile:
+Read [current development](docs/current-development.md) and prepare the registered official SDK before installation. Toolchain and scripts are declared in package.json; a frozen install alone does not prepare the SDK.
 
-如需复现 CI 的严格安装环境，请使用 frozen lockfile：
+先读[当前开发](docs/current-development.md)并准备登记的官方 SDK，再冻结安装。工具链与命令由 package.json 声明；冻结安装本身不生成 SDK。
 
 ```sh
-pnpm install --frozen-lockfile
+corepack pnpm install --frozen-lockfile --ignore-scripts
 ```
 
 ### Repository map / 目录结构
@@ -65,9 +64,9 @@ pnpm install --frozen-lockfile
 - `docs-site/` — Astro documentation website / Astro 文档网站
 - `.github/` — issue forms, pull request templates, ownership, and automation / issue 表单、PR 模板、代码所有者与自动化
 
-The domain glossary in [CONTEXT.md](CONTEXT.md) and the staged architecture plan in [`docs/design/engineering-refactor-plan.md`](docs/design/engineering-refactor-plan.md) describe the project vocabulary and module boundaries.
+[CONTEXT.md](CONTEXT.md) owns vocabulary; [current development](docs/current-development.md) identifies current module ownership. Historical architecture plans retain their original reasons and do not define the current checkout.
 
-[CONTEXT.md](CONTEXT.md) 中的领域词汇表，以及 [`docs/design/engineering-refactor-plan.md`](docs/design/engineering-refactor-plan.md) 中的分阶段架构计划，说明了项目术语和模块边界。
+术语归 [CONTEXT.md](CONTEXT.md)，当前职责归[当前开发](docs/current-development.md)。历史架构计划保留理由，不作为当前 checkout 说明。
 
 ## Quality gates / 质量门禁
 
@@ -160,9 +159,9 @@ Conventional Commit 类型决定自动化版本号和 CHANGELOG（由 [release-p
 
 ## Generated artifacts / 构建产物
 
-The repository publishes built host and client artifacts under `lib/` and `client/` so a GitHub installation does not need a `prepare` step. Do not hand-edit generated JavaScript or declaration files. After changing source code, run `pnpm run build` and inspect the resulting diff; include generated changes when the project release workflow requires them.
+The package includes built host/client artifacts under `lib/` and `client/`; these outputs are ignored in this checkout. GitHub installation runs the declared prepare build and requires its fixed SDK input. Do not hand-edit generated JavaScript or declarations. Build explicitly when required; preserve the current tgz delivery protocol. Historical publishing workflows do not authorize isolated-project publication.
 
-仓库发布 `lib/` 和 `client/` 下的宿主与客户端构建产物，使 GitHub 安装无需执行 `prepare`。不要手工编辑生成的 JavaScript 或声明文件。修改源码后请运行 `pnpm run build` 并检查 diff；项目发布流程需要时，再一并包含生成文件的改动。
+包包含 lib/client 宿主与客户端产物，但本 checkout 忽略这些输出。GitHub 安装运行声明的 prepare 构建并需要固定 SDK 输入。不要手改生成 JS 或声明；按需要显式构建并保持当前 tgz 协议。历史发布 workflow 不授予隔离项目发布权限。
 
 ## Security and responsible disclosure / 安全与负责任披露
 

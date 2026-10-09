@@ -10,7 +10,7 @@ The repository belongs to CleverC2200/dsh-agent-manage, while package metadata, 
 
 The package, Cordis bundle and server/client exported identities use dsh-agent-manage. Repository, ownership and feedback target CleverC2200/dsh-agent-manage. Instructions use GitHub installation without assuming a new npm publication. The docs-site configuration targets the fork; deployment is not implied.
 
-Existing settings namespaces, UI identifiers, API and data paths stay compatible. Replacing the old package requires removing its profile entry first to avoid duplicate loading. Historical releases, copyright and external schema provenance retain their original identities.
+The retained settings namespace is partially superseded by [native Manage configuration](../bug-fix/2026-10-09-native-manage-configuration.md): the current card binds the actual `dsh-agent-manage` Loader entry, with no runtime alias or automatic conversion. UI identifiers, API and data paths remain unchanged. Replacing the old package requires removing its profile entry first to avoid duplicate loading. Historical releases, copyright and external schema provenance retain their original identities.
 
 ## Alternatives considered
 
@@ -20,4 +20,4 @@ Existing settings namespaces, UI identifiers, API and data paths stay compatible
 
 ## Consequences
 
-New-package publishing permissions, GitHub Pages deployment and live host replacement remain unverified; this change does not publish. This decision updates only feedback repository ownership; the existing workspace-tabs-user-panels decision still owns its settings gate, registration and local fallback.
+New-package publishing permissions, GitHub Pages deployment and live host replacement remain unverified; this change does not publish. This decision updates feedback repository ownership. Workspace-tabs-user-panels still owns the feedback behavior; native Manage configuration owns its current settings gate and lifecycle.

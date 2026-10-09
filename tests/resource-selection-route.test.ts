@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ConnectionFetchRoute } from '@deepseek-ai/dsh-client-connection'
-import { apply } from '../src/index.js'
+import { apply, Config } from '../src/index.js'
 import { BusinessResources } from '../src/runtime/business-resources.js'
 
 const roots: string[] = []
@@ -39,12 +39,13 @@ async function route() {
       return () => {}
     },
     provide() {},
+    on: () => () => {},
     logger: { warn() {} },
     inject: (names: string[], callback: (ctx: unknown) => unknown) => {
       if (names.includes('connection')) pending.push(Promise.resolve(callback(context)))
     }
   }
-  await apply(context as never, { geaMcp: false })
+  await apply(context as never, Config({ geaMcp: false }))
   await Promise.all(pending)
   return { route: routes.get('/api/agent-manage/resources/select')!, listRoute: routes.get('/api/agent-manage/resources')!, select, list }
 }

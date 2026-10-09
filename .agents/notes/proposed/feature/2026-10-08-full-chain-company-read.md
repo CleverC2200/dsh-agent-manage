@@ -12,6 +12,10 @@ The company slice uses the current GEA page grant and public access/SQL channel.
 
 Company and customer units remain separate. This slice has no customer queries or fallback after customer refusal. Current facts and narrowed references expire on cancellation, range/identity/Session changes, and refresh. UI intent can restore; historical facts require a new explicit read. The existing 300-entry catalog allocation remains 298 structure entries, refresh, and one trend reference. Null periods remain gaps; order history retains its target month.
 
+## Current source scope
+
+The company query declarations, scoped normalization and public calculator are present in the current source checkout. This proposal remains open for the acceptance criteria below; source implementation is not a live identity, row grant, customer-data or model receipt. The runtime mock-mode part of [mock reception](../../implemented/feature/2026-10-07-full-chain-mock-reception.md) is partially superseded in source. Its unit, null/zero, fixture provenance and catalog semantics remain valid.
+
 ## Alternatives considered
 
 **Keeping runtime mock branches** cannot prove real data and would mix demo and live provenance. Historical 46/47 packages and local test fixtures preserve the mock acceptance.

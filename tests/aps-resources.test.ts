@@ -1,3 +1,4 @@
+import { officialStandardDocument } from './core-preset-harness.js'
 import { expect, it } from 'vitest'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -20,6 +21,7 @@ it('selects original APS profile with unique Manage analysis sources and refuses
       }
     },
     agentPresets: {
+      readDocument: officialStandardDocument,
       async register() {
         return async () => {}
       },

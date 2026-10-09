@@ -1,3 +1,4 @@
+import { officialStandardDocument } from './core-preset-harness.js'
 import { expect, it } from 'vitest'
 import { readFile, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -23,6 +24,7 @@ it('selects the received MPS persona and Skill, then withdraws only its installe
       }
     },
     agentPresets: {
+      readDocument: officialStandardDocument,
       async register(preset: Preset) {
         presets.set(preset.id, preset)
         return async () => {
@@ -54,7 +56,7 @@ it('selects the received MPS persona and Skill, then withdraws only its installe
     ])
     const selected = await resources.select('gea-html-inventory-mps', new AbortController().signal)
     expect(selected.profile?.consumerCode).toBe('mps-prototype')
-    expect((presets.get(selected.preset)!.plugins[0].config as { prefix: string }).prefix).toBe(
+    expect((presets.get(selected.preset)!.plugins[0].config as { prefix: string }).prefix).toContain(
       '所有页面数据、调整、保存、提交、结转和导出均为模拟。只解释当前页面的模拟上下文，不宣称真实计划已写入。切页或引用失效后重新读取，不操作旧页。正式计划仍以月计划编制流程为准。'
     )
     const candidate = (await provider.list({})).find(row => row.name === 'inventory-mps')

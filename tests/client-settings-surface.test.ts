@@ -12,6 +12,7 @@ describe('current settings surface', () => {
     const entries: Record<string, unknown>[] = []
     const dispose: Array<() => void> = []
     const pages: unknown[] = []
+    const namespaces: string[] = []
     const effect = (callback: () => unknown) => {
       const result = callback()
       if (typeof result === 'function') dispose.push(result as () => void)
@@ -40,10 +41,17 @@ describe('current settings surface', () => {
             }
           },
           slots,
-          settingsScope: { bind: () => ({ getSnapshot: () => ({ writable: true }), subscribe: () => () => {}, set: async () => {} }) }
+          settingsScope: {
+            bind: ({ namespace }: { namespace: string }) => {
+              namespaces.push(namespace)
+              return { getSnapshot: () => ({ writable: true }), subscribe: () => () => {}, set: async () => {} }
+            }
+          }
         })
     })
     expect(entries.map(entry => entry['name'])).toEqual(['settings.plugin.item', 'main', 'settings.section'])
+    expect(namespaces).toEqual(['dsh-agent-manage'])
+    expect(entries.find(entry => entry['name'] === 'settings.plugin.item')?.['key']).toBe('dsh-agent-manage')
     expect(pages).toEqual([{ id: 'agent-plugin-workspace', label: expect.any(Function) }])
     expect(document.querySelector('[data-dsh-agent-plugins-market-entry]')).toBeNull()
     expect(document.querySelector('style[data-dsh-client="dsh-agent-manage"]')?.textContent).toContain('.test-style')
