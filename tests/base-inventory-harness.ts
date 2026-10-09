@@ -1,0 +1,164 @@
+/** Production Manage and GEA modules; only the external gateway is replaced. */
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { onTestFinished, vi } from 'vitest'
+import type { BusinessResourceDefinition } from '../src/runtime/business-resources.js'
+import type { CapabilityContract } from 'preset-integration-gea/capability/contract'
+import { BusinessResources } from '../src/runtime/business-resources.js'
+import { agentOn, presetHarness } from './core-preset-harness.js'
+
+export interface BusinessPresetHarnessInput {
+  resource?: BusinessResourceDefinition
+  contract?: CapabilityContract
+  seed?: readonly unknown[]
+  sessionId?: string
+}
+
+/** Other role tickets supply their actual package resource and contract; the external adapter remains shared. */
+export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {}) {
+  const { profileFor, installPromptProfile } = await import('preset-integration-gea/host/prompt-policy')
+  const { Business } = await import('preset-integration-gea/host/business')
+  const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
+  const { registerGeaTools } = await import('preset-integration-gea/host/agent-tools')
+  const { createCapabilityRegistry } = await import('preset-integration-gea/capability/registry')
+  const { ctx, home } = await presetHarness()
+  const root = resolve(import.meta.dirname, '../business-resources/inventory-aqkc')
+  const profile = profileFor('gea-html-inventory-aqkc')!
+  const resource = input.resource ?? {
+    id: 'gea-html-inventory-aqkc',
+    label: '基地库存',
+    presetName: profile.presetName,
+    description: profile.description,
+    root,
+    prompt: 'prompt.json',
+    profile,
+    skillFiles: { 'inventory-aqkc': 'skills/aqkc/SKILL.md' }
+  }
+  const resources = new BusinessResources(ctx, resolve(home, 'selected-resources.json'))
+  ctx.provide('agentResources', resources)
+  onTestFinished(() => resources.dispose())
+  onTestFinished(installPromptProfile(resource.id, resource.profile))
+  const releaseResource = await resources.register([resource])
+  await resources.select(resource.id, new AbortController().signal)
+  const contract = input.contract ?? JSON.parse(await readFile(resolve(resource.root, 'capability.json'), 'utf8'))
+  const capabilities = createCapabilityRegistry([contract, { id: 'gea-workbench', label: '销售计划', maxEffect: 'view', layers: ['read'] }])
+  const base = 'https://gea-fixture.invalid'
+  const network: { path: string; body: Record<string, unknown> }[] = []
+  let hold: Promise<void> | undefined
+  let started: (() => void) | undefined
+  vi.stubGlobal('fetch', async (input: string | Request, init?: RequestInit) => {
+    const path = new URL(input instanceof Request ? input.url : String(input)).pathname
+    const body = JSON.parse(String(init?.body ?? '{}'))
+    init?.signal?.throwIfAborted()
+    network.push({ path, body })
+    const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } })
+    if (path === '/ai/gateway/session')
+      return json({
+        success: true,
+        result: { accessDecision: { allowed: true }, gatewayContext: { ...body, sessionId: 'fixture-session' }, delegationToken: 'fixture-delegation-secret' }
+      })
+    if (path === '/ai/gateway/mcp/proxy/resources')
+      return json({
+        success: true,
+        resources: [
+          {
+            capabilityCode: 'MCP_TOOL:cube:query_business_data',
+            resourceCode: 'inv',
+            resourceName: 'inv',
+            resourceType: 'EXTERNAL_MCP',
+            queryTarget: 'inv',
+            version: '1',
+            maxRows: 100,
+            maxBytes: null
+          }
+        ]
+      })
+    if (path !== '/ai/gateway/mcp/proxy/mcp') throw Error(`UNEXPECTED_EXTERNAL_REQUEST: ${path}`)
+    if (body.method === 'notifications/initialized') return new Response(null, { status: 202 })
+    if (body.method === 'initialize')
+      return json({
+        jsonrpc: '2.0',
+        id: body.id,
+        result: { protocolVersion: body.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'fixture', version: '1' } }
+      })
+    if (body.method === 'tools/list')
+      return json({
+        jsonrpc: '2.0',
+        id: body.id,
+        result: {
+          tools: [
+            {
+              name: 'query_business_data',
+              _meta: { sourceType: 'MCP', sourceCode: 'cube' },
+              inputSchema: { type: 'object', properties: { action: { type: 'string' }, queries: { type: 'array' } } }
+            }
+          ]
+        }
+      })
+    if (body.method === 'tools/call') {
+      started?.()
+      if (hold) await Promise.race([hold, new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true }))])
+      init?.signal?.throwIfAborted()
+      const text =
+        body.params.arguments.action === 'inspect'
+          ? JSON.stringify({ semanticModel: [{ name: 'inv', measures: [{ name: 'inv.row_count', type: 'number' }] }] })
+          : JSON.stringify({ datasets: [{ name: 'inv', rows: [{ 'inv.row_count': 42 }] }] })
+      return json({ jsonrpc: '2.0', id: body.id, result: { content: [{ type: 'text', text }] } })
+    }
+    throw Error(`UNEXPECTED_MCP_REQUEST: ${body.method}`)
+  })
+  onTestFinished(() => vi.unstubAllGlobals())
+  const business = new Business({
+    geaBaseUrl: base,
+    environment: 'test',
+    geaEnvironments: { test: base, production: 'https://gea-production-fixture.invalid' },
+    runtimeDir: home,
+    pageSize: 50,
+    periodPageSize: 50,
+    requestTimeoutMs: 5000,
+    modelRequestTimeoutMs: 5000,
+    maxSnapshotBytes: 200000,
+    analysisMode: 'receipt',
+    analysisModel: 'test',
+    analysisAgentCode: 'sales_forecast',
+    analysisSource: 'receipt',
+    inputByteBudget: 200000
+  })
+  business.setCapabilities(capabilities)
+  onTestFinished(() => business.dispose())
+  const authorizations = new Map()
+  registerGeaTools(ctx, business, capabilities, (exec, consumer, snapshot) => authorizations.set(exec.token, { consumer, resources: snapshot }))
+  const releasePrompts = mountBusinessPrompts(ctx, business, capabilities, authorizations)
+  onTestFinished(releasePrompts)
+  const login = () =>
+    business.restorePersistentLogin({
+      schema: 1,
+      base,
+      environment: 'test',
+      auth: { token: 'fixture-identity-secret', tenantId: '0', id: 'fixture-user', name: 'Fixture', username: 'fixture' }
+    })
+  const agent = await agentOn(ctx, input.sessionId ?? 'authorized-base', resource.id, input.seed)
+  let call = 0
+  const execute = (name: string, arguments_: unknown = {}, subject = agent) =>
+    ctx.tools.execute({ callId: `base-${++call}` as never, name, arguments: arguments_, agent: subject, signal: new AbortController().signal })
+  const query = (consumerCode?: string, subject = agent) =>
+    execute('gea_cube_query', { ...(consumerCode ? { consumerCode } : {}), queries: [{ name: 'inv', query: { measures: ['inv.row_count'], limit: 3 } }] }, subject)
+  return {
+    ctx,
+    home,
+    resources,
+    releaseResource,
+    business,
+    contract,
+    capabilities,
+    agent,
+    network,
+    login,
+    execute,
+    query,
+    block: (gate: Promise<void>, onStart: () => void) => {
+      hold = gate
+      started = onStart
+    }
+  }
+}

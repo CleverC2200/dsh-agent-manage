@@ -56,6 +56,13 @@ export async function presetHarness() {
   // Host providers from the shipped base; all standard child rows remain unchanged.
   const providers = new Set([
     'timer',
+    'typert',
+    'credentials',
+    'attachment-local',
+    'session-query-sqlite',
+    'storage',
+    'storage-json',
+    'storage-domain',
     'llm',
     'session',
     'session-persistence-jsonl',
@@ -91,12 +98,17 @@ export async function presetHarness() {
   const entries = base[0].insert
     .filter(row => providers.has(row.id))
     .map(row => {
+      if (row.id === 'storage-json') return { ...row, config: { root: join(home, 'storages') } }
       if (row.id === 'sandbox-policy') return { ...row, config: { mode: 'danger-full-access', workspaceRoot: home } }
       if (row.id === 'approval') return { ...row, config: { policy: 'never' } }
       if (row.id === 'agent-default-model') return { ...row, config: { provider: 'local', model: 'test' } }
       if (row.id === 'session-persistence-jsonl') return { ...row, config: { root: join(home, 'sessions') } }
       return row
     })
+  const webBase = load(await readFile(join(core, 'packages/bundle/web-app/cordis.patch.yml'), 'utf8'), { schema: entryListSchema }) as { insert?: { id: string }[] }[]
+  const webProviders = new Set(['workspace', 'file-upload', 'session-controller', 'schedule'])
+  entries.push(...(webBase.flatMap(patch => patch.insert ?? []).filter(row => webProviders.has(row.id)) as never[]))
+  entries.push({ id: 'connection', name: '@deepseek-ai/dsh-client-connection', config: { trustedHosts: [] } } as never)
   entries.push({ id: 'agent-preset-registry', name: '@deepseek-ai/dsh-agent-preset-registry', config: { default: 'auto-negotiation' } } as never)
   entries.push({ id: 'subagent-model-selection-settings', name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings' } as never)
   for (const id of ['standard', 'minimal', 'ptc']) {
@@ -256,4 +268,13 @@ export async function turn(ctx: Context, agent: Awaited<ReturnType<typeof agentO
 /** Save only compact execution observations; fixture histories stay in temporary profiles. */
 export async function record(name: string, observation: unknown): Promise<void> {
   if (process.env.PRESET_EVIDENCE_DIR) await writeFile(join(process.env.PRESET_EVIDENCE_DIR, `${name}.json`), JSON.stringify(observation, null, 2) + '\n')
+}
+
+/** Legacy lifecycle fixtures read the same shipped declaration; Session acceptance uses the registry above. */
+export async function officialStandardDocument() {
+  const { dump } = await import('js-yaml')
+  const rows = load(await readFile(join(core, 'packages/bundle/web-app/presets/standard.patch.yml'), 'utf8'), { schema: entryListSchema }) as {
+    insert: { config: { plugins: unknown } }[]
+  }[]
+  return { content: dump(rows[0].insert[0].config.plugins, { schema: entryListSchema }) }
 }
