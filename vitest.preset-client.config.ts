@@ -23,6 +23,8 @@ export default defineConfig({
     dedupe: ['react', 'react-dom']
   },
   test: {
+    // Each client file starts an official Host process; keep those process groups serial.
+    fileParallelism: false,
     include: [
       'tests/standard-preset-draft.test.ts',
       'tests/preset-catalog-client.test.ts',

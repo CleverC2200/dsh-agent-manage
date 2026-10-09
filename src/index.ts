@@ -239,7 +239,11 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
         id: 'sales-forecast-skills',
         label: '销售预测',
         root: fileURLToPath(new URL('../business-resources/sinian-demand-forecast/', import.meta.url)),
-        profile: { label: '销售预测', consumerCode: 'sales_forecast', skills: ['sinian-demand-dialogue', 'sinian-forecast-scope', 'sinian-demand-baseline', 'sinian-forecast-review'] },
+        profile: {
+          label: '销售预测',
+          consumerCode: 'sales_forecast',
+          skills: ['sinian-demand-dialogue', 'sinian-forecast-scope', 'sinian-demand-baseline', 'sinian-forecast-review']
+        },
         skillFiles: {
           'sinian-demand-dialogue': 'skills/sinian-demand-dialogue/SKILL.md',
           'sinian-forecast-scope': 'skills/sinian-forecast-scope/SKILL.md',
