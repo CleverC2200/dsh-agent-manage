@@ -318,3 +318,111 @@ it('projects every company resource into one described registry catalog without 
   expect(catalog.find(row => row.id === 'agent-resource-skill')).toMatchObject({ name: 'Skill', description: expect.any(String) })
   await record('company-catalog', { catalog, resources, source: 'actual package resources and public registry; official locale supplies built-in labels' })
 })
+
+it('prunes an oversized actual tool result through GEA turn pressure and continues with the same business scope', async () => {
+  const { baseInventoryHarness } = await import('./base-inventory-harness.js')
+  const originalTask = 'Explain the 42 inventory rows for base-safety-stock; retain the user decision to make no stock adjustment. '
+  const f = await baseInventoryHarness({ seed: await history(400, originalTask), sessionId: 'base-prune-through-gea' })
+  const contextWindow = 98_304
+  const file = `${f.home}/large-inventory-evidence.txt`
+  const payload = [
+    'HEAD_KEEP: original inventory decision; Consumer base-safety-stock.',
+    ...Array.from({ length: 60 }, (_, index) => `MIDDLE_${index}: ${'Verified inventory evidence. '.repeat(21)}`),
+    'TAIL_KEEP: preserve read-only scope and the original user decision.'
+  ].join('\n')
+  f.login()
+  expect((await f.execute('write', { file_path: file, content: payload })).isError).toBe(false)
+  const requests = await completion(f.ctx, contextWindow, false, undefined, {
+    checkpoint: 'CHECKPOINT: Explain the 42 inventory rows for base-safety-stock; retain the user decision to make no stock adjustment. Continue read-only analysis.',
+    tools: [
+      { name: 'gea_cube_query', arguments: { queries: [{ name: 'inv', query: { measures: ['inv.row_count'], limit: 3 } }] } },
+      { name: 'read', arguments: { file_path: file } },
+      { name: 'todo_write', arguments: { todos: [{ content: 'Continue after the verified evidence', status: 'in_progress' }] } }
+    ]
+  })
+  const before = f.agent.session.snapshotEvents()
+  await turn(f.ctx, f.agent, 'Keep the original inventory decision and read-only Consumer scope; read the evidence and continue the same task.')
+  const events = f.agent.session.snapshotEvents()
+  expect(events.at(-1)).toMatchObject({ type: 'turn/end', data: { reason: { kind: 'completed' } } })
+  expect(JSON.stringify(events.filter(event => event.type === 'assistant/message'))).toContain('Continued original task from the checkpoint.')
+  const prunes = events.filter(event => event.type === 'compaction/prune')
+  expect(prunes).toHaveLength(1)
+  const original = events.find(event => event.type === 'tool/result' && event.seq === prunes[0].data.shadowedSeqs[0])!
+  expect(original.type).toBe('tool/result')
+  const originalText =
+    original.type === 'tool/result'
+      ? original.data.message.content
+          .filter(block => block.type === 'text')
+          .map(block => block.text)
+          .join('')
+      : ''
+  expect(originalText.length).toBeGreaterThan(8192)
+  expect(originalText).toContain('MIDDLE_30:')
+  const replacement = events.find(
+    event =>
+      event.type === 'tool/result' &&
+      event.seq > prunes[0].seq &&
+      event.data.message.source.callId === (original.type === 'tool/result' ? original.data.message.source.callId : undefined)
+  )!
+  expect(replacement.type).toBe('tool/result')
+  const replacementText =
+    replacement.type === 'tool/result'
+      ? replacement.data.message.content
+          .filter(block => block.type === 'text')
+          .map(block => block.text)
+          .join('')
+      : ''
+  expect(replacementText).toContain('[... tool result middle pruned ...]')
+  expect(replacementText).toContain('HEAD_KEEP:')
+  expect(replacementText).toContain('TAIL_KEEP:')
+  expect(replacementText).not.toContain('MIDDLE_30:')
+  expect(replacementText.length).toBeLessThanOrEqual(8192)
+  expect(events).toEqual(expect.arrayContaining(before))
+  const nextStep = requests.find(request => JSON.stringify(request.messages).includes('[... tool result middle pruned ...]'))!
+  expect(nextStep).toBeDefined()
+  const nextText = JSON.stringify(nextStep.messages)
+  const summaryRequest = requests.find(request => request.messages.at(-1)?.content.some(block => block.text?.includes('acting as a compaction engine')))
+  expect(JSON.stringify(summaryRequest?.messages)).toContain(originalTask.trim())
+  expect(nextText).toContain('CHECKPOINT: Explain the 42 inventory rows for base-safety-stock; retain the user decision to make no stock adjustment.')
+  expect(nextText.includes('Original task turn 3.')).toBe(true)
+  expect(nextText.includes('Keep read-only Consumer scope and preserve user decisions.')).toBe(true)
+  expect(nextText.includes('Keep the original inventory decision')).toBe(true)
+  expect(nextText.includes('你负责基地库存只读查询与解释')).toBe(true)
+  expect(nextText.includes('42')).toBe(true)
+  expect(nextText.includes('MIDDLE_30:')).toBe(false)
+  expect(events.map(event => event.type)).toContain('todo/write')
+  expect(events.filter(event => event.type === 'tool/result').every(event => !event.data.message.isError)).toBe(true)
+  expect(f.network.find(row => row.path === '/ai/gateway/session')?.body.consumerCode).toBe('base-safety-stock')
+  expect(JSON.stringify(await f.query())).toContain('42')
+  const networkBeforeDenial = f.network.length
+  const denied = await f.execute('gea_module_mcp', { consumerCode: 'branch-inventory' })
+  expect(JSON.stringify(denied)).toContain('GEA_CONSUMER_ROUTE_NOT_REGISTERED')
+  expect(f.network).toHaveLength(networkBeforeDenial)
+  await turn(f.ctx, f.agent, 'Continue the same inventory task after pruning without extending Consumer access.')
+  expect(requests.at(-1)?.tools?.map(tool => tool.name)).toContain('todo_write')
+  expect(f.agent.session.snapshotEvents().at(-1)).toMatchObject({ type: 'turn/end', data: { reason: { kind: 'completed' } } })
+  expect(f.agent.session.snapshotEvents()).toContainEqual(original)
+  expect(before.every(event => f.agent.session.snapshotEvents().includes(event))).toBe(true)
+  await record('base-gea-tool-result-prune', {
+    sessionId: f.agent.id,
+    contextWindow,
+    consumer: f.selection.profile!.consumerCode,
+    prunes,
+    originalSeq: original.seq,
+    replacementSeq: replacement.seq,
+    originalChars: originalText.length,
+    replacementChars: replacementText.length,
+    completedTurnsAfterSeed: f.agent.session.snapshotEvents().filter(event => event.type === 'turn/end').length - before.filter(event => event.type === 'turn/end').length,
+    nextStepPruned: JSON.stringify(nextStep.messages).includes('[... tool result middle pruned ...]'),
+    originalHistoryPreserved: before.every(event => f.agent.session.snapshotEvents().includes(event)),
+    denied,
+    deniedTransportRequests: f.network.length - networkBeforeDenial,
+    originalResultDurable: f.agent.session.snapshotEvents().includes(original),
+    summaryReceivedOriginalTask: JSON.stringify(summaryRequest?.messages).includes(originalTask.trim()),
+    nextStepCheckpointPreservedTask: nextText.includes('CHECKPOINT: Explain the 42 inventory rows for base-safety-stock; retain the user decision to make no stock adjustment.'),
+    headKept: replacementText.includes('HEAD_KEEP:'),
+    tailKept: replacementText.includes('TAIL_KEEP:'),
+    todoEvents: events.filter(event => event.type === 'todo/write').length,
+    gatewayConsumers: f.network.filter(row => row.path === '/ai/gateway/session').map(row => row.body.consumerCode)
+  })
+})

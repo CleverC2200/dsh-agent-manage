@@ -1,129 +1,28 @@
-/** Reuses the Skill lane's official InputHub and separate real Host wire adapter. */
-import { expect, it, onTestFinished } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { SessionId } from '@deepseek-ai/dsh-session/types'
-import { TestSessions } from '../../../official-latest-standard/packages/test-support/client-runtime/src/sessions.ts'
-import { InputHub } from '../../../official-latest-standard/packages/client/ui-conversation/src/client/input/hub.ts'
-import { mountNativeResourceSelection, selectResource, type NativeResourceSelection } from 'preset-client-workbench/resource-selection'
+/** Actual Workbench selection and official drafts, with the shared real Host wire. */
+import { expect, it } from 'vitest'
+import { resourceClientFixture } from './resource-client-fixture.js'
 
 it('opens the selected base business Session through Workbench and preserves the existing official draft', async () => {
-  const cwd = await mkdtemp(join(tmpdir(), 'base-entry-client-'))
-  onTestFinished(() => rm(cwd, { recursive: true, force: true }))
-  const client = new Context()
-  const sessions = new TestSessions(async operation => {
-    await operation()
-  }, client)
-  const hub = new InputHub(client, ((key: string) => key) as never)
-  const holds: ReturnType<TestSessions['retain']>[] = []
-  const opened: string[] = []
-  let native: NativeResourceSelection | undefined
-  let receipt: { selection: { preset: string }; sessionId: string; cwd: string; preset: string; consumer: string; queryConsumer: string; tools: string[]; commands: string[] }
   const sessionId = 'base-resource-entry'
-  const presets = {
-    select: async (id: string, preset: string) => {
-      expect(receipt).toMatchObject({ sessionId: id, preset })
-      await sessions.setProjection(id, 'agentPreset', preset)
-      return { ok: true, value: preset }
-    }
-  }
-  const provider = await client.plugin({
-    apply(ctx: Context) {
-      ctx.provide('sessions', sessions)
-      ctx.provide('workspaces', {
-        create: async ({ path }: { path: string }) => {
-          expect(path).toBe(cwd)
-          return { workspaceId: 'base-workspace', path }
-        }
-      })
-      ctx.provide('remote', { agentPresets: presets })
-      ctx.provide('remote.agentPresets', presets)
-      ctx.provide('conversation', { input: hub })
-      ctx.provide('uiWorkspace', {
-        openSession: (id: string) => {
-          holds.push(sessions.retain(id as never))
-          opened.push(id)
-        }
-      })
-    }
+  const preset = 'gea-html-inventory-aqkc'
+  const previousDraft = '基地原任务未发送草稿'
+  const f = await resourceClientFixture({
+    resourceId: preset,
+    workspaceId: 'base-workspace',
+    sessionId,
+    previousDraft,
+    hostTest: 'tests/base-resource-host.test.ts',
+    hostEnv: 'BASE_HOST',
+    evidenceName: 'base-resource-client'
   })
-  const mounting = mountNativeResourceSelection(client, value => {
-    native = value
-  })
-  await mounting
-  onTestFinished(async () => {
-    for (const ref of holds) ref.release()
-    await mounting.dispose()
-    await provider.dispose()
-    await sessions.disposeScopes()
-    await client.fiber.dispose()
-    localStorage.removeItem(`dsh.conversation.${sessionId}`)
-    localStorage.removeItem('dsh.conversation.base-previous-session')
-  })
-  sessions.stubCreate(async options => {
-    expect(options).toEqual({ workspaceId: 'base-workspace' })
-    await sessions.add({ id: receipt.sessionId, summary: { cwd: receipt.cwd } })
-    return SessionId(receipt.sessionId)
-  })
-  native!.fetch = async (_url, options) => {
-    const request = JSON.parse(options!.body as string)
-    expect(request).toEqual({ id: 'gea-html-inventory-aqkc', cwd })
-    const receiptPath = join(cwd, 'host.json')
-    const output = await promisify(execFile)(
-      process.execPath,
-      [resolve('node_modules/vitest/vitest.mjs'), 'run', '--config', 'vitest.preset-integration.config.ts', 'tests/base-resource-host.test.ts'],
-      {
-        cwd: resolve(import.meta.dirname, '..'),
-        env: { ...process.env, BASE_HOST_REQUEST: JSON.stringify({ ...request, sessionId }), BASE_HOST_RECEIPT: receiptPath },
-        timeout: 30_000
-      }
-    )
-    expect(output.stdout).toContain('1 passed')
-    receipt = JSON.parse(await readFile(receiptPath, 'utf8'))
-    return Response.json(receipt.selection)
-  }
-  const previousId = SessionId('base-previous-session')
-  const previousKey = `dsh.conversation.${previousId}`
-  localStorage.setItem(previousKey, JSON.stringify({ draft: { text: '基地原任务未发送草稿', references: [] }, view: 'trajectory', viewRequest: null }))
-  await sessions.add({ id: previousId })
-  const old = sessions.retain(previousId)
-  await old.ready
-  holds.push(old)
-  const previousStored = localStorage.getItem(previousKey)
-  expect(hub.for(old.binding.ctx).state.getSnapshot().draft).toBe('基地原任务未发送草稿')
-  let projection: unknown
-  const result = await selectResource(native!, 'gea-html-inventory-aqkc', new AbortController().signal, cwd, value => {
-    projection = value
-  })
-  expect(result).toEqual({ sessionId, preset: 'gea-html-inventory-aqkc' })
-  expect(projection).toMatchObject({ sessionId, cwd, preset: 'gea-html-inventory-aqkc' })
-  expect(receipt!).toMatchObject({ sessionId, cwd, preset: result.preset, consumer: 'base-safety-stock', queryConsumer: 'base-safety-stock' })
-  expect(receipt!.tools).toContain('subagent')
-  expect(receipt!.commands).toContain('compact')
-  expect(opened).toEqual([sessionId])
-  const selected = holds.at(-1)!
-  await selected.ready
-  expect(hub.for(selected.binding.ctx).state.getSnapshot().draft).toBe('')
-  expect(hub.for(old.binding.ctx).state.getSnapshot().draft).toBe('基地原任务未发送草稿')
-  expect(localStorage.getItem(previousKey)).toBe(previousStored)
-  if (process.env.PRESET_EVIDENCE_DIR)
-    await writeFile(
-      join(process.env.PRESET_EVIDENCE_DIR, 'base-resource-client.json'),
-      JSON.stringify(
-        {
-          receipt: receipt!,
-          opened,
-          projection,
-          selectedDraft: hub.for(selected.binding.ctx).state.getSnapshot().draft,
-          previousDraft: hub.for(old.binding.ctx).state.getSnapshot().draft,
-          previousStoredPreserved: localStorage.getItem(previousKey) === previousStored
-        },
-        null,
-        2
-      ) + '\n'
-    )
+  const observation = await f.select()
+  expect(observation.result).toEqual({ sessionId, preset })
+  expect(observation.projection).toMatchObject({ sessionId, cwd: f.cwd, preset })
+  expect(observation.receipt).toMatchObject({ sessionId, cwd: f.cwd, preset, consumer: 'base-safety-stock', queryConsumer: 'base-safety-stock' })
+  expect(observation.receipt.tools).toContain('subagent')
+  expect(observation.receipt.commands).toContain('compact')
+  expect(observation.opened).toEqual([sessionId])
+  expect(observation.selectedDraft).toBe('')
+  expect(observation.previousDraft).toBe(previousDraft)
+  expect(observation.previousStoredPreserved).toBe(true)
 })

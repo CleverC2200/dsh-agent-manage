@@ -222,11 +222,24 @@ export async function agentOn(ctx: Context, id: string, preset?: string, seed?: 
   ).agent
 }
 
-export async function completion(ctx: Context, contextWindow = 262_144, firstToolStep = false, pause?: Promise<void>) {
+/** Scripted model tool calls still run through the production Agent loop and guards. */
+export interface CompletionToolStep {
+  name: string
+  arguments: Record<string, unknown>
+}
+
+export async function completion(
+  ctx: Context,
+  contextWindow = 262_144,
+  firstToolStep = false,
+  pause?: Promise<void>,
+  scenario?: { tools: readonly CompletionToolStep[]; checkpoint: string }
+) {
   const { LlmAdapter } = await official('@deepseek-ai/dsh-llm')
   const requests: { messages: { content: { type: string; text?: string }[] }[]; tools?: { name: string }[] }[] = []
+  const steps = scenario?.tools ?? (firstToolStep ? [{ name: 'todo_write', arguments: { todos: [{ content: 'Continue original task', status: 'in_progress' }] } }] : [])
   class LocalCompletion extends LlmAdapter {
-    private worked = false
+    private nextTool = 0
     async resolveModel(provider: string, model: string) {
       return { provider, id: model, name: model, context: contextWindow ? { contextWindow } : {} }
     }
@@ -234,17 +247,17 @@ export async function completion(ctx: Context, contextWindow = 262_144, firstToo
       requests.push(options)
       await pause
       const summary = options.messages.at(-1)?.content.some(block => block.text?.includes('acting as a compaction engine'))
-      if (!summary && firstToolStep && !this.worked) {
-        this.worked = true
+      if (!summary && this.nextTool < steps.length) {
+        const tool = steps[this.nextTool++]
         yield { type: 'block-start', index: 0, blockType: 'tool-call' }
         yield {
           type: 'block-end',
           index: 0,
           block: {
             type: 'tool-call',
-            id: 'first-task-step',
-            name: 'todo_write',
-            arguments: JSON.stringify({ todos: [{ content: 'Continue original task', status: 'in_progress' }] })
+            id: scenario ? `scripted-task-step-${this.nextTool}` : 'first-task-step',
+            name: tool.name,
+            arguments: JSON.stringify(tool.arguments)
           }
         }
         yield { type: 'finish', reason: { kind: 'tool-calls' } }
@@ -254,7 +267,12 @@ export async function completion(ctx: Context, contextWindow = 262_144, firstToo
       yield {
         type: 'block-end',
         index: 0,
-        block: { type: 'text', text: summary ? 'CHECKPOINT: preserve original task, read-only Consumer scope and user decisions.' : 'Continued original task from the checkpoint.' }
+        block: {
+          type: 'text',
+          text: summary
+            ? (scenario?.checkpoint ?? 'CHECKPOINT: preserve original task, read-only Consumer scope and user decisions.')
+            : 'Continued original task from the checkpoint.'
+        }
       }
       yield { type: 'finish', reason: { kind: 'stop' } }
     }
@@ -263,7 +281,7 @@ export async function completion(ctx: Context, contextWindow = 262_144, firstToo
   return requests
 }
 
-export async function history(repetitions: number) {
+export async function history(repetitions: number, task = '') {
   const { Session, SessionId } = await official('@deepseek-ai/dsh-session')
   const { createUserMessage, createMessage } = await official('@deepseek-ai/dsh-llm')
   const session = Session.create(SessionId('seed'))
@@ -272,7 +290,7 @@ export async function history(repetitions: number) {
     session.append(
       'user/message',
       createUserMessage({
-        content: [{ type: 'text', text: `Original task turn ${turn}. ${'Keep read-only Consumer scope and preserve user decisions. '.repeat(repetitions)}` }],
+        content: [{ type: 'text', text: `Original task turn ${turn}. ${task}${'Keep read-only Consumer scope and preserve user decisions. '.repeat(repetitions)}` }],
         source: { kind: 'user' }
       }),
       { surfaceOp: 'append' }
