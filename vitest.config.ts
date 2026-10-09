@@ -10,7 +10,10 @@ export default defineConfig({
       'tests/skill-preset-gea.test.ts',
       'tests/skill-preset-client.test.ts',
       'tests/base-preset-client.test.ts',
-      'tests/base-resource-host.test.ts'
+      'tests/base-resource-host.test.ts',
+      'tests/inventory-family-preset.test.ts',
+      'tests/inventory-family-client.test.ts',
+      'tests/inventory-family-host.test.ts'
     ],
     environment: 'node',
     testTimeout: 30_000,
