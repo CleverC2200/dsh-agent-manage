@@ -35,6 +35,12 @@ function source(core, writing) {
   if (Number(process.versions.node.split('.')[0]) !== 24) refuse('SDK_TOOLCHAIN_MISMATCH', `Node ${process.versions.node}; expected 24`)
 }
 
+/** Verify fixed Git source and original lock without requiring or preparing SDK outputs. */
+export function verifyOfficialSource(core) {
+  source(core, false)
+  return { root: realpathSync(core), commit: coreCommit, lockSha256: coreLock, packageManager: 'pnpm@11.7.0' }
+}
+
 function ownedSource(core) {
   const owner = spawnSync('git', ['config', '--local', '--get', 'dsh.sdkPreparation'], { cwd: core, encoding: 'utf8' })
   if (owner.status !== 0 || owner.stdout.trim() !== 'independent-fixed-core')

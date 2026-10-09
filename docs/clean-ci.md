@@ -104,3 +104,17 @@ Existing tgz delivery, prepare/prepack consumption, calculation rules, user stor
 The official Session forecast regression uses the original company forecast suite at commit `374a0ab62eee184d3edb3a99e594836ee685534f`, byte-preserved under `tests/fixtures/company-forecast-original` with source/hash provenance. The original source declares no license file; no license is inferred. These private test-only files are excluded from the published package. Neither the Prompt/Skill nor original source is edited or executed as business instructions. / 官方 Session 预测回归用原公司 suite 的固定字节副本，来源与逐文件哈希保存。原源树未声明许可文件，不推定许可。fixture 仅作私有测试输入，不进入发行资源，也不执行业务指令。
 
 Markdown crash coverage renders the existing frozen real-layout skill corpus through the public MarkdownText interface and asserts no body crashes. It requires actual corpus entries and no longer skips on a personal installed-skill directory. Missing baseline/corpus input remains a failure. / Markdown 崩溃回归通过原公开 interface 渲染既有固定真实布局的 Skill 文本，要求实际语料且所有条目无异常；缺输入保持失败，不再依赖个人安装目录。
+
+## Explicit final group / 显式最终组
+
+Default workflows and write-ci-input retain their fixed compatibility cuts and remote scope. An independently frozen final group may opt in with its original file-byte SHA-256. This declares source input, not compatibility, business authority or release permission. / 默认 workflow、write-ci-input 与远端范围保持；最终组可显式声明原文件字节 hash，仍不证明兼容、业务授权或发行许可。
+
+```sh
+node scripts/run-quality-ci.mjs --phase verify-input --input /absolute/frozen-group.json --final-group-sha256 <original-file-SHA256>
+```
+
+This read-only phase uses the same admission as actual quality, through the adjacent Workbench's shared candidate reader. It verifies exactly three real repository identities, paths, HEADs, full histories, clean sources and committed locks; the fixed actual Core Git/source/original lock/toolchain; and actual CI event SHA. It prints candidate-source-only, with quality/compatibility/runtime not observed. Unknown or missing parameters, changed bytes, duplicate/unknown repositories, realpath collisions and wrong/dirty inputs fail before preparation. / 同一 admission 核真实三仓与 Core 源码，不安装或准备；只读回执不替代完整质量、行为或授权回执。
+
+Cold SDK outputs are not required for source admission. A readable fixed Core Git source is required; when the private Core destination is absent, --core-source can name an existing local fixed Git checkout with no SDK outputs. A URL alone cannot prove an observed Core checkout. The default compatibility URL preparation remains unchanged. / 源码 admission 不要求 SDK 产物；冷私有目录可先只读核本地固定 Git source，默认 URL 准备协议保持。
+
+For the complete gates, keep both --input and --final-group-sha256 and select the original quality/archives/audit phase as appropriate. The byte guard runs again before effects; prepared full candidate verification still requires real SDK and Workbench exports. The SDK owner exposes verifyOfficialSource without preparing anything. Only explicit final-group mode loads the new Workbench interface; the older default fixed peer does not need that export. / 完整门禁仍用原 phases，并在效果前复核原字节，准备后仍核真实 SDK/导出；仅显式模式要求新的 Workbench interface，不改默认 peer 指针。
