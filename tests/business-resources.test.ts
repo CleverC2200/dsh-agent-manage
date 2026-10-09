@@ -3,10 +3,18 @@ import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { load, dump } from 'js-yaml'
+import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import type { SkillProvider, SkillProviderControl, SkillLookupOptions } from '@deepseek-ai/dsh-skill'
 type NativeHost = ConstructorParameters<typeof BusinessResources>[0]
 type Definition = Parameters<NativeHost['agentPresets']['register']>[0]
 import { BusinessResources } from '../src/runtime/business-resources.js'
+async function readStandardDocument() {
+  const patch = load(await readFile(new URL('../../../official-latest-standard/packages/bundle/web-app/presets/standard.patch.yml', import.meta.url), 'utf8'), {
+    schema: entryListSchema
+  }) as { insert: { config: { plugins: unknown[] } }[] }[]
+  return { id: 'standard', content: dump(patch[0].insert[0].config.plugins, { schema: entryListSchema }) }
+}
 const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
@@ -29,6 +37,7 @@ it('isolates malformed Skill metadata within one provider and applies the same f
       }
     },
     agentPresets: {
+      readDocument: readStandardDocument,
       async register() {
         return async () => {}
       },
@@ -78,6 +87,7 @@ it('lists installed prompt metadata before reading the selected original persona
       }
     },
     agentPresets: {
+      readDocument: readStandardDocument,
       async resolve(id: string) {
         return { id }
       },
@@ -127,6 +137,7 @@ it('refuses disabled resources and cleans partial registration on cancellation w
       }
     },
     agentPresets: {
+      readDocument: readStandardDocument,
       async register() {
         controller.abort()
         return async () => {
@@ -173,6 +184,7 @@ it('loads a packaged Skill verbatim, rejects symlink escapes and withdraws an un
       }
     },
     agentPresets: {
+      readDocument: readStandardDocument,
       async register() {
         return async () => {}
       },
@@ -266,6 +278,7 @@ it('selects the restored regional resource through the original Skill provider a
       }
     },
     agentPresets: {
+      readDocument: readStandardDocument,
       async resolve(id: string) {
         return { id }
       },
@@ -331,6 +344,7 @@ it('selects the retained category prototype resource and keeps its Skill contrib
       }
     },
     agentPresets: {
+      readDocument: readStandardDocument,
       async resolve(id: string) {
         return { id }
       },
@@ -392,6 +406,7 @@ async function releaseFixture() {
       }
     },
     agentPresets: {
+      readDocument: readStandardDocument,
       async register(definition: Definition) {
         if (mounted.has(definition.id)) throw Error('HOST_PRESET_ALREADY_MOUNTED')
         mounted.set(definition.id, definition)

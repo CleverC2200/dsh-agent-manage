@@ -8,6 +8,7 @@ import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import { parseSkillFrontmatter, stripFrontmatter } from '../catalog/skills-parse.js'
 import { parseFrontmatterRecord } from './user-store.js'
 import { readSkillHeader } from '../catalog/skill-files.js'
+import { composeStandardPreset } from './standard-preset.js'
 
 export interface ExecutionProfile {
   label: string
@@ -33,6 +34,7 @@ export interface BusinessResourceDefinition {
 export interface ResourceSummary {
   id: string
   label: string
+  description?: string
   kind: 'prompt' | 'skill'
   installed: boolean
   enabled: boolean
@@ -193,7 +195,15 @@ export class BusinessResources {
       ...prompts,
       ...skills
         .filter(skill => skill.invocation.userInvocable)
-        .map(skill => ({ id: `skill:${skill.name}`, label: skill.name, kind: 'skill' as const, installed: true, enabled: true, provider: skill.provider }))
+        .map(skill => ({
+          id: `skill:${skill.name}`,
+          label: skill.name,
+          description: skill.description,
+          kind: 'skill' as const,
+          installed: true,
+          enabled: true,
+          provider: skill.provider
+        }))
     ]
   }
   async select(id: string, signal: AbortSignal, cwd?: string): Promise<ResourceSelection> {
@@ -256,7 +266,13 @@ export class BusinessResources {
   }
   private async mountSkillPreset(): Promise<void> {
     if (this.mounted.has(SKILL_PRESET)) return
-    const dispose = await this.ctx.agentPresets.register({ id: SKILL_PRESET, name: 'Skill', plugins: [{ id: 'skill', name: '@deepseek-ai/dsh-tool-skill' }] })
+    const dispose = await this.ctx.agentPresets.register(
+      await composeStandardPreset(this.ctx.agentPresets, {
+        id: SKILL_PRESET,
+        name: 'Skill',
+        description: '使用所选 Skill 开始新任务，保留完整标准工具、上下文压缩与协作能力。'
+      })
+    )
     this.mounted.set(SKILL_PRESET, dispose)
     if (this.closed) {
       await this.unmount(SKILL_PRESET)
