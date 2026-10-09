@@ -25,6 +25,7 @@ export default defineConfig({
   test: {
     include: [
       'tests/standard-preset-draft.test.ts',
+      'tests/preset-catalog-client.test.ts',
       'tests/skill-preset-client.test.ts',
       'tests/base-preset-client.test.ts',
       'tests/sales-preset-client.test.ts',

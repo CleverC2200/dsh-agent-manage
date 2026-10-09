@@ -1,7 +1,7 @@
 // @vitest-environment node
 /** Actual GEA hooks on the production Session; business identity is an offline adapter. */
 import { expect, it, onTestFinished } from 'vitest'
-import { agentOn, completion, history, presetHarness, record, turn } from './core-preset-harness.js'
+import { agentOn, completion, history, official, presetHarness, record, turn } from './core-preset-harness.js'
 
 it('keeps general Session tools across the GEA hooks and rejects unprofiled business execution', async () => {
   const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
@@ -254,4 +254,67 @@ it('keeps standard tools after the independent evidence read allowance is exhaus
   expect(assembled.tools.map(row => row.name)).not.toContain('gea_evidence_read')
   expect(assembled.sections.find(row => row.name === 'gea:budget')?.text).toContain('通用文件、规划、任务和协作能力仍按官方规则可用')
   await record('base-evidence-budget-general', { tools: assembled.tools.map(row => row.name), budget: assembled.sections.find(row => row.name === 'gea:budget') })
+})
+
+it('preserves the enabled official Web Host orientation and standard runtime context through business assembly', async () => {
+  const { baseInventoryHarness } = await import('./base-inventory-harness.js')
+  const f = await baseInventoryHarness()
+  await completion(f.ctx)
+  const webServer = await official('@deepseek-ai/dsh-host-webserver')
+  await f.ctx.plugin(webServer.default ?? webServer, { host: '127.0.0.1', port: 0 }).await()
+  await f.ctx.plugin(await official('@deepseek-ai/dsh-web-app'), { openBrowser: false, printUrl: false, surfaceContext: true, trustedHosts: [] }).await()
+  f.ctx.effect(() => f.ctx.systemPrompt.section({ name: 'genui:fence', text: 'Controlled optional GenUI section provider; original instructions' }))
+  const reference = await agentOn(f.ctx, 'host-orientation-reference', 'standard')
+  const standard = await f.ctx.systemPrompt.assemble({ scope: reference, agent: reference } as never)
+  const business = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
+  const web = standard.sections.find(row => row.name === 'app:web-surface')
+  expect(web?.text).toContain('DeepSeek Harness')
+  expect(business.sections.find(row => row.name === 'app:web-surface')).toEqual(web)
+  for (const row of standard.sections) {
+    const observed = business.sections.find(section => section.name === row.name)
+    if (row.name === 'genui:fence') {
+      expect(observed?.text).toContain('dsh-ui')
+      expect(observed?.text).toContain('render_ui 是工具行卡片通道，仅在本步实际工具清单提供时调用')
+      expect(observed?.text).toContain('简单事实或明确纯文字请求使用文字')
+      expect(row.text).toContain('Controlled optional GenUI')
+    } else if (row.name === 'deployment:persona-prefix') expect(observed?.text).toContain(row.text)
+    else expect(observed).toEqual(row)
+  }
+  expect(JSON.stringify(business.sections)).toContain('Your working directory is')
+  expect(business.sections.find(row => row.name === 'gea:facts')?.text).toContain('base-safety-stock')
+  await record('business-runtime-context', {
+    officialSections: standard.sections,
+    businessSections: business.sections,
+    webProvider: '@deepseek-ai/dsh-web-app',
+    surfaceContext: true,
+    optionalGenUI: 'controlled public section provider passes real Core assembly and GEA hook; upstream not installed in fixture'
+  })
+})
+
+it('projects every company resource into one described registry catalog without duplicate identities', async () => {
+  const { baseInventoryHarness } = await import('./base-inventory-harness.js')
+  const { inventoryRoleInput } = await import('./inventory-family-harness.js')
+  const { inventoryRoles } = await import('./inventory-family-cases.js')
+  const { salesRoleInput, salesRoles } = await import('./sales-role-input.js')
+  const f = await baseInventoryHarness()
+  const inventory = await Promise.all(inventoryRoles.map(inventoryRoleInput))
+  const sales = await Promise.all(salesRoles.map(role => salesRoleInput(role.id)))
+  const definitions = [...inventory.map(row => row.resource), ...sales.flatMap(row => [row.resource!, ...(row.additionalResources ?? [])])]
+  const release = await f.resources.register(definitions)
+  onTestFinished(release)
+  const expected = ['gea-html-inventory-aqkc', ...definitions.filter(row => row.prompt).map(row => row.id)]
+  for (const id of expected) await f.resources.select(id, new AbortController().signal, f.home)
+  await f.resources.select('skill:inventory-aqkc', new AbortController().signal, f.home)
+  const catalog = await f.ctx.agentPresets.list()
+  const resources = await f.resources.list({ cwd: f.home })
+  expect(new Set(catalog.map(row => row.id)).size).toBe(catalog.length)
+  expect(catalog.map(row => row.id)).toEqual(expect.arrayContaining(['standard', 'minimal', 'ptc', 'cordis', 'auto-negotiation', 'agent-resource-skill', ...expected]))
+  for (const id of expected) {
+    const summary = resources.find(row => row.id === id)!
+    const preset = catalog.find(row => row.id === id)!
+    expect(summary.description).toBeTruthy()
+    expect(preset).toMatchObject({ name: summary.label, description: summary.description })
+  }
+  expect(catalog.find(row => row.id === 'agent-resource-skill')).toMatchObject({ name: 'Skill', description: expect.any(String) })
+  await record('company-catalog', { catalog, resources, source: 'actual package resources and public registry; official locale supplies built-in labels' })
 })

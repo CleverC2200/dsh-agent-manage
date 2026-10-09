@@ -14,7 +14,7 @@ it('publishes the original intelligent orchestration identity beside all officia
     description: '通用任务的完整官方标准能力，支持上下文压缩、规划、任务和协作。',
     order: 0
   })
-  expect((await ctx.agentPresets.list()).map(row => row.id)).toEqual(expect.arrayContaining(['standard', 'minimal', 'ptc']))
+  expect((await ctx.agentPresets.list()).map(row => row.id)).toEqual(expect.arrayContaining(['standard', 'minimal', 'ptc', 'cordis']))
 })
 
 it('keeps the final official standard tools, commands and compaction provider in a real Session', async () => {
@@ -213,4 +213,49 @@ it('rejects a conflicting business tool nested in a new isolated group', async (
       { plugins: [{ id: 'company-group', name: 'cordis:group', group: true, config: [{ id: 'duplicate-tool', name: '@deepseek-ai/dsh-tool-fs' }] }] }
     )
   ).rejects.toThrow('STANDARD_PRESET_PLUGIN_CONFLICT: duplicate-tool')
+})
+
+it('keeps the four official modes and their disabled or conditional providers', async () => {
+  const { ctx } = await presetHarness()
+  await completion(ctx)
+  const standard = await agentOn(ctx, 'mode-standard', 'standard')
+  const minimal = await agentOn(ctx, 'mode-minimal', 'minimal')
+  const ptc = await agentOn(ctx, 'mode-ptc', 'ptc')
+  const creative = await agentOn(ctx, 'mode-creative', 'cordis')
+  const tools = (agent: typeof standard) =>
+    ctx.tools
+      .schemas(agent)
+      .map(row => row.name)
+      .sort()
+  expect(tools(standard)).toContain('workflow')
+  expect(tools(ptc)).not.toContain('workflow')
+  expect(tools(creative)).toEqual(expect.arrayContaining(['workflow', 'cordis_inspect_list', 'cordis_inspect_query']))
+  expect(tools(creative)).toContain('present')
+  expect(tools(creative)).toContain('plugin_manager')
+  expect(tools(standard)).not.toContain('plugin_manager')
+  expect(tools(ptc)).not.toContain('plugin_manager')
+  const inspect = await ctx.tools.execute({ callId: 'creator-inspect' as never, name: 'cordis_inspect_list', arguments: {}, agent: creative, signal: new AbortController().signal })
+  expect(inspect.isError).toBe(false)
+  expect(tools(minimal)).toHaveLength(1)
+  expect(tools(minimal)[0]).toMatch(/bash|pwsh/)
+  expect(ctx.commands.list(minimal)).toEqual([])
+  expect(ctx.commands.list(creative).map(row => row.name)).toContain('compact')
+  for (const agent of [standard, ptc, creative]) {
+    expect(tools(agent)).not.toContain('subagent_codex')
+    expect(tools(agent)).not.toContain('subagent_claude_code')
+    expect(tools(agent)).not.toContain('ralph')
+    expect(ctx.agentPresets.serviceFor(agent, 'compaction')?.constructor.name).toBe('BasicCompactionEngine')
+  }
+  const catalog = await ctx.agentPresets.list()
+  expect(new Set(catalog.map(row => row.id)).size).toBe(catalog.length)
+  expect(catalog.find(row => row.id === 'auto-negotiation')?.description).toBeTruthy()
+  await record('official-mode-differences', {
+    catalog,
+    standard: tools(standard),
+    minimal: tools(minimal),
+    ptc: tools(ptc),
+    creative: tools(creative),
+    inspect,
+    optionalProviders: 'Codex, Claude Code and Ralph remain disabled; plugin-manager remains disabled in standard/PTC and conditional on profileContext in Creator'
+  })
 })

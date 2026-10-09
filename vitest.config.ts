@@ -6,6 +6,7 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     exclude: [
       'tests/standard-preset-draft.test.ts',
+      'tests/preset-catalog-client.test.ts',
       'tests/standard-preset-gea.test.ts',
       'tests/skill-preset-gea.test.ts',
       'tests/skill-preset-client.test.ts',
