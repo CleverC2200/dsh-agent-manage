@@ -1,38 +1,17 @@
-name: CodeQL
+name: CodeQL coverage unavailable
 
+# Current private repository has no enabled code-scanning service. This
+# workflow records that gap; it is not a successful analysis or upload.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  schedule:
-    - cron: '30 2 * * 1'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
+  not-covered:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [javascript-typescript]
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: ${{ matrix.language }}
-
-      - name: Analyze code
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: '/language:${{ matrix.language }}'
+      - run: |
+          echo 'CODEQL_NOT_COVERED: code scanning upload is unavailable for this private repository; see docs/clean-ci.md and the original failure receipt'
+          exit 1

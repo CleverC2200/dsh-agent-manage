@@ -8,6 +8,8 @@ From the isolated project root, read `docs/agents/current-development.md` and it
 
 The package manager, engines, commands and exports are declared in [package.json](../package.json). The [lock](../pnpm-lock.yaml), [workspace build permissions](../pnpm-workspace.yaml) and [official type paths](../tsconfig.official-paths.json) own reproducible inputs. Before frozen installation, prepare the registered official SDK at the relative paths declared there. Installation alone does not create those SDK outputs. / 工具链、命令与导出由 package 声明，锁、workspace 构建许可和官方类型路径负责可复现输入。冻结安装前准备声明路径中的固定官方 SDK；安装本仓不等于 SDK 已生成。
 
+Use [clean SDK/CI preparation](clean-ci.md) for the public preparation and frozen group interface. / 公开准备与冻结组合入口见 clean SDK/CI 说明。
+
 Use `corepack pnpm install --frozen-lockfile --ignore-scripts` after validating the input. This avoids the package's implicit prepare build; explicit checks/build run only when their inputs are ready. `prepare` and `prepack` keep the existing installation/package behavior. / 核输入后冻结安装并关闭隐式脚本，输入就绪后显式检查和构建；既有 prepare/prepack 的安装与打包行为保持。
 
 Set `DSH_WORKBENCH_CHECKOUT` to the registered Workbench checkout when it is not the sibling directory; the wrapper only invokes its shared developer CLI. / Workbench 不在同级时，DSH_WORKBENCH_CHECKOUT 指定已登记 checkout；本仓 wrapper 只调用共享开发期 CLI。
