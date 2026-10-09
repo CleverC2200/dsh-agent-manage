@@ -8,7 +8,17 @@ const persistent = process.env.PRESET_EVIDENCE_DIR
 const evidence = persistent ? resolve(persistent) : mkdtempSync(join(tmpdir(), 'preset-quality-'))
 mkdirSync(evidence, { recursive: true })
 const phases = [
-  ['standard-skill', ['tests/standard-preset.test.ts', 'tests/skill-preset.test.ts', 'tests/manage-cold-boot.test.ts', 'tests/manage-settings.test.ts']],
+  [
+    'standard-skill',
+    [
+      'tests/standard-preset.test.ts',
+      'tests/skill-preset.test.ts',
+      'tests/manage-cold-boot.test.ts',
+      'tests/manage-settings.test.ts',
+      'tests/bundled-sales-skills.test.ts',
+      'tests/manage-bundle-default.test.ts'
+    ]
+  ],
   ['client', ['--config', 'vitest.preset-client.config.ts']],
   ['gea', ['--config', 'vitest.preset-integration.config.ts']]
 ]

@@ -20,3 +20,11 @@
 历史 release-please/npm、公司发行和旧工程计划保留为上游或历史资料；阅读它们不授予发布、上传或桌面运行权限。涉及后续发行时先核该任务的确切目标与有效授权，再按适用发行规则操作。
 
 `CLAUDE.md` 链接本文件；修改本文件即可。
+
+## 规则与执行机制
+
+| 规则 | 执行机制 |
+| --- | --- |
+| 普通空 Home 必须发现原销售 Skill 及其完整引用资产；新任务默认智能编排并保留用户显式选择 | `check:capabilities` 的 standard-skill lane 运行 `bundled-sales-skills.test.ts` 和 `manage-bundle-default.test.ts`；已有 quality workflow 同时运行 `check:refactor` 和 `test` |
+
+该检查证明受控源码行为。实际三包安装及官方 Loader 接收仍由 GEA 的普通交付接收入口负责，不能用离线通过替代。
