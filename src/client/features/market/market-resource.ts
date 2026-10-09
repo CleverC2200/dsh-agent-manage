@@ -14,29 +14,45 @@ const EMPTY_OVERVIEW: OverviewData = { sources: [], suites: [], totals: { all: 0
 let cachedOverview: OverviewData | undefined
 let inflightOverview: Promise<OverviewData> | undefined
 
-/** Load the last overview immediately and revalidate one shared request. */
-/** 中文：优先返回缓存快照，同时共享一次重新校验请求。 */
-export function loadOverview(): { initial: OverviewData; revalidating: boolean; promise: Promise<OverviewData> } {
-  /** 返回可立即渲染的缓存，并共享同一个正在进行的概览请求。 */
-  const initial = cachedOverview ?? EMPTY_OVERVIEW
-  if (inflightOverview === undefined) {
-    inflightOverview = fetchOverview()
-      .then(data => {
-        cachedOverview = data
-        return data
-      })
-      .finally(() => {
-        inflightOverview = undefined
-      })
-  }
-  return { initial, revalidating: cachedOverview === undefined, promise: inflightOverview }
+/** Read cached UI state without starting I/O during render. */
+/** 中文：只读缓存快照，渲染阶段不发起请求。 */
+export function readOverview(): { initial: OverviewData; revalidating: boolean } {
+  return { initial: cachedOverview ?? EMPTY_OVERVIEW, revalidating: cachedOverview === undefined }
 }
 
-/** Invalidate the shared overview after a mutating action. */
-/** 中文：新增、删除或修改来源后清空共享概览缓存。 */
+let generation = 0
+
+/** Share one request per generation; obsolete callers follow the latest request. */
+/** 中文：每代共享一次请求，失效前的调用者等待最新结果。 */
+export function loadOverview(): { initial: OverviewData; revalidating: boolean; promise: Promise<OverviewData> } {
+  if (inflightOverview === undefined) {
+    const requestGeneration = generation
+    const request = fetchOverview()
+      .then(
+        data => {
+          if (requestGeneration !== generation) return cachedOverview ?? loadOverview().promise
+          cachedOverview = data
+          return data
+        },
+        error => {
+          if (requestGeneration !== generation) return cachedOverview ?? loadOverview().promise
+          throw error
+        }
+      )
+      .finally(() => {
+        if (inflightOverview === request) inflightOverview = undefined
+      })
+    inflightOverview = request
+  }
+  return { ...readOverview(), promise: inflightOverview }
+}
+
+/** Invalidate both the cache and ownership of an older in-flight request. */
+/** 中文：同时失效缓存和旧请求的结果归属。 */
 export function invalidateOverview(): void {
-  /** 清除概览缓存，使下一次加载重新向服务端校验数据源和套件。 */
+  generation++
   cachedOverview = undefined
+  inflightOverview = undefined
 }
 
 /**

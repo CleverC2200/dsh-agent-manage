@@ -136,20 +136,23 @@ export class BusinessResources {
       }
     let released = false
     return async () => {
-      if (released) return
-      released = true
       owner.abort()
-      await this.pending.catch(() => {})
-      for (const id of ids)
-        if (this.entries.get(id)?.owner === owner) {
-          this.entries.delete(id)
-          const dispose = this.mounted.get(id)
-          this.mounted.delete(id)
-          await dispose?.()
+      await this.serialize(async () => {
+        if (released) return
+        try {
+          for (const id of ids)
+            if (this.entries.get(id)?.owner === owner) {
+              await this.unmount(id)
+              this.entries.delete(id)
+            }
+          released = true
+        } finally {
+          this.control?.invalidate()
         }
-      this.control?.invalidate()
+      })
     }
   }
+
   /** Only a selected, validated original profile can contribute extra page interpreters. */
   interpreters(id: string): readonly string[] {
     const entry = this.entries.get(id)
@@ -167,14 +170,14 @@ export class BusinessResources {
     const available = new Set(skills.map(skill => skill.name))
     const prompts: ResourceSummary[] = [...this.entries.values()]
       .filter(entry => entry.definition.prompt)
-      .map(({ definition: d, error, interpreters }) => {
+      .map(({ definition: d, error, interpreters, owner }) => {
         const missingSkills = d.profile.skills.filter(name => !available.has(name))
         return {
           id: d.id,
           label: d.label,
           kind: 'prompt',
           installed: true,
-          enabled: d.enabled !== false && !error,
+          enabled: d.enabled !== false && !error && !owner.signal.aborted,
           provider: 'package',
           skills: [...d.profile.skills],
           ...(interpreters
@@ -233,11 +236,7 @@ export class BusinessResources {
         }
       } catch (error) {
         if (!wasSelected && this.selected.delete(preset)) await this.persist()
-        if (!wasMounted && !this.selected.has(preset)) {
-          const dispose = this.mounted.get(preset)
-          this.mounted.delete(preset)
-          await dispose?.()
-        }
+        if (!wasMounted && !this.selected.has(preset) && (preset === SKILL_PRESET || this.versions.has(preset))) await this.unmount(preset)
         throw error
       }
     })
@@ -256,11 +255,11 @@ export class BusinessResources {
   private async mountSkillPreset(): Promise<void> {
     if (this.mounted.has(SKILL_PRESET)) return
     const dispose = await this.ctx.agentPresets.register({ id: SKILL_PRESET, name: 'Skill', plugins: [{ id: 'skill', name: '@deepseek-ai/dsh-tool-skill' }] })
+    this.mounted.set(SKILL_PRESET, dispose)
     if (this.closed) {
-      await dispose()
+      await this.unmount(SKILL_PRESET)
       throw Error('AGENT_RESOURCES_DISPOSED')
     }
-    this.mounted.set(SKILL_PRESET, dispose)
   }
   private async mountPrompt(id: string, signal: AbortSignal): Promise<void> {
     const entry = this.entries.get(id)
@@ -328,12 +327,7 @@ export class BusinessResources {
       throw Error('INVALID_AGENT_RESOURCE_IDENTITY')
     const version = createHash('sha256').update(JSON.stringify(profile)).digest('hex')
     if (this.mounted.has(id) && this.versions.get(id) === version) return
-    const previous = this.mounted.get(id)
-    if (previous) {
-      this.mounted.delete(id)
-      this.versions.delete(id)
-      await previous()
-    }
+    await this.unmount(id)
     const dispose = await this.ctx.agentPresets.register({
       id,
       name: d.label,
@@ -343,18 +337,19 @@ export class BusinessResources {
         ...(d.plugins ?? [])
       ]
     })
+    this.mounted.set(id, dispose)
     try {
       signal.throwIfAborted()
       if (this.closed || this.entries.get(id) !== entry) throw Error('AGENT_RESOURCE_OWNER_CHANGED')
       const resolved = await this.ctx.agentPresets.resolve(id)
       if (resolved.broken) throw Error(resolved.broken)
       signal.throwIfAborted()
-      this.mounted.set(id, dispose)
       this.versions.set(id, version)
       entry.interpreters = interpreters as string[] | undefined
       delete entry.error
     } catch (error) {
-      await dispose()
+      entry.error = String(error)
+      await this.unmount(id)
       throw error
     }
   }
@@ -413,15 +408,31 @@ export class BusinessResources {
       return undefined
     }
   }
+  /** Retain the disposer and resource owner until Core confirms release. */
+  private async unmount(id: string): Promise<void> {
+    const dispose = this.mounted.get(id)
+    if (!dispose) return
+    this.versions.delete(id)
+    try {
+      await dispose()
+      this.mounted.delete(id)
+    } catch (error) {
+      const entry = this.entries.get(id)
+      if (entry) entry.error = String(error)
+      this.control?.invalidate()
+      throw error
+    }
+  }
   async dispose(): Promise<void> {
-    this.closed = true
-    this.lifetime.abort()
-    for (const entry of this.entries.values()) entry.owner.abort()
-    this.unregisterProvider()
-    await this.pending.catch(() => {})
-    for (const dispose of this.mounted.values()) await dispose()
-    this.mounted.clear()
-    this.versions.clear()
-    this.entries.clear()
+    if (!this.closed) {
+      this.closed = true
+      this.lifetime.abort()
+      for (const entry of this.entries.values()) entry.owner.abort()
+      this.unregisterProvider()
+    }
+    await this.serialize(async () => {
+      for (const id of this.mounted.keys()) await this.unmount(id)
+      this.entries.clear()
+    })
   }
 }
