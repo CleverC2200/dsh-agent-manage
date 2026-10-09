@@ -6,7 +6,7 @@ Manage registers the original `auto-negotiation` identity (智能编排) beside 
 
 Optional `personaPrefix` appends company instructions to the original persona prefix and retains its suffix and runtime context. Optional `plugins` appends additional rows; conflicts are checked recursively. Group containers may repeat, while their plugin names and entry IDs must remain distinct. Callers own `agentPresets.register(definition)` and its disposal function. Existing mounted Sessions retain their registry revision.
 
-The deployment default is provided by the official `agent-preset-registry.config.default`. A user's official settings selection (`selectedDefault`) retains precedence. Changing it affects new Sessions and does not rewrite an existing Session or browser draft.
+The ordinary Manage bundle sets the official `agent-preset-registry.config.default` to `auto-negotiation`. Bundle removal withdraws this layer and exposes Core’s `standard` default. This scope is the official bundle switch, not an independently disabled low-level Host entry. A user's official settings selection (`selectedDefault`) retains precedence. Changing it affects new Sessions and does not rewrite an existing Session or browser draft. A saved explicit choice remains unchanged when the bundle is removed; choosing a now-absent company preset produces Core’s existing missing-preset diagnostic.
 
 Verification uses the fixed Core production Loader, registry, Session, commands, compaction and JSONL persistence with temporary profiles and a local completion adapter. The official InputHub runs in its own client source process; a separate production Host process supplies the actual settings-save and restart receipt. This keeps both Core module graphs internally consistent.
 

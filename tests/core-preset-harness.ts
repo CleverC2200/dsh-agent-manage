@@ -44,6 +44,10 @@ export async function official(name: string) {
 }
 
 export interface PresetHarnessOptions {
+  /** Read the ordinary Manage bundle patch or omit company plugins entirely. */
+  companyBundle?: 'manage' | 'absent'
+  /** Existing user UI preference; null means a genuinely fresh profile. */
+  selectedDefault?: string | null
   /** Full production Manage entry; the default keeps existing preset tests narrow. */
   fullManage?: boolean
   /** Ordinary shipped config is passed through the real Loader Config parser. */
@@ -60,7 +64,7 @@ export interface PresetHarnessOptions {
 
 export async function presetHarness(options: PresetHarnessOptions = {}) {
   const home = await realpath(options.home ?? (await mkdtemp(join(tmpdir(), 'company-preset-'))))
-  const manage = options.fullManage ? await import('../src/index.js') : undefined
+  const manage = options.fullManage || options.companyBundle === 'manage' ? await import('../src/index.js') : undefined
   const dir = join(home, 'profiles', 'test')
   const { boot, initProfile, readProfilePatches } = await official('@deepseek-ai/dsh-app-boot')
   initProfile(dir, ['test-bundle'])
@@ -124,25 +128,41 @@ export async function presetHarness(options: PresetHarnessOptions = {}) {
       if (row.id === 'session-persistence-jsonl') return { ...row, config: { root: join(home, 'sessions') } }
       return row
     })
-  const webBase = load(await readFile(join(core, 'packages/bundle/web-app/cordis.patch.yml'), 'utf8'), { schema: entryListSchema }) as { insert?: { id: string }[] }[]
+  const webBase = load(await readFile(join(core, 'packages/bundle/web-app/cordis.patch.yml'), 'utf8'), { schema: entryListSchema }) as {
+    insert?: { id: string; config?: Record<string, unknown> }[]
+  }[]
   const webProviders = new Set(['workspace', 'file-upload', 'session-controller', 'schedule', 'cordis-host-runner', 'cordis-inspect-providers'])
   entries.push(...(webBase.flatMap(patch => patch.insert ?? []).filter(row => webProviders.has(row.id)) as never[]))
   entries.push({ id: 'connection', name: '@deepseek-ai/dsh-client-connection', config: { trustedHosts: [] } } as never)
-  entries.push({ id: 'agent-preset-registry', name: '@deepseek-ai/dsh-agent-preset-registry', config: { default: 'auto-negotiation' } } as never)
+  const officialRegistry = webBase.flatMap(patch => patch.insert ?? []).find(row => row.id === 'agent-preset-registry')!
+  entries.push(
+    (options.companyBundle === undefined
+      ? { id: 'agent-preset-registry', name: '@deepseek-ai/dsh-agent-preset-registry', config: { default: 'auto-negotiation' } }
+      : officialRegistry) as never
+  )
   entries.push({ id: 'subagent-model-selection-settings', name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings' } as never)
   for (const id of ['standard', 'minimal', 'ptc', 'cordis']) {
     const rows = load(await readFile(join(core, `packages/bundle/web-app/presets/${id}.patch.yml`), 'utf8'), { schema: entryListSchema }) as { insert: never[] }[]
     entries.push(...rows[0].insert)
   }
-  if (options.fullManage) entries.push({ id: 'dsh-agent-manage', name: 'cordis:company-manage', config: { geaMcp: false, sources: [], ...options.manageConfig } } as never)
-  else if (process.env.PRESET_RED_BASELINE !== '1') entries.push({ id: 'company-presets', name: 'cordis:company-presets' } as never)
+  if (options.companyBundle === undefined) {
+    if (options.fullManage) entries.push({ id: 'dsh-agent-manage', name: 'cordis:company-manage', config: { geaMcp: false, sources: [], ...options.manageConfig } } as never)
+    else if (process.env.PRESET_RED_BASELINE !== '1') entries.push({ id: 'company-presets', name: 'cordis:company-presets' } as never)
+  }
   const { dump } = await import('js-yaml')
-  await writeFile(join(bundle, 'cordis.patch.yml'), dump([{ insert: entries }], { schema: entryListSchema }))
+  const managePatch =
+    options.companyBundle === 'manage' ? (load(await readFile(resolve(import.meta.dirname, '../cordis.patch.yml'), 'utf8'), { schema: entryListSchema }) as unknown[]) : []
+  await writeFile(join(bundle, 'cordis.patch.yml'), dump([{ insert: entries }, ...managePatch], { schema: entryListSchema }))
   await writeFile(join(dir, 'cordis.yml'), '[]\n')
   await writeFile(
     join(dir, 'cordis.patch.yml'),
     JSON.stringify([
-      { id: 'agent-preset-registry', config: { default: 'auto-negotiation', selectedDefault: 'minimal' } },
+      ...(options.companyBundle === undefined
+        ? [{ id: 'agent-preset-registry', config: { default: 'auto-negotiation', selectedDefault: 'minimal' } }]
+        : options.selectedDefault
+          ? [{ id: 'agent-preset-registry', config: { ...officialRegistry.config, selectedDefault: options.selectedDefault } }]
+          : []),
+      ...(options.companyBundle === 'manage' ? [{ id: 'dsh-agent-manage', config: { geaMcp: false, sources: [], ...options.manageConfig } }] : []),
       { id: 'agent-default-model', config: { provider: 'local', model: 'preserved' } }
     ])
   )
@@ -194,7 +214,10 @@ export async function presetHarness(options: PresetHarnessOptions = {}) {
       } as never)
       runtime.loader.builtins['company-presets'] = company
       if (manage) runtime.loader.builtins['company-manage'] = manage
-      runtime.loader.internal = { version: 'v2', import: (name: string) => (options.importModule ? options.importModule(name, runtime) : official(name)) } as never
+      runtime.loader.internal = {
+        version: 'v2',
+        import: (name: string) => (name === 'dsh-agent-manage' && manage ? Promise.resolve(manage) : options.importModule ? options.importModule(name, runtime) : official(name))
+      } as never
     })
     await resourcesReady
     return ctx
