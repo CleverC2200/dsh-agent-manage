@@ -19,3 +19,5 @@ Manage 已解析 Skill 后，GEA 又解析一次，多行 YAML 说明得到不�
 ## Consequences
 
 GEA 直接消费解析结果。失败可能阻止重新挂载，直到清理成功或隔离进程重启；不自动绕过归属。本记录描述隔离项目的本地实现，不代表生产发布。
+
+[异步结果与释放归属](../bug-fix/2026-10-09-async-result-ownership.zh.md)把此规则扩展到 `BusinessResources` 的 Core preset 释放；本记录的文件清理与元数据决定不变。

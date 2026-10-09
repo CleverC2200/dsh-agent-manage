@@ -48,6 +48,7 @@ vi.mock('../src/client/api.js', () => ({
 }))
 
 vi.mock('../src/client/features/market/market-resource.js', () => ({
+  readOverview: vi.fn(() => ({ initial: overviewPayload, revalidating: false })),
   loadOverview: vi.fn(() => ({
     initial: overviewPayload,
     revalidating: false,

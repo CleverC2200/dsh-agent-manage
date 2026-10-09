@@ -9,10 +9,10 @@
  * 文件作用：渲染 Agent Plugins 市场主面板。
  * 业务职责：加载源与套件总览，协调搜索/筛选/安装/卸载/刷新等动作，并把宿主进度和确认状态映射为用户可操作的界面。
  */
-import { createElement as h, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createElement as h, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, Modal, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
 import { postAction, type OverviewData, type SuiteCardData } from './api.js'
-import { loadOverview, invalidateOverview, startSourceProgressPolling, type SourceProgressState } from './features/market/market-resource.js'
+import { readOverview, loadOverview, invalidateOverview, startSourceProgressPolling, type SourceProgressState } from './features/market/market-resource.js'
 import { deriveMarketViewModel, type MarketCategory, type MarketFilter } from './features/market/market-view-model.js'
 import { SourceTabsRow, type SourceTabItem } from './features/market/SourceTabsRow.js'
 import { SourceEditorModal, type EditorState } from './features/market/SourceEditorModal.js'
@@ -71,8 +71,8 @@ function progressStepLabel(t: Translate, step: string): string {
 
 /** 维护市场总览、筛选器和源/套件操作的页面状态。 */
 export function MarketSection({ t, credentials }: MarketSectionProps): ReactNode {
-  const [overview, setOverview] = useState<OverviewData>(() => loadOverview().initial)
-  const [loading, setLoading] = useState(() => loadOverview().revalidating)
+  const [overview, setOverview] = useState<OverviewData>(() => readOverview().initial)
+  const [loading, setLoading] = useState(() => readOverview().revalidating)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<Tab>('all')
   const [category, setCategory] = useState<Category>('all')
@@ -85,22 +85,31 @@ export function MarketSection({ t, credentials }: MarketSectionProps): ReactNode
   const [detail, setDetail] = useState<{ sourceId: string; suiteId: string } | undefined>(undefined)
   const [progress, setProgress] = useState<SourceProgressState>({ step: undefined, error: undefined })
 
-  /** 失效旧总览并重新读取列表；失败只显示可重试提示。 */
-  const refresh = useCallback(async () => {
-    invalidateOverview()
+  const requestSequence = useRef(0)
+
+  const read = useCallback(async () => {
+    const sequence = ++requestSequence.current
     try {
       const data = await loadOverview().promise
-      setOverview(data)
+      if (sequence === requestSequence.current) setOverview(data)
     } catch {
-      setToast({ key: Date.now(), message: t('loadFail') })
+      if (sequence === requestSequence.current) setToast({ key: Date.now(), message: t('loadFail') })
     } finally {
-      setLoading(false)
+      if (sequence === requestSequence.current) setLoading(false)
     }
   }, [t])
 
+  const refresh = useCallback(async () => {
+    invalidateOverview()
+    await read()
+  }, [read])
+
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    void read()
+    return () => {
+      requestSequence.current++
+    }
+  }, [read])
 
   /** 执行一次宿主市场动作，完成后刷新权威总览并返回是否成功。 */
   const action = useCallback(
@@ -108,7 +117,6 @@ export function MarketSection({ t, credentials }: MarketSectionProps): ReactNode
       setBusy(key)
       try {
         await postAction(path, body)
-        invalidateOverview()
         await refresh()
         return true
       } catch (error) {

@@ -61,9 +61,13 @@ export function UserPanelSurface(props: {
   // earlier response must never overwrite a newer one's result.
   // 中文：并发刷新通过序号实行“最新结果胜出”，旧响应不能覆盖新列表。
   const refreshSeq = useRef(0)
+  // Each kind owns its operations, including continuations after a mutation completes.
+  // 中文：每个 kind 拥有本代操作有效期，包括 mutation 完成后的后续刷新。
+  const lifetime = useMemo(() => ({ active: false }), [kind])
 
   const refresh = useCallback(async (): Promise<void> => {
     /** 拉取当前面板条目；用序号保证慢响应不能覆盖更新后的列表。 */
+    if (!lifetime.active) return
     const seq = ++refreshSeq.current
     setError(undefined)
     try {
@@ -77,10 +81,12 @@ export function UserPanelSurface(props: {
       // 中文：当前请求结束后关闭加载态，过期请求不影响新一轮加载。
       if (refreshSeq.current === seq) setLoading(false)
     }
-  }, [kind])
+  }, [kind, lifetime])
 
   /** 切换面板类型时清空旧状态并重新加载当前 kind 的资源。 */
   useEffect(() => {
+    lifetime.active = true
+    setBusy(false)
     setEntries([])
     setLoading(true)
     setSearch('')
@@ -90,29 +96,32 @@ export function UserPanelSurface(props: {
     void refresh()
     return () => {
       // 中文：卸载或切换 kind 时递增序号，使在途响应失效。
+      lifetime.active = false
       refreshSeq.current++
     }
-  }, [refresh])
+  }, [refresh, lifetime])
 
   /** Mutate with the shared busy spinner + error surface, then re-read. */
   /** 中文：使用共享忙碌提示执行变更，完成后重新读取列表以获得服务端真值。 */
   const mutate = useCallback(
     async (work: () => Promise<unknown>): Promise<boolean> => {
       /** 执行一次 CRUD 操作并重新读取列表，统一处理 busy 状态和错误信息。 */
+      if (!lifetime.active) return false
       setBusy(true)
       setError(undefined)
       try {
         await work()
+        if (!lifetime.active) return false
         await refresh()
-        return true
+        return lifetime.active
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : String(reason))
+        if (lifetime.active) setError(reason instanceof Error ? reason.message : String(reason))
         return false
       } finally {
-        setBusy(false)
+        if (lifetime.active) setBusy(false)
       }
     },
-    [refresh]
+    [refresh, lifetime]
   )
 
   const needle = search.trim().toLowerCase()
@@ -255,7 +264,9 @@ export function UserPanelSurface(props: {
       saveLabel: t('panelSave'),
       cancelLabel: t('cancel'),
       renderFields: kind === 'agents' ? (text, onChange) => h(RoleMetadataFields, { text, onChange, t, disabled: busy }) : undefined,
-      onClose: () => setEditor(undefined),
+      onClose: () => {
+        if (lifetime.active) setEditor(undefined)
+      },
       onSave: saveEditor
     }),
     h(ConfirmModal, {
@@ -263,7 +274,9 @@ export function UserPanelSurface(props: {
       confirmLabel: t('confirmDelete'),
       cancelLabel: t('cancel'),
       busy,
-      onClose: () => setConfirm(undefined)
+      onClose: () => {
+        if (lifetime.active) setConfirm(undefined)
+      }
     })
   )
 }

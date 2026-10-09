@@ -19,3 +19,5 @@ GEA reparsed Skill frontmatter after Manage had already parsed it, so YAML block
 ## Consequences
 
 GEA consumes parsed metadata. A failed cleanup can block remounting until cleanup succeeds or the isolated process is restarted; it does not automatically bypass ownership. This is local isolated implementation, not production release.
+
+[Async result and release ownership](../bug-fix/2026-10-09-async-result-ownership.md) extends this rule to Core preset releases in `BusinessResources`; the file cleanup and metadata decisions here remain unchanged.

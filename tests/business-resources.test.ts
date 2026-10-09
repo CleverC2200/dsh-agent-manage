@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -368,4 +368,175 @@ it('selects the retained category prototype resource and keeps its Skill contrib
   expect(await resources.list()).toEqual([])
   expect(await provider.get(candidates[0], {})).toBeUndefined()
   await resources.dispose()
+})
+
+async function releaseFixture() {
+  const root = await mkdtemp(join(tmpdir(), 'resource-release-'))
+  roots.push(root)
+  const mounted = new Map<string, Definition>()
+  const attempts: string[] = []
+  const failed = new Set<string>()
+  let broken: string | undefined
+  let onRegister: (() => void) | undefined
+  let releaseGate: Promise<void> | undefined
+  const host = {
+    skills: {
+      registerProvider() {
+        return () => {}
+      },
+      async list() {
+        return []
+      },
+      async get() {
+        return { invocation: { userInvocable: true } }
+      }
+    },
+    agentPresets: {
+      async register(definition: Definition) {
+        if (mounted.has(definition.id)) throw Error('HOST_PRESET_ALREADY_MOUNTED')
+        mounted.set(definition.id, definition)
+        onRegister?.()
+        return async () => {
+          attempts.push(definition.id)
+          if (failed.delete(definition.id)) throw Error('HOST_RELEASE_FAILED')
+          await releaseGate
+          mounted.delete(definition.id)
+        }
+      },
+      async resolve(id: string) {
+        return { id, broken }
+      }
+    }
+  }
+  const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  const definition = (id: string) => ({ id, label: id, root, prompt: id + '.json', profile: { label: id, consumerCode: 'known', skills: [] } })
+  const prompt = async (id: string, persona: string) => writeFile(join(root, id + '.json'), JSON.stringify({ consumerCode: 'known', skills: [], persona }))
+  return {
+    resources,
+    mounted,
+    attempts,
+    failed,
+    definition,
+    prompt,
+    breakResolution: () => {
+      broken = 'HOST_RESOLUTION_FAILED'
+    },
+    onRegistration: (callback: () => void) => {
+      onRegister = callback
+    },
+    blockRelease: (gate: Promise<void>) => {
+      releaseGate = gate
+    }
+  }
+}
+it('retains a failed owner release for explicit retry and prevents a replacement owner', async () => {
+  const f = await releaseFixture()
+  await f.prompt('original', 'Original persona')
+  const owner = await f.resources.register([f.definition('original')])
+  await f.resources.select('original', new AbortController().signal)
+  f.failed.add('original')
+  await expect(owner()).rejects.toThrow('HOST_RELEASE_FAILED')
+  expect(f.mounted.has('original')).toBe(true)
+  expect(await f.resources.list()).toEqual([expect.objectContaining({ id: 'original', enabled: false, error: expect.stringContaining('HOST_RELEASE_FAILED') })])
+  await expect(f.resources.register([f.definition('original')])).rejects.toThrow('DUPLICATE_AGENT_RESOURCE')
+  await owner()
+  expect(f.mounted.size).toBe(0)
+  expect(await f.resources.list()).toEqual([])
+  await owner()
+  expect(f.attempts).toEqual(['original', 'original'])
+  await f.resources.dispose()
+})
+
+it('reports a failed rollback once and retains its mounted preset for owner cleanup', async () => {
+  const f = await releaseFixture()
+  await f.prompt('original', 'Original persona')
+  const owner = await f.resources.register([f.definition('original')])
+  f.breakResolution()
+  f.failed.add('original')
+  await expect(f.resources.select('original', new AbortController().signal)).rejects.toThrow('HOST_RELEASE_FAILED')
+  expect(f.mounted.has('original')).toBe(true)
+  expect(f.attempts).toEqual(['original'])
+  await owner()
+  expect(f.mounted.size).toBe(0)
+  await f.resources.dispose()
+})
+
+it('does not register a changed persona while the old preset release fails', async () => {
+  const f = await releaseFixture()
+  await f.prompt('original', 'Original persona')
+  const owner = await f.resources.register([f.definition('original')])
+  await f.resources.select('original', new AbortController().signal)
+  const original = f.mounted.get('original')
+  await f.prompt('original', 'Changed persona')
+  f.failed.add('original')
+  await expect(f.resources.select('original', new AbortController().signal)).rejects.toThrow('HOST_RELEASE_FAILED')
+  expect(f.mounted.get('original')).toBe(original)
+  await f.resources.select('original', new AbortController().signal)
+  expect(f.mounted.get('original')).not.toBe(original)
+  await owner()
+  await f.resources.dispose()
+})
+it('revokes successfully disposed entries but retains a failed entry until explicit retry', async () => {
+  const f = await releaseFixture()
+  await f.prompt('first', 'First persona')
+  await f.prompt('second', 'Second persona')
+  await f.resources.register([f.definition('first'), f.definition('second')])
+  await f.resources.select('first', new AbortController().signal)
+  await f.resources.select('second', new AbortController().signal)
+  f.failed.add('second')
+  await expect(f.resources.dispose()).rejects.toThrow('HOST_RELEASE_FAILED')
+  expect([...f.mounted.keys()]).toEqual(['second'])
+  expect((await f.resources.list()).map(entry => entry.id)).toEqual(['second'])
+  await f.resources.dispose()
+  expect(f.mounted.size).toBe(0)
+  expect(await f.resources.list()).toEqual([])
+  expect(f.attempts).toEqual(['first', 'second', 'second'])
+})
+
+it('serializes concurrent explicit release attempts and retries only failed mounts of one owner', async () => {
+  const f = await releaseFixture()
+  await f.prompt('first', 'First persona')
+  await f.prompt('second', 'Second persona')
+  const owner = await f.resources.register([f.definition('first'), f.definition('second')])
+  await f.resources.select('first', new AbortController().signal)
+  await f.resources.select('second', new AbortController().signal)
+  f.failed.add('second')
+  const results = await Promise.allSettled([owner(), owner()])
+  expect(results.map(result => result.status)).toEqual(['rejected', 'fulfilled'])
+  expect(f.mounted.size).toBe(0)
+  expect(await f.resources.list()).toEqual([])
+  expect(f.attempts).toEqual(['first', 'second', 'second'])
+  await f.resources.dispose()
+})
+
+it('a Skill mount rollback failure rejects selection without an implicit second release', async () => {
+  const f = await releaseFixture()
+  let continueRelease!: () => void
+  f.blockRelease(
+    new Promise(resolve => {
+      continueRelease = resolve
+    })
+  )
+  let disposal: Promise<void> | undefined
+  f.onRegistration(() => {
+    disposal = f.resources.dispose()
+  })
+  f.failed.add('agent-resource-skill')
+  let result: unknown
+  let settled = false
+  const selection = f.resources.select('skill:original', new AbortController().signal).catch(error => {
+    result = error
+    settled = true
+  })
+  try {
+    await vi.waitFor(() => expect(settled).toBe(true), { timeout: 500 })
+    expect(result).toBeInstanceOf(Error)
+    expect(String(result)).toContain('HOST_RELEASE_FAILED')
+    expect(f.mounted.has('agent-resource-skill')).toBe(true)
+  } finally {
+    continueRelease()
+    await selection
+    await disposal
+  }
+  expect(f.mounted.size).toBe(0)
 })

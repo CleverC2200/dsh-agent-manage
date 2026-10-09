@@ -64,3 +64,5 @@ MCP 详情移除启用控件，将重试与 OAuth 重置分开。后端能力决
 反馈仓库归属由 [fork 身份决策](2026-09-12-fork-package-identity.zh.md) 更新；本记录继续定义设置开关、注册与本地回退机制。
 
 [官方 Workbench 入口](../architecture/2026-10-04-official-workbench-entry.zh.md)增加公开 main 入口；本决定继续持有工作区标签设计。
+
+[异步结果与释放归属](../bug-fix/2026-10-09-async-result-ownership.zh.md)部分更新面板操作有效期：切换 kind 或卸载后，旧 mutation 的后续动作不能刷新或更新当前面板。共享组件、存储与路由不变。

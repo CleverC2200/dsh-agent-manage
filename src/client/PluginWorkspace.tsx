@@ -111,11 +111,11 @@ function renderTab(tab: WorkspaceTab, t: Translate, credentials: CredentialApi |
     case 'market':
       return h(MarketSection, { t, credentials })
     case 'skills':
-      return h(UserPanelSurface, { t, kind: 'skills' })
+      return h(UserPanelSurface, { key: 'skills', t, kind: 'skills' })
     case 'commands':
-      return h(UserPanelSurface, { t, kind: 'commands', hint: t('commandsPanelHint') })
+      return h(UserPanelSurface, { key: 'commands', t, kind: 'commands', hint: t('commandsPanelHint') })
     case 'personas':
-      return h(UserPanelSurface, { t, kind: 'agents' })
+      return h(UserPanelSurface, { key: 'agents', t, kind: 'agents' })
     case 'mcp':
       return h(McpStatusPanel, { t, credentials })
     case 'lsp':
