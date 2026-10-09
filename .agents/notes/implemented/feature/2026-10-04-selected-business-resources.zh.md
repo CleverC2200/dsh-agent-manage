@@ -17,3 +17,7 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 资源摘要和选用结果返回已选 profile 验证过的页面解释器列表。Manage 每次读取都按当前资源 owner 过滤，owner 卸载后也不返回旧选项。工作台负责选择器和官方 Session 导航。GEA 继续负责预设与 Consumer 授权。已选资源身份的恢复索引保持原格式。
 
 `forecast-source` 导出让 GEA 使用同一套纯输入与 baseline 校验。GEA 将已保存的计算证据绑定到当前执行、Session 和 subject。baseline 正文或可见性变化使旧证据失效。计算实现仍归 Manage。
+
+稳定预设 `agent-resource-skill` 使用[标准组合接口](../../../../docs/design/standard-preset-composition.md)。插件声明来自当前官方 standard 文档，保留禁用项和用户配置。官方 Skill 发现与加载工具各保留一份；资源选择只返回 Skill 名称，不发布业务 profile。注册目录的描述说明这个用途。资源摘要投影各 Skill 原有描述，Workbench 在现有资源列表显示该投影。
+
+真实 Core Session 测试核对最终工具、命令、自动与手动压缩、继续执行和选中身份恢复。预设集成入口经过实际 GEA hooks 并核对无业务 profile 的执行拒绝。独立客户端入口使用官方 InputHub，并通过独立 Host process 的回执提供所选资源和真实 Session；它的 wire adapter 提供公开 Session/工作区接口。测试覆盖空草稿、已有文字、取消、重进与旧草稿，不将 Host 编译库装入浏览器源码图。这些离线观察不证明 Native 安装或外部模型、业务执行。

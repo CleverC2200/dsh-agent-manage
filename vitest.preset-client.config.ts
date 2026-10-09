@@ -1,5 +1,5 @@
 /** Official browser sources share one source graph, as in Core's own client tests. */
-import { readFileSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ts from 'typescript'
 import { defineConfig } from 'vitest/config'
@@ -13,11 +13,17 @@ const aliases = Object.entries(config.compilerOptions.paths as Record<string, st
   replacement: resolve(core, paths[0].replace('*', '$1'))
 }))
 
+const workbench = resolve(process.env.DSH_WORKBENCH_CHECKOUT ?? '../dsh-agent-workbench')
+if (!existsSync(resolve(workbench, 'src/resource-selection.ts'))) throw Error(`PRESET_CLIENT_INPUT_REQUIRED: DSH_WORKBENCH_CHECKOUT: ${workbench}`)
+
 export default defineConfig({
   plugins: [standardDecoratorPlugin()],
-  resolve: { alias: [...aliases], dedupe: ['react', 'react-dom'] },
+  resolve: {
+    alias: [...aliases, { find: 'preset-client-workbench/resource-selection', replacement: resolve(workbench, 'src/resource-selection.ts') }],
+    dedupe: ['react', 'react-dom']
+  },
   test: {
-    include: ['tests/standard-preset-draft.test.ts'],
+    include: ['tests/standard-preset-draft.test.ts', 'tests/skill-preset-client.test.ts'],
     environment: 'jsdom',
     testTimeout: 30_000,
     execArgv: vitestExecArgv,
