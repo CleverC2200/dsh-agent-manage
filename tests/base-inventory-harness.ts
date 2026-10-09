@@ -3,12 +3,17 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { onTestFinished, vi } from 'vitest'
 import type { BusinessResourceDefinition } from '../src/runtime/business-resources.js'
+import type { Deployment } from 'preset-integration-gea/host/business'
 import type { CapabilityContract } from 'preset-integration-gea/capability/contract'
 import { BusinessResources } from '../src/runtime/business-resources.js'
 import { agentOn, presetHarness } from './core-preset-harness.js'
 
 export interface BusinessPresetHarnessInput {
   resource?: BusinessResourceDefinition
+  additionalResources?: readonly BusinessResourceDefinition[]
+  businessConfig?: Partial<Deployment>
+  /** Additional external API responses; actual Business transport and authorization remain unchanged. */
+  externalResponse?: (url: URL, init?: RequestInit) => Promise<Response | undefined>
   contract?: CapabilityContract
   seed?: readonly unknown[]
   sessionId?: string
@@ -39,16 +44,21 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   ctx.provide('agentResources', resources)
   onTestFinished(() => resources.dispose())
   onTestFinished(installPromptProfile(resource.id, resource.profile))
-  const releaseResource = await resources.register([resource])
+  const releaseResource = await resources.register([resource, ...(input.additionalResources ?? [])])
   const selection = await resources.select(resource.id, new AbortController().signal, input.cwd)
   const contract = input.contract ?? JSON.parse(await readFile(resolve(resource.root, 'capability.json'), 'utf8'))
-  const capabilities = createCapabilityRegistry([contract, { id: 'gea-workbench', label: '销售计划', maxEffect: 'view', layers: ['read'] }])
+  const capabilities = createCapabilityRegistry([
+    contract,
+    ...(contract.id === 'gea-workbench' ? [] : [{ id: 'gea-workbench', label: '销售计划', maxEffect: 'view' as const, layers: ['read' as const] }])
+  ])
+  const inputOptions = input
   const base = 'https://gea-fixture.invalid'
   const network: { path: string; body: Record<string, unknown> }[] = []
   let hold: Promise<void> | undefined
   let started: (() => void) | undefined
   vi.stubGlobal('fetch', async (input: string | Request, init?: RequestInit) => {
-    const path = new URL(input instanceof Request ? input.url : String(input)).pathname
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    const path = url.pathname
     const body = JSON.parse(String(init?.body ?? '{}'))
     init?.signal?.throwIfAborted()
     network.push({ path, body })
@@ -74,7 +84,11 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
           }
         ]
       })
-    if (path !== '/ai/gateway/mcp/proxy/mcp') throw Error(`UNEXPECTED_EXTERNAL_REQUEST: ${path}`)
+    if (path !== '/ai/gateway/mcp/proxy/mcp') {
+      const response = await inputOptions.externalResponse?.(url, init)
+      if (response) return response
+      throw Error(`UNEXPECTED_EXTERNAL_REQUEST: ${path}`)
+    }
     if (body.method === 'notifications/initialized') return new Response(null, { status: 202 })
     if (body.method === 'initialize')
       return json({
@@ -123,7 +137,8 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
     analysisModel: 'test',
     analysisAgentCode: 'sales_forecast',
     analysisSource: 'receipt',
-    inputByteBudget: 200000
+    inputByteBudget: 200000,
+    ...input.businessConfig
   })
   business.setCapabilities(capabilities)
   onTestFinished(() => business.dispose())

@@ -31,3 +31,5 @@ GEA 只限制未声明的 `gea_` 工具；执行守卫也会在模型 pre-step �
 本决定更新[原生业务资源选用](../feature/2026-10-04-selected-business-resources.zh.md)中的组合细节。原 Note 仍持有资源生命周期、选中身份恢复和官方 Skill provider。
 
 公开 Workbench 资源选择测试通过官方 InputHub 与独立的实际 Core/GEA Host 进程，所选结果驱动 Session preset 和请求工作区；原任务草稿与持久文本保持。
+
+销售计划与产销协同保留 `gea-readonly` 和 `gea-html-inventory-apsplan`。GEA 将可信 Agent 名称与描述投影到 Manage，页面标题保持独立。产销 Consumer 仍为 `aps`，保留已声明的 `sales_forecast` 跨 Consumer 与三个包内 Skill。销售保留原在线只读工具、四个已声明的安装来源 Skill 与 `sales_forecast` Consumer。每类测试均覆盖实际 Session、压缩、越权拒绝及子 Agent 继承。既有可选销售 readonly validation 继续在 Host 执行链校验，许可在线读取成功，submit 与 approve 在传输前拒绝。目录元数据不会安装缺失 Skill 或启用隐藏页面。

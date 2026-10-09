@@ -24,5 +24,15 @@ export default defineConfig({
       { find: '@cleverc2200/dsh-agent-workbench/page-interaction/payload-budget', replacement: resolve(workbench, 'src/page-interaction/shared/payload-budget.ts') }
     ]
   },
-  test: { ...base.test, include: ['tests/standard-preset-gea.test.ts', 'tests/skill-preset-gea.test.ts', 'tests/base-resource-host.test.ts'], exclude: [] }
+  test: {
+    ...base.test,
+    include: [
+      'tests/standard-preset-gea.test.ts',
+      'tests/skill-preset-gea.test.ts',
+      'tests/base-resource-host.test.ts',
+      'tests/sales-preset-gea.test.ts',
+      'tests/sales-resource-host.test.ts'
+    ],
+    exclude: []
+  }
 })
