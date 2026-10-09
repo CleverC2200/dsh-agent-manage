@@ -204,6 +204,7 @@ export class BusinessResources {
       const wasMounted = this.mounted.has(id.startsWith('skill:') ? SKILL_PRESET : id)
       const preset = id.startsWith('skill:') ? SKILL_PRESET : id
       const wasSelected = this.selected.has(preset)
+      let mountCompleted = false
       try {
         let skill: string | undefined
         let profile: ExecutionProfile | undefined
@@ -217,6 +218,7 @@ export class BusinessResources {
           await this.mountPrompt(id, signal)
           profile = this.entries.get(id)!.definition.profile
         }
+        mountCompleted = true
         signal.throwIfAborted()
         const added = !this.selected.has(preset)
         this.selected.add(preset)
@@ -236,7 +238,7 @@ export class BusinessResources {
         }
       } catch (error) {
         if (!wasSelected && this.selected.delete(preset)) await this.persist()
-        if (!wasMounted && !this.selected.has(preset) && (preset === SKILL_PRESET || this.versions.has(preset))) await this.unmount(preset)
+        if (!wasMounted && !this.selected.has(preset) && mountCompleted) await this.unmount(preset)
         throw error
       }
     })
@@ -326,7 +328,7 @@ export class BusinessResources {
     )
       throw Error('INVALID_AGENT_RESOURCE_IDENTITY')
     const version = createHash('sha256').update(JSON.stringify(profile)).digest('hex')
-    if (this.mounted.has(id) && this.versions.get(id) === version) return
+    if (this.mounted.has(id) && this.versions.get(id) === version && !entry.error) return
     await this.unmount(id)
     const dispose = await this.ctx.agentPresets.register({
       id,
@@ -412,10 +414,10 @@ export class BusinessResources {
   private async unmount(id: string): Promise<void> {
     const dispose = this.mounted.get(id)
     if (!dispose) return
-    this.versions.delete(id)
     try {
       await dispose()
       this.mounted.delete(id)
+      this.versions.delete(id)
     } catch (error) {
       const entry = this.entries.get(id)
       if (entry) entry.error = String(error)
@@ -431,7 +433,10 @@ export class BusinessResources {
       this.unregisterProvider()
     }
     await this.serialize(async () => {
-      for (const id of this.mounted.keys()) await this.unmount(id)
+      for (const id of this.mounted.keys()) {
+        await this.unmount(id)
+        this.entries.delete(id)
+      }
       this.entries.clear()
     })
   }

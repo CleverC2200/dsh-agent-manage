@@ -13,6 +13,9 @@ const EMPTY_OVERVIEW: OverviewData = { sources: [], suites: [], totals: { all: 0
 
 let cachedOverview: OverviewData | undefined
 let inflightOverview: Promise<OverviewData> | undefined
+// Keep the current generation result after settlement so obsolete callers also observe its failure.
+// 中文：保留当前代已完成的结果，让旧调用者也能观察当前失败，不隐式重试。
+let generationOverview: Promise<OverviewData> | undefined
 
 /** Read cached UI state without starting I/O during render. */
 /** 中文：只读缓存快照，渲染阶段不发起请求。 */
@@ -30,12 +33,12 @@ export function loadOverview(): { initial: OverviewData; revalidating: boolean; 
     const request = fetchOverview()
       .then(
         data => {
-          if (requestGeneration !== generation) return cachedOverview ?? loadOverview().promise
+          if (requestGeneration !== generation) return generationOverview ?? loadOverview().promise
           cachedOverview = data
           return data
         },
         error => {
-          if (requestGeneration !== generation) return cachedOverview ?? loadOverview().promise
+          if (requestGeneration !== generation) return generationOverview ?? loadOverview().promise
           throw error
         }
       )
@@ -43,6 +46,7 @@ export function loadOverview(): { initial: OverviewData; revalidating: boolean; 
         if (inflightOverview === request) inflightOverview = undefined
       })
     inflightOverview = request
+    generationOverview = request
   }
   return { ...readOverview(), promise: inflightOverview }
 }
@@ -53,6 +57,7 @@ export function invalidateOverview(): void {
   generation++
   cachedOverview = undefined
   inflightOverview = undefined
+  generationOverview = undefined
 }
 
 /**
