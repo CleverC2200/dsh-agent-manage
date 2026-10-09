@@ -5,7 +5,77 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { BusinessResources } from '../src/runtime/business-resources.js'
-import { agentOn, completion, history, presetHarness, record, turn } from './core-preset-harness.js'
+import { agentOn, completion, history, official, presetHarness, record, turn } from './core-preset-harness.js'
+
+async function pluginFailureHarness() {
+  let failPersona = false
+  const { ctx, home } = await presetHarness({
+    importModule: async name => {
+      if (failPersona && name === '@deepseek-ai/dsh-persona') throw Error('SELECTED_SKILL_PLUGIN_LOAD_FAILED')
+      return official(name)
+    }
+  })
+  const index = join(home, 'selected.json')
+  await writeFile(join(home, 'SKILL.md'), '---\nname: selected-skill\ndescription: Selected instructions\n---\nOriginal Skill body.\n')
+  await writeFile(join(home, 'prompt.json'), JSON.stringify({ persona: 'Original persona.', consumerCode: 'never-granted', skills: ['selected-skill'] }))
+  const resources = new BusinessResources(ctx, index)
+  onTestFinished(() => resources.dispose())
+  await resources.register([
+    {
+      id: 'selected-owner',
+      label: 'Selected owner',
+      root: home,
+      prompt: 'prompt.json',
+      profile: { label: 'Selected owner', consumerCode: 'never-granted', skills: ['selected-skill'] },
+      skillFiles: { 'selected-skill': 'SKILL.md' }
+    }
+  ])
+  return {
+    ctx,
+    home,
+    index,
+    resources,
+    failPlugin: () => {
+      failPersona = true
+    }
+  }
+}
+
+it('rejects a Skill selection when an enabled standard plugin fails to load without persisting the failed selection', async () => {
+  const { ctx, home, index, resources, failPlugin } = await pluginFailureHarness()
+  failPlugin()
+  await expect(resources.select('skill:selected-skill', new AbortController().signal, home)).rejects.toThrow('persona (@deepseek-ai/dsh-persona): never started')
+  await expect(readFile(index, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+  await expect(ctx.agentPresets.resolve('agent-resource-skill')).rejects.toThrow('Unknown agent preset')
+})
+
+it('preserves the selected Prompt and its recovery index when a new Skill activation fails', async () => {
+  const { ctx, home, index, resources, failPlugin } = await pluginFailureHarness()
+  await resources.select('selected-owner', new AbortController().signal, home)
+  const previous = await readFile(index, 'utf8')
+  failPlugin()
+  await expect(resources.select('skill:selected-skill', new AbortController().signal, home)).rejects.toThrow('persona (@deepseek-ai/dsh-persona): never started')
+  expect(await readFile(index, 'utf8')).toBe(previous)
+  expect(await ctx.agentPresets.resolve('selected-owner')).toEqual({ id: 'selected-owner' })
+})
+
+it('rejects a broken restored Skill preset and preserves the selected identity for recovery', async () => {
+  const { ctx, index, resources, failPlugin } = await pluginFailureHarness()
+  const previous = '{"version":1,"selected":["agent-resource-skill"]}\n'
+  await writeFile(index, previous)
+  failPlugin()
+  await expect(resources.load()).rejects.toThrow('persona (@deepseek-ai/dsh-persona): never started')
+  expect(await readFile(index, 'utf8')).toBe(previous)
+  await expect(ctx.agentPresets.resolve('agent-resource-skill')).rejects.toThrow('Unknown agent preset')
+})
+
+it('keeps rejecting a Prompt whose enabled standard plugin cannot load', async () => {
+  const { ctx, home, index, resources, failPlugin } = await pluginFailureHarness()
+  failPlugin()
+  await expect(resources.select('selected-owner', new AbortController().signal, home)).rejects.toThrow('persona (@deepseek-ai/dsh-persona): never started')
+  await expect(readFile(index, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+  await expect(ctx.agentPresets.resolve('selected-owner')).rejects.toThrow('Unknown agent preset')
+})
 
 it('creates a selected Skill Session with the full standard tools and compaction and recovers its stable identity', async () => {
   const { ctx, home } = await presetHarness()
