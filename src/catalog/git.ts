@@ -12,7 +12,6 @@
  * (`GIT_HTTP_LOW_SPEED_*`) fail a stalled transfer early instead of burning
  * the whole timeout.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { execFile } from 'node:child_process'
 import { rm } from 'node:fs/promises'
 import { promisify } from 'node:util'
@@ -22,19 +21,14 @@ const run = promisify(execFile)
 export const DEFAULT_GIT_TIMEOUT_MS = 120_000
 
 /** Network tuning applied to every remote-touching git invocation. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface GitOptions {
   /** Value for `http.proxy` / `https.proxy` (e.g. `http://127.0.0.1:7890`). */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   proxy?: string
   /** URL-prefix rewrites, git `insteadOf` semantics: `{'https://github.com/': 'https://mirror/https://github.com/'}`. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   insteadOf?: Record<string, string>
   /** Timeout per git invocation; defaults to 120s. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   timeoutMs?: number
   /** Retry a failed clone once (network flake); default true. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   cloneRetry?: boolean
 }
 
@@ -43,7 +37,6 @@ interface RunSpec {
   options: GitOptions
   operation: string
   /** Payload-carrying commands need a larger stdout/stderr buffer. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   maxBuffer?: number
 }
 

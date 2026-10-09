@@ -6,11 +6,11 @@ Status: implemented
 
 ## 问题
 
-隔离迁移工作区面向 DSH 0.2.0-rc.1，而原 UI 开发依赖导出旧图标名。渲染测试必须使用与目标运行时相同的 UI 库。
+原 UI 开发依赖的图标名与隔离目标核心的导出不同。渲染测试必须使用与目标运行时相同的 UI 库。
 
 ## 决定
 
-UI primitives 开发依赖链接到同级核心 checkout。客户端使用其 Regular 图标导出，运行时 peer 声明选定的 DSH 版本，Vitest 对跨链接的 React 去重。核心提交由工作区另行记录；这是本地开发配置，不是 registry 发布。
+UI primitives 开发依赖链接到[唯一登记的官方 SDK](2026-10-04-one-official-sdk.zh.md)声明的固定官方核心。该记录持有当前 SDK 与 peer 输入，本记录保留 Regular 图标及 React 去重理由。客户端使用其 Regular 图标导出，运行时 peer 声明选定的 DSH 版本，Vitest 对跨链接的 React 去重。核心提交由工作区另行记录；这是本地开发配置，不是 registry 发布。
 
 ## 考虑过的替代方案
 

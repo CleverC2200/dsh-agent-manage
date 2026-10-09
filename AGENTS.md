@@ -1,57 +1,22 @@
-# AGENTS.md
+# Agent Manage 开发导航
 
-`dsh-agent-plugins-market` is the DeepSeek Harness plugin that installs Claude Code / Codex / Cursor / Kimi marketplace suites in place — zero conversion, zero file copying — and injects skills, MCP servers, hooks, commands, agents, and LSP servers into dsh sessions at runtime. Domain vocabulary lives in [CONTEXT.md](CONTEXT.md) (source, dialect, suite, surface, install state); use those terms exactly. Human onboarding and PR flow live in [CONTRIBUTING.md](CONTRIBUTING.md) — do not restate them here.
+`dsh-agent-manage` 管理 Agent、Prompt、Skill、MCP/LSP 资源及库存、APS 的纯计算。Workbench 拥有业务页面与官方 Session 的关联，Core 持有 Session 和用户草稿，GEA Host 统一持有业务身份、凭据与授权。
 
-## Repository layout
+先读[当前开发入口](docs/current-development.md)，核本项目登记的 checkout、固定官方输入和检查范围。术语沿用 [CONTEXT.md](CONTEXT.md)。改资源接口时读[原生资源选用决定](.agents/notes/implemented/feature/2026-10-04-selected-business-resources.md)；改计算时读[库存合同](docs/design/inventory-compute.md)及[APS 归属](.agents/notes/implemented/architecture/2026-10-08-aps-ownership.md)。
 
-```
-src/
-  application/  use-case layer: catalog assembly, queries, install orchestration
-  catalog/      source scanning: manifests, dialects, scan pipeline, lsp-spec validation
-  client/       Web market page (React + CSS modules), bilingual locales.ts
-  contracts/    API request/response types shared by routes and client
-  model/        domain types (suite, source, surfaces)
-  runtime/      harness-facing effects: reconciler, MCP client bridge, MCP/LSP mounts, status builders
-  index.ts      plugin entry; routes.ts  API surface
-schemas/        versioned mcp.schema.json and friends (strict validation contracts)
-tests/          vitest suites mirroring src/; fixtures under tests/fixtures
-docs/           adr/, design/, release/, promotion/, research/, standards/
-docs-site/      Astro docs site
-scripts/        build helpers (client banner, npm token, lifecycle verification)
-```
+## 修改和验证
 
-## Commands
+- 工具链、命令、锁、公开导出分别查询 [package.json](package.json)、[pnpm-lock.yaml](pnpm-lock.yaml) 和构建配置。`check:refactor` 是现有综合门禁；当前引用用 `check:knowledge` 核验。按改动运行适用测试，完整 CI 与远端保护以实际回执为准。
+- catalog 集中维护发现、格式、元数据和既有 checkout 操作，不依赖 runtime/client；application 持有目录编排，runtime 持有宿主挂载与释放。`inventory-compute` 和 `aps-compute` 只接收已收窄输入，不读 Session、网络或授予业务权限。客户端通过 contracts 与公开接口消费资源。
+- 无效 manifest、MCP/LSP 声明明确诊断并拒绝不完整挂载。保留 owner、取消、未知失败和清理重试的语义，避免第二份状态规则。
+- 改配置、路由、schema 或公共合同，同步对应文档与有用途的 JSDoc。界面文案用 locales 的中英文对应键，README 双语一并更新。
+- 非平凡决定按 [Agent Note 规则](.agents/notes/README.md) 更新其当前 owner；新增 Note 先核 supersession。部分替代保留未替代理由并双向引用，archived 原件保持冻结。
+- 依赖变化说明理由并保留 frozen-lockfile 安装协议。生成的 lib/client 产物不手改，工作树不共享 node_modules 或可写输出。
 
-```sh
-pnpm run typecheck           # both tsconfig.json and tsconfig.client.json
-pnpm run lint                # eslint src tests
-pnpm run format:check        # prettier — covers ALL files including docs/ and HTML
-pnpm run test                # vitest run (full suite)
-pnpm run test:contract       # routes + market contracts only
-pnpm run check:architecture  # dependency-cruiser over src/
-pnpm run check:refactor      # typecheck + lint + format:check + test:contract + architecture
-pnpm run build               # tsc emits lib/, tsdown bundles client/
-```
+## 隔离范围
 
-`check:refactor` is the standing local gate; `npm-publish.yml` reruns it plus `pnpm run test` on a release tag, so a green full suite before push is enough locally. Prettier covers files eslint does not — after writing docs, HTML, or fixtures, run `format:check` before claiming a green tree.
+本 checkout 只用于插件拆分隔离开发。当前 tgz、用户存储与宿主持久会话协议保持。GitLab source、正式 OSS/频道、正式客户端目录和业务写入不在本项目授权内。远端写入仅按本次明确授权的隔离目标执行。
 
-## Conventions
+历史 release-please/npm、公司发行和旧工程计划保留为上游或历史资料；阅读它们不授予发布、上传或桌面运行权限。涉及后续发行时先核该任务的确切目标与有效授权，再按适用发行规则操作。
 
-- **Non-trivial changes include an Agent Note** in the same PR — a decision a maintainer may reasonably revisit is recorded under [.agents/notes/](.agents/notes/README.md) (proposed/implemented/rejected by class), and a new note triggers a supersession check of active notes on the same decision. Mechanical or local edits are exempt.
-- **Commit types drive releases.** `feat:`/`fix:` in conventional-commit subjects are parsed by release-please into the next version and the changelog; a misclassified subject ships a wrong version. Scope the subject to the surface (`feat(mcp):`, `fix(lsp-status):`) and keep the body carrying the rationale.
-- **Releases are workflow-owned.** release-please (embedded in `.github/workflows/npm-publish.yml`) opens the Release PR against `main`; merging it auto-tags, auto-creates the GitHub Release, and auto-publishes npm. Follow [docs/release/release-process.md](docs/release/release-process.md); the runbook's one hard rule: any remote write (`git push`, `git tag`, `npm publish`) requires user confirmation first.
-- **Bilingual is part of the change.** User-visible strings go through `src/client/locales.ts` with paired zh/en keys; user-facing docs ship `README.md` and `README.zh.md` as one edit. A surface that renders English-only text is an incomplete change.
-- **Validation fails closed.** A malformed manifest, `mcp.json` server, or `lspServers` declaration is diagnosed and skipped (or drops to an empty table), never silently half-mounted; suite data flows into `SourceOverview.scanNotes` and the status panels instead of disappearing. Follow the existing strategy-chain and status-builder patterns in `src/catalog/` and `src/runtime/`.
-- **Docs accompany code.** A behavior change to config keys, defaults, routes, error codes, or schemas updates README(s), the affected `docs/` page, and JSDoc in the same PR. Architecture decisions get an ADR under `docs/adr/`.
-- **Runtime owns effects; catalog stays pure.** Keep filesystem, process, and harness-context access in `src/runtime/` and `src/application/`; `src/catalog/` resolvers stay testable pure functions. `check:architecture` enforces the boundaries.
-- **New dependencies are justified in the PR body** and land in `pnpm-lock.yaml` (`--frozen-lockfile` is the CI contract).
-
-## Editing these instructions
-
-`CLAUDE.md` symlinks this file at the root; edit `AGENTS.md`. Keep each rule self-contained and link rationale instead of restating it.
-
-## 公司插件发行
-
-涉及公司 DSH 插件发版、GitLab 发行库或桌面更新频道时，使用 `dsh-plugin-release` 技能；它是公司版发布入口，旧 GitHub/npm 流程不自动适用于公司版。普通开发继续遵循本仓库规则。
-
-本仓库只交付 Agent Manage 插件，不构建客户端安装包。资源来源、安装启用、MCP/LSP 和 GEA MCP 接入改动默认只发布插件；在桌面中验证插件不等于重打客户端。需要改变 Electron 壳、启动器、内置运行时、安装或桌面更新协议时，记录兼容要求并转到 `dsh-gea-plugin/desktop/` 处理。
+`CLAUDE.md` 链接本文件；修改本文件即可。

@@ -28,13 +28,13 @@ MCP 详情移除启用控件，将重试与 OAuth 重置分开。后端能力决
 - **物理删除是可选的、逐次确认的。** `removeSource(id, deleteCheckout)` 仅在确认对话框勾选「同时删除市场目录」时删除 checkout（默认勾选）。`.sources/<id>` 下的目录属于管理器存储，即使来源是收编的也会被删除；只有 URL 指向 `.sources/` 之外的 `local` 源是仅取消登记、目录永不删除。删除 checkout 正是真正删除的市场不再出现在「未登记」提示里的原因。
 - **用户面板以 Markdown 持久化，而非 state JSON。** 技能 / 命令 / 代理角色存于 `userRoot/user/{skills,commands,agents}/*.md`，沿用与套件相同的 frontmatter 语法（`description`、`argument-hint`、invocation 开关）外加面板控制键 `disabled: true`。一个 `UserPanelStore` CRUD 类服务三个面板；第二个技能提供者（`UserPanelSkillProvider`，rank 600，来源 `user-panel`）仅把技能送进技能注册表；角色使用[持久化子代理目录](../architecture/2026-09-09-subagent-catalog.zh.md)，`UserCommandMountRegistry` 在同一条变更管线里把用户命令调和为斜杠命令。禁用条目在发现阶段即被跳过——禁用即卸载，而非状态翻转。
 - **用户存储统一到一个根目录。** `userRoot` 固定解析为 `$DSH_HOME/agent-plugins`（默认 `~/.dsh/agent-plugins`），可变数据位于其 `data/` 下。本决定的自动迁移部分由[标准存储启动](../simplification/2026-10-04-canonical-storage-only.zh.md)取代：激活只核当前目录并拒绝旧根配置，不读取或搬移旧存储。项目维度和显式登记的外部本地来源保留就地读取语义。
-- **代理角色按保存的策略执行。** `subagents_run` 在运行时读取角色 Markdown frontmatter 中的 `model`、`provider`、`reasoning_effort`、`tools` 和 `disallowedTools`，通过 `subagents.start` 启动真实子代理，将模型选择作为 `agentOptions`、角色正文作为 `persona`、工具限制作为 `toolFilter` 传入。详情编辑器把这些配置放在正文上方，并保存到同一 frontmatter。未指定模型或填写 `inherit` 时沿用父级选择；单独模型 id 必须唯一匹配一个 provider，显式 provider/model 配置则支持 provider 专用 id。无效或歧义配置在启动子代理前报错。
+- **代理角色按保存的策略执行。** `subagents_run` 在运行时读取角色 Markdown frontmatter 中的 `model`、`provider`、`reasoning_effort`、`tools` 和 `disallowedTools`，使用[持久子代理目录](../architecture/2026-09-09-subagent-catalog.zh.md)说明的当前一次性 spawn 服务，传入有效模型路由、角色正文 persona 和工具限制。详情编辑器把这些配置放在正文上方，并保存到同一 frontmatter。未指定模型或填写 `inherit` 时沿用父级选择；单独模型 id 必须唯一匹配一个 provider，显式 provider/model 配置则支持 provider 专用 id。无效或歧义配置在启动子代理前报错。
 - **公共构件优先于逐面板复制**（`client/ui/panel.tsx`）：`PanelShell`（标题/操作/滚动体）、`BusyIndicator`（全局进行中加载动画，含浮层变体）、`EntryEditorModal`、`ConfirmModal`、`SourceBadge` 与共享的 `panel.module.css`。三个用户面板在字面上是同一个组件（`UserPanelSurface`）按 kind 参数化；市场与 MCP 面板嵌入同一加载动画，`SearchFilterToolbar` 增加统一的 `＋ 新增` 席位。
 - **反馈工具是 model 工具，不是命令。** `report_market_issue` 通过 `ctx.tools` 注册，受既有 `dsh-agent-plugins-market` 命名空间中 `feedbackEnabled` 设置字段（默认 true）控制；watcher 实时挂载/卸载。存在 `GITHUB_TOKEN`/`GH_TOKEN` 时直接开 GitHub Issue，否则追加 JSONL 到 `data/feedback/` 本地卷宗；时间戳文件以 60 秒为限防止连发。`@deepseek-ai/dsh-tools` 以可选身份加入 peer/dev 依赖——包缺失处工具 simply 不挂载。
 
 供应商和模型使用联动下拉，读取 DSH 当前 LLM 注册表。`model-catalog` 只返回公开身份字段，每次只读取选中供应商的模型，等待上限为十秒。切换供应商时取消或忽略旧请求；未在目录中的已保存模型仍展示并保留，直到用户主动选择替换。插件启动时不读取模型目录。
 
-兼容页面适配器只在打开时挂载工作区，不与其他扩展争抢“新会话”紧邻位置；MutationObserver 忽略工作区内部变更，避免多个侧栏扩展反复重排导致浏览器失去响应。关闭工作区释放组件树和未保存草稿。
+[当前设置接口](../simplification/2026-09-30-current-settings-surface-only.zh.md)删除旧页面适配器与 DOM observer；[官方工作台入口](../architecture/2026-10-04-official-workbench-entry.zh.md)增加公开 main 注册，保留本记录的单工作区与六页签决定。关闭工作区释放组件树和未保存草稿。
 
 ## 已考虑的替代方案
 

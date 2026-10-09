@@ -8,7 +8,7 @@ The fixed distribution candidate must join the current unified page/resource int
 
 ## Decision
 
-Manage declares `inventory-qll` as fixed mock input with empty tables and MCP capabilities. Manage owns the restored pure business calculation through its public inventory-compute modules. Workbench owns the local fixture, UI intent and current Session page references. The existing Consumer identifier remains a module identifier and grants no query authority.
+The original reception used fixed mock input and empty tables/MCP capabilities. The current company-only source slice declares the seven fixed read-only tables and governed SQL capability; [company read reception](../../proposed/feature/2026-10-08-full-chain-company-read.md) records its source implementation and outstanding live acceptance. Manage owns the restored pure business calculation through its public inventory-compute modules. Workbench owns the local fixture, UI intent and current Session page references. The existing Consumer identifier remains a module identifier and grants no query authority.
 
 ## Alternatives considered
 
@@ -23,3 +23,5 @@ The original company/customer units and null/zero rules remain. Fixture row filt
 The same page and resource now include the ticket15 historical calculation and chart. This extends the mock reception decision without changing resource identity or query authority. The fixed trend input matches the current distribution organization and SKU codes. Trend context and its single reference bind the captured snapshot and narrowed range; missing dates remain null. The current page shares its 300-entry catalog budget between 298 structure rows, the refresh control and one trend reference. UI intent can restore, while historical facts require a new explicit query. Original live query and pagination protection remain recoverable from the fixed ticket15 Git object and are absent from the mock runtime.
 
 [Calculation ownership](../../implemented/architecture/2026-10-07-inventory-calculation-ownership.md) partially supersedes the original owner statement; the remaining mock reception decision continues to apply.
+
+The company source slice partially supersedes only the runtime mock mode. This note retains the company/customer unit distinction, null/zero semantics, original mock provenance and catalog allocation; historical fixtures remain acceptance evidence for their original input.

@@ -16,7 +16,7 @@ Keep the source strategy chain, centralize pure layout declarations, and derive 
 
 The registry, three new dialects, project role lookup and agent-scoped command/MCP/hook lifecycle are implemented. Native JSON and Codex TOML MCP configurations have explicit project execution roots. The user-approved `smol-toml` dependency parses TOML; tool filters and timeouts reach the bridge instead of being discarded. Invalid manifests fail closed and marketplace paths require realpath containment. [The ADR](../../../../docs/adr/2026-09-09-layout-registry.md) records the supported formats, evidence and boundaries.
 
-Both creation protocols await the same scoped refresh. DSH 0.1.6 serializes `agent/created`, while 0.1.5 waits on `agent/session-start`; retaining both listeners keeps existing desktops supported without guessing the host version. Merely attaching a fiber does not prove asynchronous catalog reconciliation has finished.
+The current `agent/created` listener attaches the agent scope and awaits its queued refresh. Catalog/settings changes refresh existing mounts, and `agent/disposed` releases that agent's mount. The registered current Core is the supported input; no old `agent/session-start` listener remains. Merely attaching a fiber does not prove asynchronous catalog reconciliation has finished. [Current agent lifecycle](../simplification/2026-09-30-current-agent-lifecycle.md) owns removal of the old listener; this note retains project-scope and layout semantics.
 
 ## Alternatives considered
 
