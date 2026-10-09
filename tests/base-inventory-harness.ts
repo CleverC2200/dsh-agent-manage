@@ -12,6 +12,7 @@ export interface BusinessPresetHarnessInput {
   contract?: CapabilityContract
   seed?: readonly unknown[]
   sessionId?: string
+  cwd?: string
 }
 
 /** Other role tickets supply their actual package resource and contract; the external adapter remains shared. */
@@ -39,7 +40,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   onTestFinished(() => resources.dispose())
   onTestFinished(installPromptProfile(resource.id, resource.profile))
   const releaseResource = await resources.register([resource])
-  await resources.select(resource.id, new AbortController().signal)
+  const selection = await resources.select(resource.id, new AbortController().signal, input.cwd)
   const contract = input.contract ?? JSON.parse(await readFile(resolve(resource.root, 'capability.json'), 'utf8'))
   const capabilities = createCapabilityRegistry([contract, { id: 'gea-workbench', label: '销售计划', maxEffect: 'view', layers: ['read'] }])
   const base = 'https://gea-fixture.invalid'
@@ -137,7 +138,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
       environment: 'test',
       auth: { token: 'fixture-identity-secret', tenantId: '0', id: 'fixture-user', name: 'Fixture', username: 'fixture' }
     })
-  const agent = await agentOn(ctx, input.sessionId ?? 'authorized-base', resource.id, input.seed)
+  const agent = await agentOn(ctx, input.sessionId ?? 'authorized-base', selection.preset, input.seed, input.cwd)
   let call = 0
   const execute = (name: string, arguments_: unknown = {}, subject = agent) =>
     ctx.tools.execute({ callId: `base-${++call}` as never, name, arguments: arguments_, agent: subject, signal: new AbortController().signal })
@@ -147,6 +148,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
     ctx,
     home,
     resources,
+    selection,
     releaseResource,
     business,
     contract,

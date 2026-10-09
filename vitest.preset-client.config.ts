@@ -23,7 +23,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom']
   },
   test: {
-    include: ['tests/standard-preset-draft.test.ts', 'tests/skill-preset-client.test.ts'],
+    include: ['tests/standard-preset-draft.test.ts', 'tests/skill-preset-client.test.ts', 'tests/base-preset-client.test.ts'],
     environment: 'jsdom',
     testTimeout: 30_000,
     execArgv: vitestExecArgv,

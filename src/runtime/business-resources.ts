@@ -9,7 +9,6 @@ import { parseSkillFrontmatter, stripFrontmatter } from '../catalog/skills-parse
 import { parseFrontmatterRecord } from './user-store.js'
 import { composeStandardPreset } from './standard-preset.js'
 import { readSkillHeader } from '../catalog/skill-files.js'
-import { composeStandardPreset } from './standard-preset.js'
 
 export interface ExecutionProfile {
   label: string

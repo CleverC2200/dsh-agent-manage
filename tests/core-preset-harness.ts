@@ -159,13 +159,13 @@ export async function presetHarness() {
   return { ctx: await start(), start, home, profile }
 }
 
-export async function agentOn(ctx: Context, id: string, preset?: string, seed?: readonly unknown[]) {
+export async function agentOn(ctx: Context, id: string, preset?: string, seed?: readonly unknown[], cwd = core) {
   const { SessionId } = await official('@deepseek-ai/dsh-session')
   const selected = (await ctx.agentPresets.resolve(preset)).id
   return (
     await ctx.agents.create({
       sessionId: SessionId(id),
-      meta: { cwd: core, agentPreset: selected },
+      meta: { cwd, agentPreset: selected },
       agentOptions: { provider: 'local', model: 'test' },
       ...(seed ? { seed: seed as never } : {}),
       setup: async agentCtx => {

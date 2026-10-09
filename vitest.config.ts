@@ -4,7 +4,14 @@ export default defineConfig({
   resolve: { dedupe: ['react', 'react-dom'] },
   test: {
     include: ['tests/**/*.test.ts'],
-    exclude: ['tests/standard-preset-draft.test.ts', 'tests/standard-preset-gea.test.ts', 'tests/skill-preset-gea.test.ts', 'tests/skill-preset-client.test.ts'],
+    exclude: [
+      'tests/standard-preset-draft.test.ts',
+      'tests/standard-preset-gea.test.ts',
+      'tests/skill-preset-gea.test.ts',
+      'tests/skill-preset-client.test.ts',
+      'tests/base-preset-client.test.ts',
+      'tests/base-resource-host.test.ts'
+    ],
     environment: 'node',
     testTimeout: 30_000,
     // Serial execution: several tests share fixture directories and global

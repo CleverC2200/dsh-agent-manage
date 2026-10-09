@@ -29,3 +29,5 @@ GEA 只限制未声明的 `gea_` 工具；执行守卫也会在模型 pre-step �
 基地库存角色保留稳定 Session 标识、原 Consumer 和跨 Consumer 声明，目录名为“基地库存Agent”；业务页面命名独立。测试通过真实官方 Session、压缩、文件系统、Plan 与子 Agent 接口执行，挂载实际 GEA Business 和工具 hooks。只有 completion 与外部网关使用可重复的本地 adapter。这是源码与离线证据，不代表用户运行采用或生产授权。
 
 本决定更新[原生业务资源选用](../feature/2026-10-04-selected-business-resources.zh.md)中的组合细节。原 Note 仍持有资源生命周期、选中身份恢复和官方 Skill provider。
+
+公开 Workbench 资源选择测试通过官方 InputHub 与独立的实际 Core/GEA Host 进程，所选结果驱动 Session preset 和请求工作区；原任务草稿与持久文本保持。

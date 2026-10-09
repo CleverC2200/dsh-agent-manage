@@ -21,3 +21,5 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 稳定预设 `agent-resource-skill` 使用[标准组合接口](../../../../docs/design/standard-preset-composition.md)。插件声明来自当前官方 standard 文档，保留禁用项和用户配置。官方 Skill 发现与加载工具各保留一份；资源选择只返回 Skill 名称，不发布业务 profile。注册目录的描述说明这个用途。资源摘要投影各 Skill 原有描述，Workbench 在现有资源列表显示该投影。
 
 真实 Core Session 测试核对最终工具、命令、自动与手动压缩、继续执行和选中身份恢复。预设集成入口经过实际 GEA hooks 并核对无业务 profile 的执行拒绝。独立客户端入口使用官方 InputHub，并通过独立 Host process 的回执提供所选资源和真实 Session；它的 wire adapter 提供公开 Session/工作区接口。测试覆盖空草稿、已有文字、取消、重进与旧草稿，不将 Host 编译库装入浏览器源码图。这些离线观察不证明 Native 安装或外部模型、业务执行。
+
+业务 prompt 组合现遵循[业务标准能力](../architecture/2026-10-09-business-standard-capabilities.zh.md)。该决定持有完整 standard 声明、可信 Agent 元数据及通用能力与业务额度的分离。本记录继续持有资源选择、provider 生命周期与恢复规则。

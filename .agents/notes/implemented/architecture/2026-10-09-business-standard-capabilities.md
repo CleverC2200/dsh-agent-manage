@@ -26,6 +26,6 @@ The common fixed-Core test Host now includes the real attachment, storage, query
 
 ## Consequences
 
-The base inventory role keeps its stable Session id and original Consumer/cross-Consumer declarations. Its catalog name is `基地库存Agent`; business page naming is independent. Tests execute real official Session, compaction, filesystem, Plan and child interfaces with actual GEA Business/tool hooks. Only completion and the external gateway use deterministic local adapters. This is source/offline evidence, not adoption into a user runtime or production authorization.
+The base inventory role keeps its stable Session id and original Consumer/cross-Consumer declarations. Its catalog name is `基地库存Agent`; business page naming is independent. Tests execute real official Session, compaction, filesystem, Plan and child interfaces with actual GEA Business/tool hooks. The public Workbench resource selection lane also uses the official InputHub with a separate actual Core/GEA Host process; the returned selection drives the Session preset and requested workspace, and existing drafts remain intact. Only completion and the external gateway use deterministic local adapters. This is source/offline evidence, not adoption into a user runtime or production authorization.
 
 This changes the composition detail of [selected native resources](../feature/2026-10-04-selected-business-resources.md). That note still owns resource lifecycle, selected identity recovery and the official Skill provider.
