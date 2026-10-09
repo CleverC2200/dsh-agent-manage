@@ -53,3 +53,9 @@ CodeQL service upload remains **not covered**, based on the original private-rep
 Sources: [pnpm audit](https://pnpm.io/cli/audit), [Dependency review availability](https://docs.github.com/en/code-security/concepts/supply-chain-security/dependency-review), [Code scanning](https://docs.github.com/en/code-security/concepts/code-scanning/code-scanning). Actual remote trigger, Windows execution, security-service coverage and required-check enforcement require their own receipts. / 真实远端触发、Windows、服务覆盖和 required-check 阻合入分别留证。
 
 Existing tgz delivery, prepare/prepack consumption, calculation rules, user storage and official persisted Sessions are unchanged. / 原 tgz、prepare/prepack 消费、计算口径、用户存储与持久 Session 保持。
+
+## Portable fixed test inputs / 可移植固定测试输入
+
+The official Session forecast regression uses the original company forecast suite at commit `374a0ab62eee184d3edb3a99e594836ee685534f`, byte-preserved under `tests/fixtures/company-forecast-original` with source/hash provenance. The original source declares no license file; no license is inferred. These private test-only files are excluded from the published package. Neither the Prompt/Skill nor original source is edited or executed as business instructions. / 官方 Session 预测回归用原公司 suite 的固定字节副本，来源与逐文件哈希保存。原源树未声明许可文件，不推定许可。fixture 仅作私有测试输入，不进入发行资源，也不执行业务指令。
+
+Markdown crash coverage renders the existing frozen real-layout skill corpus through the public MarkdownText interface and asserts no body crashes. It requires actual corpus entries and no longer skips on a personal installed-skill directory. Missing baseline/corpus input remains a failure. / Markdown 崩溃回归通过原公开 interface 渲染既有固定真实布局的 Skill 文本，要求实际语料且所有条目无异常；缺输入保持失败，不再依赖个人安装目录。

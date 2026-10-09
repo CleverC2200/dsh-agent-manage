@@ -30,10 +30,19 @@ test('Manage entry registers pure calculation for an official Session and the un
     throw Error('No network allowed in pure Session calculation')
   })
   t.onTestFinished(() => vi.restoreAllMocks())
-  const source = fileURLToPath(new URL('../../../../../company-agent-suites/', import.meta.url))
+  const source = fileURLToPath(new URL('./fixtures/company-forecast-original/', import.meta.url))
   const skillPath = join(source, 'suites/sinian-demand-forecast/skills/sinian-demand-baseline/SKILL.md')
   const original = await readFile(skillPath, 'utf8')
   const originalHash = createHash('sha256').update(original).digest('hex')
+  assert.equal(originalHash, '9b18565da7dd147edcf29391af29aca237604133eb6a6d428f233767189e247e')
+  const provenance = JSON.parse(await readFile(join(source, 'provenance.json'), 'utf8'))
+  for (const file of provenance.files)
+    assert.equal(
+      createHash('sha256')
+        .update(await readFile(join(source, file.path)))
+        .digest('hex'),
+      file.sha256
+    )
   const catalog = new Catalog({ userRoot: join(root, 'agent-plugins'), dataRoot: join(root, 'agent-plugins/data'), onChanged: () => {} })
   await catalog.load()
   await catalog.mergeSources([{ id: 'original-company', url: source, local: true }])
