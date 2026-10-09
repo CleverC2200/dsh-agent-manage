@@ -62,6 +62,25 @@ The exported interface is `prepareOfficialSDK({ core, consumer, source, withWeb:
 
 The inventory verifies the produced static files, not browser execution or an arbitrary JavaScript dependency graph. Remote Ubuntu/Windows execution still needs separate receipts. / 清单核实际静态文件，不称浏览器执行或任意 JS 依赖图证明；远端 Ubuntu/Windows 仍需另有回执。
 
+### Optional flock test dependency / 可选 flock 测试依赖
+
+Real Core Session writer-lock tests require the declared host flock addon. Cold Ubuntu jobs may add `--with-flock` to `--prepare` (alongside `--with-web` if needed). An already-owned prepared Core uses `--prepare-flock`; this runs only the original `corepack pnpm run build:native-system`, whose fixed script is `tsx native/system/scripts/build.ts --host-addon-only`. It does not repeat SDK/Web builds or installation. / 真实 Core Session writer 锁测试需本机声明的 flock addon。冷 Ubuntu job 可显式 with-flock；已有独立 prepared Core 用 prepare-flock，只执行原 host-addon-only 脚本，不重复 SDK/Web/安装。
+
+```sh
+node scripts/prepare-official-sdk.mjs --prepare-flock --with-web \
+  --core /absolute/job-root/official-latest-standard \
+  --consumer /absolute/job-root/candidate/dsh-agent-workbench --receipt /absolute/job-root/sdk-flock.json
+node scripts/prepare-official-sdk.mjs --with-web --with-flock \
+  --core /absolute/job-root/official-latest-standard \
+  --consumer /absolute/job-root/candidate/dsh-agent-workbench --receipt /absolute/job-root/sdk-flock-verified.json
+```
+
+The public functions are `prepareOfficialSDK({ core, consumer, source, withFlock: true, withWeb: true })`, `prepareOfficialFlock(options)` and `verifyOfficialSDK({ core, consumer, withFlock: true })`. SDK-only remains the default. The opt-in receipt adds `flock`: the matching platform/libc, Node-API 8 declaration and output path from Core's `prebuilds.json`, original C/build/metadata hashes, compiler and Node header provenance, output hash and successful addon loading with a callable `tryLock`. SDK targets and any prepared Web inventory must stay unchanged. / 公开函数集中维护同一规则，默认仍仅 SDK。flock 回执核 Core 原 prebuilds 声明、平台/libc、Node-API8、源/工具/头文件来源、产物hash及真实可加载 tryLock；原SDK和已准备Web摘要须保持。
+
+Preparation requires the owned physical checkout, fixed source/lock/toolchain, existing `cc` (`musl-gcc` for Linux musl) and the development headers beside the running Node installation. Missing headers/compiler/addon or unsupported platform is a failure; the Core script's unsupported-host exit0 is not accepted as preparation. Read-only verification checks the produced artifact and loadability without requiring a compiler on the consumer. Windows archives do not request this stage. / 准备要求归属、物理路径、固定输入及已有编译器/Node开发头文件；缺输入或不支持平台明确拒绝，不能以原脚本exit0充准备成功。只读消费者核产物与可加载性，不要求其再配编译器；Windows归档不请求此stage。
+
+This is a private POSIX Node-API dependency for offline kernel-lock tests, not a Native client, Landlock executable, complete native build, installer, server or release. It installs no global tool and does not replace the real held-writer test with a mock. Linux/Windows execution and Native acceptance still require separate evidence. / 这是离线真实内核锁测试的私有 Node-API 依赖，不是客户端、Landlock、全native、安装器、服务或发行；不安装全局工具、不mock真实writer锁。Linux/Windows实际执行和Native验收仍分别留证。
+
 The frozen input JSON uses ticket 01's existing `core` and `repositories: [{repo, path, head}]` interface. Workbench and GEA refs are explicit in [write-ci-input](../scripts/write-ci-input.mjs) and the workflow, while Manage uses the actual PR head or push SHA. Full Git history and credential persistence disabled are required. All three checkouts must be clean; package locks must match their commits. / 输入沿票01公开格式，peer 固定来源明确，Manage 绑定实际事件 SHA，三仓必须干净且锁与提交相符。
 
 ## Platforms and rejection / 平台与拒绝
