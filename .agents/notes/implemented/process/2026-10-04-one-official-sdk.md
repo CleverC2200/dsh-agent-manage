@@ -18,4 +18,4 @@ The [UI baseline decision](2026-09-29-source-core-ui-baseline.md) retains its Re
 
 ## Consequences
 
-The standard official input must be available read-only before development checks. Source checks and full gates do not prove real latest-client behavior. No SDK/Core source or build is modified by this plugin, and no user state is copied. Existing resource owner/cancellation and Consumer separation remain.
+Host and client consume the prepared standard official input read-only. The developer `sdk:prepare` tool can clone the fixed Core source and build its SDK in an independent checkout owned by that preparation job; the original and shared Core checkouts, symlinks and unowned directories remain protected. The [clean CI contract](../../../../docs/clean-ci.md) describes the fixed source, original lock, ownership marker and optional preparation stages. Source checks and full gates do not prove real latest-client behavior, and no user state is copied. Existing resource owner/cancellation and Consumer separation remain.

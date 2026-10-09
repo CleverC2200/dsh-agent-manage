@@ -18,4 +18,4 @@ Host和Client都消费固定官方5badb150标准包的真实开发依赖与匹�
 
 ## Consequences
 
-开发检查前须有只读的官方标准输入。源码门禁与完整测试不代表最新版实际客户端行为。插件不修改/构建SDK或Core，不复制用户状态；资源owner/取消和Consumer隔离保持。
+Host 与 Client 只读消费已准备的官方标准输入。开发工具 `sdk:prepare` 可克隆固定 Core 源码，在准备任务独立持有的 checkout 中构建 SDK；原始与共享 Core checkout、symlink 和无归属目录仍受保护。[干净 CI 合同](../../../../docs/clean-ci.md)说明固定源码、原锁、归属标记与可选准备阶段。源码门禁与完整测试不代表最新版实际客户端行为，不复制用户状态；资源 owner/取消和 Consumer 隔离保持。
