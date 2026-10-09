@@ -1,4 +1,6 @@
+/** 文件作用：读取并执行套件中的 Agent 角色卡，并把结果接入宿主的子 Agent 服务。 */
 /** Execute user and installed-suite agent cards through the host subagent service. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -11,6 +13,7 @@ type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string
 export const AGENT_ROLE_TOOL_NAME = 'subagents_run'
 
 /** Panel identity is preserved so identically named cards from different suites remain addressable. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface AgentRoleEntry {
   name: string
   path: string
@@ -32,12 +35,14 @@ export interface AgentRolePolicy {
   disabled: boolean
 }
 
+/** 从 YAML 元数据中读取可选非空文本，非法值按缺失处理。 */
 function optionalText(value: unknown, key: string): string | undefined {
   if (value === undefined) return undefined
   if (typeof value !== 'string' || value.trim() === '') throw new Error(`agent metadata ${key} must be a non-empty string`)
   return value.trim()
 }
 
+/** 解析 tools 白名单，保留字符串项并过滤空值，供 Agent 工具限制使用。 */
 function toolList(value: unknown, key: string): string[] | undefined {
   if (value === undefined) return undefined
   const entries: unknown[] = typeof value === 'string' ? value.split(',') : Array.isArray(value) ? value : [value]
@@ -52,6 +57,7 @@ function toolList(value: unknown, key: string): string[] | undefined {
 }
 
 /** Strict YAML parsing prevents malformed routing/restriction metadata from silently inheriting wider privileges. */
+/** 解析角色 Markdown 的 frontmatter 与正文，输出执行策略而不执行外部副作用。 */
 export function parseAgentRole(text: string): AgentRolePolicy {
   const match = /^(?:\uFEFF)?---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(text)
   if (match === null) {
@@ -85,12 +91,15 @@ export function parseAgentRole(text: string): AgentRolePolicy {
 }
 
 interface ModelCatalog {
+  /** 中文：列出当前可用的模型提供商标识。 */
   listProviders(): { id: string }[]
+  /** 中文：按提供商查询模型列表，返回模型标识。 */
   listModels(provider: string): Promise<{ id: string }[]>
   resolveCallConfig(config: { provider: string; model: string; reasoningEffort?: string }, signal?: AbortSignal): Promise<unknown>
 }
 
 /** Bare ids must resolve uniquely; Claude aliases are accepted only if actually advertised by a DSH provider. */
+/** 校验角色指定的 provider/model，并解析宿主实际调用配置。 */
 export async function resolveAgentModel(policy: AgentRolePolicy, catalog: ModelCatalog): Promise<{ provider?: string; model?: string }> {
   if (policy.model === undefined) return policy.provider === undefined ? {} : { provider: policy.provider }
   const providers = catalog.listProviders()
@@ -140,17 +149,20 @@ export interface AgentRoleHost {
     ): Promise<{
       id: string
       result: Promise<{ stopReason: string; output: JsonValue[] }>
+      /** 中文：释放一次角色执行对应的子 Agent 资源。 */
       dispose(): void | Promise<void>
     }>
   }
 }
 
 /** Read the same declaration for catalog summaries and execution, including inline resources. */
+/** 读取一个角色文件并解析策略；路径来自已发现目录，输出可执行角色定义。 */
 export async function readAgentRole(entry: AgentRoleEntry): Promise<AgentRolePolicy> {
   return parseAgentRole(entry.rawText ?? (await readFile(entry.path, 'utf8')))
 }
 
 /** Stable summaries; invalid declarations are excluded and transient read failures abort publication. */
+/** 并发解析角色条目，去重并报告单项错误；AbortSignal 控制目录刷新生命周期。 */
 export async function agentRoleCatalog(entries: AgentRoleEntry[], signal: AbortSignal, diagnose: (message: string) => void = () => {}): Promise<SubagentCatalogEntry[]> {
   const summaries: SubagentCatalogEntry[] = []
   const counts = new Map<string, number>()
@@ -192,6 +204,7 @@ export async function agentRoleCatalog(entries: AgentRoleEntry[], signal: AbortS
 }
 
 /** Resolve fresh panel state and raw Markdown on every call, including after edits, disabling and uninstall. */
+/** 解析角色模型并启动子 Agent，返回宿主执行句柄的 Promise。 */
 export async function executeAgentRole(
   host: AgentRoleHost,
   listRoles: (parent?: unknown) => Promise<AgentRoleEntry[]>,
@@ -246,6 +259,7 @@ export async function executeAgentRole(
 }
 
 /** Mount once after tools, llm and subagents are available; the returned disposer belongs to the plugin lifecycle. */
+/** 注册 subagents_run 工具，串接角色发现、模型解析、执行和释放。 */
 export function mountAgentRoleTool(ctx: Context, listRoles: (parent?: unknown) => Promise<AgentRoleEntry[]>, t: HostTranslate = bindHostLocale(undefined)): () => void {
   const host = ctx as unknown as AgentRoleHost
   const tool = defineTool({
@@ -258,6 +272,7 @@ export function mountAgentRoleTool(ctx: Context, listRoles: (parent?: unknown) =
     },
     output: { schema: { type: 'json' }, render: (_args, result) => [{ type: 'text', text: JSON.stringify(result) }] },
     isConcurrencySafe: () => true,
+    /** 工具回调：读取请求角色、执行子 Agent，并把取消信号透传给宿主。 */
     async execute(args, exec) {
       return executeAgentRole(host, listRoles, args.role, args.prompt, exec.agent, exec.signal)
     }

@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
-  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) \u2014 zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
-  "version": "0.6.3-company.4",
+  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) — zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
+  "version": "0.6.3-company.6",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -12,7 +12,25 @@
     },
     "./client": "./client/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./business-resources": {
+      "types": "./lib/types/runtime/business-resources.d.ts",
+      "default": "./lib/runtime/business-resources.js"
+    },
+    "./forecast-source": {
+      "types": "./lib/types/runtime/forecast-source.d.ts",
+      "default": "./lib/runtime/forecast-source.js"
+    },
+    "./inventory-compute/*": {
+      "source": "./src/inventory-compute/*.ts",
+      "types": "./lib/types/inventory-compute/*.d.ts",
+      "default": "./lib/inventory-compute/*.js"
+    },
+    "./aps-compute/*": {
+      "source": "./src/aps-compute/*.ts",
+      "types": "./lib/types/aps-compute/*.d.ts",
+      "default": "./lib/aps-compute/*.js"
+    }
   },
   "files": [
     "lib",
@@ -21,7 +39,10 @@
     "cordis.patch.yml",
     "LICENSE",
     "README.md",
-    "README.zh.md"
+    "README.zh.md",
+    "business-resources",
+    "src/inventory-compute",
+    "src/aps-compute"
   ],
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
@@ -45,7 +66,6 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
-        "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-ui-theme"
@@ -91,12 +111,13 @@
     "ai-agents"
   ],
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-hooks-claude-code": "^0.1.2-rc.1",
-    "@deepseek-ai/dsh-llm": "^0.1.2-rc.1",
-    "@deepseek-ai/dsh-mcp-client": "^0.1.2-rc.1",
-    "@deepseek-ai/dsh-skill": "^0.1.2-rc.1",
-    "@deepseek-ai/dsh-tools": "^0.1.2-rc.1"
+    "@deepseek-ai/cordis": "4.0.5-alpha.1",
+    "@deepseek-ai/dsh-hooks-claude-code": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-llm": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-mcp-client": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-skill": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-tools": "0.2.1-alpha.1",
+    "@deepseek-ai/schemastery": "3.18.5-alpha.1"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-mcp-client": {
@@ -110,22 +131,22 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "^3.18.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "ajv": "^8.17.1",
     "fflate": "^0.8.3",
     "smol-toml": "^1.8.0",
     "yaml": "^2.7.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "decimal.js": "10.6.0"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-client-ui-primitives": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-hooks-claude-code": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-mcp-client": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-skill": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-tools": "0.1.2-rc.1",
+    "@deepseek-ai/cordis": "link:../../official-latest-standard/vendor/cordis",
+    "@deepseek-ai/dsh-client-ui-primitives": "link:../../official-latest-standard/packages/client/ui-primitives",
+    "@deepseek-ai/dsh-hooks-claude-code": "link:../../official-latest-standard/packages/hooks/hooks-claude-code",
+    "@deepseek-ai/dsh-llm": "link:../../official-latest-standard/packages/llm/llm",
+    "@deepseek-ai/dsh-mcp-client": "link:../../official-latest-standard/packages/mcp/mcp-client",
+    "@deepseek-ai/dsh-skill": "link:../../official-latest-standard/packages/skill/skill",
+    "@deepseek-ai/dsh-tools": "link:../../official-latest-standard/packages/core/tools",
     "@eslint/js": "^9.39.5",
     "@tsdown/css": "^0.22.14",
     "@types/node": "^22.15.0",
@@ -141,7 +162,8 @@
     "tsdown": "^0.22.14",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.67.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "@deepseek-ai/schemastery": "link:../../official-latest-standard/vendor/schemastery"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"

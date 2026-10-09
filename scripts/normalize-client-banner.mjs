@@ -2,8 +2,8 @@
 /**
  * Post-process the tsdown client bundle into the Web app's module-loader
  * contract:
- * 1. inline the emitted style.css into the bundle as a document.head style
- *    injection (the loader evaluates the factory in a plain function scope,
+ * 1. expose emitted CSS to the plugin apply effect, which owns style disposal
+ *    (the loader evaluates the factory in a plain function scope,
  *    so an `import './style.css'` statement would be a syntax error);
  * 2. wrap the CJS body in `window.__ModuleLoader__.load({ id, factory })`
  *    with its own `var module/exports` scaffolding.
@@ -22,7 +22,7 @@ let body = readFileSync(bundlePath, 'utf8')
 if (existsSync(cssPath)) {
   const css = readFileSync(cssPath, 'utf8')
   const cssLiteral = JSON.stringify(css)
-  const injection = `(function(){if(typeof document!=="undefined"){var s=document.createElement("style");s.setAttribute("data-dsh-client","${id}");s.textContent=${cssLiteral};document.head.appendChild(s);}})();`
+  const injection = `var __dshManageClientCss=${cssLiteral};`
   const importPattern = /import\s*['"]\.\/style\.css['"];?/
   if (importPattern.test(body)) {
     body = body.replace(importPattern, injection)

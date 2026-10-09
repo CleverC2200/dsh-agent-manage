@@ -1,0 +1,17 @@
+{
+  "id": "category-plan",
+  "label": "品类计划工作台（模拟原型）",
+  "data": {
+    "consumerCode": "category-plan-prototype",
+    "tables": [],
+    "rules": [],
+    "mock": true
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["category-plan"],
+  "routing": {
+    "keywords": ["品类计划", "category-plan"],
+    "summary": "本地模拟品类计划快照与交互，不代表真实业务结果。"
+  }
+}

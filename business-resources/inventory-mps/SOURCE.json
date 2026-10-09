@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "797d33881a494fd0316e3f2241440830da7954a0",
+  "sourcePath": "business-resources/inventory-mps",
+  "originalMcpCapabilities": ["governed-sql-read"],
+  "reception": "Mock/view resource. Current MCP capabilities are empty; obsolete preview Session presets are omitted. Current UI intent and unfinished draft recover in the Session, and derived mock results do not enter a business store.",
+  "originalFilesSha256": {
+    "prompt.json": "f0ef0755d5aca303ce3a73c9e5cf3f7261f46860033f4a9483e094d64b9c50ed",
+    "capability.json": "de4ffe4b1a5b206608a9262238d8455a39b682664c43cd0fa85a4de713e8a6f2",
+    "mcp.json": "18405954a909d772f3279ecca60c9acd38d6aa43622dfc3d0be391095cd40255",
+    "skills/inventory-mps/SKILL.md": "d9fdc49299a505dd91c0e8150a4da63aa602620e02315e5207ac98253b5a74f9"
+  },
+  "receivedFilesSha256": {
+    "prompt.json": "88521eae95cf935c41f1a910405f13d1ea97246158b31ecf015092ae769caa24",
+    "capability.json": "de4ffe4b1a5b206608a9262238d8455a39b682664c43cd0fa85a4de713e8a6f2",
+    "mcp.json": "7e87a7a46bff93ebcf0f15daa329d2afceb025bd7ee224c3ade143834c3eff5a",
+    "skills/inventory-mps/SKILL.md": "c9a55539603b8bfd4a22f9b3eca3bb21c65398dfec16959c5500b6c7826e78af"
+  }
+}

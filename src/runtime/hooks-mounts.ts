@@ -1,3 +1,4 @@
+/** 文件作用：把套件 hooks 配置挂载到宿主生命周期，并隔离单套件失败。 */
 /**
  * Claude Code hook compatibility: each enabled suite's `hooks/hooks.json`
  * mounts one live `dsh-hooks-claude-code` bridge on the harness's canonical
@@ -10,6 +11,7 @@
  * on every enable/disable/install/uninstall; a missing bridge package, a
  * broken hook file, or a mount failure is contained per suite.
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
@@ -25,11 +27,14 @@ export interface HooksMountDiagnostic {
 }
 
 interface MountHandle {
+  /** 中文：等待 hooks 子插件初始化完成。 */
   await(): Promise<unknown>
+  /** 中文：释放单个 hooks 子插件挂载。 */
   dispose(): void | Promise<void>
 }
 
 interface PluginMountContext {
+  /** 中文：按配置创建宿主插件挂载并返回生命周期句柄。 */
   plugin(plugin: unknown, config: unknown): MountHandle
 }
 
@@ -39,9 +44,11 @@ export class HooksMountRegistry {
   private readonly temporary = new Map<string, string>()
   private queue: Promise<void> = Promise.resolve()
 
+  /** 绑定 Cordis 上下文，所有 hooks 插件都在该作用域创建和释放。 */
   constructor(private readonly ctx: Context) {}
 
   /** Mount/unmount one bridge per suite to match the enabled suites exactly. */
+  /** 串行对账 hooks 挂载，避免并发变更破坏宿主拦截链。 */
   async reconcile(enabledSuites: Suite[]): Promise<HooksMountDiagnostic[]> {
     const run = this.queue.then(() => this.reconcileNow(enabledSuites))
     this.queue = run.then(
@@ -51,10 +58,12 @@ export class HooksMountRegistry {
     return run
   }
 
+  /** 在队列内执行实际增删，逐套件隔离文件和插件错误。 */
   private async reconcileNow(enabledSuites: Suite[]): Promise<HooksMountDiagnostic[]> {
     const diagnostics: HooksMountDiagnostic[] = []
     const active = enabledSuites.filter(suite => suite.activeSurfaces?.hooks !== false && (suite.resources === undefined || suite.hooks !== undefined))
     // Keys are the qualified suite id: bare ids are unique per source only.
+    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const wanted = new Set(active.map(suite => qualifiedSuiteId(suite.sourceId, suite.id)))
     for (const [suiteId, handle] of [...this.live]) {
       if (!wanted.has(suiteId)) {
@@ -87,6 +96,7 @@ export class HooksMountRegistry {
   }
 
   /** Dispose every live bridge; used at plugin teardown. */
+  /** 串行释放全部 hooks 挂载并清理临时配置文件。 */
   async disposeAll(): Promise<void> {
     const run = this.queue.then(async () => {
       for (const [suiteId, handle] of [...this.live]) await this.unmount(suiteId, handle)
@@ -95,6 +105,7 @@ export class HooksMountRegistry {
     await run
   }
 
+  /** 为单套件写入临时 hook 配置并挂载桥接插件，返回失败原因或 undefined。 */
   private async mount(key: string, suite: Suite, content: string, fingerprint: string, originalPath?: string): Promise<string | undefined> {
     let bridge: typeof HooksBridge | undefined
     try {
@@ -128,12 +139,14 @@ export class HooksMountRegistry {
         await handle?.dispose()
       } catch {
         /* Preserve the startup failure. */
+        /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
       }
       if (temporary !== undefined) await rm(temporary, { recursive: true, force: true })
       return `mount failed: ${error instanceof Error ? error.message : String(error)}`
     }
   }
 
+  /** 释放单套件 hook 插件并删除临时文件，失败向上转成诊断。 */
   private async unmount(suiteId: string, handle: MountHandle): Promise<void> {
     this.live.delete(suiteId)
     this.fingerprints.delete(suiteId)
@@ -150,6 +163,7 @@ export class HooksMountRegistry {
 }
 
 /** The first existing CC hook config of a suite root. */
+/** 读取套件 hooks.json 路径；不存在返回 undefined，区分无 hooks 与坏配置。 */
 export async function hookConfigPath(root: string): Promise<string | undefined> {
   for (const relative of [join('hooks', 'hooks.json'), 'hooks.json']) {
     const path = join(root, relative)
@@ -157,6 +171,7 @@ export async function hookConfigPath(root: string): Promise<string | undefined> 
       if ((await stat(path)).isFile()) return path
     } catch {
       // try the next candidate
+      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     }
   }
   return undefined

@@ -23,11 +23,13 @@ English | [简体中文](README.zh.md) | [Documentation](https://github.com/Clev
 - **Keep project resources in place.** Project `.claude/` and `.agents/` skills and agents are discovered without an installation step or file copying.
 - **Manage services where you use them.** Add your own MCP services and LSP servers, configure credentials and authorization for installed ones, inspect status, and diagnose unavailable services from one workspace.
 
+This isolated project supports only its registered current core source and public interfaces. Project commands and suite instructions finish through asynchronous `agent/created` before the first model request; the obsolete `agent/session-start` listener is removed.
+
 ## Quick start
 
 This fork uses the package name `dsh-agent-manage`; publication of the new npm package has not been performed or verified here. Use the GitHub source below. When replacing the old package, remove its profile entry before installing this package to avoid duplicate loading. Existing `dsh-agent-plugins-market` settings and data paths remain compatible.
 
-You need Node.js 22+, Git for Git sources, and a DSH Web profile with the skill service enabled. This repository declares DSH peer packages in the `^0.1.2-rc.1` range; individual capabilities also depend on the services in your profile. See [host requirements](docs/guides/usage.md#host-requirements).
+You need Node.js 24+, Git for Git sources, and a DSH Web profile with the skill service enabled. This repository declares DSH peer packages in the `0.2.1-alpha.1` range; individual capabilities also depend on the services in your profile. See [host requirements](docs/guides/usage.md#host-requirements).
 
 Install into your profile, replacing `<name>` with its name:
 
@@ -35,7 +37,7 @@ Install into your profile, replacing `<name>` with its name:
 dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
-1. Restart DSH and open **Settings → Agent Plugins Market**. Older shells may show a top-level page entry instead.
+1. Restart DSH and open **Workbench → Agent Marketplace** (`agent-plugin-workspace`). The same resource workspace also remains available in **Settings → Agent Marketplace**. The Workbench directory uses the official `main` registration; titles are presentation metadata.
 2. In **Market**, add a source, for example `https://github.com/anthropics/claude-plugins-official`. No sources are preconfigured.
 3. Open a suite, review its contents, then install it and ensure it is enabled.
 4. For a suite with skills, check the **Skills** tab and type `/` in chat to find its user-invocable skills. For an MCP suite, check **MCP services** and resolve any credential or connection notices before using its tools.
@@ -60,6 +62,8 @@ The workspace has six tabs:
 A **source** is where content comes from; a **suite** is an installable unit discovered there. Adding a source discovers its suites. Installing and enabling a suite controls its runtime capabilities. Suite details preview files; MCP credentials and overrides are edited in **MCP services**.
 
 Your own skills, commands and personas are stored as Markdown under `~/.dsh/agent-plugins/user/`. Project-native resources stay in the project. See [storage and discovery](docs/guides/usage.md#storage-and-discovery) for paths and precedence.
+
+Startup uses the current `$DSH_HOME/agent-plugins` storage only. Retired `userRoot` or `dataRoot` configuration is rejected with `MANAGE_STORAGE_UPGRADE_REQUIRED` before runtime mounting; remove those overrides for a fresh profile. Startup neither reads nor moves old trees or backend `settings.json`. Existing data stays at its original path; any required conversion is a separately authorized upgrade. The canonical home, user/data, authored-user and `.sources` directories must not be symbolic links.
 
 All six tabs share a saved grid/list preference. Add and refresh actions sit at the top right; resource state rails are green when active.
 
@@ -212,9 +216,9 @@ Only when you tick **also delete the managed market directory** in the confirmat
 - [Security policy](SECURITY.md) · [Release history](CHANGELOG.md) · [MIT license](LICENSE).
 - [Domain glossary](CONTEXT.md) · [Architecture](docs/adr/0001-catalog-centered-modular-refactor.md).
 
-See [agent roles and storage](docs/guides/agent-roles.md) for installed-resource editing, model routing and migration.
+See [agent roles and storage](docs/guides/agent-roles.md) for installed-resource editing, model routing and canonical storage.
 
-Switch the download region under Settings → Plugins → Plugin configuration → Agent Plugins Market. A saved manual choice updates the selected segment immediately; a failed write displays an error and retains the previous choice.
+Switch the download region under Settings → Plugins → Plugin configuration → Agent Marketplace. A saved manual choice updates the selected segment immediately; a failed write displays an error and retains the previous choice.
 
 When the GEA plugin is loaded, GEA login automatically discovers its authorized MCP tools. See [GEA login and MCP](docs/guides/gea-mcp.md) for Consumer selection, lifecycle and verification boundaries.
 
@@ -225,3 +229,55 @@ MCP servers advertising resources also expose `dsh_read_resource` under their se
 Private GitHub suites can use an explicit archive source such as `https://api.github.com/repos/OWNER/REPO/zipball/REF`. The desktop administrator supplies `DSH_AGENT_MANAGE_GITHUB_TOKEN` in the launch environment. Authorization is sent only to the initial HTTPS GitHub API request, never to redirect destinations; it is not stored in source settings. Download failures preserve installed content.
 
 The download-region selector immediately reflects an explicit choice; automatic mode follows the detected region.
+
+The isolated plugin-split workspace targets the sibling DSH 0.2.1-alpha.1 source build. DSH peers are pinned to that version and Cordis to 4.0.5-alpha.1; client icons consume its Regular exports. The UI primitives development link resolves to that same checkout, and tests deduplicate React across the link. Run the source compatibility check from the sibling GEA repository before using this combination.
+
+Management pages consume resource `1.0.0` installed and released by the Workbench plugin. Manage owns the lifetime of its emitted CSS, with no module-load style insertion or Core theme synchronization. Theme, font size and semantic status colors remain host-owned.
+
+## Branch inventory split resources
+
+`business-resources/inventory-fc` and `business-resources/inventory-aqkc` own the migrated read-only Skill, persona, MCP declaration and capability metadata. The workbench build assembles these files with its page through the existing `declarations.page/capability` references. The exported `dsh-agent-manage/business-resources` loader reads and validates Skill/persona identity; GEA validates Consumer, page IDs and effects before mounting. Native Skill paths remain compatible, and teardown preserves later edits. Resource configuration contains no credentials; GEA still owns login and governed execution. HTML resources require current v2 and explicit Agent Manage declarations; legacy manifests are rejected. The `pageAgents` list in `prompt.json` permits installed presets to interpret this page without granting cross-Consumer access. The branch stock page lists branch stock and full-chain inventory; GEA separately checks installation and the current login's Consumer authorization.
+
+See [branch stock page Agent choices](docs/guides/branch-stock-page-agents.md) for the configuration and Session rules.
+
+The resource loader rejects overlapping mounts of the same module in one native Skill home. GEA likewise rejects overlapping persona replacements for the same existing preset, so an older disposer cannot remove or revive another owner.
+
+The business resource loader returns `skillName` and `skillDescription` from the same catalog YAML parser. Consumers do not parse the Skill again. A cleanup read failure other than ENOENT is reported and retains the owner claim; retry cleanup after fixing the file before remounting. Later user edits and deliberate deletion remain untouched.
+
+### Native resource selection
+
+`GET /api/agent-manage/resources?cwd=...` returns lightweight installed/enabled prompt and human-invocable Skill summaries for the explicit absolute native workspace. `POST /api/agent-manage/resources/select` accepts only `{ "id": "...", "cwd": "/absolute/workspace" }` and publishes the selected original resource through the official native preset/Skill interfaces. Discovery, body selection and the new Workbench Session use the same current native workspace (or the explicitly configured workspace before a Session exists) and stages `/skill-name` without sending a model request. Missing installed Skills are reported separately from Consumer authorization. `selected-resources.json` stores only selected identities for restart recovery; it contains no resource prose or credentials.
+
+Resource selection accepts same-origin POST JSON up to 64KiB, counted from the stream before selection. Oversized buffered or chunked bodies return 413. Malformed packaged Skill metadata is diagnosed at that Skill and skipped; healthy resources remain available, and cancellation propagates.
+
+Manage provides `skill_reference_read` for local relative references explicitly linked by a currently visible model-invocable Skill. It uses the host filesystem's read permissions, caller workspace/scope/cancellation and strict UTF-8, size and line paging limits, and revalidates the installed owner before returning. MCP resources still use the server's resource reader.
+
+The pure `forecast_compute` capability uses the installed/enabled `sinian-demand-baseline` visible in that caller workspace. It preserves §5.5's exact decimal algorithm, missing-data branches and draft/no-write semantics. Its result includes algorithm version, exact input SHA-256 and whether complete JSON originated in an actual user message. This provenance does not verify business sources or grant Consumer authorization; model-supplied `data_mode` alone is never source proof.
+
+The registered development SDK is the fixed official `dsh-v0.2.1-alpha.1` / `5badb15009ae1756c3afe0ae0cef1faafc290ccc` standard build. Host/client types and actual dev dependencies point to those same official packages, with matching runtime peers. The client declares the real slots/locale/settings interfaces and no removed client-runtime alias. Manage's resource/MCP implementation and the official Core plugin manager keep their existing separate ownership.
+
+After Manage validates a selected prompt's `pageAgents`, resource summaries and selection results include the optional `interpreters` array. It contains allowed page interpreter identities whose resource owners remain registered, enabled and free of a recorded load error. Workbench uses these identities to choose an official Session preset. GEA checks the selected preset and required Consumer permissions.
+
+The public `dsh-agent-manage/forecast-source` export provides the calculator version, canonical input hash, user-message input check and current baseline fingerprint used by `forecast_compute`. GEA consumes these functions in its existing per-identity Session evidence store. Manage keeps the decimal calculation and source checks. GEA keeps business authorization.
+
+Customer stock, order report and order fulfillment resources are retained in `business-resources/inventory-customer`, `inventory-orderworkbench` and `inventory-orderfulfillment`. Their original personas and Skills describe mock data only. The Workbench assembles them into existing page packages; selecting them prepares an official Core Session without a model request. Their MCP capability list is empty and GEA rejects business SQL.
+
+The existing regional prototype uses the original `plan-regional` resource in `business-resources/plan-regional`. Workbench assembles it into the current `gea-regional-plan` page; Manage publishes the original persona and Skill through native resource selection. Its MCP capability list is empty and GEA grants only view access. UI draft recovery does not save a business plan.
+
+The original category plan resource remains in `business-resources/category-plan`. Workbench assembles it into `lib/static/category` with the original `category-plan`, `plan-region-category` and `category-plan-prototype` identifiers. Its Skill distinguishes Session UI intent and unfinished text from temporary simulated tasks; the MCP capability list remains empty.
+
+MPS resources in `business-resources/inventory-mps` retain the original mock persona, Skill and view-only declarations. The Workbench assembles them into the existing static MPS page. The Skill reads only the mounted step; UI intent and unfinished text restore in the current Session, while derived mock results never enter a business store. The historical `governed-sql-read` declaration is recorded in `SOURCE.json`; current MCP capabilities are empty.
+
+The inventory-dealer package retains the original rules and reads its ten registered tables through the public GEA governed SQL channel. Its original consumer ID is preserved and its MCP capability is governed-sql-read. Page visibility and resource enablement remain independent. The 201-row fixture is used only for offline verification. Suggestions and order checks remain local drafts; they do not submit replenishment orders. Actual production interface and data validation remain pending.
+
+The full-chain resources in `business-resources/inventory-qll` declare seven company read-only tables and `governed-sql-read`. Workbench uses the current GEA grant and public SQL channel; Manage owns original source-row normalization, quantity/velocity rules and the same public calculator. Customer reads are not enabled. Source reception and local fixtures do not prove current identity, data or row permissions.
+
+The same resource explains company inventory, order gaps and aging trends from current scoped GEA results. Workbench owns reads, paging and Session-bound transient facts; Manage owns original calculation. Missing periods remain null, and source/fixture reception does not prove live identity, row permissions or model acceptance.
+
+The personal stock resource in `business-resources/inventory-personal` retains the monitoring, priority items and feedback field vocabulary. Its independent Consumer reads nine registered tables through the public GEA governed SQL channel, with the `governed-sql-read` capability. Fixed inputs are used only for offline regression; actual production interface and data validation remain pending. The page remains hidden by default. Feedback fields restore in their Session; the page draft action appends unsent plain text through the Core public edit event, preserving resident text and reference chips without queuing a model Task.
+
+Inventory pure calculations are available through `dsh-agent-manage/inventory-compute/*`. Dealer policy, coverage and replenishment, full-chain metrics, and Personal inventory reports accept already-scoped inputs and return results without reads, Session access or business authorization. Workbench bundles this public source export when assembling its pages. See [the calculation contract](docs/design/inventory-compute.md).
+
+APS uses the public `aps-compute/*` source and runtime exports. Its original prediction and problem-analysis Skills and references have one source under `business-resources/aps-analysis`. `BusinessResources` validates declared resource references at selection; these references do not grant GEA business permission.
+
+DMS mock reception resources live only in `business-resources/inventory-dms`. `src/inventory-compute/dms-mock-packets.ts` owns the supplied-input quantity, three-decimal formatting and M/Z packet-key calculation. Workbench owns the page-local simulator and reuses its existing sales workflow projection. No DMS credential, SQL capability or write MCP is included.

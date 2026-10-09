@@ -1,0 +1,26 @@
+{
+  "version": "1",
+  "updatedAt": "2026-08-09",
+  "status": "生效",
+  "healthBands": [
+    { "productLabel": "基量品", "minDays": 7, "maxDays": 20 },
+    { "productLabel": "补充品", "minDays": 7, "maxDays": 20 }
+  ],
+  "healthLevels": [
+    { "level": "告急", "label": "告急", "condition": "turnover < minDays", "display": "红色", "action": "优先沟通补货或关注未发货/在途履约" },
+    { "level": "健康", "label": "健康", "condition": "minDays <= turnover <= maxDays", "display": "绿色", "action": "保持当前补货节奏" },
+    { "level": "偏高", "label": "偏高", "condition": "maxDays < turnover <= 60", "display": "黄色", "action": "控制新增下单，结合货龄和动销观察" },
+    { "level": "滞销", "label": "滞销", "condition": "turnover > 60", "display": "深色", "action": "建议促销清库，暂停或谨慎下单" }
+  ],
+  "stockVsTarget": {
+    "highRatio": 1.2,
+    "lowRatio": 0.8,
+    "note": "当前库存/目标库存 >= highRatio 视为高库存；<= lowRatio 视为低库存；阈值待业务确认后维护。"
+  },
+  "ageDisplayBands": [
+    { "band": "新近", "minDays": 0, "maxDays": 30, "display": "新近库存" },
+    { "band": "常规", "minDays": 31, "maxDays": 60, "display": "常规库存" },
+    { "band": "关注", "minDays": 61, "maxDays": 90, "display": "关注库存" },
+    { "band": "长货龄", "minDays": 91, "display": "长货龄风险" }
+  ]
+}

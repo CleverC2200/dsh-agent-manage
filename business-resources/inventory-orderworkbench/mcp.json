@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "provider": "gea",
+  "consumer": {
+    "consumerType": "AGENT",
+    "consumerCode": "orderworkbench-preview"
+  },
+  "capabilities": [],
+  "transport": "host-provided",
+  "contract": "gea-html-v2"
+}

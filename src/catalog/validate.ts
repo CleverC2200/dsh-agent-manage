@@ -1,3 +1,4 @@
+/** 文件作用：执行插件 JSON Schema 与语义文件规则校验，阻断越界和未知契约。 */
 /**
  * agent-plugins.org v1.0.0 validation: vendored JSON Schemas plus the
  * specification's semantic filesystem rules.
@@ -8,11 +9,13 @@
  * semantic pass then enforces §4 path containment, `$schema` recognition, and
  * the `${PLUGIN_ROOT}` / `${PLUGIN_DATA}` expansion the spec makes mandatory.
  */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readFile, realpath } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 // The 2020-12 dist build's d.ts resolves to a CJS namespace under NodeNext;
 // the runtime default export is the class itself (module.exports = Ajv2020).
+// 中文：NodeNext 下类型声明与运行时导出形态不同，这里保持兼容导入方式。
 import Ajv2020Default from 'ajv/dist/2020.js'
 import type { McpServer, McpSuiteConfig } from '../model/types.js'
 import { PLUGIN_ROOT_VARIABLES, PLUGIN_DATA_VARIABLES } from '../model/layouts.js'
@@ -20,8 +23,11 @@ import { PLUGIN_ROOT_VARIABLES, PLUGIN_DATA_VARIABLES } from '../model/layouts.j
 const SCHEMAS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'schemas', '1.0.0')
 
 /** Structural slice of the Ajv 2020 instance this module uses. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 interface Ajv2020Like {
+  /** 中文：注册 JSON Schema，供后续插件清单校验使用。 */
   addSchema(schema: unknown): unknown
+  /** 中文：按 schema id 取得校验函数及其错误信息。 */
   getSchema(id: string): { (document: unknown): unknown; errors?: Array<{ instancePath?: string; message?: string }> } | undefined
 }
 
@@ -33,6 +39,7 @@ export const MCP_SCHEMA_ID = 'https://agent-plugins.org/schemas/1.0.0/mcp.schema
 let ajvPromise: Promise<Ajv2020Like> | undefined
 
 /** Lazily build one Ajv instance holding the two vendored schemas. */
+/** 惰性加载并缓存 vendored AJV，避免扫描启动时重复初始化校验器。 */
 async function ajv(): Promise<Ajv2020Like> {
   ajvPromise ??= (async () => {
     const instance = new Ajv2020Class({ strict: false })
@@ -46,6 +53,7 @@ async function ajv(): Promise<Ajv2020Like> {
 }
 
 /** Validate one JSON document against a vendored schema; errors joined for surfacing. */
+/** 使用内置 Schema 校验文档，返回稳定可展示的路径/消息列表。 */
 export async function validateAgainstSchema(schemaId: string, document: unknown): Promise<string[]> {
   const instance = await ajv()
   const validate = instance.getSchema(schemaId)
@@ -55,6 +63,7 @@ export async function validateAgainstSchema(schemaId: string, document: unknown)
 }
 
 /** Whether a `$schema` value selects the local v1.0.0 ruleset. */
+/** 判断 $schema 是否为本插件支持的正式 Schema 标识。 */
 export function isRecognizedSchema(value: unknown): boolean {
   return value === PLUGIN_SCHEMA_ID || value === MCP_SCHEMA_ID
 }
@@ -65,6 +74,7 @@ export function isRecognizedSchema(value: unknown): boolean {
  * plugin root. Symlinks resolving outside the root are rejected.
  * @returns `undefined` when contained, or the rejection reason.
  */
+/** 校验路径变量展开后仍位于插件根，阻断绝对路径和符号链接逃逸。 */
 export async function pathContainmentError(pluginRoot: string, value: string): Promise<string | undefined> {
   const raw = value.replace(/^\$\{([A-Z_]+)\}(\/|$)/, (match, name: string) => (PLUGIN_ROOT_VARIABLES.has(name) ? './' : match))
   if (!raw.startsWith('./')) return `path "${value}" must begin with "./" (or ${'${PLUGIN_ROOT}'})`
@@ -89,6 +99,7 @@ export async function pathContainmentError(pluginRoot: string, value: string): P
 }
 
 /** Validate a plugin manifest per the vendored schema plus `$schema` recognition. */
+/** 校验插件 manifest Schema 并执行 $schema/组件声明语义检查。 */
 export async function validatePluginManifest(raw: unknown): Promise<string[]> {
   const errors: string[] = []
   if (typeof raw !== 'object' || raw === null) return ['manifest is not a JSON object']
@@ -107,17 +118,21 @@ export async function validatePluginManifest(raw: unknown): Promise<string[]> {
  *   or schema body drops the whole file, while per-server path problems
  *   invalidate only their server.
  */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const KNOWN_MCP_TRANSPORTS = new Set(['stdio', 'streamable-http', 'sse'])
 
 export interface McpValidateOptions {
   /** Project-owned config may name external executables and working directories. */
+  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   pathMode?: 'plugin' | 'project'
   /** Strict portable mode (`mcp.json`): `$schema` required and schema-validated.
    *  Lenient mode (`.mcp.json`, native client file): no `$schema` requirement,
    *  unknown transports skipped per server, known transports still validated. */
+  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   strict?: boolean
 }
 
+/** 校验 MCP 文档和每个 server 的路径/传输契约，坏服务单独失败关闭。 */
 export async function validateMcpJson(pluginRoot: string, raw: unknown, options?: McpValidateOptions): Promise<{ config?: McpSuiteConfig; errors: string[] }> {
   if (typeof raw !== 'object' || raw === null) return { errors: ['mcp.json is not a JSON object'] }
   const record = raw as Record<string, unknown>
@@ -133,6 +148,7 @@ export async function validateMcpJson(pluginRoot: string, raw: unknown, options?
 
   // Lenient native-client files may omit the `mcpServers` wrapper and put the
   // server map at the top level (Claude Code `.mcp.json` shorthand).
+  // 中文：原生客户端配置可省略 mcpServers 包装层，但便携格式仍由 Schema 严格约束。
   let servers = record['mcpServers']
   if (typeof servers !== 'object' || servers === null) {
     if (strict || record['$schema'] !== undefined || !Object.values(record).every(value => typeof value === 'object' && value !== null)) {
@@ -149,6 +165,7 @@ export async function validateMcpJson(pluginRoot: string, raw: unknown, options?
     const server = value as { type?: unknown; command?: unknown; cwd?: unknown }
     // Claude Code dialects: `http`/`streamable-http` are the same remote
     // transport, and `local` or a missing `type` (with `command`) mean stdio.
+    // 中文：Claude 方言把 http/streamable-http 归为远程传输，local 或缺失 type 且有 command 归为 stdio。
     let type = typeof server.type === 'string' ? server.type : server.command !== undefined ? 'stdio' : !strict && 'url' in server ? 'streamable-http' : undefined
     if (type === 'local') type = 'stdio'
     if (type === 'http') type = 'streamable-http'
@@ -179,6 +196,7 @@ export async function validateMcpJson(pluginRoot: string, raw: unknown, options?
       problems.push('cwd must be a string')
     } else if (options?.pathMode !== 'project' && stdioServer.cwd !== undefined && ![...PLUGIN_DATA_VARIABLES].some(name => stdioServer.cwd!.startsWith(`\${${name}}`))) {
       // `.` is the Codex dialect spelling for the plugin root.
+      // 中文：Codex 使用 `.` 表示插件根，统一展开后再做路径包含校验。
       const cwd = stdioServer.cwd === '.' ? './' : stdioServer.cwd
       const reason = await pathContainmentError(pluginRoot, cwd)
       if (reason !== undefined) problems.push(reason)
@@ -195,6 +213,7 @@ export async function validateMcpJson(pluginRoot: string, raw: unknown, options?
 /** Expand `${PLUGIN_ROOT}`, `${PLUGIN_DATA}`, and `${NAME}` (process env) in one string.
  *  Claude Code aliases `${CLAUDE_PLUGIN_ROOT}` / `${CLAUDE_PLUGIN_DATA}` and
  *  `${NAME:-default}` fallbacks are honored for unset/empty env vars. */
+/** 展开插件根、数据根和环境变量占位符，未知占位符保持原样。 */
 export function expandPlaceholders(value: string, pluginRoot: string, pluginData: string, env: NodeJS.ProcessEnv = process.env): string {
   return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g, (match, name: string, fallback?: string) => {
     if (PLUGIN_ROOT_VARIABLES.has(name)) return pluginRoot
@@ -204,6 +223,7 @@ export function expandPlaceholders(value: string, pluginRoot: string, pluginData
 }
 
 /** Resolve an expanded plugin-relative cwd to an absolute path. */
+/** 将 MCP cwd 占位符解析为实际目录，供运行时子进程使用。 */
 export function resolveCwd(value: string, pluginRoot: string, pluginData: string): string {
   if (value.startsWith('${PLUGIN_DATA}')) return resolve(pluginData, value.slice('${PLUGIN_DATA}'.length).replace(/^\/+/, ''))
   if (value.startsWith('${PLUGIN_ROOT}')) return resolve(pluginRoot, value.slice('${PLUGIN_ROOT}'.length).replace(/^\/+/, ''))
@@ -211,6 +231,7 @@ export function resolveCwd(value: string, pluginRoot: string, pluginData: string
 }
 
 /** Whether one absolute path equals or lies under another absolute path. */
+/** 判断 candidate 是否位于 root 内，统一处理根目录自身和路径分隔符。 */
 export function isWithin(root: string, candidate: string): boolean {
   const relativePath = relative(root, candidate)
   return relativePath === '' || (!relativePath.startsWith('..') && !isAbsolute(relativePath))

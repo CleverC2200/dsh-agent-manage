@@ -1,6 +1,12 @@
 module.exports = {
   forbidden: [
     {
+      name: 'inventory-calculations-stay-pure',
+      severity: 'error',
+      from: { path: '^src/(inventory-compute|aps-compute)/' },
+      to: { path: '^src/(application|catalog|client|context|index|routes|runtime)(/|\\.)' }
+    },
+    {
       name: 'client-cannot-import-host',
       severity: 'error',
       from: { path: '^src/client' },

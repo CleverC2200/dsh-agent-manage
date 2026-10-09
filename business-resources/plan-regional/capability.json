@@ -1,0 +1,17 @@
+{
+  "id": "plan-regional",
+  "label": "区域计划工作台",
+  "data": {
+    "consumerCode": "regional-plan-prototype",
+    "tables": [],
+    "rules": [],
+    "mock": true
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["plan-regional"],
+  "routing": {
+    "keywords": ["区域计划", "plan-regional"],
+    "summary": "模拟区域计划：事件线、提报跟进、品类达成、复盘与异常。所有数字和跟催回执为演示，不连接真实计划。"
+  }
+}

@@ -5,6 +5,9 @@
  * edit-current / add / refresh-all controls on the right; below sit search,
  * status tabs, and the card grid. Colors ride the dsh --dsw-alias-* tokens
  * with light-mode fallbacks so the page follows the active theme.
+ *
+ * 文件作用：渲染 Agent Plugins 市场主面板。
+ * 业务职责：加载源与套件总览，协调搜索/筛选/安装/卸载/刷新等动作，并把宿主进度和确认状态映射为用户可操作的界面。
  */
 import { createElement as h, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button, Modal, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -29,6 +32,7 @@ import { PanelHeader, PanelActions } from './ui/panel.js'
 import { ResourceCollection } from './ui/ResourceCard.js'
 
 /** Host step keys -> translation keys, resolved against the active t(). */
+/** 中文：后端进度键只在此处映射为用户可见文案，未知值保留诊断信息。 */
 const PROGRESS_STEP_LABELS: Record<string, string> = {
   cloning: 'progressCloning',
   downloading: 'progressDownloading',
@@ -38,9 +42,8 @@ const PROGRESS_STEP_LABELS: Record<string, string> = {
 export interface MarketSectionProps {
   t: Translate
   /** Host credentials wire used for write-only MCP env configuration. */
+  /** 中文：宿主凭据线用于 MCP 引用的只写配置，组件不读取 secret。 */
   credentials?: CredentialApi
-  /** The host surface controls only outer spacing; data and actions stay shared. */
-  mode?: 'settings' | 'page'
 }
 
 type Tab = MarketFilter
@@ -56,15 +59,18 @@ interface ConfirmState {
   sourceId: string
   suiteId?: string
   /** removeSource only: also physically delete the managed checkout. */
+  /** 中文：仅 removeSource 使用；勾选后才物理删除管理器拥有的 checkout。 */
   deleteCheckout: boolean
 }
 
+/** 将宿主进度步骤标识转换为当前语言文案，未知步骤保留原值便于诊断。 */
 function progressStepLabel(t: Translate, step: string): string {
   const key = PROGRESS_STEP_LABELS[step]
   return key === undefined ? step : t(key as Parameters<Translate>[0])
 }
 
-export function MarketSection({ t, credentials, mode = 'settings' }: MarketSectionProps): ReactNode {
+/** 维护市场总览、筛选器和源/套件操作的页面状态。 */
+export function MarketSection({ t, credentials }: MarketSectionProps): ReactNode {
   const [overview, setOverview] = useState<OverviewData>(() => loadOverview().initial)
   const [loading, setLoading] = useState(() => loadOverview().revalidating)
   const [search, setSearch] = useState('')
@@ -79,6 +85,7 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
   const [detail, setDetail] = useState<{ sourceId: string; suiteId: string } | undefined>(undefined)
   const [progress, setProgress] = useState<SourceProgressState>({ step: undefined, error: undefined })
 
+  /** 失效旧总览并重新读取列表；失败只显示可重试提示。 */
   const refresh = useCallback(async () => {
     invalidateOverview()
     try {
@@ -95,6 +102,7 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
     void refresh()
   }, [refresh])
 
+  /** 执行一次宿主市场动作，完成后刷新权威总览并返回是否成功。 */
   const action = useCallback(
     async (key: string, path: string, body: Record<string, unknown>): Promise<boolean> => {
       setBusy(key)
@@ -116,10 +124,12 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
   const viewModel = useMemo(() => deriveMarketViewModel(overview, search, tab, category), [overview, search, tab, category])
   const { scopeTotals, filtered } = viewModel
 
+  /** 打开指定套件的卸载确认，实际写操作交给 confirmAction。 */
   const openUninstall = useCallback((suite: SuiteCardData) => {
     setConfirm({ kind: 'uninstall', sourceId: suite.sourceId, suiteId: suite.suiteId, deleteCheckout: false })
   }, [])
 
+  /** 根据当前确认类型执行卸载套件或移除仓库源。 */
   const confirmAction = useCallback(async () => {
     if (confirm === undefined) return
     if (confirm.kind === 'uninstall' && confirm.suiteId !== undefined) {
@@ -128,6 +138,8 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
       // deleteCheckout physically removes self-acquired checkouts (the host
       // still protects adopted/local directories), so the removed source
       // does not reappear as an "unmanaged checkout" entry.
+      // 中文：收编/本地目录仍由宿主保护，删除动作不会把受保护目录变成未管理来源。
+      // 中文：只删除管理器自己获取的 checkout；收编或本地目录仍受保护，不会再次显示为未管理来源。
       await action(`s:${confirm.sourceId}`, 'sources/remove', { id: confirm.sourceId, deleteCheckout: confirm.deleteCheckout })
       if (category === confirm.sourceId) setCategory('all')
     }
@@ -141,6 +153,8 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
   // rest of the strip never reshuffles. Kind badges are limited to
   // `本地`/`压缩包`; an adopted checkout is an implementation detail, not a
   // user-facing state.
+  // 中文：标签顺序稳定；收编 checkout 是实现细节，不作为用户状态展示。
+  /** 生成稳定的源标签顺序，并把扫描提示/本地来源映射为可读标记。 */
   const sourceItems = useMemo<SourceTabItem[]>(() => {
     const sorted = [...overview.sources].sort((a, b) => a.id.localeCompare(b.id))
     const ordered =
@@ -162,6 +176,7 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
     ]
   }, [overview.sources, overview.totals.all, selectedSource, t])
 
+  /** 收编发现的未登记本地源，只登记来源，不在客户端复制或删除目录。 */
   const adoptSource = useCallback(
     async (id: string) => {
       await action(`s:adopt:${id}`, 'sources/adopt', { id })
@@ -174,7 +189,7 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
     fallback: error => h('div', { className: css.empty }, `${t('actionFail')}: ${error.message}`),
     children: h(
       'div',
-      { className: mode === 'page' ? `${css.market} ${css.pageMode}` : css.market },
+      { className: css.market },
       h(
         'div',
         { className: css.header },
@@ -252,6 +267,7 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
         )
       ),
       // Keep the global mask until both the mutation and list refresh finish.
+      // 中文：写操作及总览刷新都完成前保持全局遮罩，避免用户对旧数据再次操作。
       busy !== undefined ? h(BusyIndicator, { overlay: true, label: t('panelWorking') }) : null,
       h(
         ResourceCollection,
@@ -367,6 +383,7 @@ export function MarketSection({ t, credentials, mode = 'settings' }: MarketSecti
             busy: busy !== undefined,
             progress,
             onClose: () => setEditor(undefined),
+            // 中文：新增源时启动进度轮询并等待刷新完成；编辑源复用统一 action，成功后关闭编辑器。
             onSave: async ({ url, branch, kind, sha256 }) => {
               const key = editor.mode === 'edit' ? `s:edit:${editor.source.id}` : `s:add:${url}`
               const body: Record<string, unknown> = { url, local: kind === 'local', kind }

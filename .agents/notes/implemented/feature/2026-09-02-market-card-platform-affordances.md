@@ -11,6 +11,7 @@ The market suite card diverged from the harness's own card language in two ways:
 
 ## Decision
 
+- **Shared workbench resource.** In the isolated DSH 0.2 source composition, neutral colors, brand, hover and font size consume resource `1.0.0` installed by the Workbench plugin. No palette is copied into this plugin. The workspace maps primitive primary buttons and placeholders to that resource; status colors and lifecycle remain host-owned. This updates the token choice below while preserving card affordances and actions.
 - **Token alignment.** Every undefined token was remapped to its design-platform counterpart (fallbacks updated to the platform's light values): `bg-hover`/`bg-active` → `interactive-bg-hover`/`-active`; `bg-selected` → `state-business-tertiary`; `bg-success`/`bg-warn` → `state-success-tertiary`/`state-warn-tertiary`; `bg-error` → `interactive-bg-hover-danger`; `state-neutral` (toggle-off track) → `label-dimmed` (the harness's own switch track uses `border-l2`, too faint at this control's 38×22 size); `danger` splits by context — warn box → `state-warn-label`, destructive hover → `state-error-primary`; `text-2` → `label-secondary`; `accent` → `brand-primary-new-colorprimary-new-color`; `border` → `border-l2`.
 - **Card affordances mirror the MCP card.** Installed suites get a 3px left accent — success green when enabled, `label-tertiary` gray when disabled; uninstalled suites get no accent. The card also gains the MCP card's hover treatment (border-l3, interactive-bg-hover, soft shadow) since the whole card opens the suite detail.
 - **Actions flatten.** Refresh and uninstall are inline flat icon buttons (transparent fill, `interactive-bg-hover` on hover, destructive hover tint for uninstall) following the harness `Button` ghost geometry; the enable toggle moves to the card's trailing edge. The install/add-source CTA stays a primary text button.
@@ -31,3 +32,5 @@ The market suite card diverged from the harness's own card language in two ways:
 
 - `grep` audit: zero `var(--dsw-*)` references in `src/client` fall outside the set defined by `design-platform.css`.
 - `pnpm run typecheck`, `lint`, `format:check`, and `test:contract` green after the change.
+
+The resource provider and CSS lifetime are updated by [official Workbench entry](../architecture/2026-10-04-official-workbench-entry.md).

@@ -1,0 +1,85 @@
+{
+  "label": "区域计划模拟Agent",
+  "consumerCode": "regional-plan-prototype",
+  "persona": "你负责当前区域计划原型的模拟数据解释。先读取当前Session页面context并明确标注模拟数据；只使用当前期间、模块、维度和实际页面结果。跟催、节奏保存、导出与意见均为本页演示，不写真实计划，不调用真实MCP或SQL。 页面筛选仅使用当前v2主动目录的gea_plugin_page_apply；gea_page只读取context，不调用通用filter动作。",
+  "skills": ["plan-regional"],
+  "welcome": {
+    "zh": {
+      "name": "区域计划Agent",
+      "intro": "我可以跨模块盯提报进度、找异常，给提报与跟催的参考意见。 当前页面使用模拟数据。",
+      "boundary": "模拟跟踪、评估与跟催；不发送真实消息，不提交、保存或审批真实计划。",
+      "actions": [
+        {
+          "icon": "chart",
+          "tone": "brand",
+          "label": "看提报与跟催",
+          "detail": "待跟进事件与四维提报 / 审批下钻",
+          "prompt": "看提报与跟催"
+        },
+        {
+          "icon": "box",
+          "tone": "brand",
+          "label": "看品类达成",
+          "detail": "品类达成与品类 × 大区分布",
+          "prompt": "看品类达成"
+        },
+        {
+          "icon": "info",
+          "tone": "info",
+          "label": "看复盘与达成",
+          "detail": "三个月提报偏差、达成率与偏差象限",
+          "prompt": "看复盘与达成"
+        },
+        {
+          "icon": "alert",
+          "tone": "success",
+          "label": "看分析与异常",
+          "detail": "期间研判建议与跨模块异常清单",
+          "prompt": "看分析与异常"
+        }
+      ],
+      "prompts": ["本月还有哪些客户未提报？", "哪个品类达成最低？", "哪个审批节点滞留最多？", "哪些客户的达成偏差最大？"]
+    },
+    "en": {
+      "name": "Regional Plan Agent",
+      "intro": "I track reporting progress, identify anomalies and explain reporting and follow-up options across modules. This page uses simulated data.",
+      "boundary": "Simulated tracking, assessment and follow-up only; no real messages, plan submissions, saves or approvals.",
+      "actions": [
+        {
+          "icon": "chart",
+          "tone": "brand",
+          "label": "Reporting and follow-up",
+          "detail": "Pending events and reporting / approval drill-down across four dimensions",
+          "prompt": "Reporting and follow-up"
+        },
+        {
+          "icon": "box",
+          "tone": "brand",
+          "label": "Category attainment",
+          "detail": "Category attainment and category by region distribution",
+          "prompt": "Category attainment"
+        },
+        {
+          "icon": "info",
+          "tone": "info",
+          "label": "Review and attainment",
+          "detail": "Three-month reporting deviations, attainment and deviation quadrants",
+          "prompt": "Review and attainment"
+        },
+        {
+          "icon": "alert",
+          "tone": "success",
+          "label": "Analysis and anomalies",
+          "detail": "Period assessment and anomalies across modules",
+          "prompt": "Analysis and anomalies"
+        }
+      ],
+      "prompts": [
+        "Which customers have not reported this month?",
+        "Which category has the lowest attainment?",
+        "Which approval step has the most stalled items?",
+        "Which customers have the largest attainment deviations?"
+      ]
+    }
+  }
+}

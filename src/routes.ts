@@ -1,3 +1,4 @@
+/** 文件作用：市场 HTTP 路由适配层，解析请求、调用应用服务并序列化浏览器响应。 */
 /**
  * HTTP routes bridging the market page to the application market service.
  *
@@ -5,6 +6,9 @@
  * responses. Mutating routes accept same-origin POSTs exclusively: a
  * cross-site form or fetch cannot trigger a clone, an uninstall, or an
  * enable/disable against a local profile.
+ *
+ * 中文：本文件是市场前端与应用服务之间的 HTTP 转接层，只负责解析请求、调用服务和序列化响应。
+ * 所有写操作只接受同源 POST，防止外部网页触发本机克隆、卸载或启停操作。
  */
 import { isAbsolute } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -15,10 +19,10 @@ import type { MarketService } from './application/queries.js'
 import type { SuiteSurfaceKey } from './model/types.js'
 import type { PanelResourceStore } from './application/panel-resources.js'
 import { readModelCatalog } from './runtime/model-catalog.js'
-
-const MAX_BODY_BYTES = 64 * 1024
+import { MAX_JSON_BODY_BYTES } from './runtime/request-body.js'
 
 export interface WebServerService {
+  /** 向主机 Web 服务注册一个精确或前缀路由，并返回解注册函数。 */
   register(route: { kind: 'exact' | 'prefix'; path: string; handler: (request: IncomingMessage, response: ServerResponse) => void | Promise<void> }): () => void
 }
 
@@ -27,7 +31,7 @@ interface RouteHost {
   get?(name: string): unknown
 }
 
-/** Mount every route; returns the disposer releasing them all. */
+/** Mount every route; returns the disposer releasing them all. 中文：一次性注册市场查询、源管理、suite 操作、MCP/LSP 配置和用户面板路由，返回统一清理函数。 */
 export function mountSuiteRoutes(
   hostCtx: unknown,
   manager: MarketService,
@@ -35,9 +39,11 @@ export function mountSuiteRoutes(
 ): () => void {
   const host = hostCtx as RouteHost
   const disposers: Array<() => void> = []
+  /** 注册一个只读精确路由，并记录其清理函数。 */
   const get = (path: string, handler: RouteHandler) => {
     disposers.push(host.webServer.register({ kind: 'exact', path, handler }))
   }
+  /** 注册一个同源 JSON POST 路由，统一处理限流读取、错误封装和成功响应。 */
   const post = (path: string, handler: JsonAction) => {
     disposers.push(
       host.webServer.register({
@@ -48,6 +54,7 @@ export function mountSuiteRoutes(
             sendJson(response, 403, { ok: false, error: 'cross-origin request rejected' })
             return
           }
+          /** 异步读取并执行单次 JSON 写请求，所有失败都折叠为可序列化的 400 响应。 */
           void (async () => {
             const body = await readJsonBody(request)
             if (body === undefined) {
@@ -199,6 +206,7 @@ export function mountSuiteRoutes(
 
   // Register one unmanaged `.sources/` checkout in place — the manual-clone
   // repair path. Nothing is cloned, moved, or deleted.
+  // 中文：就地接管未纳管 checkout，用于修复手工克隆场景；不会克隆、移动或删除文件。
   post(MARKET_ROUTES.adoptSource, async body => {
     const id = body['id']
     if (typeof id !== 'string' || id === '') throw new Error('missing checkout id')
@@ -277,6 +285,7 @@ export function mountSuiteRoutes(
 
   // Manual MCP reconcile: retries failed mounts and clears residual tools
   // without touching any catalog state.
+  // 中文：手动触发 MCP 对账，重试失败挂载并清理残留工具，不改动目录状态。
   post(MARKET_ROUTES.mcpRetry, async () => {
     await manager.retryMounts()
     return {}
@@ -284,6 +293,7 @@ export function mountSuiteRoutes(
 
   // Drop one server's OAuth grant record: the next mount re-runs the browser
   // authorization, which is how a user widens a too-narrow scope.
+  // 中文：删除单个服务的 OAuth 授权记录，下次挂载会重走浏览器授权，用于扩大过窄的 scope。
   post(MARKET_ROUTES.mcpReauthorize, async body => {
     const serverName = body['serverName']
     if (typeof serverName !== 'string' || serverName === '') throw new Error('serverName is required')
@@ -293,6 +303,7 @@ export function mountSuiteRoutes(
 
   // The MCP backend block: which client mounts suite servers, and whether the
   // host's dsh-mcp-client is resolvable as the compatibility option.
+  // 中文：MCP 后端配置块同时说明当前由谁挂载 suite 服务，以及主机 dsh-mcp-client 是否可作兼容后端。
   get(MARKET_ROUTES.mcpBackend, async (_request, response) => {
     sendJson(response, 200, await manager.mcpBackendInfo())
   })
@@ -308,6 +319,7 @@ export function mountSuiteRoutes(
   // pass picks it up and mounts it alongside the suite declarations. The
   // mutation path is distinct from the read path: the webserver's exact table
   // is keyed by pathname only, so a same-path GET/POST pair cannot coexist.
+  // 中文：验证并保存用户直接 LSP 配置，再由对账流程挂载；主机只按 pathname 匹配，所以读写使用不同路径。
   post(`${MARKET_ROUTES.lspServers}/save`, async body => {
     const servers = await manager.setLspServers(body['lspServers'])
     return { lspServers: servers }
@@ -329,8 +341,10 @@ export function mountSuiteRoutes(
   // parameter (GET read, POST replace, POST .../delete remove). The routes
   // only parse and delegate; the stores own validation and persistence, and
   // each mutation notifies the change pipeline so skills/commands remount.
+  // 中文：用户面板资源的增删改查。名称通过 query 传递，存储层负责验证和持久化，每次写入后通知运行时重读。
   if (panels !== undefined) {
     const kinds: ReadonlyArray<UserPanelKind> = ['skills', 'commands', 'agents']
+    /** 按面板类型选择对应资源仓库，避免路由直接依赖具体存储实现。 */
     const storeOf = (kind: UserPanelKind): PanelResourceStore => panels[kind]
 
     for (const kind of kinds) {
@@ -376,14 +390,18 @@ export function mountSuiteRoutes(
     }
   }
 
+  /** 调用所有路由的解注册函数，用于插件卸载时完整释放 HTTP surface。 */
   return () => {
     for (const dispose of disposers) dispose()
   }
 }
 
+/** 中文：单条 HTTP 路由处理函数，负责读取请求并写入响应。 */
 type RouteHandler = (request: IncomingMessage, response: ServerResponse) => void | Promise<void>
+/** 中文：经过 JSON 解析和同源校验后的写操作处理函数。 */
 type JsonAction = (body: Record<string, unknown>, request: IncomingMessage) => Promise<Record<string, unknown>>
 
+/** 从写请求中取出必需的 sourceId 与 suiteId，缺失或空字符串时拒绝请求。 */
 function parseTarget(body: Record<string, unknown>): { sourceId: string; suiteId: string } {
   const sourceId = body['sourceId']
   const suiteId = body['suiteId']
@@ -392,14 +410,14 @@ function parseTarget(body: Record<string, unknown>): { sourceId: string; suiteId
   return { sourceId, suiteId }
 }
 
-/** Parse an optional acquisition-kind field; rejects unknown values. */
+/** Parse an optional acquisition-kind field; rejects unknown values. 中文：解析可选的源获取方式，仅接受 git、local 和 archive。 */
 function parseSourceKind(raw: unknown): 'git' | 'local' | 'archive' | undefined {
   if (raw === undefined || raw === null || raw === '') return undefined
   if (raw === 'git' || raw === 'local' || raw === 'archive') return raw
   throw new Error(`invalid source kind "${String(raw)}"`)
 }
 
-/** Parse an optional SHA-256 hex digest; rejects malformed values. */
+/** Parse an optional SHA-256 hex digest; rejects malformed values. 中文：解析可选的压缩包校验值，并强制为 64 位十六进制字符串。 */
 function parseSha256(raw: unknown): string | undefined {
   if (raw === undefined || raw === null || raw === '') return undefined
   const value = String(raw).trim().toLowerCase()
@@ -407,6 +425,7 @@ function parseSha256(raw: unknown): string | undefined {
   return value
 }
 
+/** 检查请求 Origin 与 Host 是否一致；无 Origin 的非浏览器请求按同源处理。 */
 function sameOrigin(request: IncomingMessage): boolean {
   const origin = request.headers['origin']
   if (origin === undefined) return true
@@ -417,13 +436,14 @@ function sameOrigin(request: IncomingMessage): boolean {
   }
 }
 
+/** 在 64 KiB 上限内读取并解析 JSON 请求体，超限、格式错误或连接错误时返回 undefined。 */
 function readJsonBody(request: IncomingMessage): Promise<unknown | undefined> {
   return new Promise(resolve => {
     let size = 0
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => {
       size += chunk.length
-      if (size > MAX_BODY_BYTES) {
+      if (size > MAX_JSON_BODY_BYTES) {
         resolve(undefined)
         request.destroy()
         return
@@ -431,7 +451,7 @@ function readJsonBody(request: IncomingMessage): Promise<unknown | undefined> {
       chunks.push(chunk)
     })
     request.on('end', () => {
-      if (size > MAX_BODY_BYTES) return
+      if (size > MAX_JSON_BODY_BYTES) return
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')))
       } catch {
@@ -442,11 +462,12 @@ function readJsonBody(request: IncomingMessage): Promise<unknown | undefined> {
   })
 }
 
-/** Parse the query string of one request into a URLSearchParams. */
+/** Parse the query string of one request into a URLSearchParams. 中文：把相对请求 URL 中的查询参数解析为 URLSearchParams。 */
 function queryOf(request: IncomingMessage): URLSearchParams {
   return new URL(request.url ?? '/', 'http://dsh.local').searchParams
 }
 
+/** 将任意业务结果序列化为 UTF-8 JSON，写入状态码和精确内容长度后结束响应。 */
 function sendJson(response: ServerResponse, status: number, payload: unknown): void {
   const body = JSON.stringify(payload)
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'content-length': Buffer.byteLength(body) })

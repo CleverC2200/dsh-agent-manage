@@ -35,12 +35,12 @@ async function main() {
   const browser = await chromium.launch({ headless: true })
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
 
-  // Navigate to settings → Agent Plugins Market
+  // Navigate to settings → Agent Marketplace
   await page.goto(BASE, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   await page.getByText('设置', { exact: true }).first().click()
   await page.waitForTimeout(1500)
-  await page.getByText('Agent Plugins 市场', { exact: true }).first().click()
+  await page.getByText('智能体市场', { exact: true }).first().click()
   await page.waitForTimeout(3000)
 
   // Find the jetbrains card

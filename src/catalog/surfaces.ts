@@ -1,3 +1,4 @@
+/** 文件作用：扫描套件技能、MCP、命令、Agent、hooks、LSP 表面并失败关闭。 */
 /**
  * Surface layer: scans a suite root's content directories — skills, mcp,
  * commands, agents, hooks, lsp — into normalized previews and counts.
@@ -9,6 +10,8 @@
  * fail-closed: broken files produce a diagnostic and are skipped, never a
  * thrown discovery.
  */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
+import { readSkillHeader } from './skill-files.js'
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { parseSkillFrontmatter } from './skills-parse.js'
@@ -26,6 +29,7 @@ const DOT_DIRS = new Set(['.git', '.github', '.claude', '.cursor', '.kimi', '.pl
  * declared path may be (or pass through) a symlink whose target leaves the
  * suite root, which lexical resolution cannot see.
  */
+/** 将 manifest skills 声明解析为根目录内技能目录列表，过滤越界路径。 */
 async function declaredSkillDirs(root: string, declared: unknown, errors: string[]): Promise<string[]> {
   const values = Array.isArray(declared) ? declared : [declared]
   const dirs: string[] = []
@@ -42,6 +46,7 @@ async function declaredSkillDirs(root: string, declared: unknown, errors: string
 }
 
 /** Discover SKILL.md files under the suite's skills directory, up to 3 levels deep. */
+/** 扫描声明或默认技能目录，解析 frontmatter、去重并失败关闭单项。 */
 export async function discoverSkills(root: string, errors: string[], declared?: unknown): Promise<SuiteSkill[]> {
   const skills: SuiteSkill[] = []
   const rootSkill = join(root, 'SKILL.md')
@@ -54,6 +59,7 @@ export async function discoverSkills(root: string, errors: string[], declared?: 
     if (await isDirectory(fallback)) skillsDirs.push(fallback)
   }
   const seen = new Set<string>(skills.map(skill => skill.name))
+  /** 中文：追加尚未出现的技能，避免根目录与声明目录重复发布。 */
   const pushUnique = (skill: SuiteSkill | undefined): void => {
     if (skill === undefined || seen.has(skill.name)) return
     seen.add(skill.name)
@@ -69,6 +75,7 @@ export async function discoverSkills(root: string, errors: string[], declared?: 
     }
     // A declared path may be one skill directory (a manifest listing
     // individual skills, e.g. mattpocock) or a container of skills.
+    // 中文：声明路径既可能直接指向单个技能，也可能是包含多个技能的容器目录。
     if (await isFile(join(skillsDir, 'SKILL.md'))) {
       const name = skillsDir.split(/[\\/]/).at(-1) ?? ''
       pushUnique(await parseOneSkill(join(skillsDir, 'SKILL.md'), skillsDir, name, errors))
@@ -79,6 +86,7 @@ export async function discoverSkills(root: string, errors: string[], declared?: 
       pushUnique(await parseOneSkill(join(child, 'SKILL.md'), child, name, errors))
     }
     // Category-nested collections and upstream mirrors (depth 3).
+    // 中文：兼容分类嵌套和上游镜像目录，但递归深度固定为 3。
     for (const category of await listChildDirs(skillsDir)) {
       for (const child of await listChildDirs(category)) {
         const name = child.split(/[\\/]/).at(-1) ?? ''
@@ -97,9 +105,11 @@ export async function discoverSkills(root: string, errors: string[], declared?: 
  * scan's `errors` on hit. Bounded: over the cap the cache resets wholesale
  * (a marketplace-scale tree holds thousands of entries, not millions).
  */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const SKILL_PARSE_CACHE_CAP = 20_000
 const skillParseCache = new Map<string, { mtimeMs: number; size: number; verdict: SuiteSkill | string }>()
 
+/** 读取单个 SKILL.md 并生成摘要，格式错误只影响该技能。 */
 async function parseOneSkill(file: string, directory: string, fallbackName: string, errors: string[]): Promise<SuiteSkill | undefined> {
   let info: import('node:fs').Stats | undefined
   try {
@@ -116,7 +126,7 @@ async function parseOneSkill(file: string, directory: string, fallbackName: stri
   } else {
     let text: string
     try {
-      text = await readFile(file, 'utf8')
+      text = await readSkillHeader(file)
     } catch (error) {
       errors.push(`skill "${fallbackName}": unreadable SKILL.md (${error instanceof Error ? error.message : String(error)})`)
       return undefined
@@ -144,6 +154,7 @@ async function parseOneSkill(file: string, directory: string, fallbackName: stri
 }
 
 /** Read the suite's MCP config: `mcp.json` or `.mcp.json`, else the winning manifest's inline `mcpServers`. */
+/** 读取 mcp.json/.mcp.json 并按服务失败关闭校验，保留可诊断 errors。 */
 export async function discoverMcp(root: string, errors: string[], manifest?: SuiteManifest): Promise<McpSuiteConfig | undefined> {
   const resolved = manifest ?? (await readManifest(root, errors, undefined))
   const layout = resolved?.layout
@@ -188,6 +199,7 @@ export async function discoverMcp(root: string, errors: string[], manifest?: Sui
 }
 
 /** Count surfaces for a suite; mcp counts only validated servers, lsp counts inline servers plus directory entries. */
+/** 统计各 surface 条目数量，供套件卡片和扫描结果展示。 */
 export async function countSurfaces(root: string, skills: SuiteSkill[], mcp: McpSuiteConfig | undefined, lsp?: LspSuiteConfig): Promise<SuiteSurfaceCounts> {
   let hooks = 0
   for (const relative of [join('hooks', 'hooks.json'), 'hooks.json']) {
@@ -212,6 +224,7 @@ export interface LspEntry {
 }
 
 /** LSP definitions: `.claude-plugin/lsp/*.json` plus reverse-domain `lsp/` dirs. */
+/** 兼容旧状态面：读取 LSP 声明并展开为可计数条目。 */
 export async function discoverLspEntries(root: string): Promise<LspEntry[]> {
   const entries: LspEntry[] = []
   try {
@@ -220,6 +233,7 @@ export async function discoverLspEntries(root: string): Promise<LspEntry[]> {
     }
   } catch {
     // no .claude-plugin/lsp directory
+    // 中文：没有该兼容目录时不产生 LSP 条目。
   }
   try {
     for (const entry of await readdir(root, { withFileTypes: true })) {
@@ -237,10 +251,12 @@ export async function discoverLspEntries(root: string): Promise<LspEntry[]> {
     }
   } catch {
     // unreadable root contributes no LSP entries
+    // 中文：目录不可读按零条目处理，错误边界由上层发现结果承担。
   }
   return entries
 }
 
+/** 统计 hooks 文档中的有效事件组数量。 */
 async function countHookEntries(path: string): Promise<number> {
   let text: string
   try {
@@ -260,6 +276,7 @@ async function countHookEntries(path: string): Promise<number> {
 }
 
 /** File names under a suite's commands/ or agents/ directory. */
+/** 递归列出受控深度内 Markdown 文件，跳过链接和隐藏控制目录。 */
 export async function listMdFiles(dir: string): Promise<string[]> {
   let entries: string[]
   try {
@@ -270,6 +287,7 @@ export async function listMdFiles(dir: string): Promise<string[]> {
   return entries.filter(name => name.endsWith('.md')).sort()
 }
 
+/** 列出普通子目录供技能递归发现，过滤符号链接。 */
 async function listChildDirs(dir: string): Promise<string[]> {
   let entries: import('node:fs').Dirent[]
   try {
@@ -280,6 +298,7 @@ async function listChildDirs(dir: string): Promise<string[]> {
   return entries.filter(entry => entry.isDirectory() && !DOT_DIRS.has(entry.name) && !entry.name.startsWith('.')).map(entry => join(dir, entry.name))
 }
 
+/** 判断路径是否为普通文件，发现阶段将异常收敛为 false。 */
 async function isFile(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isFile()

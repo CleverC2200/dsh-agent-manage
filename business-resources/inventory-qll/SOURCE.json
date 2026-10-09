@@ -1,0 +1,9 @@
+{
+  "sourceCommit": "e8a00c4f4f51f917dd27291f284825b0d98fe4df",
+  "originalConsumer": "full-chain-inventory",
+  "originalTables": ["agents_scm_cust_inventory_daily", "agents_scm_cust_plan_order_analysis"],
+  "originalMcpCapabilities": ["governed-sql-read"],
+  "currentMode": "GEA_LIVE_READONLY_COMPANY",
+  "originalTicketStatus": "14/15 remain in-progress; source reception does not prove current identity, real dataset or row grants",
+  "companyQuerySource": "096e2ccf43a2d766853163754d7469ccb8879fb1"
+}

@@ -6,6 +6,9 @@
  * `credentials.set`, and never re-enters component state. Read-only
  * launch-environment credentials render guidance instead of a form that could
  * only fake success.
+ *
+ * 文件作用：展示 MCP 服务所需凭据的安全配置区域。
+ * 业务职责：先读取无密状态，再按引用保存或删除凭据；输入值只在提交请求时发送，不回填到状态或详情响应。
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { createElement as h } from 'react'
@@ -15,6 +18,7 @@ import { BusyIndicator } from './ui/panel.js'
 import type { Translate } from './index.js'
 import css from './mcp-credential.module.css'
 
+/** 根据凭据引用加载状态并提供写入/删除操作，避免在浏览器保存 secret。 */
 export function McpCredentialEditor(props: { t: Translate; api?: CredentialApi; refs: string[] }): ReactNode {
   const { t, api, refs } = props
   const [views, setViews] = useState<Record<string, CredentialView>>({})
@@ -23,6 +27,7 @@ export function McpCredentialEditor(props: { t: Translate; api?: CredentialApi; 
   const [error, setError] = useState<string | undefined>(undefined)
   const refKey = refs.join('|')
 
+  // 中文：引用集合变化时重新读取无密视图；卸载或切换服务后忽略迟到响应。
   useEffect(() => {
     let cancelled = false
     setViews({})
@@ -44,11 +49,13 @@ export function McpCredentialEditor(props: { t: Translate; api?: CredentialApi; 
   }, [api, refKey])
 
   if (refs.length === 0) return null
+  /** 刷新一个引用的无密状态，供保存/删除成功后确认宿主事实。 */
   const refresh = async (ref: string): Promise<void> => {
     if (api === undefined) return
     const view = await describeCredential(api, ref)
     if (view !== undefined) setViews(current => ({ ...current, [ref]: view }))
   }
+  /** 校验非空输入并保存凭据，成功后清空输入框再刷新状态。 */
   const save = async (ref: string): Promise<void> => {
     const value = drafts[ref]?.trim()
     if (api === undefined || value === undefined || value === '') return
@@ -64,6 +71,7 @@ export function McpCredentialEditor(props: { t: Translate; api?: CredentialApi; 
       setBusy(undefined)
     }
   }
+  /** 删除一个凭据引用，并在完成后重新读取配置状态。 */
   const unset = async (ref: string): Promise<void> => {
     if (api === undefined) return
     setBusy(ref)

@@ -9,7 +9,7 @@
 Codex 项目 MCP 从 `.codex/config.toml` 读取，保留启停、环境变量引用、工具白名单/黑名单及超时；不支持的字段给出诊断。宿主 LSP 注册表是全局的，因此项目 LSP 不挂载，本插件不修改宿主 API。
 
 - Node.js 22 或更高版本、DSH Web profile 和宿主技能服务（`ctx.skills`）。Git 来源需要 Git。
-- 当前包声明的 DSH peer 包版本范围为 `^0.1.2-rc.1`。这是依赖声明，不代表已验证所有功能或历史 Web 外壳的最低支持版本。
+- 当前包声明的 DSH peer 包版本范围为 `0.2.1-alpha.1`。这是依赖声明，不代表已验证所有功能或历史 Web 外壳的最低支持版本。
 - 斜杠命令需要宿主命令服务。`subagents_run` 角色委派需要 agents、tools、LLM 和 subagents 服务；它将保存的角色指令、供应商、模型、思考强度和工具限制应用到真实子代理，并等待结果。
 - MCP 默认使用内置桥接。宿主客户端兼容模式还需要 `@deepseek-ai/dsh-mcp-client`，hooks 需要 `@deepseek-ai/dsh-hooks-claude-code`。
 - LSP 挂载需要 `@deepseek-ai/dsh-lsp` 和 `@deepseek-ai/dsh-lsp-stdio`；要让 Agent 调用工具，还需在 profile 中暴露 `@deepseek-ai/dsh-tool-lsp`。对应语言服务器的可执行程序也必须可用。
@@ -144,3 +144,7 @@ Git 获取通过 `execFile` 执行，不经过 shell；刷新使用 shallow fetc
 下载区域手动选择以宿主保存的设置为准，成功后无需关闭重开设置；失败时显示错误并保留原选择。仅自动模式使用语言解析后的线路查询结果。
 
 私有 GitHub 套件可使用显式 archive 来源，例如 `https://api.github.com/repos/OWNER/REPO/zipball/REF`。桌面管理员在启动环境提供 `DSH_AGENT_MANAGE_GITHUB_TOKEN`，授权只发送给首次 HTTPS GitHub API 请求，不发送到重定向目标，也不写入来源配置。下载失败保留已安装内容。
+
+### 原生资源的工作区上下文
+
+Workbench使用GET /api/agent-manage/resources?cwd=...发现资源，并通过POST /api/agent-manage/resources/select的{id,cwd}选用。cwd与新Session所属原生工作区相同且必须是绝对路径。Manage透传现有Skill registry，项目Skill同时参与发现和正文读取，不复制资源。缺失或相对路径返回INVALID_AGENT_RESOURCE_WORKSPACE。

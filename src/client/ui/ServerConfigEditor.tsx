@@ -1,10 +1,12 @@
+/** 文件作用：提供 MCP/LSP 配置的表单模式与原始 JSON 模式，维护字段兼容性、必填校验和局部编辑。 */
 import { createElement as h, useEffect, useState, type ReactNode } from 'react'
-import { Button, IconPlusOutline16, IconTrashOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconPlusOutlineRegular, IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Translate } from '../index.js'
 import { changeTransport, parseServerConfig, serverFormCompatible, type ServerKind, type ServerConfig } from './server-form.js'
 import css from './detail.module.css'
 
 /** One JSON document backs both modes. Invalid JSON is retained, never silently converted or reset. */
+/** 中文：表单和 JSON 模式共享同一份文本；非法 JSON 保留在编辑器中，不静默重置。 */
 export function ServerConfigEditor(props: {
   kind: ServerKind
   text: string
@@ -13,6 +15,7 @@ export function ServerConfigEditor(props: {
   disabled?: boolean
   onValidityChange?: (valid: boolean) => void
 }): ReactNode {
+  /** 在结构化表单和 JSON 文本之间切换，并把每次有效字段变更序列化回父级。 */
   const [mode, setMode] = useState<'form' | 'json'>('form')
   const [issues, setIssues] = useState<Record<string, boolean>>({})
   let config: ServerConfig | undefined
@@ -36,23 +39,32 @@ export function ServerConfigEditor(props: {
         ? typeof config.command === 'string' && config.command.trim() !== ''
         : ['sse', 'streamable-http'].includes(String(config.type)) && typeof config.url === 'string' && config.url.trim() !== '')
   const valid = compatible && !hasIssue && requiredValid
+  /** 将当前结构化配置是否可保存同步给父级详情组件。 */
   useEffect(() => {
     props.onValidityChange?.(valid)
   }, [valid, props.onValidityChange])
+  /** 将表单对象格式化为稳定 JSON，保持原始编辑器的单一数据源。 */
+  /** 将结构化配置序列化回父级文本，保持表单和 JSON 编辑共享单一数据源。 */
   const update = (next: ServerConfig): void => props.onChange(JSON.stringify(next, null, 2))
+  /** 更新一个配置键；undefined 表示删除可选字段。 */
   const field = (key: string, value: unknown): void => {
+    /** 更新单个配置键；空值表示删除可选字段，避免写入无意义空字符串。 */
     const next = { ...config }
     if (value === undefined) delete next[key]
     else next[key] = value
     update(next)
   }
+  /** 记录某个数组/映射字段的局部校验结果，并影响整体可保存状态。 */
   const issue = (key: string, bad: boolean): void => {
+    /** 汇总数组/映射编辑器的局部错误，阻止保存不合法的结构化配置。 */
     setIssues(current => {
       const next = { ...current, [key]: bad }
       return next
     })
   }
+  /** 把字符串配置键渲染成受控输入，并将空可选值转换为删除字段。 */
   const textField = (key: string, label: string, required = false): ReactNode =>
+    // 将字符串配置键映射为受控输入，required 只负责表单展示语义。
     h(
       'label',
       { className: css.field, key },
@@ -64,7 +76,9 @@ export function ServerConfigEditor(props: {
         onChange: (event: { target: HTMLInputElement }) => field(key, event.target.value === '' && !required ? undefined : event.target.value)
       })
     )
+  /** 把对象配置键交给可编辑键值行组件，并回传字段级错误。 */
   const mapField = (key: string, label: string): ReactNode =>
+    // 将 JSON 对象配置映射为可增删的键值行，并把重复键错误回传到父表单。
     h(
       'div',
       { className: `${css.field} ${css.wide}`, key },
@@ -195,6 +209,7 @@ export function ServerConfigEditor(props: {
   )
 }
 
+/** 编辑字符串数组或字符串映射；映射键必须非空且唯一后才写回父配置。 */
 function StringRows(props: {
   label: string
   t: Translate
@@ -205,7 +220,9 @@ function StringRows(props: {
 }): ReactNode {
   const [rows, setRows] = useState<Array<[string, string]>>(() => (props.map ? Object.entries(props.value ?? {}) : ((props.value as string[]) ?? []).map(value => ['', value])))
   const [invalid, setInvalid] = useState(false)
+  /** 应用一组键值行草稿，校验映射键后才向父级输出。 */
   const change = (next: Array<[string, string]>): void => {
+    /** 更新行草稿并计算重复/空键问题，只有合法时才输出结构化值。 */
     setRows(next)
     const bad = props.map && (next.some(([key]) => key.trim() === '') || new Set(next.map(([key]) => key)).size !== next.length)
     setInvalid(bad)
@@ -240,7 +257,7 @@ function StringRows(props: {
             'aria-label': `${props.t('panelDelete')} ${props.label} ${index + 1}`,
             onClick: () => change(rows.filter((_, i) => i !== index))
           },
-          h(IconTrashOutline16)
+          h(IconTrashOutlineRegular)
         )
       )
     ),
@@ -248,12 +265,13 @@ function StringRows(props: {
     h(
       Button,
       { variant: 'ghost', size: 'sm', title: props.t('panelAdd'), 'aria-label': `${props.t('panelAdd')} ${props.label}`, onClick: () => change([...rows, ['', '']]) },
-      h(IconPlusOutline16),
+      h(IconPlusOutlineRegular),
       props.t('panelAdd')
     )
   )
 }
 
+/** 编辑 LSP 的任意 JSON 字段；输入错误暂存在文本框，不覆盖用户草稿。 */
 function JsonField(props: { label: string; value: unknown; onChange: (value: unknown) => void; onIssue: (bad: boolean) => void }): ReactNode {
   const [text, setText] = useState(props.value === undefined ? '' : JSON.stringify(props.value, null, 2))
   const [error, setError] = useState('')

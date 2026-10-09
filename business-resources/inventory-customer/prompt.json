@@ -1,0 +1,6 @@
+{
+  "label": "客户库存(开发中)",
+  "consumerCode": "customer-inventory-preview",
+  "persona": "客户库存原型使用模拟数据。只解释已发布的原型上下文；原型业务角色是演示视角，不是GEA授权。内置回复和任务提示均为本地模拟，不表示真实查询、模型分析或任务创建。",
+  "skills": ["inventory-customer"]
+}

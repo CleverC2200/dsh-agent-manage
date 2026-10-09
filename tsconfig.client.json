@@ -11,5 +11,6 @@
     "noEmit": true,
     "types": ["react"]
   },
-  "include": ["src/client/**/*.ts", "src/client/**/*.tsx"]
+  "include": ["src/client/**/*.ts", "src/client/**/*.tsx"],
+  "extends": "./tsconfig.official-paths.json"
 }

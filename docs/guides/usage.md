@@ -9,7 +9,7 @@ The plugin settings card includes **Scan project Agent layouts** (`scanProjectLa
 Codex project MCP is read from `.codex/config.toml`. Its enabled flags, environment references, tool allow/deny lists and timeouts are preserved; unsupported fields are diagnosed. Project LSP is not mounted because the host registry is global; this plugin does not modify host APIs.
 
 - Node.js 22 or later, a DSH Web profile and the host skill service (`ctx.skills`). Git sources require Git.
-- The current package declares DSH peer packages in the `^0.1.2-rc.1` range. This is a dependency declaration, not a verified minimum version for every feature or historical Web shell.
+- The current package declares DSH peer packages in the `0.2.1-alpha.1` range. This is a dependency declaration, not a verified minimum version for every feature or historical Web shell.
 - Slash commands require the host command service. `subagents_run` role delegation requires agents, tools, LLM and subagent services; it applies the saved persona, provider, model, reasoning effort and tool restrictions to a real subagent and waits for its result.
 - MCP uses the built-in bridge by default. Host-client compatibility mode additionally needs `@deepseek-ai/dsh-mcp-client`; hooks need `@deepseek-ai/dsh-hooks-claude-code`.
 - LSP mounting needs `@deepseek-ai/dsh-lsp` and `@deepseek-ai/dsh-lsp-stdio`; expose `@deepseek-ai/dsh-tool-lsp` in the profile to let the agent call the tool. Language-server executables must also be available.
@@ -144,3 +144,7 @@ The schemas in `schemas/1.0.0/` are vendored from [agent-plugins-spec](https://g
 Manual download-region selection follows the saved host setting without reopening the settings card. A failed write keeps the previous selection and displays the error. Only automatic mode uses the language-resolved probe result.
 
 Private GitHub suites can use an explicit archive source such as `https://api.github.com/repos/OWNER/REPO/zipball/REF`. The desktop administrator supplies `DSH_AGENT_MANAGE_GITHUB_TOKEN` in the launch environment. Authorization is sent only to the initial HTTPS GitHub API request, never to redirect destinations; it is not stored in source settings. Download failures preserve installed content.
+
+### Native resource workspace context
+
+Workbench discovers resources with GET /api/agent-manage/resources?cwd=... and selects with POST /api/agent-manage/resources/select using { id, cwd }. cwd is the same absolute native workspace that owns the new Session. Manage passes it to the existing Skill registry, so project Skills participate in discovery and body lookup without copying resources. Missing or relative paths return INVALID_AGENT_RESOURCE_WORKSPACE.

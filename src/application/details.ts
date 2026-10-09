@@ -1,4 +1,10 @@
-/** Suite detail and preview projections owned by the application layer. */
+/** 文件作用：组装套件详情和组件资源，向 HTTP 查询层提供只读详情视图。 */
+/**
+ * Suite detail and preview projections owned by the application layer.
+ *
+ * 中文：本文件把已归一化的 suite 数据组装成详情页需要的视图模型，包括技能、MCP、Hooks、命令、Agent 和 LSP 预览。
+ * 它只读取和投影业务数据，并在输出前隐藏凭据等敏感信息。
+ */
 import { readFile } from 'node:fs/promises'
 import { parse as parseYaml } from 'yaml'
 import { discoverLspEntries } from '../catalog/surfaces.js'
@@ -10,7 +16,7 @@ import type { LspSurfaceDetail, McpServerDetail, SkillContent, SuiteDetail } fro
 import { effectiveSurfaces, type InstalledEntry, type McpServerStdio, type McpServerStreamableHttp, type Suite, type SuiteMarkdownResource } from '../model/types.js'
 import type { McpMountDiagnostic as McpDiagnostic } from '../runtime/mcp-mounts.js'
 
-/** Build the detail response for one normalized suite. */
+/** Build the detail response for one normalized suite. 中文：合并 suite、安装状态、挂载诊断和 MCP 覆盖值，生成详情弹窗的完整响应。 */
 export async function buildSuiteDetail(
   suite: Suite,
   installed: InstalledEntry | undefined,
@@ -67,7 +73,7 @@ export async function buildSuiteDetail(
   }
 }
 
-/** Read one skill body from a normalized suite. */
+/** Read one skill body from a normalized suite. 中文：按名称定位技能并读取完整 SKILL.md，找不到或无法读取时返回可理解的错误。 */
 export async function readSkillContent(suite: Suite, skillName: string): Promise<SkillContent> {
   const skill = suite.skills.find(entry => entry.name === skillName)
   if (skill === undefined) throw new Error(`skill "${skillName}" not found in suite "${suite.id}"`)
@@ -80,11 +86,13 @@ export async function readSkillContent(suite: Suite, skillName: string): Promise
   return { name: skill.name, description: skill.description, content, path: skill.file }
 }
 
+/** 读取文本预览，并按字符上限截断，防止详情响应被大文件撑大。 */
 async function readPreview(path: string, capBytes = 64 * 1024): Promise<string> {
   const text = await readFile(path, 'utf8')
   return text.length > capBytes ? `${text.slice(0, capBytes)}\n… (truncated)` : text
 }
 
+/** 批量生成 Markdown 资源预览，并尝试从 frontmatter 提取描述；单个文件读取失败不影响其他资源。 */
 async function markdownPreviews(resources: SuiteMarkdownResource[]): Promise<Array<{ name: string; description?: string; content: string }>> {
   const previews: Array<{ name: string; description?: string; content: string }> = []
   for (const resource of resources) {
@@ -102,11 +110,13 @@ async function markdownPreviews(resources: SuiteMarkdownResource[]): Promise<Arr
       previews.push({ name: resource.name, ...(description === undefined ? {} : { description }), content })
     } catch {
       // Unreadable preview files are omitted from the detail response.
+      // 中文：不可读的预览文件仅从详情响应中略过，不拖垮整个 suite。
     }
   }
   return previews
 }
 
+/** 将已验证的分组 Hook 结构拉平成详情页可直接展示的事件、匹配器和命令列表。 */
 function normalizedHookPreviews(suite: Suite) {
   const entries = Object.entries(suite.hooks!.events).flatMap(([event, groups]) =>
     groups.flatMap(group => group.hooks.map(hook => ({ event, ...(group.matcher === undefined ? {} : { matcher: group.matcher }), command: hook.command })))
@@ -114,6 +124,7 @@ function normalizedHookPreviews(suite: Suite) {
   return { count: entries.length, entries }
 }
 
+/** 从兼容路径中读取原生 hooks JSON，宽容地提取可识别命令，用于未经归一化的旧布局预览。 */
 async function hooksPreviews(root: string): Promise<{ count: number; entries: Array<{ event: string; matcher?: string; command: string }> }> {
   for (const relative of ['hooks/hooks.json', 'hooks.json'] as const) {
     let text: string
@@ -146,6 +157,7 @@ async function hooksPreviews(root: string): Promise<{ count: number; entries: Ar
       return { count: entries.length, entries }
     } catch {
       // Unparsable hook files yield zero entries.
+      // 中文：Hook 文件无法解析时返回空预览，不让详情页整体失败。
     }
   }
   return { count: 0, entries: [] }
@@ -156,6 +168,8 @@ async function hooksPreviews(root: string): Promise<{ count: number; entries: Ar
  * `suite.lsp` at discovery) rendered as structured server previews, plus the
  * directory-style `.claude-plugin/lsp/*.json` / reverse-domain files as raw
  * previews. Remote suites (not cloned) carry an empty detail.
+ *
+ * 中文：合并发现阶段已解析的内联 LSP 服务，以及目录型 LSP JSON 原文预览；未克隆的远程 suite 返回空详情。
  */
 async function lspDetail(suite: Suite): Promise<LspSurfaceDetail> {
   const servers = Object.values(suite.lsp?.servers ?? {}).map(spec => ({
@@ -172,6 +186,7 @@ async function lspDetail(suite: Suite): Promise<LspSurfaceDetail> {
         raw.push({ name: entry.name, content: await readPreview(entry.path) })
       } catch {
         // Unreadable LSP files are omitted from the detail response.
+        // 中文：单个 LSP 文件不可读时只略过该预览。
       }
     }
   }

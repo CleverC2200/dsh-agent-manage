@@ -1,4 +1,6 @@
+/** 文件作用：把 Codex TOML MCP 表转换为统一传输、凭据和启停策略。 */
 /** Codex TOML MCP tables normalize into the existing transport and credential contracts. */
+/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import type { McpServer, McpServerPolicy } from '../model/types.js'
 import { PLUGIN_DATA_VARIABLES, PLUGIN_ROOT_VARIABLES } from '../model/layouts.js'
 
@@ -19,29 +21,35 @@ const FIELDS = new Set([
   'startup_timeout_ms',
   'tool_timeout_sec'
 ])
+/** 判断未知 TOML 值是否为非空记录对象。 */
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date)
 }
+/** 读取必填字符串字段，错误信息绑定 Codex 字段名。 */
 function text(value: unknown, field: string): string {
   if (typeof value !== 'string' || value.trim() === '') throw new Error(`${field} must be a non-empty string`)
   return value
 }
+/** 读取可选字符串数组字段并拒绝混合类型。 */
 function strings(value: unknown, field: string): string[] | undefined {
   if (value === undefined) return undefined
   if (!Array.isArray(value) || !value.every(item => typeof item === 'string')) throw new Error(`${field} must be an array of strings`)
   return value as string[]
 }
+/** 读取环境变量/headers 表并规范化为字符串映射。 */
 function table(value: unknown, field: string): Record<string, string> {
   if (value === undefined) return {}
   if (!record(value) || !Object.values(value).every(item => typeof item === 'string')) throw new Error(`${field} must be a string table`)
   return value as Record<string, string>
 }
+/** 读取凭据引用字段，禁止把字面密钥当作引用传播。 */
 function reference(value: unknown, field: string): string {
   const name = text(value, field)
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) || PLUGIN_ROOT_VARIABLES.has(name) || PLUGIN_DATA_VARIABLES.has(name))
     throw new Error(`${field} must name a non-reserved environment variable`)
   return `\${${name}}`
 }
+/** 将秒/毫秒超时转换为统一毫秒数并做有限性校验。 */
 function timeout(value: unknown, field: string, factor: number): number | undefined {
   if (value === undefined) return undefined
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value * factor > 2_147_483_647)
@@ -50,6 +58,7 @@ function timeout(value: unknown, field: string, factor: number): number | undefi
 }
 
 /** Unknown or malformed server options reject that server; other servers stay independently usable. */
+/** 将 Codex MCP 表映射为统一 McpServer；单项异常写入诊断并跳过。 */
 export function normalizeCodexMcp(raw: Record<string, unknown>, errors: string[]): Record<string, McpServer> {
   const servers: Record<string, McpServer> = Object.create(null) as Record<string, McpServer>
   for (const [name, value] of Object.entries(raw)) {

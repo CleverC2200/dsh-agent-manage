@@ -1,0 +1,13 @@
+{
+  "version": "1",
+  "updatedAt": "2026-08-09",
+  "status": "生效",
+  "filters": [
+    { "key": "建议下单", "label": "建议下单", "anchor": "pre_order_qty > 0", "display": "绿色标签，按建议量降序" },
+    { "key": "不可下单", "label": "不可下单", "anchor": "命中货龄熔断/高风险或业务例外", "display": "红色标签，优先展示原因" },
+    { "key": "货龄风险", "label": "货龄风险", "anchor": "avg_stock_age 或 stock_age_turnover_status 命中阈值/状态", "display": "红色或橙色标签" },
+    { "key": "高库存低动销", "label": "高库存低动销", "anchor": "库存偏高且日均偏低（周转高）", "display": "橙色标签，提示谨慎下单或控货" },
+    { "key": "低库存高动销", "label": "低库存高动销", "anchor": "库存偏低且日均较高（有补货建议）", "display": "蓝色机会标签，提示优先沟通补货" },
+    { "key": "数据异常", "label": "数据异常", "anchor": "空值、负值、重复、无货龄", "display": "灰色/橙色标签，提示人工核查" }
+  ]
+}

@@ -1,4 +1,5 @@
-/** Source editor modal for adding or editing a catalog source. */
+/** Source editor modal for adding or editing a catalog source. 中文：新增或编辑市场目录数据源。 */
+/** 文件作用：新增或编辑市场数据源；维护 git、压缩包和本地目录三种采集方式的表单草稿。 */
 import { createElement as h, useState, type ReactNode } from 'react'
 import { Button, Input, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SourceOverview } from '../../api.js'
@@ -8,7 +9,8 @@ import css from '../../market.module.css'
 
 export type EditorState = { mode: 'edit'; source: SourceOverview } | { mode: 'add' } | undefined
 
-/** Which acquisition path the editor configures. */
+/** Which acquisition path the editor configures. 中文：表单选择当前数据源的采集路径。 */
+/** 中文：表单支持 git、压缩包 URL 和本地目录三种数据源采集方式。 */
 export type SourceEditorKind = 'git' | 'archive' | 'local'
 
 export interface SourceEditorModalProps {
@@ -21,6 +23,7 @@ export interface SourceEditorModalProps {
   onRemove: (id: string) => void
 }
 
+/** 展示数据源编辑表单，并将本地草稿归一化后交给保存回调。 */
 export function SourceEditorModal(props: SourceEditorModalProps): ReactNode {
   const { t, editor } = props
   const [kind, setKind] = useState<SourceEditorKind>(editor.mode === 'edit' ? (editor.source.kind === 'archive' ? 'archive' : editor.source.local === true ? 'local' : 'git') : 'git')
@@ -31,7 +34,9 @@ export function SourceEditorModal(props: SourceEditorModalProps): ReactNode {
   const title = editor.mode === 'edit' ? t('editSourceTitle') : t('addSourceTitle')
   const urlPlaceholder = kind === 'local' ? t('sourceUrlLocalPh') : kind === 'archive' ? t('sourceUrlArchivePh') : t('sourceUrlPh')
   const urlHint = kind === 'local' ? t('urlLocalHint') : kind === 'archive' ? t('urlArchiveHint') : t('urlGitHint')
+  /** 渲染采集方式切换按钮，只更新本地 kind 草稿，不立即请求服务端。 */
   const segment = (value: SourceEditorKind, label: string): ReactNode =>
+    // 切换采集类型只更新本地表单状态，保存时才把完整输入交给父级。
     h(
       'button',
       {
@@ -59,6 +64,7 @@ export function SourceEditorModal(props: SourceEditorModalProps): ReactNode {
           variant: 'primary',
           disabled: props.busy,
           onClick: () => {
+            // 中文：保存前去除首尾空白，把完整表单输入交给父级校验和请求。
             void props.onSave({ url: url.trim(), branch: branch.trim(), kind, sha256: sha256.trim() })
           }
         },

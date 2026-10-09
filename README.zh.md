@@ -23,11 +23,13 @@
 - **沿用项目资源。** 直接发现项目 `.claude/`、`.agents/` 中的技能与代理，无需安装或复制文件。
 - **集中管理服务。** 自行新增 MCP 服务和 LSP 服务，为已安装的服务配置凭据与授权，查看 MCP / LSP 状态，在同一工作区定位服务不可用的原因。
 
+本隔离项目只支持登记的当前核心源码与公开接口。项目命令和套件指令通过异步 `agent/created` 初始化，完成后才开始首次模型请求；旧 `agent/session-start` 监听已删除。
+
 ## 快速开始
 
 本分支的包名为 `dsh-agent-manage`；新 npm 包尚未在本次工作中发布或验证，使用下方 GitHub 来源。替换旧包时应先移除旧 profile 中的插件条目，再安装新包，避免双重加载。已有 `dsh-agent-plugins-market` 设置命名空间与数据路径保留兼容。
 
-需要 Node.js 22+、启用了技能服务的 DSH Web profile；使用 Git 来源还需要 Git。当前仓库声明的 DSH peer 包版本范围为 `^0.1.2-rc.1`，各项能力还取决于 profile 提供的宿主服务，详见[宿主要求](docs/guides/usage.zh.md#宿主要求)。
+需要 Node.js 24+、启用了技能服务的 DSH Web profile；使用 Git 来源还需要 Git。当前仓库声明的 DSH peer 包版本范围为 `0.2.1-alpha.1`，各项能力还取决于 profile 提供的宿主服务，详见[宿主要求](docs/guides/usage.zh.md#宿主要求)。
 
 将 `<name>` 替换为你的 profile 名称后安装：
 
@@ -35,7 +37,7 @@
 dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
-1. 重启 DSH，打开 **设置 → Agent Plugins 市场**。旧版外壳可能显示为顶层页面入口。
+1. 重启 DSH，打开 **设置 → 智能体市场**。仅支持本项目登记的当前 DSH 源码基线及其 settings.section 正式槽位。
 2. 在**插件市场**添加来源，例如 `https://github.com/anthropics/claude-plugins-official`。插件不预置来源。
 3. 打开套件查看内容，确认后安装，并确保套件已启用。
 4. 如果套件提供技能，先在**技能**页签查看，再在聊天中输入 `/` 查找允许手动调用的技能。如果提供 MCP，前往 **MCP 服务**检查状态，处理凭据或连接提示后再使用工具。
@@ -60,6 +62,8 @@ MCP 详情将保留凭据的“重试连接”与需要确认的“重新授权�
 **来源（source）**表示内容来自哪里，**套件（suite）**是从中发现的可安装单元。添加来源用于发现套件；安装并启用套件决定其运行时能力是否生效。套件详情用于预览文件，MCP 凭据和覆盖配置在 **MCP 服务**中编辑。
 
 自建技能、命令和角色以 Markdown 保存于 `~/.dsh/agent-plugins/user/`，项目原生资源继续保留在项目中。路径和优先级见[存储与发现](docs/guides/usage.zh.md#存储与发现)。
+
+启动仅使用当前 `$DSH_HOME/agent-plugins` 标准存储。旧 `userRoot` 或 `dataRoot` 配置在运行时挂载前以 `MANAGE_STORAGE_UPGRADE_REQUIRED` 拒绝；新 profile 应删除这些旧配置。启动不读取或搬移旧树，也不导入旧后端 `settings.json`。原数据保留原位；确需转换时另行授权升级。标准 DSH_HOME、插件用户根、data、user 和 `.sources` 目录不得为符号链接。
 
 ## 兼容性与运行边界
 
@@ -204,9 +208,9 @@ MCP 读取根 `.mcp.json`、`.cursor/mcp.json`，以及 `.qoder/settings.json`�
 - [安全政策](SECURITY.md) · [版本记录](CHANGELOG.md) · [MIT 许可](LICENSE)。
 - [领域词汇](CONTEXT.md) · [架构设计](docs/adr/0001-catalog-centered-modular-refactor.md)。
 
-已安装资源编辑、角色模型路由与目录迁移见[代理角色与存储](docs/guides/agent-roles.zh.md)。
+已安装资源编辑、角色模型路由与标准存储见[代理角色与存储](docs/guides/agent-roles.zh.md)。
 
-下载区域在「设置 → 插件 → 插件配置 → Agent Plugins 市场」中切换。手动选择保存后立即更新选中状态；保存失败显示错误并保留原选择。
+下载区域在「设置 → 插件 → 插件配置 → 智能体市场」中切换。手动选择保存后立即更新选中状态；保存失败显示错误并保留原选择。
 
 同时加载 GEA 插件时，GEA 登录后自动发现获授权的 MCP 工具。Consumer 选择、生命周期和验收边界见 [GEA 登录与 MCP](docs/guides/gea-mcp.zh.md)。
 
@@ -217,3 +221,59 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 私有 GitHub 套件可使用显式 archive 来源，例如 `https://api.github.com/repos/OWNER/REPO/zipball/REF`。桌面管理员在启动环境提供 `DSH_AGENT_MANAGE_GITHUB_TOKEN`，授权只发送给首次 HTTPS GitHub API 请求，不发送到重定向目标，也不写入来源配置。下载失败保留已安装内容。
 
 下载区域选择立即反映显式选择；自动模式跟随探测结果。
+
+插件拆分隔离工作区面向同级 DSH 0.2.1-alpha.1 源码构建，DSH peer 固定到该版本，Cordis 固定为 4.0.5-alpha.1；图标使用新的 Regular 导出。UI primitives 开发链接指向同一源码，测试对 React 去重。使用此组合前从同级 GEA 仓执行源码兼容检查。
+
+管理页面消费 Workbench 插件安装和释放的工作台资源 `1.0.0`。Manage 的构建 CSS 由自身 apply 生命周期管理，不在模块加载时留下样式，也不修改或同步 Core 主题。明暗主题、字号和状态颜色仍由官方宿主持有。
+
+## 分仓库存分离资源
+
+`business-resources/inventory-fc` 与 `business-resources/inventory-aqkc` 持有迁移后的只读 Skill、提示词、MCP 声明和能力元数据。工作台构建通过已有 `declarations.page/capability` 引用将其与页面组合。导出的 `dsh-agent-manage/business-resources` 装载器读取并校验 Skill/提示词身份；GEA 在装载前校验 Consumer、页面 ID 和影响等级。沿用原生 Skill 路径，卸载保留后续编辑。资源配置不包含凭据，登录与受控执行仍归 GEA。HTML 资源必须使用当前 v2 协议和显式 Agent Manage 声明；旧 manifest 明确拒绝。 `prompt.json` 的 `pageAgents` 只列出允许解读本页的预设，不增加跨 Consumer 权限。当前分仓页列出分仓库存与全链库存两项；GEA 还会逐项检查预设是否安装、当前登录是否得到该 Consumer 的授权。
+
+配置及 Session 约束见[分仓页面的 Agent 能力选择](docs/guides/branch-stock-page-agents.zh.md)。
+
+同一个原生 Skill 根目录中，装载器拒绝同模块的重叠装载；GEA 同样拒绝同一现有 preset 的重叠提示词替换，避免旧卸载动作删除或复活其他拥有者。
+
+业务资源装载器通过目录使用的同一 YAML 解析器返回 `skillName` 和 `skillDescription`，消费方不再解析 Skill。清理读取遇到 ENOENT 以外的失败时报告错误并保留归属；修复文件后先重试清理，再重新挂载。后续用户编辑和主动删除仍保留。
+
+## 官方工作台入口与视觉生命周期
+
+在同组官方 DSH 中，通过 **工作台 → Agent 市场**（`agent-plugin-workspace`）打开已有资源工作区；设置区仍呈现同一工作区。目录以官方 `main` 注册为可见性事实，Workbench 注册只提供标题元数据。Manage 的构建 CSS 由插件 `apply` effect 安装和释放，消费 Workbench 插件提供的 `--workbench-*`；不在模块加载时插入永久样式，不同步或修改官方 Core 主题。主题及字号始终由官方宿主持有。
+
+### 原生资源选用
+
+`GET /api/agent-manage/resources?cwd=...` 根据明确的原生工作区绝对路径返回提示词和可由用户调用的 Skill 轻量清单，安装启用事实沿用资源所属模块。`POST /api/agent-manage/resources/select` 仅接受 `{ "id": "...", "cwd": "/absolute/workspace" }`，经官方原生 preset/Skill 接口发布所选原资源。发现、正文选用和工作台新 Session 使用同一个当前原生工作区；尚无 Session 时使用明确配置的隔离工作区，Skill 只暂存 `/skill-name` 草稿，不自动请求模型。未安装 Skill 和 Consumer 业务授权分别报告。`selected-resources.json` 只保存已选标识以恢复必要声明，不保存资源正文或凭据。
+
+资源选用只接受同源POST JSON，流式计数不超过64KiB，在选用前拒绝超限正文并返回413，chunked同样受限。坏包内Skill元数据只诊断并跳过该项，健康资源继续可用，取消仍向调用者抛出。
+
+Manage 提供 `skill_reference_read`，只读当前模型可见 Skill 正文明确链接的本地相对参考文件。沿宿主文件系统读权限与同一工作区/scope/取消信号，核 UTF-8、大小和行分页限制，并在返回前重新确认安装 owner。MCP 资源仍使用对应服务的 reader。
+
+纯 `forecast_compute` 能力沿调用者工作区核已安装启用的 `sinian-demand-baseline`。原 §5.5 精确十进制算法、缺数据分支、草案与无外写语义保持。结果携算法版本、完整输入 SHA-256 和是否来自实际用户消息的完整 JSON；这些来源事实不核验业务来源、不授予 Consumer 权限，模型声明 `data_mode` 不算来源证明。
+
+本轮开发SDK登记为固定官方 `dsh-v0.2.1-alpha.1` / `5badb15009ae1756c3afe0ae0cef1faafc290ccc` 标准构建。Host/Client类型和真实开发依赖消费同一批官方包，运行peer对应其实际版本。客户端只声明真实slots/locale/settings接口，不保已移除client-runtime alias。Manage资源/MCP的实际implementation和官方Core插件管理继续保持原有独立归属。
+
+Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用结果中返回可选的 `interpreters` 数组。数组只包含原声明允许、资源仍已注册启用且没有已记录加载错误的解释器。工作台据此选择官方 Session 的预设。GEA 继续检查实际预设和所需 Consumer 权限。
+
+公开的 `dsh-agent-manage/forecast-source` 导出提供 `forecast_compute` 使用的算法版本、规范输入 hash、用户消息输入校验和当前 baseline 指纹。GEA 在现有身份与 Session 证据库中使用这些函数。Manage 保留十进制计算和来源校验，GEA 保留业务授权。
+
+客户库存、订单工作台与订单履约资源保存在 `business-resources/inventory-customer`、`inventory-orderworkbench` 和 `inventory-orderfulfillment`。原Prompt与Skill只解释模拟数据。Workbench把资源组装进原页面包，选用后关联官方Core Session，不发送模型请求。MCP能力声明为空，GEA拒绝业务SQL读取。
+
+已有区域原型使用 `business-resources/plan-regional` 中的原 `plan-regional` 资源。Workbench将其组装到当前 `gea-regional-plan` 页面；Manage通过原生资源选用发布原Prompt与Skill。MCP能力列表为空，GEA只授予view访问。恢复UI草稿不代表真实计划保存。
+
+原品类计划资源保存在 `business-resources/category-plan`。Workbench 将它组装进 `lib/static/category`，保留原 `category-plan`、`plan-region-category` 和 `category-plan-prototype` 标识。Skill 区分按 Session 恢复的 UI 意图和未发文字，以及不落库的临时模拟任务。MCP 能力声明仍为空。
+
+MPS资源 `business-resources/inventory-mps` 保留原模拟Prompt、Skill和view声明，Workbench装配进现有静态MPS页。Skill只读取当前挂载步骤。界面意图和未发送文字在当前Session恢复，模拟派生结果不存业务库。`SOURCE.json`记录历史 `governed-sql-read` 声明，当前MCP能力为空。
+
+inventory-dealer保留原规则，通过公共GEA受控SQL通道读取已登记的10张表。保留原Consumer标识，MCP能力为governed-sql-read。页面可见和资源启用分别控制。201条输入仅用于离线验证。建议采纳与订单校验只保存本地草稿，不提交补货订单。正式接口与数据的实际验证仍待完成。
+
+全链分布资源保存在 `business-resources/inventory-qll`。当前源码声明公司只读的七表与 `governed-sql-read`，Workbench经当前GEA grant和公开通道读取固定查询。Manage的 `full-chain-source-rows` 归一化原字段、数量和速度，再交同一公开计算。客户渠道未启用；源码接线和本地fixture不证明当前真实身份、数据或行权限。
+
+同一资源解释当前公司范围的GEA库存、订单缺口与货龄趋势。Workbench持有读取、分页和Session临时事实，Manage持有原计算。缺期间保持null，源码/fixture接收不证明当前真实身份、行权限或模型验收。
+
+个人库存资源保存在 `business-resources/inventory-personal`，保留日监控、优先事项与反馈字段。当前以独立Consumer通过公共GEA受控SQL读取已登记的9张表，MCP能力为`governed-sql-read`。固定输入仅用于离线回归，正式接口与数据的实际验收尚未完成。页面默认隐藏。反馈字段按Session恢复；页面草稿动作通过Core公开编辑事件追加未发送文字，保留已有文字和引用，不排入模型Task。
+
+库存纯计算通过 `dsh-agent-manage/inventory-compute/*` 公开提供。经销商政策、覆盖和补货、全链指标及个人库存日报只接已收窄的输入并返回结果，不读取数据、访问 Session 或授予业务权限。Workbench 装配页面时编译此公开源码导出。接口说明见[计算合同](docs/design/inventory-compute.zh.md)。
+
+APS 页面使用公开 `aps-compute/*` 源码和运行时导出。原预测及问题分析 Skill 与参考只有 `business-resources/aps-analysis` 一份来源。`BusinessResources` 在选用时校验显式资源引用；资源引用不授予 GEA 业务权限。
+
+DMS模拟接收资源只有 `business-resources/inventory-dms` 一份。`src/inventory-compute/dms-mock-packets.ts` 维护输入数量、三位小数与M/Z分笔键的纯计算。Workbench拥有页面内存模拟器，复用现有销售工作流投影。资源不包含DMS凭据、SQL能力或写MCP。

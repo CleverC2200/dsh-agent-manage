@@ -1,9 +1,12 @@
+/** 文件作用：按 Agent 预设限制 GEA MCP 工具的可见性和调用范围。 */
 /** Agent-preset boundary for the login-owned gateway; never trusts prompt text. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface GeaScopeAgent {
   ctx: { tools: { restrict(filter: { deny: string[] }): () => void } }
 }
 
 /** Minimal host capability needed to mask schemas and deny stale tool calls. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface GeaScopeHost {
   agents: { list(): GeaScopeAgent[] }
   agentPresets: { composedPreset(ctx: GeaScopeAgent['ctx']): string | undefined }
@@ -11,24 +14,29 @@ export interface GeaScopeHost {
     schemas(): { name: string }[]
     guard(check: (exec: { name: string; agent?: GeaScopeAgent }) => string | undefined): () => void
   }
+  /** 中文：监听宿主 Agent 事件，返回解除监听的函数。 */
   on(event: string, listener: () => void): () => void
 }
 
 /** Match the bridge namespace including normalized/truncated public names. */
+/** 判断工具名是否属于 GEA 网关命名空间，兼容两种历史前缀。 */
 function isGatewayTool(name: string): boolean {
   return name === 'gea_sales_plan_read' || name.startsWith('mcp__gea_gateway__') || name.startsWith('mcp__gea-gateway__')
 }
 
 /** Keep live and newly created agents masked, including preset switches and login refreshes. */
+/** 安装工具守卫并同步现有 Agent 的 schema 屏蔽；返回一次性释放函数。 */
 export function restrictGeaMcp(host: GeaScopeHost, preset: string): () => void {
   if (preset.trim() === '') throw new Error('GEA MCP requires a non-empty agent preset')
   const masks = new Map<GeaScopeAgent, { key: string; dispose: () => void }>()
   let updating = false
   let closed = false
+  /** 判断 Agent 是否使用被授权的 GEA preset，决定是否允许网关工具可见。 */
   const allowed = (agent: GeaScopeAgent | undefined): boolean => agent !== undefined && host.agentPresets.composedPreset(agent.ctx) === preset
   const unguard = host.tools.guard(exec =>
     isGatewayTool(exec.name) && !allowed(exec.agent) ? 'GEA MCP is restricted to the demand forecast agent / GEA MCP 仅限需求预测 Agent 使用' : undefined
   )
+  /** 根据当前 Agent 和工具 schema 快照刷新每个 Agent 的 GEA 工具屏蔽。 */
   const sync = (): void => {
     if (closed || updating) return
     updating = true
@@ -51,6 +59,7 @@ export function restrictGeaMcp(host: GeaScopeHost, preset: string): () => void {
         const old = masks.get(agent)
         if (old?.key === key) continue
         // Install replacement first, so a tool generation never opens a visibility gap.
+        // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         const dispose = deny.length > 0 ? agent.ctx.tools.restrict({ deny }) : () => {}
         masks.set(agent, { key, dispose })
         old?.dispose()

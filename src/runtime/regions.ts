@@ -1,3 +1,4 @@
+/** 文件作用：解析下载区域设置，并生成 GitHub 全局或中国代理地址。 */
 /**
  * Download regions for GitHub acquisition, modeled on dshmarket's regions.js:
  * one setting answers "where are you" instead of a row of mirror toggles.
@@ -13,17 +14,22 @@
  *
  * @module runtime/regions
  */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 /** The persisted setting: `auto` follows the interface language. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type DownloadRegionSetting = 'auto' | 'global' | 'china'
 
 /** The route downloads actually take. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type EffectiveRegion = 'global' | 'china'
 
 /** The China-route GitHub prefix proxy, no trailing slash. */
+/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const DEFAULT_GITHUB_PROXY = 'https://gh-proxy.com'
 
 /** Narrow an untrusted stored value to a setting; anything else reads as auto. */
+/** 将持久化或请求中的未知值收窄为合法区域设置，非法值回退 auto。 */
 export function narrowDownloadRegion(value: unknown): DownloadRegionSetting {
   return value === 'global' || value === 'china' ? value : 'auto'
 }
@@ -34,6 +40,7 @@ export function narrowDownloadRegion(value: unknown): DownloadRegionSetting {
  * @param setting - the persisted `downloadRegion` value.
  * @param localePreference - the Host `locale.preference` value, when known.
  */
+/** 显式设置优先；auto 根据宿主中文偏好决定 global 或 china 路由。 */
 export function resolveRegion(setting: DownloadRegionSetting, localePreference: string | undefined): EffectiveRegion {
   if (setting === 'global' || setting === 'china') return setting
   return localePreference !== undefined && localePreference.toLowerCase().startsWith('zh') ? 'china' : 'global'
@@ -47,6 +54,7 @@ export function resolveRegion(setting: DownloadRegionSetting, localePreference: 
  * @param url - the clone URL.
  * @param env - environment, carrying the `DSH_MARKET_GITHUB_PROXY` escape hatch.
  */
+/** 仅代理 github.com HTTPS 克隆地址，其余地址原样返回并支持环境变量覆盖代理。 */
 export function githubCloneUrl(region: EffectiveRegion, url: string, env: NodeJS.ProcessEnv = process.env): string {
   if (region !== 'china') return url
   let host: string | undefined

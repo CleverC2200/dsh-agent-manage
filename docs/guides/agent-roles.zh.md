@@ -27,6 +27,8 @@ tools: [read_file, search_files]
 
 角色不再注册为 `agent-*` 或 `persona-*` 技能、斜杠命令。普通技能或命令本身以这些前缀命名的，不受影响。只有本插件的准确 `subagents_run` 工具在当前作用域可见时才展示目录；工具被隐藏或替换后清空已发布目录。项目角色从调用会话的工作目录解析，并遵循 `scanProjectLayouts`。界面编辑、启停变更在下一次模型 step 生效，不会修改已发送的请求。外部文件发现仍使用现有扫描缓存 TTL 或手动刷新，本次没有添加文件监听。
 
-插件管理的用户级存储统一位于 `$DSH_HOME/agent-plugins`，默认 `~/.dsh/agent-plugins`：`.sources` 保存 checkout，`state.json` 保存安装状态，`user/{skills,commands,agents}` 保存自建资源，`data` 保存 suite 可变数据与配置。旧 `userRoot`、`dataRoot` 仅作为迁移来源。启动等待旧目录、`agent-plugins-data` 以及 `data/user` 迁移完成；冲突文件保留原位，并报告路径、阻止激活，解决后重启。项目级和显式外部本地 source 仍按原有就地读取约定处理。
+插件管理的用户级存储统一位于 `$DSH_HOME/agent-plugins`，默认 `~/.dsh/agent-plugins`：`.sources` 保存 checkout，`state.json` 保存安装状态，`user/{skills,commands,agents}` 保存自建资源，`data` 保存 suite 可变数据与配置。启动以 `MANAGE_STORAGE_UPGRADE_REQUIRED` 拒绝旧 `userRoot`、`dataRoot` 配置，不扫描、搬移或删除旧存储。确需数据转换时单独授权升级。标准 DSH_HOME、插件用户根、data、user、`.sources` 目录在运行时副作用前核对，拒绝符号链接。项目级和显式外部本地 source 仍按原有就地读取约定处理。
 
 模型路由参考 [DSH Subagent Model Router](https://github.com/CypherNaught-0x/DSH-Subagent-Model-Router)，frontmatter 遵循 [Claude Code subagent 定义](https://code.claude.com/docs/en/sub-agents)。
+
+原生资源 host 同时挂载 `skill_reference_read` 与纯 `forecast_compute`。官方 registry 提供当前调用者 scope 的 Skill 正文和资源目录。参考只接受正文链接的相对路径，沿宿主文件读权限；owner 变化或撤销时不返回旧正文。预测计算要求同工作区已安装启用基线 Skill；它只报告草案结果和输入来源，不依赖 GEA Consumer，也不核验业务来源。

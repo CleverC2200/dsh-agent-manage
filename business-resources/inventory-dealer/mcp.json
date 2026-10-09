@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "provider": "gea",
+  "consumer": {
+    "consumerType": "AGENT",
+    "consumerCode": "dealer-inventory-replenishment"
+  },
+  "capabilities": ["governed-sql-read"],
+  "transport": "host-provided",
+  "contract": "gea-html-v2"
+}

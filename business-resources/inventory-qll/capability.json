@@ -1,0 +1,29 @@
+{
+  "id": "inventory-qll",
+  "label": "全链库存分布（公司只读）",
+  "data": {
+    "consumerCode": "full-chain-inventory",
+    "tables": [
+      "agents_scm_branch_inventory_snapshot",
+      "agents_scm_branch_operation_fact",
+      "agents_scm_branch_pending_order",
+      "agents_scm_branch_plan",
+      "agents_scm_inventory_age",
+      "agents_scm_order_fulfillment",
+      "agents_scm_safety_stock"
+    ],
+    "rules": [
+      "公司库存只读取当前GEA身份/Consumer获准的固定查询结果。基地与分仓按原可用/实物、日期、单位和目标口径分别解释；当前没有客户渠道数据。",
+      "组织、品类、SKU及月份只在当前授权范围内收窄。完整分页、返回列及快照变化时拒绝结果，缺失保持null，零值保持0。",
+      "趋势使用同一公司快照和收窄范围，固定30天窗口、目标月订单缺口与原算法；取消、身份或Session变化撤下旧事实和引用。",
+      "本模块不提供补货、反馈、通知、提交、审批或真实写入。"
+    ]
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["inventory-qll"],
+  "routing": {
+    "keywords": ["全链库存", "inventory-qll", "full-chain-inventory", "库存分布", "全链趋势"],
+    "summary": "解释当前授权范围的基地、分仓和客户库存分布、货龄与订单缺口。"
+  }
+}

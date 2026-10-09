@@ -1,0 +1,17 @@
+{
+  "version": "1",
+  "updatedAt": "2026-08-09",
+  "status": "生效",
+  "scope": "客户-SKU",
+  "priority": ["customer_sku", "sku", "material_group", "category", "product_label", "default"],
+  "default": {
+    "thresholdsDays": [60, 90, 120],
+    "levels": [
+      { "level": "normal", "label": "正常", "maxDays": 60, "preOrderAction": "允许", "display": "绿色/正常" },
+      { "level": "low", "label": "低风险观察", "minDays": 60, "maxDays": 90, "preOrderAction": "允许并标记观察", "display": "黄色/低风险" },
+      { "level": "high", "label": "高风险需确认", "minDays": 90, "maxDays": 120, "preOrderAction": "不建议直接下单，需业务确认", "display": "橙色/高风险/需确认" },
+      { "level": "fused", "label": "熔断暂停建议", "minDays": 120, "preOrderAction": "暂停正向预订单建议，除非人工例外审批", "display": "红色/熔断/暂停下单" }
+    ]
+  },
+  "overrides": []
+}

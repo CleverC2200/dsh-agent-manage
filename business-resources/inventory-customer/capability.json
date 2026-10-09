@@ -1,0 +1,17 @@
+{
+  "id": "inventory-customer",
+  "label": "客户库存(开发中)",
+  "data": {
+    "consumerCode": "customer-inventory-preview",
+    "tables": [],
+    "rules": ["模拟数据；原型业务角色不表示登录或业务授权；不调用真实查询/写入工具。"],
+    "mock": true
+  },
+  "maxEffect": "view",
+  "layers": ["read"],
+  "skills": ["inventory-customer"],
+  "routing": {
+    "keywords": ["客户库存", "inventory-customer"],
+    "summary": "客户库存开发中原型，仅本地模拟交互。"
+  }
+}
