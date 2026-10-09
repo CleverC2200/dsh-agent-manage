@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillProviderControl } from '@deepseek-ai/dsh-skill'
 import { BusinessResources } from './runtime/business-resources.js'
+import * as StandardPreset from './runtime/standard-preset.js'
 import { readJsonRequest, RequestBodyTooLarge } from './runtime/request-body.js'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import { Catalog } from './application/catalog.js'
@@ -82,6 +83,9 @@ export interface Config {
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   if ('userRoot' in config || 'dataRoot' in config) throw new Error('MANAGE_STORAGE_UPGRADE_REQUIRED: legacy storage overrides require a separately authorized upgrade')
   await assertCanonicalStorageDirectories()
+  ctx.inject(['agentPresets', 'loader'], async host => {
+    await host.plugin(StandardPreset)
+  })
   if (config.geaMcp !== false) mountGeaMcp(ctx, config.geaMcp)
   const userRoot = resolveUserRoot()
   const dataRoot = resolveDataRoot()

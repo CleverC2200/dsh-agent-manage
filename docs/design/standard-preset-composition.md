@@ -1,0 +1,13 @@
+# Standard preset composition
+
+Manage registers the original `auto-negotiation` identity (智能编排) beside the official `standard`, `minimal`, and other declarations. Its plugins come from the active official registry document; no separate tool list or preset directory is maintained.
+
+`dsh-agent-manage/standard-preset` exports `composeStandardPreset(registry, metadata, additions?)`. Pass the host `agentPresets` service and public `PresetDefinition` metadata. The returned definition contains the complete current standard plugin tree. The official Loader YAML schema preserves disabled expressions, plugin configuration and isolated groups. Missing standard declarations, invalid rows and conflicting plugin names or entry IDs reject instead of producing a reduced preset.
+
+Optional `personaPrefix` appends company instructions to the original persona prefix and retains its suffix and runtime context. Optional `plugins` appends additional rows; conflicts are checked recursively. Group containers may repeat, while their plugin names and entry IDs must remain distinct. Callers own `agentPresets.register(definition)` and its disposal function. Existing mounted Sessions retain their registry revision.
+
+The deployment default is provided by the official `agent-preset-registry.config.default`. A user's official settings selection (`selectedDefault`) retains precedence. Changing it affects new Sessions and does not rewrite an existing Session or browser draft.
+
+Verification uses the fixed Core production Loader, registry, Session, commands, compaction and JSONL persistence with temporary profiles and a local completion adapter. The official InputHub runs in its own client source process; a separate production Host process supplies the actual settings-save and restart receipt. This keeps both Core module graphs internally consistent.
+
+The single-repository `test` runs Host and client preservation lanes. Cross-plugin hooks run explicitly with `test:preset-integration`. Set `DSH_GEA_CHECKOUT` and `DSH_WORKBENCH_CHECKOUT` to the recorded inputs; defaults are the sibling repositories in an integration checkout. Missing inputs fail with `PRESET_INTEGRATION_INPUT_REQUIRED`. No ticket worktree path is embedded in the tests. A completed integration must rerun this lane against its final three-repository manifest.

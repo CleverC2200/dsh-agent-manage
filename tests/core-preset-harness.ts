@@ -1,0 +1,259 @@
+/** Fixed official libraries and production Loader/Session; only completion is local. */
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile, realpath } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { resolve, join } from 'node:path'
+import { onTestFinished } from 'vitest'
+import type { Context } from '@deepseek-ai/cordis'
+import { load } from 'js-yaml'
+import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import * as company from '../src/runtime/standard-preset.js'
+
+export const core = resolve(import.meta.dirname, '../../../official-latest-standard')
+const packages = new Map<string, { root: string; exports?: Record<string, { default?: string } | string>; main?: string }>()
+let catalogReady: Promise<void> | undefined
+async function catalog(): Promise<void> {
+  for (const group of ['vendor', 'packages']) {
+    const groupRoot = join(core, group)
+    const roots: string[] = []
+    for (const entry of await readdir(groupRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      if (group === 'vendor') roots.push(join(groupRoot, entry.name))
+      else for (const child of await readdir(join(groupRoot, entry.name))) roots.push(join(groupRoot, entry.name, child))
+    }
+    for (const root of roots) {
+      try {
+        const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
+        packages.set(manifest.name, { root, ...manifest })
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && (error as NodeJS.ErrnoException).code !== 'ENOTDIR') throw error
+      }
+    }
+  }
+}
+export async function official(name: string) {
+  await (catalogReady ??= catalog())
+  const id = name.split('/').slice(0, 2).join('/')
+  const pkg = packages.get(id)
+  if (!pkg) throw Error(`Fixed Core has no package ${name}`)
+  const subpath = name === id ? '.' : '.' + name.slice(id.length)
+  const selected = pkg.exports?.[subpath]
+  let path = (typeof selected === 'string' ? selected : selected?.default) ?? (subpath === '.' ? pkg.main : undefined)
+  if (!path && subpath.startsWith('./src/') && typeof pkg.exports?.['./src/*'] === 'string') path = pkg.exports['./src/*'].replace('*', subpath.slice('./src/'.length))
+  if (!path) throw Error(`Fixed Core has no public export ${name}`)
+  return import(/* @vite-ignore */ await realpath(resolve(pkg.root, path)))
+}
+
+export async function presetHarness() {
+  const home = await realpath(await mkdtemp(join(tmpdir(), 'company-preset-')))
+  const dir = join(home, 'profiles', 'test')
+  const { boot, initProfile, readProfilePatches } = await official('@deepseek-ai/dsh-app-boot')
+  initProfile(dir, ['test-bundle'])
+  const bundle = join(dir, 'node_modules/test-bundle')
+  await mkdir(bundle, { recursive: true })
+  await writeFile(join(home, 'package.json'), '{"name":"preset-test-installation"}\n')
+  await writeFile(join(bundle, 'package.json'), JSON.stringify({ name: 'test-bundle', version: '1.0.0', dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
+  const base = load(await readFile(join(core, 'packages/bundle/base/cordis.patch.yml'), 'utf8'), { schema: entryListSchema }) as { insert: { id: string; config?: unknown }[] }[]
+  // Host providers from the shipped base; all standard child rows remain unchanged.
+  const providers = new Set([
+    'timer',
+    'llm',
+    'session',
+    'session-persistence-jsonl',
+    'session-projection',
+    'user-questions',
+    'agent',
+    'agent-default-model',
+    'jobs',
+    'config-editor',
+    'settings',
+    'subprocess',
+    'sandbox',
+    'sandbox-policy',
+    'bash-sandbox',
+    'pwsh-sandbox',
+    'approval',
+    'shell-env',
+    'fs-observation-policy',
+    'skill',
+    'commands',
+    'goal',
+    'token-meter',
+    'subagent',
+    'subagent-spawn-in-process',
+    'subagent-fork-in-process',
+    'ptc-runtime',
+    'web',
+    'tools',
+    'system-prompt',
+    'agent-loop',
+    'fs-sandbox'
+  ])
+  const entries = base[0].insert
+    .filter(row => providers.has(row.id))
+    .map(row => {
+      if (row.id === 'sandbox-policy') return { ...row, config: { mode: 'danger-full-access', workspaceRoot: home } }
+      if (row.id === 'approval') return { ...row, config: { policy: 'never' } }
+      if (row.id === 'agent-default-model') return { ...row, config: { provider: 'local', model: 'test' } }
+      if (row.id === 'session-persistence-jsonl') return { ...row, config: { root: join(home, 'sessions') } }
+      return row
+    })
+  entries.push({ id: 'agent-preset-registry', name: '@deepseek-ai/dsh-agent-preset-registry', config: { default: 'auto-negotiation' } } as never)
+  entries.push({ id: 'subagent-model-selection-settings', name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings' } as never)
+  for (const id of ['standard', 'minimal', 'ptc']) {
+    const rows = load(await readFile(join(core, `packages/bundle/web-app/presets/${id}.patch.yml`), 'utf8'), { schema: entryListSchema }) as { insert: never[] }[]
+    entries.push(...rows[0].insert)
+  }
+  if (process.env.PRESET_RED_BASELINE !== '1') entries.push({ id: 'company-presets', name: 'cordis:company-presets' } as never)
+  const { dump } = await import('js-yaml')
+  await writeFile(join(bundle, 'cordis.patch.yml'), dump([{ insert: entries }], { schema: entryListSchema }))
+  await writeFile(join(dir, 'cordis.yml'), '[]\n')
+  await writeFile(
+    join(dir, 'cordis.patch.yml'),
+    JSON.stringify([
+      { id: 'agent-preset-registry', config: { default: 'auto-negotiation', selectedDefault: 'minimal' } },
+      { id: 'agent-default-model', config: { provider: 'local', model: 'preserved' } }
+    ])
+  )
+  const profile = {
+    name: 'test',
+    startedBundles: ['test-bundle'],
+    dir,
+    patchPath: join(dir, 'cordis.patch.yml'),
+    installAnchor: join(home, 'package.json'),
+    cwd: home,
+    home,
+    overlays: [],
+    telemetryDisabledEnv: undefined
+  }
+  let ctx: Context
+  const start = async (): Promise<Context> => {
+    ctx = await boot('test', join(dir, 'cordis.yml'), readProfilePatches('test', profile), (runtime: Context) => {
+      runtime.provide('profileContext', profile as never)
+      runtime.provide('appReady', {
+        onReady(listener: () => void) {
+          listener()
+          return () => {}
+        }
+      } as never)
+      runtime.loader.builtins['company-presets'] = company
+      runtime.loader.internal = { version: 'v2', import: official } as never
+    })
+    return ctx
+  }
+  onTestFinished(async () => {
+    await ctx?.fiber.dispose()
+    await rm(home, { recursive: true, force: true })
+  })
+  return { ctx: await start(), start, home, profile }
+}
+
+export async function agentOn(ctx: Context, id: string, preset?: string, seed?: readonly unknown[]) {
+  const { SessionId } = await official('@deepseek-ai/dsh-session')
+  const selected = (await ctx.agentPresets.resolve(preset)).id
+  return (
+    await ctx.agents.create({
+      sessionId: SessionId(id),
+      meta: { cwd: core, agentPreset: selected },
+      agentOptions: { provider: 'local', model: 'test' },
+      ...(seed ? { seed: seed as never } : {}),
+      setup: async agentCtx => {
+        await ctx.agentPresets.mount(agentCtx, preset)
+      }
+    })
+  ).agent
+}
+
+export async function completion(ctx: Context, contextWindow = 262_144, firstToolStep = false, pause?: Promise<void>) {
+  const { LlmAdapter } = await official('@deepseek-ai/dsh-llm')
+  const requests: { messages: { content: { type: string; text?: string }[] }[]; tools?: { name: string }[] }[] = []
+  class LocalCompletion extends LlmAdapter {
+    private worked = false
+    async resolveModel(provider: string, model: string) {
+      return { provider, id: model, name: model, context: contextWindow ? { contextWindow } : {} }
+    }
+    async *stream(options: (typeof requests)[number]) {
+      requests.push(options)
+      await pause
+      const summary = options.messages.at(-1)?.content.some(block => block.text?.includes('acting as a compaction engine'))
+      if (!summary && firstToolStep && !this.worked) {
+        this.worked = true
+        yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+        yield {
+          type: 'block-end',
+          index: 0,
+          block: {
+            type: 'tool-call',
+            id: 'first-task-step',
+            name: 'todo_write',
+            arguments: JSON.stringify({ todos: [{ content: 'Continue original task', status: 'in_progress' }] })
+          }
+        }
+        yield { type: 'finish', reason: { kind: 'tool-calls' } }
+        return
+      }
+      yield { type: 'block-start', index: 0, blockType: 'text' }
+      yield {
+        type: 'block-end',
+        index: 0,
+        block: { type: 'text', text: summary ? 'CHECKPOINT: preserve original task, read-only Consumer scope and user decisions.' : 'Continued original task from the checkpoint.' }
+      }
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    }
+  }
+  ctx.llm.registerAdapter(['local'], new LocalCompletion())
+  return requests
+}
+
+export async function history(repetitions: number) {
+  const { Session, SessionId } = await official('@deepseek-ai/dsh-session')
+  const { createUserMessage, createMessage } = await official('@deepseek-ai/dsh-llm')
+  const session = Session.create(SessionId('seed'))
+  for (let turn = 1; turn <= 3; turn++) {
+    session.append('turn/start', { turn })
+    session.append(
+      'user/message',
+      createUserMessage({
+        content: [{ type: 'text', text: `Original task turn ${turn}. ${'Keep read-only Consumer scope and preserve user decisions. '.repeat(repetitions)}` }],
+        source: { kind: 'user' }
+      }),
+      { surfaceOp: 'append' }
+    )
+    session.append('step/start', { turn, step: 1 })
+    session.append(
+      'assistant/message',
+      {
+        stream: [],
+        turn,
+        step: 1,
+        message: createMessage({
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Verified original task evidence. '.repeat(repetitions) }],
+          source: { kind: 'model', provider: 'local', model: 'test' }
+        })
+      },
+      { surfaceOp: 'append' }
+    )
+    session.append('step/end', { turn, step: 1 })
+    session.append('turn/end', { turn, reason: { kind: 'completed' } })
+  }
+  return session.snapshotEvents()
+}
+
+export async function turn(ctx: Context, agent: Awaited<ReturnType<typeof agentOn>>, prompt: string) {
+  const { createUserMessage } = await official('@deepseek-ai/dsh-llm')
+  const idle = new Promise<void>(resolveIdle => {
+    const release = ctx.on('agent/status', ({ agent: subject, status }) => {
+      if (subject === agent && status === 'idle') {
+        release()
+        resolveIdle()
+      }
+    })
+  })
+  agent.followup(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+  await idle
+}
+
+/** Save only compact execution observations; fixture histories stay in temporary profiles. */
+export async function record(name: string, observation: unknown): Promise<void> {
+  if (process.env.PRESET_EVIDENCE_DIR) await writeFile(join(process.env.PRESET_EVIDENCE_DIR, `${name}.json`), JSON.stringify(observation, null, 2) + '\n')
+}

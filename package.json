@@ -30,6 +30,10 @@
       "source": "./src/aps-compute/*.ts",
       "types": "./lib/types/aps-compute/*.d.ts",
       "default": "./lib/aps-compute/*.js"
+    },
+    "./standard-preset": {
+      "types": "./lib/types/runtime/standard-preset.d.ts",
+      "default": "./lib/runtime/standard-preset.js"
     }
   },
   "files": [
@@ -48,7 +52,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "build": "tsc -p tsconfig.json && pnpm run build:client",
     "build:client": "tsdown && node scripts/normalize-client-banner.mjs",
-    "test": "vitest run",
+    "test": "vitest run && pnpm run test:preset-client",
     "test:contract": "vitest run tests/market-contracts.test.ts tests/routes.test.ts",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src tests",
@@ -59,7 +63,9 @@
     "prepack": "pnpm run build",
     "prepare": "pnpm run build",
     "check:knowledge": "node scripts/check-agent-knowledge.mjs",
-    "test:knowledge": "node --test tests/agent-knowledge.test.mjs"
+    "test:knowledge": "node --test tests/agent-knowledge.test.mjs",
+    "test:preset-client": "vitest run --config vitest.preset-client.config.ts",
+    "test:preset-integration": "vitest run --config vitest.preset-integration.config.ts"
   },
   "dsh": {
     "bundle": {
@@ -119,7 +125,9 @@
     "@deepseek-ai/dsh-mcp-client": "0.2.1-alpha.1",
     "@deepseek-ai/dsh-skill": "0.2.1-alpha.1",
     "@deepseek-ai/dsh-tools": "0.2.1-alpha.1",
-    "@deepseek-ai/schemastery": "3.18.5-alpha.1"
+    "@deepseek-ai/schemastery": "3.18.5-alpha.1",
+    "@deepseek-ai/cordis-plugin-include": "1.0.10-alpha.1",
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.1-alpha.1"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-mcp-client": {
@@ -139,7 +147,8 @@
     "smol-toml": "^1.8.0",
     "yaml": "^2.7.0",
     "zod": "^4.4.3",
-    "decimal.js": "10.6.0"
+    "decimal.js": "10.6.0",
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "link:../../official-latest-standard/vendor/cordis",
@@ -165,7 +174,10 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.10",
-    "@deepseek-ai/schemastery": "link:../../official-latest-standard/vendor/schemastery"
+    "@deepseek-ai/schemastery": "link:../../official-latest-standard/vendor/schemastery",
+    "@types/js-yaml": "^4.0.9",
+    "@deepseek-ai/cordis-plugin-include": "link:../../official-latest-standard/vendor/include",
+    "@deepseek-ai/dsh-agent-preset-registry": "link:../../official-latest-standard/packages/preset/agent-preset-registry"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
