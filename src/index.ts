@@ -227,16 +227,28 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     await standardInitialization
     const businessResources = new BusinessResources(host, resolve(dataRoot, 'selected-resources.json'))
     await businessResources.load()
-    const releaseApsAnalysis = await businessResources.register([
+    const releaseBusinessSkills = await businessResources.register([
       {
         id: 'aps-analysis-skills',
         label: '产销分析',
         root: fileURLToPath(new URL('../business-resources/aps-analysis/', import.meta.url)),
         profile: { label: '产销分析', consumerCode: 'aps', skills: ['sales-forecast-result-analysis', 'sales-ops-problem-analysis'] },
         skillFiles: { 'sales-forecast-result-analysis': 'sales-forecast-result-analysis.skill.md', 'sales-ops-problem-analysis': 'sales-ops-problem-analysis.skill.md' }
+      },
+      {
+        id: 'sales-forecast-skills',
+        label: '销售预测',
+        root: fileURLToPath(new URL('../business-resources/sinian-demand-forecast/', import.meta.url)),
+        profile: { label: '销售预测', consumerCode: 'sales_forecast', skills: ['sinian-demand-dialogue', 'sinian-forecast-scope', 'sinian-demand-baseline', 'sinian-forecast-review'] },
+        skillFiles: {
+          'sinian-demand-dialogue': 'skills/sinian-demand-dialogue/SKILL.md',
+          'sinian-forecast-scope': 'skills/sinian-forecast-scope/SKILL.md',
+          'sinian-demand-baseline': 'skills/sinian-demand-baseline/SKILL.md',
+          'sinian-forecast-review': 'skills/sinian-forecast-review/SKILL.md'
+        }
       }
     ])
-    host.effect(() => releaseApsAnalysis)
+    host.effect(() => releaseBusinessSkills)
     host.effect(() => () => businessResources.dispose())
     host.provide('agentResources', businessResources)
     host.inject(['tools', 'fs'], toolHost => {
