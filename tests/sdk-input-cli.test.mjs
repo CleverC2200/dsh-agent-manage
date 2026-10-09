@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { resolve, join } from 'node:path'
 import { mkdtempSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import process from 'node:process'
 
 let checkout
 before(() => {

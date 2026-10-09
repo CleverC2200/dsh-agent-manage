@@ -29,6 +29,8 @@ try {
     const input = value('--input') ?? process.env.QUALITY_CANDIDATE
     if (!input) refuse('CANDIDATE_INPUT_REQUIRED', '--input <frozen group JSON>')
     const manifest = JSON.parse(readFileSync(resolve(input), 'utf8'))
+    if (manifest.core !== '5badb15009ae1756c3afe0ae0cef1faafc290ccc') refuse('CANDIDATE_CORE', 'fixed admitted Core required before preparation')
+    if (manifest.repositories?.length !== 3) refuse('CANDIDATE_PEER_REQUIRED', 'exactly the three admitted repositories')
     const own = manifest.repositories?.find(entry => entry.repo === 'dsh-agent-manage')
     const workbench = manifest.repositories?.find(entry => entry.repo === 'dsh-agent-workbench')
     if (!own || !workbench || resolve(own.path) !== process.cwd()) refuse('CANDIDATE_CHECKOUT', 'run in the registered Manage checkout')
@@ -58,6 +60,8 @@ try {
     }
     run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'])
     if (phase === 'quality') {
+      run('corepack', ['pnpm', 'run', 'test:ci-inputs'])
+      run('corepack', ['pnpm', 'run', 'check:knowledge'])
       run('corepack', ['pnpm', 'run', 'check:refactor'])
       run('corepack', ['pnpm', 'run', 'test'])
       run('corepack', ['pnpm', 'run', 'build'])
