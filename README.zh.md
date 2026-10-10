@@ -1,6 +1,6 @@
 <img src="docs-site/public/favicon.svg" alt="" width="48" height="48" />
 
-公司版 0.6.3-company.4 修复 Windows ZIP 来源同步，保留解压目录越界检查。
+版本由 [package.json](package.json) 声明，既往改动见[发行历史](CHANGELOG.md)。
 
 # dsh-agent-manage
 
@@ -222,7 +222,7 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 
 下载区域选择立即反映显式选择；自动模式跟随探测结果。
 
-插件拆分隔离工作区支持已登记的官方 DSH 0.2.0-rc.2 与 0.2.1-alpha.1，DSH peer 只接受这两版，Cordis 只接受 4.0.4 或 4.0.5-alpha.1；图标使用新的 Regular 导出。UI primitives 开发链接指向同一源码，测试对 React 去重。使用此组合前从同级 GEA 仓执行源码兼容检查。
+运行 peer 合同接受已登记的官方 DSH 0.2.0-rc.2 与 0.2.1-alpha.1；[两版 Core 决定](.agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md)持有精确 peer 与能力矩阵。开发期图标、UI primitives 使用本票登记的 alpha.1 SDK，保留 React 去重。输入准备与检查按[当前开发](docs/current-development.md)执行。
 
 管理页面消费 Workbench 插件安装和释放的工作台资源 `1.0.0`。Manage 的构建 CSS 由自身 apply 生命周期管理，不在模块加载时留下样式，也不修改或同步 Core 主题。明暗主题、字号和状态颜色仍由官方宿主持有。
 

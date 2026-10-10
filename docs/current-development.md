@@ -29,7 +29,7 @@ The [dual official Core decision](../.agents/notes/implemented/process/2026-10-1
 
 ## Reference and history / 参考与历史
 
-[CONTRIBUTING](../CONTRIBUTING.md) covers contributions; [Agent Notes](../.agents/notes/README.md) define current ownership, bilingual pairs and partial supersession. Browse lifecycle/class folders when a decision is relevant. Proposed notes can describe partly implemented work and are not acceptance receipts. / 贡献和 Note 生命周期各归原入口；按相关决定浏览目录，proposed 可包含部分实现，不是验收回执。
+[CONTRIBUTING](../CONTRIBUTING.md) covers contributions; the [engineering rules entry](standards/dsh-plugin-development-standard.md) routes to current owners and [original guidance](history/agent-guidance-before-20261010/README.md); [Agent Notes](../.agents/notes/README.md) define current ownership, bilingual pairs and partial supersession. Browse lifecycle/class folders when a decision is relevant. Proposed notes can describe partly implemented work and are not acceptance receipts. / [工程规则入口](standards/dsh-plugin-development-standard.md)指向现行 owner 与[原指引](history/agent-guidance-before-20261010/README.md)；贡献和 Note 生命周期各归原入口；按相关决定浏览目录，proposed 可包含部分实现，不是验收回执。
 
 [The current knowledge decision](../.agents/notes/implemented/process/2026-10-09-current-agent-knowledge.md) and [中文](../.agents/notes/implemented/process/2026-10-09-current-agent-knowledge.zh.md) own this navigation and checker invocation. / 当前知识决定持有导航与检查调用。
 

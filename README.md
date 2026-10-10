@@ -1,6 +1,6 @@
 <img src="docs-site/public/favicon.svg" alt="" width="48" height="48" />
 
-Company build 0.6.3-company.4 fixes ZIP source synchronization on Windows while retaining extraction containment checks.
+Version metadata is declared in [package.json](package.json); past changes are recorded in [release history](CHANGELOG.md).
 
 # dsh-agent-manage
 
@@ -230,7 +230,7 @@ Private GitHub suites can use an explicit archive source such as `https://api.gi
 
 The download-region selector immediately reflects an explicit choice; automatic mode follows the detected region.
 
-The isolated plugin-split workspace supports the registered official DSH 0.2.0-rc.2 and 0.2.1-alpha.1 builds. DSH peers accept exactly those two releases and Cordis exactly 4.0.4 or 4.0.5-alpha.1; client icons consume its Regular exports. The UI primitives development link resolves to that same checkout, and tests deduplicate React across the link. Run the source compatibility check from the sibling GEA repository before using this combination.
+The runtime peer contract accepts the registered official DSH 0.2.0-rc.2 and 0.2.1-alpha.1 releases; [the dual Core decision](.agents/notes/implemented/process/2026-10-10-two-official-core-releases.md) owns their exact peers and capability matrix. Development icons and UI primitives use the task-registered alpha.1 SDK, with React deduplication retained. Follow [current development](docs/current-development.md) for input preparation and checks.
 
 Management pages consume resource `1.0.0` installed and released by the Workbench plugin. Manage owns the lifetime of its emitted CSS, with no module-load style insertion or Core theme synchronization. Theme, font size and semantic status colors remain host-owned.
 
