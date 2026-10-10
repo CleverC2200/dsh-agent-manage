@@ -83,7 +83,7 @@ try {
       if (!execFileSync('git', ['-C', entry.path, 'show', `HEAD:${lock}`]).equals(readFileSync(resolve(entry.path, lock)))) refuse('CANDIDATE_LOCK', name)
     }
     const core = resolve(dirname(dirname(process.cwd())), 'official-latest-standard')
-    const options = { core, consumer: process.cwd(), coreHead: manifest.core, source: values['core-source'] }
+    const options = { core, consumer: process.cwd(), coreHead: manifest.core, source: values['core-source'], withFlock: phase === 'quality' }
     process.env.DSH_CORE_CHECKOUT = core
     finalGroup?.verifyUnchanged()
     if (phase === 'audit') verifyOfficialSource(core, options)

@@ -10,6 +10,8 @@ Status: implemented
 
 DSH 运行 peer 精确接受 `0.2.0-rc.2 || 0.2.1-alpha.1`。Cordis、Schemastery 和 Include 精确接受这两版 Core manifest 声明的版本。开发依赖路径保持单一 SDK 布局。干净 CI 在消费者安装前准备显式选择的登记 Core；GEA supported-Core 登记表持有受支持 head、原锁哈希和工具链。[干净 CI](../../../../docs/clean-ci.md) 记录共享 SDK 接口及分开的质量、安全结果。
 
+Manage 质量阶段要求 SDK 模块准备并核验真实宿主 flock，用于官方 Session writer lock。归档和审计保留各自较窄的输入要求。原预测 Session 测试使用已跟踪的完整销售套件及其固定源哈希，不依赖 runner checkout 外的仓库。
+
 资源与 Skill 发布使用两版共同的 registry 和 provider 接口。Standard 组合读取当前 Host 的 `readDocument('standard')`，包括禁用行和用户配置，不移植另一版的声明。生产路径不增加版本分支或复制的 SDK。
 
 `DSH_CORE_CHECKOUT` 为既有能力验证 lane 选择官方输入。Host fixture 和静态 SDK 导入解析同一批公开 exports；浏览器 lane 读取该 Core 的源码映射，并将既有相对官方源码引用导向同一 Core。Native Loader 与真实 Session 继续执行，本地 completion 和受控业务 adapter 保持原有离线范围。
