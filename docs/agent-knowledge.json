@@ -3,10 +3,11 @@
     "AGENTS.md",
     "docs/current-development.md",
     ".agents/notes/implemented/process/2026-10-09-current-agent-knowledge.md",
-    ".agents/notes/implemented/process/2026-10-09-current-agent-knowledge.zh.md"
+    ".agents/notes/implemented/process/2026-10-09-current-agent-knowledge.zh.md",
+    "docs/clean-ci.md"
   ],
   "paths": ["src/runtime/business-resources.ts", "src/inventory-compute", "src/aps-compute", "tsconfig.official-paths.json"],
-  "scripts": ["check:knowledge", "check:architecture", "test:contract", "check:refactor", "test:knowledge"],
+  "scripts": ["check:knowledge", "check:architecture", "test:contract", "check:refactor", "test:knowledge", "sdk:verify", "sdk:prepare", "quality:ci", "test:ci-inputs"],
   "exports": false,
   "history": [
     "docs/release",
@@ -21,5 +22,9 @@
     ".agents/notes/archived",
     ".agents/skills/market-release",
     ".agents/skills/market-pre-push-checks"
-  ]
+  ],
+  "peers": ["../../official-latest-standard", "../dsh-gea-plugin"],
+  "commandRoots": {
+    "docs/clean-ci.md": ["../../official-latest-standard"]
+  }
 }

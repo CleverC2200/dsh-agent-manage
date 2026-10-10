@@ -1,4 +1,4 @@
-name: quality
+name: candidate-quality
 
 on:
   push:
@@ -10,53 +10,168 @@ permissions:
   contents: read
 
 concurrency:
-  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: candidate-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  windows-archives:
-    runs-on: windows-latest
+  candidate-scope:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      audit-matrix: ${{ steps.matrix.outputs.audit-matrix }}
+    defaults:
+      run:
+        working-directory: candidate/dsh-agent-manage
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          path: candidate/dsh-agent-manage
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm exec vitest run tests/source-acquisition.test.ts tests/zip-bomb.test.ts tests/private-archive.test.ts
+      - name: Require supported same-repository scope
+        env:
+          QUALITY_SCOPE_ALLOWED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: node scripts/run-quality-ci.mjs --phase scope
+      - name: Require explicit read-only peer credential
+        env:
+          PEER_READ_TOKEN: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+        run: |
+          node -e "if (!process.env.PEER_READ_TOKEN) throw Error('CANDIDATE_PEER_REQUIRED: configure a contents-read token for both private peer repositories')"
+      - uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/dsh-gea-plugin
+          ref: 88e027ede8accd31ecaa32ac246a8fd1c147bdc7
+          fetch-depth: 0
+          path: candidate/dsh-gea-plugin
+          token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+          persist-credentials: false
+      - name: Read both Core baselines from the registered authority
+        id: matrix
+        run: node scripts/write-ci-input.mjs --matrix
 
-  quality:
+  gates:
+    needs: candidate-scope
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.candidate-scope.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    env:
+      QUALITY_EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      QUALITY_CANDIDATE: ${{ github.workspace }}/candidate-input.json
+    defaults:
+      run:
+        working-directory: candidate/dsh-agent-manage
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          path: candidate/dsh-agent-manage
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/dsh-agent-workbench
+          ref: 7b746ff9ceeabe81b2d86f94040d663f37c5e2ee
+          fetch-depth: 0
+          path: candidate/dsh-agent-workbench
+          token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/dsh-gea-plugin
+          ref: 88e027ede8accd31ecaa32ac246a8fd1c147bdc7
+          fetch-depth: 0
+          path: candidate/dsh-gea-plugin
+          token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+          persist-credentials: false
+      - name: Enable declared package managers
+        run: corepack enable
+      - name: Bind actual event commit, Core and admitted peers
+        run: node scripts/write-ci-input.mjs --root "${{ github.workspace }}" --sha "${{ env.QUALITY_EXPECTED_SHA }}" --core-head "${{ matrix.coreHead }}"
+      - name: Prepare independent SDK before consumer installation and run local gates
+        run: node scripts/run-quality-ci.mjs --phase ${{ matrix.phase }} --prepare-sdk --core-source https://github.com/deepseek-ai/deepseek-harness.git
+
+  security-audit:
+    needs: candidate-scope
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.candidate-scope.outputs.audit-matrix) }}
+    runs-on: ubuntu-latest
+    env:
+      QUALITY_EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      QUALITY_CANDIDATE: ${{ github.workspace }}/candidate-input.json
+    defaults:
+      run:
+        working-directory: candidate/dsh-agent-manage
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          path: candidate/dsh-agent-manage
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/dsh-agent-workbench
+          ref: 7b746ff9ceeabe81b2d86f94040d663f37c5e2ee
+          fetch-depth: 0
+          path: candidate/dsh-agent-workbench
+          token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/dsh-gea-plugin
+          ref: 88e027ede8accd31ecaa32ac246a8fd1c147bdc7
+          fetch-depth: 0
+          path: candidate/dsh-gea-plugin
+          token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: ${{ matrix.coreHead }}
+          fetch-depth: 0
+          path: official-latest-standard
+          persist-credentials: false
+      - run: corepack enable
+      - name: Bind actual event commit, Core and admitted peers
+        run: node scripts/write-ci-input.mjs --root "${{ github.workspace }}" --sha "${{ env.QUALITY_EXPECTED_SHA }}" --core-head "${{ matrix.coreHead }}"
+      - name: Audit dependencies with fixed source and original consumer lock
+        run: node scripts/run-quality-ci.mjs --phase audit > "${{ github.workspace }}/dependency-audit.raw.log" 2>&1
+      - name: Keep audit result including failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dependency-audit-${{ matrix.coreVersion }}
+          path: dependency-audit.raw.log
+          if-no-files-found: warn
+
+  candidate-quality:
+    if: always()
+    needs: [candidate-scope, gates]
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
-        # Version is pinned via packageManager field in package.json.
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
+      - uses: actions/checkout@v7
         with:
-          node-version: 22
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Run full quality gates
-        run: pnpm run check:refactor
-      - name: Run full tests
-        run: pnpm run test
-      - name: Build published artifacts
-        run: pnpm run build
-
-  dependency-review:
-    name: Dependency review
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - name: Review dependency changes
-        uses: actions/dependency-review-action@v5
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
         with:
-          fail-on-severity: high
+          node-version: 24
+      - name: Reject failure, cancellation, missing or skipped quality gates
+        env:
+          QUALITY_SCOPE_RESULT: ${{ needs.candidate-scope.result }}
+          QUALITY_GATE_RESULT: ${{ needs.gates.result }}
+          QUALITY_WINDOWS_RESULT: ${{ needs.gates.result }}
+        run: node scripts/run-quality-ci.mjs --phase final

@@ -8,13 +8,13 @@ Ordinary installation must accept the same Manage tarball on the registered offi
 
 ## Decision
 
-DSH runtime peers accept exactly `0.2.0-rc.2 || 0.2.1-alpha.1`. Cordis, Schemastery and Include accept the exact versions declared by those two Core manifests. Development dependencies and generated type paths continue to use the registered alpha.1 SDK. The GEA delivery descriptor owns the supported Core commit/version set.
+DSH runtime peers accept exactly `0.2.0-rc.2 || 0.2.1-alpha.1`. Cordis, Schemastery and Include accept the exact versions declared by those two Core manifests. Development dependency paths retain one SDK layout. Clean CI prepares the explicitly selected registered Core before consumer installation; the GEA supported-Core registry owns accepted heads, original lock hashes and toolchains. [Clean CI](../../../../docs/clean-ci.md) records the shared SDK interface and separate quality/security results.
 
 Resource and Skill publication use the shared registry and provider interfaces. Standard composition reads the active Host's `readDocument('standard')`, including its disabled rows and user configuration, rather than transplanting another release's declaration. No production version branch or copied SDK is added.
 
 `DSH_CORE_CHECKOUT` selects the official input for the existing capability lanes. Host fixture imports and static SDK imports resolve the same package exports; the browser lane reads that Core's source mapping and redirects existing relative official-source references to the same Core. The native Loader and real Session still run; local completion and controlled business adapters keep their existing offline scope.
 
-This partially supersedes the single-release runtime peer decision in [One registered official SDK](2026-10-04-one-official-sdk.md). Its single development SDK, current exports, removed client-runtime metadata and existing module ownership remain.
+This partially supersedes the single-release runtime peer decision in [One registered official SDK](2026-10-04-one-official-sdk.md). Its single selected development SDK layout, current exports, removed client-runtime metadata and existing module ownership remain.
 
 The browser fixture uses the official `createConversationStore` and mounts the selected `DefaultConversationViews`. The shared string draft input gives rc.2 its declared persisted format; the real mount owns rc.2 hydration and both releases' persistence. Preparation-time typing uses the real input's `setDraft`, so conflict and cancellation still exercise resident input state. Tests retain each official Host's own developer-tools visibility and time-context declaration rather than require alpha-only behavior from rc.2.
 

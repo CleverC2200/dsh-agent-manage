@@ -14,7 +14,7 @@ Set `DSH_WORKBENCH_CHECKOUT` to the registered Workbench checkout when it is not
 
 Use `corepack pnpm run check:knowledge` for current local references, documented scripts and public exports. Use the applicable `check:architecture`, `test:contract` and behavior tests for changes; `check:refactor` remains the standing aggregate. / 当前本地引用、文档命令与公开导出由 check:knowledge 核验；架构、契约与行为使用相应入口，check:refactor 保留综合门禁。
 
-The [dual official Core decision](../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.md) and [中文](../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md) own the exact rc.2/alpha.1 runtime peers and `DSH_CORE_CHECKOUT` capability matrix. The development SDK remains the registered alpha.1 input. / 两版官方 Core 决定持有精确运行 peer 和能力验证矩阵，开发 SDK 继续使用已登记的 alpha.1。
+The [dual official Core decision](../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.md) and [中文](../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md) own the exact rc.2/alpha.1 runtime peers and `DSH_CORE_CHECKOUT` capability matrix. [Clean CI](clean-ci.md) prepares the selected registered SDK before consumer installation; CI binds its Core head explicitly and runs both registered baselines. / [干净 CI](clean-ci.md) 在消费者安装前准备所选登记 SDK，CI 显式绑定 Core head 并分别运行两版基线。
 
 ## Current ownership / 当前决定归属
 
