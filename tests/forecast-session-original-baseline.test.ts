@@ -1,6 +1,6 @@
 import { test, vi } from 'vitest'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { cp, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -30,7 +30,9 @@ test('Manage entry registers pure calculation for an official Session and the un
     throw Error('No network allowed in pure Session calculation')
   })
   t.onTestFinished(() => vi.restoreAllMocks())
-  const source = fileURLToPath(new URL('../business-resources/sinian-demand-forecast/', import.meta.url))
+  // Install an independent original source so the bundled provider cannot satisfy its path assertion.
+  const source = join(root, 'original-company')
+  await cp(fileURLToPath(new URL('../business-resources/sinian-demand-forecast/', import.meta.url)), source, { recursive: true })
   const provenance = JSON.parse(await readFile(join(source, 'SOURCE.json'), 'utf8'))
   assert.equal(provenance.commit, '374a0ab62eee184d3edb3a99e594836ee685534f')
   for (const [file, hash] of Object.entries(provenance.files)) {

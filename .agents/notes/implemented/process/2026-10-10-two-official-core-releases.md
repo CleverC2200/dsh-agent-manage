@@ -10,7 +10,7 @@ Ordinary installation must accept the same Manage tarball on the registered offi
 
 DSH runtime peers accept exactly `0.2.0-rc.2 || 0.2.1-alpha.1`. Cordis, Schemastery and Include accept the exact versions declared by those two Core manifests. Development dependency paths retain one SDK layout. Clean CI prepares the explicitly selected registered Core before consumer installation; the GEA supported-Core registry owns accepted heads, original lock hashes and toolchains. [Clean CI](../../../../docs/clean-ci.md) records the shared SDK interface and separate quality/security results.
 
-Manage quality requires the SDK module's real host flock preparation and verification for official Session writer locks. Archives and audit keep their narrower inputs. The original forecast Session test uses the complete tracked sales suite and its fixed source hashes rather than a repository outside the runner checkout.
+Manage quality requires the SDK module's real host flock preparation and verification for official Session writer locks. Archives and audit keep their narrower inputs. The original forecast Session test installs an independent temporary copy of the complete tracked sales suite with its fixed source hashes rather than a repository outside the runner checkout. Its Skill path assertion distinguishes the installed original source from the bundled provider.
 
 Resource and Skill publication use the shared registry and provider interfaces. Standard composition reads the active Host's `readDocument('standard')`, including its disabled rows and user configuration, rather than transplanting another release's declaration. No production version branch or copied SDK is added.
 
