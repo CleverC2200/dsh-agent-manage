@@ -84,13 +84,23 @@ it('uses the same actual catalog names and descriptions in official settings and
   const codingOff = await settings(false)
   const { version } = JSON.parse(await readFile(join(core, 'package.json'), 'utf8'))
   expect(['0.2.0-rc.2', '0.2.1-alpha.1']).toContain(version)
-  for (const id of ['minimal', 'ptc']) expect(codingOff.includes(`data-agent-preset-id="${id}"`)).toBe(version === '0.2.0-rc.2')
-  expect(codingOff).toContain('data-agent-preset-id="cordis"')
+  const developerToolsOffVisibility = Object.fromEntries(['minimal', 'ptc', 'cordis'].map(id => [id, codingOff.includes(`data-agent-preset-id="${id}"`)]))
+  for (const id of ['minimal', 'ptc']) expect(developerToolsOffVisibility[id]).toBe(version === '0.2.0-rc.2')
+  expect(developerToolsOffVisibility.cordis).toBe(true)
   if (process.env.PRESET_EVIDENCE_DIR)
     await writeFile(
       join(process.env.PRESET_EVIDENCE_DIR, 'client-catalog-display.json'),
       JSON.stringify(
-        { displayed, officialSettings: true, officialSelector: true, sameHostCatalog: true, codingToolsOffHidesMinimalAndPTC: true, visualBrowser: 'not-run' },
+        {
+          displayed,
+          officialCoreVersion: version,
+          officialSettings: true,
+          officialSelector: true,
+          sameHostCatalog: true,
+          developerToolsOffVisibility,
+          codingToolsOffHidesMinimalAndPTC: !developerToolsOffVisibility.minimal && !developerToolsOffVisibility.ptc,
+          visualBrowser: 'not-run'
+        },
         null,
         2
       ) + '\n'
