@@ -23,12 +23,14 @@ The market suite card diverged from the harness's own card language in two ways:
 - Keeping the text badge next to the accent bar was rejected: two encodings of one state invite drift, and the badge was the only reason the tag row mixed identity tags with state.
 - Reusing the harness `Button` component with `variant: 'ghost'` for the icon actions was rejected: it pads capsule chrome around glyph-only content, which is exactly the box the redesign removes.
 
-## Risks
+## Consequences
 
 - The toggle-off track color changed (`#d1d5db` → `label-dimmed`); it is slightly lighter in light mode but now adapts in dark mode.
 - Suite cards now show hover affordance even where the card click was already active; behavior is unchanged, only discoverability improves.
 
 ## Verification
+
+The observations below belong to the implementation input and environment recorded at that time. They are not a fresh acceptance result for the current checkout.
 
 - `grep` audit: zero `var(--dsw-*)` references in `src/client` fall outside the set defined by `design-platform.css`.
 - `pnpm run typecheck`, `lint`, `format:check`, and `test:contract` green after the change.

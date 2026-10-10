@@ -24,4 +24,6 @@ Startup runtime work scales with the contents of sources containing enabled suit
 
 ## Verification
 
+The observations below belong to the implementation input and environment recorded at that time. They are not a fresh acceptance result for the current checkout.
+
 `tests/catalog-runtime.test.ts` covers zero-enabled cold reads, source selection, concurrent coalescing, and invalidation. Typecheck, lint, and focused Vitest suites pass.

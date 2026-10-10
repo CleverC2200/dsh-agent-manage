@@ -8,7 +8,7 @@ Status: implemented
 
 ## Decision
 
-Host和Client都消费固定官方5badb150标准包的真实开发依赖与匹配peer。当前exports生成类型map，不沿用已撤invariant子路径。旧client-runtime metadata退出。Catalog、原资源发布/正文参考读取、纯计算和MCP归属保持现有module。
+Host和Client都消费本票登记的固定官方标准包的真实开发依赖与匹配peer。当前exports生成类型map，不沿用已撤invariant子路径。旧client-runtime metadata退出。Catalog、原资源发布/正文参考读取、纯计算和MCP归属保持现有module。
 
 [UI 基线决定](2026-09-29-source-core-ui-baseline.zh.md)继续保留 Regular 图标与 React 去重理由。本决定只部分替代其 SDK/版本选择事实。
 

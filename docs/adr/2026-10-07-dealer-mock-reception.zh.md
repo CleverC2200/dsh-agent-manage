@@ -1,5 +1,5 @@
-# 经销商模拟接收
+# 经销商接收
 
-库存下一批保留Workbench 67674ec的经销商规则和Manage aa5dc746的资源内容。当前声明保持原Consumer标识，显式标记mock，数据表和MCP能力为空。页面通过原完整分页接口加载已登记的本地模拟输入，不请求Host SQL、不创建模型Task。
+[经销商 Agent Note](../../.agents/notes/implemented/feature/2026-10-07-dealer-reception.zh.md)持有接收决定。原固定输入保留 Workbench `67674ec` 与 Manage `aa5dc746` 来源。原模拟声明不含数据表或 MCP 能力；当前源码声明原 Consumer 的十张只读表与受控 SQL。fixture 只证明其原本地输入。
 
-页面可见、资源选用与资源启用继续由原归属分别控制。Workbench在当前Core Session下恢复明确声明的筛选与未提交草稿，查询结果重新读取。真实数据阶段保留原票16的授权与验收条件。
+页面可见、资源选用与启用分别记录。Session 视图恢复筛选和未提交草稿，查询事实需要重新读取。原票 16 的真实接口、身份、数据、行权限与 Native 验收仍未关闭。

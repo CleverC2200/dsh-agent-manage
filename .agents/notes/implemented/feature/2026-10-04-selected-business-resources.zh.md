@@ -2,6 +2,12 @@
 
 Status: implemented
 
+## Problem
+
+持久 Session 在重启后保留预设身份，而包资源定义只有进程内有效期。文件系统副本与回退 persona 会分散资源归属。
+
+## Decision
+
 Manage 持有唯一的资源interface与已启用包资源的官方Skill Provider。Catalog继续持有Suite源、安装与启用事实。当前包在自己的effect下登记私有文件引用；浏览器选用稳定资源标识并传入原生工作区绝对路径上下文，不传资源文件路径或Consumer覆盖。目录只返回轻量摘要，正文只在选用时装载。原文件与用户草稿不覆盖。
 
 Skill 和 Prompt 选用均确认官方 Registry resolve 未返回 broken 后才提交选中身份。Skill 激活失败沿现有预设释放句柄回滚，已保留的挂载也重新核对可用性；释放失败保留句柄供显式重试。恢复已选 Skill 时，broken 预设使 load 拒绝，原恢复索引保持不变。
@@ -27,3 +33,11 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 业务 prompt 组合现遵循[业务标准能力](../architecture/2026-10-09-business-standard-capabilities.zh.md)。该决定持有完整 standard 声明、可信 Agent 元数据及通用能力与业务额度的分离。本记录继续持有资源选择、provider 生命周期与恢复规则。
 
 完整 Manage 冷启动恢复在读取选中索引前等待既有 StandardPreset 初始化 fiber，只建立局部等待，不轮询、不回退预设，也不新增就绪权威。公开 app-boot 可能在资源 inject child 完成前返回，因此离线 fixture 等实际 `agentResources` 发布并核 Connection Fetch 路由。普通、模块 import gate 和干净首次启动保留选中预设、包内 Skill、最终工具/命令/压缩、工作区与旧持久 Session；真实模块失败时资源保持不可用，并保留启动诊断。
+
+## Alternatives considered
+
+[业务资源决定](../architecture/2026-09-29-workbench-business-resources.zh.md#alternatives-considered)保留第二目录与任意外部路径被否决的理由。其文件挂载被官方发布替代；包归属与 Consumer 分离继续有效。
+
+## Consequences
+
+已选身份恢复定义，不改写 Session 数据或业务资源正文。缺少 owner 明确失败，释放失败可显式重试。Native 安装与真实业务、模型验收分别留证。

@@ -8,7 +8,7 @@ Development dependencies and type paths previously described different DSH relea
 
 ## Decision
 
-Both host and client consume the real fixed official 5badb150 standard packages, with matching peer declarations. Current exports generate the path map; retired invariant subpaths are not carried forward. The removed client-runtime metadata is gone. Catalog, resource publication, original body/reference reading, pure calculator and MCP ownership stay in the existing modules.
+Both host and client consume the fixed official standard packages registered for the task, with matching peer declarations. Current exports generate the path map; retired invariant subpaths are not carried forward. The removed client-runtime metadata is gone. Catalog, resource publication, original body/reference reading, pure calculator and MCP ownership stay in the existing modules.
 
 The [UI baseline decision](2026-09-29-source-core-ui-baseline.md) retains its Regular icon and React deduplication rationale. This decision partially supersedes only its SDK/version selection facts.
 

@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-One kind of design doc lives here. An **Agent Note** records a decision or proposal that affects this codebase — the _why_ and _what we gave up_, the parts code and docs can't carry. This file defines where Agent Notes live, when to write one, and [the in-file format](#the-file-format). The rules are adopted from the DeepSeek Harness corpus (`deepseek-harness/.agents/notes/`), adapted to this repository: the mechanical gates named there (`verify-agent-note-format`, `verify-archived-agent-notes`, the i18n pairing gate) do not exist here, so the format is maintained by discipline and review until a gate is added.
+One kind of design doc lives here. An **Agent Note** records a decision or proposal that affects this codebase — the _why_ and _what we gave up_, the parts code and docs can't carry. This file defines where Agent Notes live, when to write one, and [the in-file format](#the-file-format). The rules are adopted from the DeepSeek Harness corpus (`deepseek-harness/.agents/notes/`), adapted to this repository: the mechanical gates named there (`verify-agent-note-format`, `verify-archived-agent-notes`, the i18n pairing gate) do not exist here, so the format is maintained by discipline and review.
 
 ## Layout and naming
 
@@ -18,6 +18,9 @@ The date in the filename is when the topic was **first proposed** (per git histo
 
 The active lifecycle tree is the working inventory: browse its lifecycle/class folders or search the repository. Do not add a centralized `INDEX.md` — the tree and search own discovery, and an index is a second cache that goes stale. Low-future-value implemented records move to the separate frozen [`archived/`](archived/AGENTS.md) tree described below.
 
+
+Implementation status records the source decision. Test counts, timings and runtime observations belong to their recorded input and environment; they do not certify the current checkout. Current acceptance requires a receipt tied to its commit, configuration and environment.
+
 ## Classification
 
 Each Agent Note belongs to exactly one path-encoded class from this closed set; adding a class requires updating this section and creating the class folder in every lifecycle.
@@ -29,13 +32,14 @@ Each Agent Note belongs to exactly one path-encoded class from this closed set; 
 | `simplification` | Removes code, behavior, or surface area without adding a capability.                                                    |
 | `architecture`   | A structural decision about the **shipped source** — how `src/` layers relate, what the runtime vocabulary is.          |
 | `process`        | Tooling, policy, or workflow **around** the code — release flow, gates, CI, the package manager — not runtime behavior. |
+| `performance`    | Measured latency, throughput or resource-cost decisions. |
 | `testing`        | Test infrastructure and strategy.                                                                                       |
 
 The `architecture` / `process` line: **architecture** is about the source we ship; **process** is the surrounding tooling and workflow. (`refactor` is deliberately absent — it overlaps `simplification`, whose discriminator, "does observable behavior change?", already covers it.)
 
 ## Archiving and deletion
 
-Archive an implemented Agent Note when the shipped decision is complete and its rationale is unlikely to guide future work. Keep it active when its alternatives, ownership boundary, negative guarantee, durable or wire semantics, security rule, or reintroduction condition remains useful. Never archive a proposed note: reject an obsolete proposal. Keep a rejected note only while it prevents a plausible mistake; otherwise delete its English and Chinese files together. Use the calibrated `dsh-archive-agent-notes` workflow rather than word count, age, or a target quota.
+Archive an implemented Agent Note when the shipped decision is complete and its rationale is unlikely to guide future work. Keep it active when its alternatives, ownership boundary, negative guarantee, durable or wire semantics, security rule, or reintroduction condition remains useful. Never archive a proposed note: reject an obsolete proposal. Keep a rejected note only while it prevents a plausible mistake; otherwise delete its English and Chinese files together. Review the retained rationale and supersession conditions before archiving, rather than using word count, age or a quota. The external `dsh-archive-agent-notes` workflow is not provided by this repository; use it only when its installed instructions are available. The repository rules below govern a manual archival review as well.
 
 The archive is path-encoded as `archived/{class}/yyyy-mm-dd-topic-title.md`; `implemented` is deliberately absent because only implemented notes can enter it. An archival change moves the complete English/Chinese pair, inserts the identical `Archived: YYYY-MM-DD` line immediately below `Status: implemented` in both files, and repairs or deletes inbound links. These are the only permitted content changes during archival. This repository has no seal verifier — the freeze is enforced by this rule and by review: once archived, a file is never edited, moved, translated, reformatted, or deleted, and is not authority for current behavior. Active prose may still link into an archived note when it intentionally cites history.
 

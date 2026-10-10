@@ -6,7 +6,7 @@ These Agent Notes describe shipped decisions. Follow the [Agent Note format](../
 
 Keep paths, symbols, defaults, and mechanisms current in the same change that alters them. Rewrite stale facts in place; do not append change history.
 
-When a shipped note is unlikely to guide future work, archive its complete English/Chinese pair through the `dsh-archive-agent-notes` workflow instead of continuing to maintain it.
+When a shipped note is unlikely to guide future work, review and archive its complete English/Chinese pair under the [archival rules](../README.md#archiving-and-deletion).
 
 ### This is not a license to rewrite the _decision_
 

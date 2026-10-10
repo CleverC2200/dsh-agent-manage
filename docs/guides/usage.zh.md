@@ -9,7 +9,7 @@
 Codex 项目 MCP 从 `.codex/config.toml` 读取，保留启停、环境变量引用、工具白名单/黑名单及超时；不支持的字段给出诊断。宿主 LSP 注册表是全局的，因此项目 LSP 不挂载，本插件不修改宿主 API。
 
 - Node.js 22 或更高版本、DSH Web profile 和宿主技能服务（`ctx.skills`）。Git 来源需要 Git。
-- 当前包声明的 DSH peer 包版本范围为 `0.2.1-alpha.1`。这是依赖声明，不代表已验证所有功能或历史 Web 外壳的最低支持版本。
+- 当前 peer 声明见 [package.json](../../package.json)。这是依赖声明，不代表已验证所有功能或历史 Web 外壳的最低支持版本。
 - 斜杠命令需要宿主命令服务。`subagents_run` 角色委派需要 agents、tools、LLM 和 subagents 服务；它将保存的角色指令、供应商、模型、思考强度和工具限制应用到真实子代理，并等待结果。
 - MCP 默认使用内置桥接。宿主客户端兼容模式还需要 `@deepseek-ai/dsh-mcp-client`，hooks 需要 `@deepseek-ai/dsh-hooks-claude-code`。
 - LSP 挂载需要 `@deepseek-ai/dsh-lsp` 和 `@deepseek-ai/dsh-lsp-stdio`；要让 Agent 调用工具，还需在 profile 中暴露 `@deepseek-ai/dsh-tool-lsp`。对应语言服务器的可执行程序也必须可用。
@@ -29,7 +29,7 @@ pnpm add github:CleverC2200/dsh-agent-manage
 dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
-npm 包包含构建后的 `lib/` 和 `client/`。GitHub 安装通过 `prepare` 构建，安装机器需要 Node.js 和 pnpm。
+npm 包包含构建后的 `lib/` 和 `client/`。GitHub 安装通过 `prepare` 构建，并依赖配置相对链接处的登记官方 SDK。隔离输入准备见[当前开发](../current-development.md)，仅 GitHub 安装不会生成这些产物。
 
 手动管理 profile 时，安装包后，将 `dsh-agent-manage` 加入 profile 的 `dsh.profile.bundles` 数组，保留已有 bundles。包中的 `cordis.patch.yml` 提供插件配置行。依赖版本沿用包管理器写入的值。
 
@@ -48,7 +48,7 @@ npm 包包含构建后的 `lib/` 和 `client/`。GitHub 安装通过 `prepare` �
       - { id: knowledge-work-plugins, url: 'https://github.com/anthropics/knowledge-work-plugins' }
 ```
 
-`local: true` 的源直接读取本地目录（实时反映工作树，移除源时不会删除目录）。扫描结果会缓存最多 30 秒，并在安装/启用/面板切换等操作间复用，因此本地源的工作树改动会在下一次缓存刷新时可见（任何源变更、刷新按钮，或 30 秒 TTL 到期）。启动挂载和用户技能枚举只扫描包含已启用安装的源；浏览市场仍发现全部配置源。并发读取共享扫描任务。启动不会拉取 Git 更新，来源刷新需显式触发。`archive` 源下载 HTTPS 压缩包（`.zip` / `.tar.gz` / `.tgz` / `.tar`，256 MiB 上限，可选 `sha256` 完整性校验）并解压为 checkout。
+`local: true` 的源原地读取本地目录。外部目录保留；托管 `.sources/<id>` checkout 只在移除来源时明确勾选删除文件后删除。扫描结果会缓存最多 30 秒，并在安装/启用/面板切换等操作间复用，因此本地源的工作树改动会在下一次缓存刷新时可见（任何源变更、刷新按钮，或 30 秒 TTL 到期）。启动挂载和用户技能枚举只扫描包含已启用安装的源；浏览市场仍发现全部配置源。并发读取共享扫描任务。启动不会拉取 Git 更新，来源刷新需显式触发。`archive` 源下载 HTTPS 压缩包（`.zip` / `.tar.gz` / `.tgz` / `.tar`，256 MiB 上限，可选 `sha256` 完整性校验）并解压为 checkout。
 
 ### 手动克隆、收编与网络调优
 
@@ -101,7 +101,7 @@ MCP 详情仅为失败的托管服务或残留挂载显示重试；当前后端�
 
 使用 `"env": { "FOO_TOKEN": "${FOO_TOKEN}" }` 这样的引用。缺失引用时阻止启动并显示 `needs-credentials`。宿主凭据只写不读，不会将字面 token 写入套件状态或 override JSON。只读的启动环境值需要修改后重启 DSH。
 
-`mcp.json` 使用严格 schema 校验。`.mcp.json` 支持常见兼容形式：顶层 server map、`http` / `local` transport 别名、省略 type 时通过 `command` 推断，以及 `${CLAUDE_PLUGIN_ROOT}`、`${CLAUDE_PLUGIN_DATA}`、`${NAME:-default}` 占位符。无效服务会诊断并跳过，不会带着部分配置启动。
+agent-plugins v1 的便携 `mcp.json` 使用严格 schema 校验；无 schema 的原生文件按各方言合同解析。`.mcp.json` 支持常见兼容形式：顶层 server map、`http` / `local` transport 别名、省略 type 时通过 `command` 推断，以及 `${CLAUDE_PLUGIN_ROOT}`、`${CLAUDE_PLUGIN_DATA}`、`${NAME:-default}` 占位符。无效服务会诊断并跳过，不会带着部分配置启动。
 
 ### Hooks 与 LSP
 
@@ -119,7 +119,7 @@ Git 获取通过 `execFile` 执行，不经过 shell；刷新使用 shallow fetc
 
 ### 体验反馈
 
-`feedbackEnabled` 默认 `true`。宿主提供 tools 和 settings 时，启用面向模型的 `report_market_issue` 工具。有 `GITHUB_TOKEN` 或 `GH_TOKEN` 时，提交会在本插件 GitHub 仓库创建 issue；否则保存到 `data/feedback/`。两次提交间隔至少 60 秒。在插件配置卡片中关闭该设置即可注销工具。
+`feedbackEnabled` 默认 `true`。宿主提供 tools 和 SettingsForms 时，启用面向模型的 `report_market_issue` 工具。有 `GITHUB_TOKEN` 或 `GH_TOKEN` 时，提交会在本插件 GitHub 仓库创建 issue；否则保存到 `data/feedback/`。两次提交间隔至少 60 秒。在插件配置卡片中关闭该设置即可注销工具。
 
 工作区 Tab 共用持久化的卡片/列表偏好，搜索与筛选按资源独立。新增、刷新统一位于页头。MCP 新增入口校验 JSON 服务配置，写入 `~/.dsh/agent-plugins/data/mcp-servers.json`，再通过插件自己的 bridge 挂载；非法配置和重名服务会被拒绝。宿主自行管理的 MCP 服务仍只读观察。
 
@@ -145,6 +145,6 @@ Git 获取通过 `execFile` 执行，不经过 shell；刷新使用 shallow fetc
 
 私有 GitHub 套件可使用显式 archive 来源，例如 `https://api.github.com/repos/OWNER/REPO/zipball/REF`。桌面管理员在启动环境提供 `DSH_AGENT_MANAGE_GITHUB_TOKEN`，授权只发送给首次 HTTPS GitHub API 请求，不发送到重定向目标，也不写入来源配置。下载失败保留已安装内容。
 
-### 原生资源的工作区上下文
+### 原生资源
 
-Workbench使用GET /api/agent-manage/resources?cwd=...发现资源，并通过POST /api/agent-manage/resources/select的{id,cwd}选用。cwd与新Session所属原生工作区相同且必须是绝对路径。Manage透传现有Skill registry，项目Skill同时参与发现和正文读取，不复制资源。缺失或相对路径返回INVALID_AGENT_RESOURCE_WORKSPACE。
+工作区上下文、选中身份、参考读取与计算来源见[原生资源](native-resources.zh.md)。

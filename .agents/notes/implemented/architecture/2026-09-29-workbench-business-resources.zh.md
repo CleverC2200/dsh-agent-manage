@@ -8,7 +8,7 @@ Status: implemented
 
 ## Decision
 
-Agent Manage 拥有 inventory-fc 与 inventory-aqkc 能力资源，并导出已组装工作台资源的运行时装载器。页面与能力身份仍来自既有分离声明。`prompt.json` 的 `pageAgents` 列出可解读本页的已安装预设，包含页面自己的预设；它不授予跨 Consumer 查询权限。GEA 分别校验页面 Consumer、影响等级、所选预设、对应 Session 和网关 Consumer 授权。[原生资源选用](../feature/2026-10-04-selected-business-resources.zh.md)以 Manage 官方 Skill Provider 与预设发布替代旧文件挂载；本记录继续持有包归属和解释器/Consumer 分离。凭据和执行仍归 GEA。
+Agent Manage 拥有 inventory-fc 与 inventory-aqkc 能力资源，公开 `business-resources` 导出通过 `BusinessResources` 发布已组装资源。页面与能力身份仍来自既有分离声明。`prompt.json` 的 `pageAgents` 列出可解读本页的已安装预设，包含页面自己的预设；它不授予跨 Consumer 查询权限。GEA 分别校验页面 Consumer、影响等级、所选预设、对应 Session 和网关 Consumer 授权。[原生资源选用](../feature/2026-10-04-selected-business-resources.zh.md)以 Manage 官方 Skill Provider 与预设发布替代旧文件挂载；本记录继续持有包归属和解释器/Consumer 分离。凭据和执行仍归 GEA。
 
 ## Alternatives considered
 

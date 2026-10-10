@@ -23,13 +23,15 @@ State compatibility: `kind`, `sha256`, and `adopted` are optional `state.json` f
 - **A native zip dependency-free path** (system `unzip`) was rejected: `unzip` is absent on stock Windows and its flags vary; fflate is zero-dependency and small. Tar.gz reuses the system `tar`, which every target platform ships.
 - **ETag/If-None-Match short-circuit on archive refresh** was deferred: the digest pin already prevents wasted installs for pinned sources, and re-download semantics stay simple.
 
-## Risks
+## Consequences
 
 - Archive downloads are SSRF-adjacent: HTTPS-only by default and the 256 MiB cap bound it, but `allowHttpArchives` is an explicit trust decision for intranet mirrors.
 - The tarball fallback produces a non-git checkout; its "lock commit" is a sha256 hex, not a commit — downstream consumers must treat `lockCommit` as an opaque token (they already do).
 - `reset --hard` on update discards working-tree drift in managed checkouts; this is intended (sources are read-only inputs) but surprises anyone who edited a checkout in place.
 
 ## Verification
+
+The observations below belong to the implementation input and environment recorded at that time. They are not a fresh acceptance result for the current checkout.
 
 - `tests/source-acquisition.test.ts`: kind inference, id derivation for archive URLs, codeload URL mapping, state round-trip, download/verify/extract/unwrap/zip-slip/tar.gz/symlink-capable pipeline over a local HTTP server, adoption listing/idempotent adoption/git+local registration/removal keeps user directories.
 - `tests/routes.test.ts` covers the route table; `tests/skills-provider.test.ts` pins the local-source persisted shape.

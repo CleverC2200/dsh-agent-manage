@@ -1,6 +1,6 @@
 # Keep one npm plugin and center the internal refactor on Catalog
 
-The plugin will remain one published npm package with stable host/client entry points, while internal responsibilities move behind a deep `Catalog` application module that produces coherent discovered-and-install-enriched snapshots. We choose this targeted modular refactor over vertical feature slices because discovery, install state, enabled-suite derivation, runtime reconciliation, and client projections share one data source; keeping that seam centralized limits change amplification without introducing multiple-package release coordination.
+The plugin remains one package with stable host/client entry points, while internal responsibilities move behind a deep `Catalog` application module that produces coherent discovered-and-install-enriched snapshots. We choose this targeted modular refactor over vertical feature slices because discovery, install state, enabled-suite derivation, runtime reconciliation, and client projections share one data source; keeping that seam centralized limits change amplification without introducing multiple-package release coordination.
 
 ## Considered options
 
@@ -15,4 +15,6 @@ The `SuiteManager` facade was deleted after its deletion condition was met — r
 
 Runtime user-suite queries select sources from enabled install state before discovery; market queries retain the full configured source inventory. Both use the same scanner and bounded discovery cache. Content invalidation clears all scan entries and increments a generation so older in-flight work cannot repopulate caches. Identical concurrent scans share one promise. This preserves Catalog ownership without making session initialization pay for uninstalled sources.
 
-New layout dialects belong in discovery/scanner code and fixtures; runtime mounts and client modules do not parse source formats. MCP, command, and hook mounts remain separate because their host APIs and failure semantics differ. Compatibility code requires tests and an explicit deletion condition; it is not a permanent second implementation.
+New layout dialects belong in discovery/scanner code and fixtures; runtime mounts and client modules do not parse source formats. MCP, command, and hook mounts remain separate because their host APIs and failure semantics differ. The isolated project supports only its registered current Core. Runtime compatibility with retired host APIs is removed after retained behavior moves to the current interface; input layout dialects remain supported on their own contracts.
+
+The package boundary does not authorize publication. Current delivery and SDK preparation follow [current development](../current-development.md).

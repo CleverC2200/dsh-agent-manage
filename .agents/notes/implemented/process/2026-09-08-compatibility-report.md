@@ -36,6 +36,8 @@ The compatibility matrix was a documentation and source audit: "Checked against 
 
 ## Verification
 
+The observations below belong to the implementation input and environment recorded at that time. They are not a fresh acceptance result for the current checkout.
+
 - `node scripts/compat-report.mjs` — nine samples, all schema-valid, three `integrated` and six `shadowed`, written to `docs/compat-report.json` and `docs/compat-report.md`.
 - `pnpm exec vitest run tests/compat-report.test.ts tests/schemas.test.ts` — ten tests covering report coverage/shape, schema compilation and the README evidence links.
 - `README.md`, `README.zh.md` and `docs-site/src/pages/compatible-plugins.astro` updated with the new rows, the verified-samples table and the report link.
