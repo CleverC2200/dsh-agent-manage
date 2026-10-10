@@ -49,4 +49,3 @@ APS 页面使用公开 `aps-compute/*` 源码和运行时导出。原预测及�
 DMS模拟接收资源只有 `business-resources/inventory-dms` 一份。`src/inventory-compute/dms-mock-packets.ts` 维护输入数量、三位小数与M/Z分笔键的纯计算。Workbench拥有页面内存模拟器，复用现有销售工作流投影。资源不包含DMS凭据、SQL能力或写MCP。
 
 Skill 资源会话使用当前官方标准组合，保留通用工具与压缩。现有资源列表显示各 Skill 的描述；选择 Skill 不授予业务 Consumer。
-

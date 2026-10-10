@@ -25,6 +25,6 @@
 
 | 规则 | 执行机制 |
 | --- | --- |
-| 普通空 Home 必须发现原销售 Skill 及其完整引用资产；新任务默认智能编排并保留用户显式选择 | `check:capabilities` 的 standard-skill lane 运行 `bundled-sales-skills.test.ts` 和 `manage-bundle-default.test.ts`；已有 quality workflow 同时运行 `check:refactor` 和 `test` |
+| 普通空 Home 必须发现原销售 Skill 及其完整引用资产；新任务默认智能编排并保留用户显式选择 | `check:capabilities` 的 standard-skill lane 运行 `bundled-sales-skills.test.ts` 和 `manage-bundle-default.test.ts`；[quality workflow](.github/workflows/quality.yml) 对源码或业务资源变更运行 `check:refactor` 和 `test`，文档变更只运行 `check:knowledge` |
 
 该检查证明受控源码行为。实际三包安装及官方 Loader 接收仍由 GEA 的普通交付接收入口负责，不能用离线通过替代。
