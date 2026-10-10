@@ -368,7 +368,15 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     // too; the process-local PKCE verifier is the only non-durable field.
     // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const verifier = this.providerState.codeVerifier
-    this.providerState = { ...payload, ...(verifier === undefined ? {} : { codeVerifier: verifier }) }
+    // MCP SDK 1.31 binds a token grant to the authorization-server issuer.
+    // A pre-1.31 record has no issuer and must re-authenticate rather than
+    // being offered to a newly discovered server.
+    const tokens = payload.tokens?.issuer === undefined ? undefined : payload.tokens
+    this.providerState = {
+      ...payload,
+      ...(tokens === undefined ? { tokens: undefined } : { tokens }),
+      ...(verifier === undefined ? {} : { codeVerifier: verifier })
+    }
     return this.providerState
   }
 

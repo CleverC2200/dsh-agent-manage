@@ -146,14 +146,14 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "ajv": "^8.17.1",
     "fflate": "^0.8.3",
     "smol-toml": "^1.8.0",
     "yaml": "^2.7.0",
     "zod": "^4.4.3",
     "decimal.js": "10.6.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "4.3.2"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "link:../../official-latest-standard/vendor/cordis",

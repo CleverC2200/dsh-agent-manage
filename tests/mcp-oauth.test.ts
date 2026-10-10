@@ -54,7 +54,8 @@ function createRecordStore(initial: Map<string, unknown> = new Map()): {
 const TOKENS = {
   access_token: 'at-1',
   token_type: 'Bearer',
-  refresh_token: 'rt-1'
+  refresh_token: 'rt-1',
+  issuer: 'https://issuer.example.test'
 }
 
 afterEach(async () => {
@@ -149,6 +150,14 @@ describe('LoopbackOAuthClientProvider state', () => {
     records.set(key, { kind: 'api-key', key: 'x' })
     await expect(provider.tokens()).resolves.toBeUndefined()
     await expect(provider.clientInformation()).resolves.toBeUndefined()
+  })
+
+  it('rejects a legacy grant without an issuer so it cannot cross authorization servers', async () => {
+    const key = String(credentialKey('mcp-auth', 'srv'))
+    const records = new Map<string, unknown>([[key, { kind: 'grant', payload: { tokens: { ...TOKENS, issuer: undefined } } }]])
+    const store = createRecordStore(records)
+    const provider = new LoopbackOAuthClientProvider('srv', {}, undefined, () => {}, store, openerStub)
+    await expect(provider.tokens()).resolves.toBeUndefined()
   })
 
   it('treats a store without the record surface as absent', async () => {
