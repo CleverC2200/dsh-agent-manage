@@ -29,7 +29,7 @@ This isolated project supports only its registered current core source and publi
 
 This fork uses the package name `dsh-agent-manage`; publication of the new npm package has not been performed or verified here. Use the GitHub source below. When replacing the old package, remove its profile entry before installing this package to avoid duplicate loading. Existing `dsh-agent-plugins-market` settings and data paths remain compatible.
 
-You need Node.js 24+, Git for Git sources, and a DSH Web profile with the skill service enabled. This repository declares DSH peer packages in the `0.2.1-alpha.1` range; individual capabilities also depend on the services in your profile. See [host requirements](docs/guides/usage.md#host-requirements).
+You need Node.js 24+, Git for Git sources, and a DSH Web profile with the skill service enabled. This repository declares DSH peer packages in the exact `0.2.0-rc.2 || 0.2.1-alpha.1` range; individual capabilities also depend on the services in your profile. See [host requirements](docs/guides/usage.md#host-requirements).
 
 Install into your profile, replacing `<name>` with its name:
 
@@ -230,7 +230,7 @@ Private GitHub suites can use an explicit archive source such as `https://api.gi
 
 The download-region selector immediately reflects an explicit choice; automatic mode follows the detected region.
 
-The isolated plugin-split workspace targets the sibling DSH 0.2.1-alpha.1 source build. DSH peers are pinned to that version and Cordis to 4.0.5-alpha.1; client icons consume its Regular exports. The UI primitives development link resolves to that same checkout, and tests deduplicate React across the link. Run the source compatibility check from the sibling GEA repository before using this combination.
+The isolated plugin-split workspace supports the registered official DSH 0.2.0-rc.2 and 0.2.1-alpha.1 builds. DSH peers accept exactly those two releases and Cordis exactly 4.0.4 or 4.0.5-alpha.1; client icons consume its Regular exports. The UI primitives development link resolves to that same checkout, and tests deduplicate React across the link. Run the source compatibility check from the sibling GEA repository before using this combination.
 
 Management pages consume resource `1.0.0` installed and released by the Workbench plugin. Manage owns the lifetime of its emitted CSS, with no module-load style insertion or Core theme synchronization. Theme, font size and semantic status colors remain host-owned.
 
@@ -254,7 +254,7 @@ Manage provides `skill_reference_read` for local relative references explicitly 
 
 The pure `forecast_compute` capability uses the installed/enabled `sinian-demand-baseline` visible in that caller workspace. It preserves §5.5's exact decimal algorithm, missing-data branches and draft/no-write semantics. Its result includes algorithm version, exact input SHA-256 and whether complete JSON originated in an actual user message. This provenance does not verify business sources or grant Consumer authorization; model-supplied `data_mode` alone is never source proof.
 
-The registered development SDK is the fixed official `dsh-v0.2.1-alpha.1` / `5badb15009ae1756c3afe0ae0cef1faafc290ccc` standard build. Host/client types and actual dev dependencies point to those same official packages, with matching runtime peers. The client declares the real slots/locale/settings interfaces and no removed client-runtime alias. Manage's resource/MCP implementation and the official Core plugin manager keep their existing separate ownership.
+The registered development SDK is the fixed official `dsh-v0.2.1-alpha.1` / `5badb15009ae1756c3afe0ae0cef1faafc290ccc` standard build. Host/client types and actual dev dependencies point to those same official packages, with runtime peers accepting the registered rc.2 and alpha.1 releases. Resource and preset publication use their common public interfaces and preserve the selected Host's own standard declaration. The client declares the real slots/locale/settings interfaces and no removed client-runtime alias. Manage's resource/MCP implementation and the official Core plugin manager keep their existing separate ownership.
 
 After Manage validates a selected prompt's `pageAgents`, resource summaries and selection results include the optional `interpreters` array. It contains allowed page interpreter identities whose resource owners remain registered, enabled and free of a recorded load error. Workbench uses these identities to choose an official Session preset. GEA checks the selected preset and required Consumer permissions.
 
@@ -284,4 +284,4 @@ DMS mock reception resources live only in `business-resources/inventory-dms`. `s
 
 Skill resource Sessions use the active official standard preset, retaining general tools and compaction. The existing resource list displays each Skill description; selecting a Skill does not grant a business Consumer.
 
-Run `corepack pnpm run check:capabilities` for preset preservation; `check:refactor` includes the same command. It runs the official registry/Session, InputHub client and cross-GEA lanes in order, requires executed tests, and propagates failures. Set `DSH_GEA_CHECKOUT` and `DSH_WORKBENCH_CHECKOUT` for explicit peer inputs. The project verification helper first validates a frozen `integration-set.json`, then records fresh logs, phase results and behavior receipts. The existing project verification map documents declarations separately from observations. Source and offline results do not imply Native installation or real model/business acceptance.
+Run `corepack pnpm run check:capabilities` for preset preservation; `check:refactor` includes the same command. It runs the official registry/Session, InputHub client and cross-GEA lanes in order, requires executed tests, and propagates failures. Set `DSH_CORE_CHECKOUT` to select the official Core for every Host and client test import, and `DSH_GEA_CHECKOUT` and `DSH_WORKBENCH_CHECKOUT` for explicit peer inputs. Run the complete check separately against each registered Core; tests do not substitute one release's standard declaration for another. The project verification helper first validates a frozen `integration-set.json`, then records fresh logs, phase results and behavior receipts. The existing project verification map documents declarations separately from observations. Source and offline results do not imply Native installation or real model/business acceptance.

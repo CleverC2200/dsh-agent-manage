@@ -14,6 +14,8 @@ Set `DSH_WORKBENCH_CHECKOUT` to the registered Workbench checkout when it is not
 
 Use `corepack pnpm run check:knowledge` for current local references, documented scripts and public exports. Use the applicable `check:architecture`, `test:contract` and behavior tests for changes; `check:refactor` remains the standing aggregate. / 当前本地引用、文档命令与公开导出由 check:knowledge 核验；架构、契约与行为使用相应入口，check:refactor 保留综合门禁。
 
+The [dual official Core decision](../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.md) and [中文](../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md) own the exact rc.2/alpha.1 runtime peers and `DSH_CORE_CHECKOUT` capability matrix. The development SDK remains the registered alpha.1 input. / 两版官方 Core 决定持有精确运行 peer 和能力验证矩阵，开发 SDK 继续使用已登记的 alpha.1。
+
 ## Current ownership / 当前决定归属
 
 - [Selected native resources](../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.md) and [中文](../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.zh.md) own one official Skill/preset publication interface, explicit cwd and selected-identity recovery. / 统一原生资源发布、明确 cwd 和选中身份恢复。

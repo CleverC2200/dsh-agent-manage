@@ -1,5 +1,5 @@
 /** Fixed official libraries and production Loader/Session; only completion is local. */
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile, realpath, symlink } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile, realpath, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { onTestFinished } from 'vitest'
@@ -7,40 +7,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import * as company from '../src/runtime/standard-preset.js'
+import { core, officialModulePath } from './official-core-input.js'
 
-export const core = resolve(import.meta.dirname, '../../../official-latest-standard')
-const packages = new Map<string, { root: string; exports?: Record<string, { default?: string } | string>; main?: string }>()
-let catalogReady: Promise<void> | undefined
-async function catalog(): Promise<void> {
-  for (const group of ['vendor', 'packages']) {
-    const groupRoot = join(core, group)
-    const roots: string[] = []
-    for (const entry of await readdir(groupRoot, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue
-      if (group === 'vendor') roots.push(join(groupRoot, entry.name))
-      else for (const child of await readdir(join(groupRoot, entry.name))) roots.push(join(groupRoot, entry.name, child))
-    }
-    for (const root of roots) {
-      try {
-        const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
-        packages.set(manifest.name, { root, ...manifest })
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && (error as NodeJS.ErrnoException).code !== 'ENOTDIR') throw error
-      }
-    }
-  }
-}
+export { core }
 export async function official(name: string) {
-  await (catalogReady ??= catalog())
-  const id = name.split('/').slice(0, 2).join('/')
-  const pkg = packages.get(id)
-  if (!pkg) throw Error(`Fixed Core has no package ${name}`)
-  const subpath = name === id ? '.' : '.' + name.slice(id.length)
-  const selected = pkg.exports?.[subpath]
-  let path = (typeof selected === 'string' ? selected : selected?.default) ?? (subpath === '.' ? pkg.main : undefined)
-  if (!path && subpath.startsWith('./src/') && typeof pkg.exports?.['./src/*'] === 'string') path = pkg.exports['./src/*'].replace('*', subpath.slice('./src/'.length))
-  if (!path) throw Error(`Fixed Core has no public export ${name}`)
-  return import(/* @vite-ignore */ await realpath(resolve(pkg.root, path)))
+  return import(/* @vite-ignore */ officialModulePath(name))
 }
 
 export interface PresetHarnessOptions {

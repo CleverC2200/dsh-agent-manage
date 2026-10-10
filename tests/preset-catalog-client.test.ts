@@ -10,6 +10,7 @@ import { createRoot } from 'react-dom/client'
 import { AgentPresetSection } from '../../../official-latest-standard/packages/client/ui-agent-preset/src/client/AgentPresetSection.tsx'
 import { AgentPresetSeat } from '../../../official-latest-standard/packages/client/ui-agent-preset/src/client/AgentPresetSeat.tsx'
 import { presetDisplayText, zh } from '../../../official-latest-standard/packages/client/ui-agent-preset/src/client/locales.ts'
+import { core } from './official-core-input.js'
 import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-preset-registry/types'
 
 it('uses the same actual catalog names and descriptions in official settings and every selected new-task chip', async () => {
@@ -81,8 +82,9 @@ it('uses the same actual catalog names and descriptions in official settings and
     displayed.push({ id: row.id, ...display })
   }
   const codingOff = await settings(false)
-  expect(codingOff).not.toContain('data-agent-preset-id="minimal"')
-  expect(codingOff).not.toContain('data-agent-preset-id="ptc"')
+  const { version } = JSON.parse(await readFile(join(core, 'package.json'), 'utf8'))
+  expect(['0.2.0-rc.2', '0.2.1-alpha.1']).toContain(version)
+  for (const id of ['minimal', 'ptc']) expect(codingOff.includes(`data-agent-preset-id="${id}"`)).toBe(version === '0.2.0-rc.2')
   expect(codingOff).toContain('data-agent-preset-id="cordis"')
   if (process.env.PRESET_EVIDENCE_DIR)
     await writeFile(

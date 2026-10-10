@@ -1,11 +1,11 @@
 /** Official browser sources share one source graph, as in Core's own client tests. */
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ts from 'typescript'
 import { defineConfig } from 'vitest/config'
 import { standardDecoratorPlugin, vitestExecArgv } from '../../official-latest-standard/vitest.shared.ts'
+import { core } from './tests/official-core-input.js'
 
-const core = realpathSync(resolve(import.meta.dirname, '../../official-latest-standard'))
 const { config, error } = ts.parseConfigFileTextToJson(`${core}/tsconfig.base.json`, readFileSync(`${core}/tsconfig.base.json`, 'utf8'))
 if (error) throw Error('Cannot read fixed Core source mapping')
 const aliases = Object.entries(config.compilerOptions.paths as Record<string, string[]>).map(([name, paths]) => ({
@@ -19,7 +19,11 @@ if (!existsSync(resolve(workbench, 'src/resource-selection.ts'))) throw Error(`P
 export default defineConfig({
   plugins: [standardDecoratorPlugin()],
   resolve: {
-    alias: [...aliases, { find: 'preset-client-workbench/resource-selection', replacement: resolve(workbench, 'src/resource-selection.ts') }],
+    alias: [
+      ...aliases,
+      { find: /^(?:\.\.\/)+official-latest-standard\/(.*)$/, replacement: `${core}/$1` },
+      { find: 'preset-client-workbench/resource-selection', replacement: resolve(workbench, 'src/resource-selection.ts') }
+    ],
     dedupe: ['react', 'react-dom']
   },
   test: {

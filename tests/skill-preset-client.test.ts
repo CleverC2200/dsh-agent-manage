@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { TestSessions } from '../../../official-latest-standard/packages/test-support/client-runtime/src/sessions.ts'
+import { mountConversationDraft, saveConversationDraft, storedConversationDraftText } from './conversation-draft-fixture.js'
 import { InputHub } from '../../../official-latest-standard/packages/client/ui-conversation/src/client/input/hub.ts'
 import { mountNativeResourceSelection, selectResource, type NativeResourceSelection } from 'preset-client-workbench/resource-selection'
 
@@ -71,9 +72,14 @@ it('opens a real selected Skill Session through the resource entry and preserves
   sessions.stubCreate(async options => {
     expect(options).toEqual({ workspaceId: 'selected-workspace' })
     const receipt = prepared!
-    if (startingDraft)
-      localStorage.setItem(`dsh.conversation.${receipt.sessionId}`, JSON.stringify({ draft: { text: startingDraft, references: [] }, view: 'trajectory', viewRequest: null }))
     await sessions.add({ id: receipt.sessionId, summary: { cwd: receipt.cwd } })
+    if (startingDraft) {
+      const typing = sessions.retain(receipt.sessionId as never)
+      holds.set(receipt.sessionId, typing)
+      await typing.ready
+      await mountConversationDraft(hub, typing.binding)
+      hub.for(typing.binding.ctx).setDraft(startingDraft)
+    }
     return SessionId(receipt.sessionId)
   })
   native!.fetch = async (url, options) => {
@@ -95,11 +101,12 @@ it('opens a real selected Skill Session through the resource entry and preserves
     return Response.json(prepared!.selection)
   }
   const previous = SessionId('previous-session')
-  localStorage.setItem(`dsh.conversation.${previous}`, JSON.stringify({ draft: { text: '原任务未发送文字', references: [] }, view: 'trajectory', viewRequest: null }))
+  saveConversationDraft(previous, '原任务未发送文字')
   await sessions.add({ id: previous })
   const old = sessions.retain(previous)
   await old.ready
   holds.set(previous, old)
+  await mountConversationDraft(hub, old.binding)
   expect(hub.for(old.binding.ctx).state.getSnapshot().draft).toBe('原任务未发送文字')
   const previousStored = localStorage.getItem(`dsh.conversation.${previous}`)
   const result = await selectResource(native!, 'skill:selected-skill', new AbortController().signal, cwd)
@@ -117,8 +124,8 @@ it('opens a real selected Skill Session through the resource entry and preserves
   expect(hub.for(currentBinding.ctx).state.getSnapshot().draft).toBe('/selected-skill ')
   startingDraft = '准备期间输入的文字'
   await expect(selectResource(native!, 'skill:selected-skill', new AbortController().signal, cwd)).rejects.toThrow('RESOURCE_DRAFT_CHANGED')
-  const changedKey = 'dsh.conversation.skill-entry-2'
-  expect(JSON.parse(localStorage.getItem(changedKey)!).draft.text).toBe(startingDraft)
+  expect(hub.for(holds.get('skill-entry-2')!.binding.ctx).state.getSnapshot().draft).toBe(startingDraft)
+  expect(storedConversationDraftText('skill-entry-2')).toBe(startingDraft)
   expect(opened).toEqual(['skill-entry-1', 'skill-entry-1'])
   startingDraft = ''
   cancellation.beforeOpen = new AbortController()
@@ -134,7 +141,7 @@ it('opens a real selected Skill Session through the resource entry and preserves
           receipts,
           opened,
           selectedDraft: hub.for(currentBinding.ctx).state.getSnapshot().draft,
-          conflictDraft: JSON.parse(localStorage.getItem(changedKey)!).draft.text,
+          conflictDraft: storedConversationDraftText('skill-entry-2'),
           previousDraft: hub.for(old.binding.ctx).state.getSnapshot().draft,
           previousStoredPreserved: localStorage.getItem(`dsh.conversation.${previous}`) === previousStored,
           cancelledNavigation: true,

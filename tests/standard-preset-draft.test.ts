@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { TestSessions } from '../../../official-latest-standard/packages/test-support/client-runtime/src/sessions.ts'
+import { mountConversationDraft, saveConversationDraft } from './conversation-draft-fixture.js'
 import { InputHub } from '../../../official-latest-standard/packages/client/ui-conversation/src/client/input/hub.ts'
 
 it('preserves an existing official Session draft when the new-task default is saved and restarted', async () => {
@@ -23,7 +24,7 @@ it('preserves an existing official Session draft when the new-task default is sa
   const id = SessionId('preserved-draft')
   const key = `dsh.conversation.${id}`
   const draft = { text: '尚未发送的原任务草稿', references: [] }
-  localStorage.setItem(key, JSON.stringify({ draft, view: 'trajectory', viewRequest: null }))
+  saveConversationDraft(id, draft.text)
   await sessions.add({ id })
   const retained = sessions.retain(id)
   await retained.ready
@@ -35,6 +36,7 @@ it('preserves an existing official Session draft when the new-task default is sa
   })
   const binding = retained.binding
   const hub = new InputHub(client, ((key: string) => key) as never)
+  await mountConversationDraft(hub, binding)
   const input = hub.for(binding.ctx)
   const before = input.state.getSnapshot().draft
   expect(before).toBe(draft.text)

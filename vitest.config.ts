@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitest/config'
+import { officialHostAliases } from './tests/official-core-input.js'
 
 export default defineConfig({
-  resolve: { dedupe: ['react', 'react-dom'] },
+  resolve: { alias: officialHostAliases(), dedupe: ['react', 'react-dom'] },
   test: {
     include: ['tests/**/*.test.ts'],
     exclude: [
