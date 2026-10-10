@@ -10,14 +10,14 @@ import { stripFrontmatter } from '../src/catalog/skills-parse.js'
 import { forecastInputHash, forecastBaselineHash } from '../src/runtime/forecast-source.js'
 import * as Manage from '../src/index.js'
 
-const official = (path: string) => new URL(`../../../official-latest-standard/${path}`, import.meta.url).href
-const { Context } = await import(official('vendor/cordis/lib/index.js'))
-const { default: Tools } = await import(official('packages/core/tools/lib/index.js'))
-const { default: SystemPrompt } = await import(official('packages/core/system-prompt/lib/index.js'))
-const { default: Skills } = await import(official('packages/skill/skill/lib/index.js'))
-const { createScope } = await import(official('packages/core/scope/lib/index.js'))
-const { Session, SessionId } = await import(official('packages/core/session/lib/index.js'))
-const { createUserMessage } = await import(official('packages/llm/llm/lib/index.js'))
+import { official } from './core-preset-harness.js'
+const { Context } = await official('@deepseek-ai/cordis')
+const { default: Tools } = await official('@deepseek-ai/dsh-tools')
+const { default: SystemPrompt } = await official('@deepseek-ai/dsh-system-prompt')
+const { default: Skills } = await official('@deepseek-ai/dsh-skill')
+const { createScope } = await official('@deepseek-ai/dsh-scope')
+const { Session, SessionId } = await official('@deepseek-ai/dsh-session')
+const { createUserMessage } = await official('@deepseek-ai/dsh-llm')
 
 test('Manage entry registers pure calculation for an official Session and the unchanged original baseline suite', async t => {
   const root = await mkdtemp(join(tmpdir(), 'forecast-original-session-'))

@@ -31,7 +31,10 @@ it.each(salesRoles)('$name keeps its catalog identity and complete standard capa
   const businessPrompt = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
   expect(businessPrompt.contexts.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.contexts.map(row => row.name)))
   expect(businessPrompt.sections.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.sections.map(row => row.name)))
-  expect(final.messages.some(message => message.content.some(block => block.text?.includes('Time sampled while preparing turn')))).toBe(true)
+  const standardDocument = await f.ctx.agentPresets.readDocument('standard')
+  expect(final.messages.some(message => message.content.some(block => block.text?.includes('Time sampled while preparing turn')))).toBe(
+    standardDocument.content.includes('@deepseek-ai/dsh-time-context')
+  )
   expect(JSON.stringify(final.messages)).toContain(f.agent.session.header.cwd)
   if (role.skill) for (const skill of f.selection.profile!.skills) expect(await f.ctx.skills.get(skill, { scope: f.agent, cwd: f.home })).toMatchObject({ name: skill })
   expect((await f.execute('todo_write', { todos: [{ content: '核对销售范围', status: 'in_progress' }] })).isError).toBe(false)

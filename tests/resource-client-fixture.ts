@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { TestSessions } from '../../../official-latest-standard/packages/test-support/client-runtime/src/sessions.ts'
+import { mountConversationDraft, saveConversationDraft } from './conversation-draft-fixture.js'
 import { InputHub } from '../../../official-latest-standard/packages/client/ui-conversation/src/client/input/hub.ts'
 import { mountNativeResourceSelection, selectResource, type NativeResourceSelection } from 'preset-client-workbench/resource-selection'
 
@@ -107,11 +108,12 @@ export async function resourceClientFixture<Receipt extends ResourceHostReceipt 
     receipt = JSON.parse(await readFile(receiptPath, 'utf8'))
     return Response.json(receipt.selection)
   }
-  localStorage.setItem(previousKey, JSON.stringify({ draft: { text: options.previousDraft, references: [] }, view: 'trajectory', viewRequest: null }))
+  saveConversationDraft(previousId, options.previousDraft)
   await sessions.add({ id: previousId })
   const old = sessions.retain(previousId)
   await old.ready
   holds.push(old)
+  await mountConversationDraft(hub, old.binding)
   const previousStored = localStorage.getItem(previousKey)
   expect(hub.for(old.binding.ctx).state.getSnapshot().draft).toBe(options.previousDraft)
   return {

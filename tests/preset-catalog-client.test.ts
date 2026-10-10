@@ -10,6 +10,7 @@ import { createRoot } from 'react-dom/client'
 import { AgentPresetSection } from '../../../official-latest-standard/packages/client/ui-agent-preset/src/client/AgentPresetSection.tsx'
 import { AgentPresetSeat } from '../../../official-latest-standard/packages/client/ui-agent-preset/src/client/AgentPresetSeat.tsx'
 import { presetDisplayText, zh } from '../../../official-latest-standard/packages/client/ui-agent-preset/src/client/locales.ts'
+import { core } from './official-core-input.js'
 import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-preset-registry/types'
 
 it('uses the same actual catalog names and descriptions in official settings and every selected new-task chip', async () => {
@@ -81,14 +82,25 @@ it('uses the same actual catalog names and descriptions in official settings and
     displayed.push({ id: row.id, ...display })
   }
   const codingOff = await settings(false)
-  expect(codingOff).not.toContain('data-agent-preset-id="minimal"')
-  expect(codingOff).not.toContain('data-agent-preset-id="ptc"')
-  expect(codingOff).toContain('data-agent-preset-id="cordis"')
+  const { version } = JSON.parse(await readFile(join(core, 'package.json'), 'utf8'))
+  expect(['0.2.0-rc.2', '0.2.1-alpha.1']).toContain(version)
+  const developerToolsOffVisibility = Object.fromEntries(['minimal', 'ptc', 'cordis'].map(id => [id, codingOff.includes(`data-agent-preset-id="${id}"`)]))
+  for (const id of ['minimal', 'ptc']) expect(developerToolsOffVisibility[id]).toBe(version === '0.2.0-rc.2')
+  expect(developerToolsOffVisibility.cordis).toBe(true)
   if (process.env.PRESET_EVIDENCE_DIR)
     await writeFile(
       join(process.env.PRESET_EVIDENCE_DIR, 'client-catalog-display.json'),
       JSON.stringify(
-        { displayed, officialSettings: true, officialSelector: true, sameHostCatalog: true, codingToolsOffHidesMinimalAndPTC: true, visualBrowser: 'not-run' },
+        {
+          displayed,
+          officialCoreVersion: version,
+          officialSettings: true,
+          officialSelector: true,
+          sameHostCatalog: true,
+          developerToolsOffVisibility,
+          codingToolsOffHidesMinimalAndPTC: !developerToolsOffVisibility.minimal && !developerToolsOffVisibility.ptc,
+          visualBrowser: 'not-run'
+        },
         null,
         2
       ) + '\n'

@@ -8,13 +8,13 @@ import { SuiteSkillProvider } from '../src/runtime/skills-provider.js'
 import { createForecastTool } from '../src/runtime/forecast-compute.js'
 
 // Use the registered standard artifacts directly; no historical Core alias or cross-repository build output.
-const official = (path: string) => new URL(`../../../official-latest-standard/${path}`, import.meta.url).href
-const { Context } = await import(official('vendor/cordis/lib/index.js'))
-const { default: Tools } = await import(official('packages/core/tools/lib/index.js'))
-const { default: SystemPrompt } = await import(official('packages/core/system-prompt/lib/index.js'))
-const { default: Skills } = await import(official('packages/skill/skill/lib/index.js'))
-const { createScope } = await import(official('packages/core/scope/lib/index.js'))
-const { Session, SessionId } = await import(official('packages/core/session/lib/index.js'))
+import { official } from './core-preset-harness.js'
+const { Context } = await official('@deepseek-ai/cordis')
+const { default: Tools } = await official('@deepseek-ai/dsh-tools')
+const { default: SystemPrompt } = await official('@deepseek-ai/dsh-system-prompt')
+const { default: Skills } = await official('@deepseek-ai/dsh-skill')
+const { createScope } = await official('@deepseek-ai/dsh-scope')
+const { Session, SessionId } = await official('@deepseek-ai/dsh-session')
 
 test('the fixed official Skill and tool registries execute Manage computation only for an actually enabled Catalog suite', async t => {
   const root = await mkdtemp(join(tmpdir(), 'manage-actual-registry-'))

@@ -29,7 +29,7 @@
 
 本分支的包名为 `dsh-agent-manage`；新 npm 包尚未在本次工作中发布或验证，使用下方 GitHub 来源。替换旧包时应先移除旧 profile 中的插件条目，再安装新包，避免双重加载。已有 `dsh-agent-plugins-market` 设置命名空间与数据路径保留兼容。
 
-需要 Node.js 24+、启用了技能服务的 DSH Web profile；使用 Git 来源还需要 Git。当前仓库声明的 DSH peer 包版本范围为 `0.2.1-alpha.1`，各项能力还取决于 profile 提供的宿主服务，详见[宿主要求](docs/guides/usage.zh.md#宿主要求)。
+需要 Node.js 24+、启用了技能服务的 DSH Web profile；使用 Git 来源还需要 Git。当前仓库声明的 DSH peer 包版本范围为精确的 `0.2.0-rc.2 || 0.2.1-alpha.1`，各项能力还取决于 profile 提供的宿主服务，详见[宿主要求](docs/guides/usage.zh.md#宿主要求)。
 
 将 `<name>` 替换为你的 profile 名称后安装：
 
@@ -222,7 +222,7 @@ GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需�
 
 下载区域选择立即反映显式选择；自动模式跟随探测结果。
 
-插件拆分隔离工作区面向同级 DSH 0.2.1-alpha.1 源码构建，DSH peer 固定到该版本，Cordis 固定为 4.0.5-alpha.1；图标使用新的 Regular 导出。UI primitives 开发链接指向同一源码，测试对 React 去重。使用此组合前从同级 GEA 仓执行源码兼容检查。
+插件拆分隔离工作区支持已登记的官方 DSH 0.2.0-rc.2 与 0.2.1-alpha.1，DSH peer 只接受这两版，Cordis 只接受 4.0.4 或 4.0.5-alpha.1；图标使用新的 Regular 导出。UI primitives 开发链接指向同一源码，测试对 React 去重。使用此组合前从同级 GEA 仓执行源码兼容检查。
 
 管理页面消费 Workbench 插件安装和释放的工作台资源 `1.0.0`。Manage 的构建 CSS 由自身 apply 生命周期管理，不在模块加载时留下样式，也不修改或同步 Core 主题。明暗主题、字号和状态颜色仍由官方宿主持有。
 
@@ -250,7 +250,7 @@ Manage 提供 `skill_reference_read`，只读当前模型可见 Skill 正文明�
 
 纯 `forecast_compute` 能力沿调用者工作区核已安装启用的 `sinian-demand-baseline`。原 §5.5 精确十进制算法、缺数据分支、草案与无外写语义保持。结果携算法版本、完整输入 SHA-256 和是否来自实际用户消息的完整 JSON；这些来源事实不核验业务来源、不授予 Consumer 权限，模型声明 `data_mode` 不算来源证明。
 
-本轮开发SDK登记为固定官方 `dsh-v0.2.1-alpha.1` / `5badb15009ae1756c3afe0ae0cef1faafc290ccc` 标准构建。Host/Client类型和真实开发依赖消费同一批官方包，运行peer对应其实际版本。客户端只声明真实slots/locale/settings接口，不保已移除client-runtime alias。Manage资源/MCP的实际implementation和官方Core插件管理继续保持原有独立归属。
+本轮开发SDK登记为固定官方 `dsh-v0.2.1-alpha.1` / `5badb15009ae1756c3afe0ae0cef1faafc290ccc` 标准构建。Host/Client类型和真实开发依赖消费同一批官方包，运行 peer 精确接受已登记的 rc.2 与 alpha.1。资源和预设发布使用两版共同公开接口，完整保留所选 Host 自己的 standard 声明。客户端只声明真实slots/locale/settings接口，不保已移除client-runtime alias。Manage资源/MCP的实际implementation和官方Core插件管理继续保持原有独立归属。
 
 Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用结果中返回可选的 `interpreters` 数组。数组只包含原声明允许、资源仍已注册启用且没有已记录加载错误的解释器。工作台据此选择官方 Session 的预设。GEA 继续检查实际预设和所需 Consumer 权限。
 
@@ -281,3 +281,5 @@ DMS模拟接收资源只有 `business-resources/inventory-dms` 一份。`src/inv
 Skill 资源会话使用当前官方标准组合，保留通用工具与压缩。现有资源列表显示各 Skill 的描述；选择 Skill 不授予业务 Consumer。
 
 预设能力保全使用 `corepack pnpm run check:capabilities`，同一命令已接入 `check:refactor`。它顺序运行官方 registry/真实 Session、官方 InputHub 客户端和跨 GEA 授权 lane；各阶段必须实际执行测试并传播非零。跨仓输入通过 `DSH_GEA_CHECKOUT` 与 `DSH_WORKBENCH_CHECKOUT` 显式指定。项目验证 helper 先接受冻结的 `integration-set.json` 核三仓/锁/Core，再保存新鲜日志、阶段结果和行为回执；能力地图在项目现有 plugin-split-verification references 中维护。源码与离线通过不表示已切换 Native 或真实业务/模型验收。
+
+能力检查可用 `DSH_CORE_CHECKOUT` 选择官方 Core，Host 与 client 测试导入均使用同一输入；`DSH_GEA_CHECKOUT` 与 `DSH_WORKBENCH_CHECKOUT` 指定对应插件。分别对两版执行完整 `check:capabilities`，不以另一版的 standard 声明替换当前 Host。

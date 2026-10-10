@@ -1,0 +1,29 @@
+# Agent Note: Two registered official Core releases
+
+Status: implemented
+
+## Problem
+
+Ordinary installation must accept the same Manage tarball on the registered official rc.2 and alpha.1 releases. Loosening peers alone cannot prove resources, defaults, complete presets or browser behavior.
+
+## Decision
+
+DSH runtime peers accept exactly `0.2.0-rc.2 || 0.2.1-alpha.1`. Cordis, Schemastery and Include accept the exact versions declared by those two Core manifests. Development dependencies and generated type paths continue to use the registered alpha.1 SDK. The GEA delivery descriptor owns the supported Core commit/version set.
+
+Resource and Skill publication use the shared registry and provider interfaces. Standard composition reads the active Host's `readDocument('standard')`, including its disabled rows and user configuration, rather than transplanting another release's declaration. No production version branch or copied SDK is added.
+
+`DSH_CORE_CHECKOUT` selects the official input for the existing capability lanes. Host fixture imports and static SDK imports resolve the same package exports; the browser lane reads that Core's source mapping and redirects existing relative official-source references to the same Core. The native Loader and real Session still run; local completion and controlled business adapters keep their existing offline scope.
+
+This partially supersedes the single-release runtime peer decision in [One registered official SDK](2026-10-04-one-official-sdk.md). Its single development SDK, current exports, removed client-runtime metadata and existing module ownership remain.
+
+The browser fixture uses the official `createConversationStore` and mounts the selected `DefaultConversationViews`. The shared string draft input gives rc.2 its declared persisted format; the real mount owns rc.2 hydration and both releases' persistence. Preparation-time typing uses the real input's `setDraft`, so conflict and cancellation still exercise resident input state. Tests retain each official Host's own developer-tools visibility and time-context declaration rather than require alpha-only behavior from rc.2.
+
+## Alternatives considered
+
+**Relax peers without executing both official inputs.** This would accept packages without proving the required behavior.
+
+**Add version branches or copy an SDK into Manage.** The consumed resource and preset interfaces are common to both releases. Extra runtime state and a second SDK instance would weaken the existing ownership.
+
+## Consequences
+
+The complete capability check runs separately for each selected Core, preserving that Host's standard tools, commands, compaction, pruning and child Agent behavior. Source and offline checks do not prove ordinary PluginManager installation, Native, external business or model execution. The delivery reception owns fresh empty-profile observations for the same tarball on both releases.
