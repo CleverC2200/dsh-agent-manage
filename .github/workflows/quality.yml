@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-gea-plugin
-          ref: 88e027ede8accd31ecaa32ac246a8fd1c147bdc7
+          ref: 0a7663db00657541bbda297a3fa702d6ed285b26
           fetch-depth: 0
           path: candidate/dsh-gea-plugin
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
@@ -78,7 +78,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-agent-workbench
-          ref: 7b746ff9ceeabe81b2d86f94040d663f37c5e2ee
+          ref: 0d98253df33128632d2b927e5c3c6db512647384
           fetch-depth: 0
           path: candidate/dsh-agent-workbench
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-gea-plugin
-          ref: 88e027ede8accd31ecaa32ac246a8fd1c147bdc7
+          ref: 0a7663db00657541bbda297a3fa702d6ed285b26
           fetch-depth: 0
           path: candidate/dsh-gea-plugin
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
@@ -123,7 +123,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-agent-workbench
-          ref: 7b746ff9ceeabe81b2d86f94040d663f37c5e2ee
+          ref: 0d98253df33128632d2b927e5c3c6db512647384
           fetch-depth: 0
           path: candidate/dsh-agent-workbench
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
@@ -131,7 +131,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-gea-plugin
-          ref: 88e027ede8accd31ecaa32ac246a8fd1c147bdc7
+          ref: 0a7663db00657541bbda297a3fa702d6ed285b26
           fetch-depth: 0
           path: candidate/dsh-gea-plugin
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}

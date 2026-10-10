@@ -68,7 +68,7 @@ try {
     if (process.env.QUALITY_EXPECTED_SHA && own.head !== process.env.QUALITY_EXPECTED_SHA) refuse('CANDIDATE_EVENT_MISMATCH', own.head)
     // Admission is frozen and clean. Ordinary incremental development continues
     // to use check:refactor without this clean-candidate requirement.
-    const expectedPeers = { 'dsh-agent-workbench': '7b746ff9ceeabe81b2d86f94040d663f37c5e2ee', 'dsh-gea-plugin': '88e027ede8accd31ecaa32ac246a8fd1c147bdc7' }
+    const expectedPeers = { 'dsh-agent-workbench': '0d98253df33128632d2b927e5c3c6db512647384', 'dsh-gea-plugin': '0a7663db00657541bbda297a3fa702d6ed285b26' }
     for (const name of ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin']) {
       const entries = manifest.repositories.filter(entry => entry.repo === name)
       if (entries.length !== 1) refuse('CANDIDATE_PEER_REQUIRED', name)

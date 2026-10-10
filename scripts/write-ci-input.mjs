@@ -26,9 +26,9 @@ if (values.matrix) {
       {
         core: values['core-head'],
         repositories: [
-          { repo: 'dsh-agent-workbench', path: resolve(root, 'candidate/dsh-agent-workbench'), head: '7b746ff9ceeabe81b2d86f94040d663f37c5e2ee' },
+          { repo: 'dsh-agent-workbench', path: resolve(root, 'candidate/dsh-agent-workbench'), head: '0d98253df33128632d2b927e5c3c6db512647384' },
           { repo: 'dsh-agent-manage', path: resolve(root, 'candidate/dsh-agent-manage'), head: values.sha },
-          { repo: 'dsh-gea-plugin', path: resolve(root, 'candidate/dsh-gea-plugin'), head: '88e027ede8accd31ecaa32ac246a8fd1c147bdc7' }
+          { repo: 'dsh-gea-plugin', path: resolve(root, 'candidate/dsh-gea-plugin'), head: '0a7663db00657541bbda297a3fa702d6ed285b26' }
         ]
       },
       null,
