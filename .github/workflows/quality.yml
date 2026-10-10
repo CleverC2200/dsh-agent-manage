@@ -35,7 +35,7 @@ jobs:
 
           const { PR_BASE, PR_HEAD, GITHUB_OUTPUT } = process.env
           const files = PR_BASE && PR_HEAD
-            ? execFileSync('git', ['diff', '--name-only', '-z', `${PR_BASE}...${PR_HEAD}`], { encoding: 'utf8' }).split('\0').filter(Boolean)
+            ? execFileSync('git', ['diff', '--no-renames', '--name-only', '-z', `${PR_BASE}...${PR_HEAD}`], { encoding: 'utf8' }).split('\0').filter(Boolean)
             : null
           const documentation = path => {
             if (path === 'docs/agent-knowledge.json') return true
