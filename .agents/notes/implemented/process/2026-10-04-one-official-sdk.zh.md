@@ -14,7 +14,7 @@ Host和Client都消费本票登记的固定官方标准包的真实开发依赖�
 
 ## Alternatives considered
 
-**保旧npmSDK只覆盖类型。** 这样真实import与验证目标会不一致。**添加alias或兼容层。** 本项目只支持一个登记的当前release，没有需要额外层的真实caller。
+**保旧npmSDK只覆盖类型。** 这样真实import与验证目标会不一致。**添加alias或兼容层。** 原决定时本项目只有一个登记的运行 release，没有需要额外层的真实 caller。后续两版决定替代该运行范围，继续使用相同公开接口。
 
 ## Consequences
 

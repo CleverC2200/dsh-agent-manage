@@ -14,7 +14,7 @@ The [UI baseline decision](2026-09-29-source-core-ui-baseline.md) retains its Re
 
 ## Alternatives considered
 
-**Keep old published SDKs behind a type-only override.** This would let imports and validation disagree about the actual runtime target. **Add aliases or another compatibility layer.** The project supports one registered current release and has no caller requiring that extra layer.
+**Keep old published SDKs behind a type-only override.** This would let imports and validation disagree about the actual runtime target. **Add aliases or another compatibility layer.** At this original decision, the project supported one registered current runtime release and had no caller requiring that extra layer. The later dual-release decision supersedes that runtime scope while using the same public interfaces.
 
 ## Consequences
 

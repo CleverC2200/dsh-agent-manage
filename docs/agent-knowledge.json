@@ -108,7 +108,9 @@
     ".agents/notes/implemented/simplification/2026-10-04-canonical-storage-only.zh.md",
     ".agents/notes/proposed/feature/2026-10-08-full-chain-company-read.md",
     ".agents/notes/proposed/feature/2026-10-08-full-chain-company-read.zh.md",
-    "schemas/README.md"
+    "schemas/README.md",
+    ".agents/notes/implemented/process/2026-10-10-two-official-core-releases.md",
+    ".agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md"
   ],
   "paths": [
     "src/runtime/business-resources.ts",

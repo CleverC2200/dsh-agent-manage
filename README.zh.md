@@ -23,13 +23,13 @@
 - **沿用项目资源。** 直接发现项目 `.claude/`、`.agents/` 中的技能与代理，无需安装或复制文件。
 - **集中管理服务。** 自行新增 MCP 服务和 LSP 服务，为已安装的服务配置凭据与授权，查看 MCP / LSP 状态，在同一工作区定位服务不可用的原因。
 
-本隔离项目只支持登记的当前核心源码与公开接口。项目命令和套件指令通过异步 `agent/created` 初始化，完成后才开始首次模型请求；旧 `agent/session-start` 监听已删除。
+本隔离项目使用已登记的官方 Core 版本与公开接口。项目命令和套件指令通过异步 `agent/created` 初始化，完成后才开始首次模型请求；旧 `agent/session-start` 监听已删除。
 
 ## 快速开始
 
 本分支的包名为 `dsh-agent-manage`；新 npm 包尚未在本次工作中发布或验证，使用下方 GitHub 来源。替换旧包时应先移除旧 profile 中的插件条目，再安装新包，避免双重加载。当前设置绑定 `dsh-agent-manage` Loader 条目，旧命名空间值不自动导入，已有用户数据留在原位。
 
-工具链与 peer 要求见 [package.json](package.json)。Git 来源需要 Git，资源发现需要宿主技能服务。隔离安装须准备本票登记的官方 SDK 与已审包；下方命令不准备这些输入。详见[宿主要求](docs/guides/usage.zh.md#宿主要求)。
+工具链与 peer 要求见 [package.json](package.json)。Git 来源需要 Git，资源发现需要宿主技能服务。隔离安装须准备本票登记的官方 SDK 与已审包；下方命令不准备这些输入。详见[宿主要求](docs/guides/usage.zh.md#宿主要求)。运行 peer 合同接受已登记的官方 DSH 0.2.0-rc.2 与 0.2.1-alpha.1；[两版 Core 决定](.agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md)持有精确 peer 与能力矩阵。开发期图标、UI primitives 使用本票登记的 alpha.1 SDK，保留 React 去重。
 
 将 `<name>` 替换为你的 profile 名称后安装：
 
