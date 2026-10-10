@@ -33,13 +33,17 @@ node scripts/prepare-official-sdk.mjs --core /absolute/job-root/official-latest-
   --receipt /absolute/job-root/sdk-verified.json
 ```
 
-Preparation clones only Git source, marks its independent ownership and rejects an existing unowned or symlinked destination. Wrong head, changed original lock, dirty source, wrong toolchain or missing output fails. Consumers install only after SDK preparation, with `--frozen-lockfile --ignore-scripts --prefer-offline`; prepare/prepack package behavior is unchanged. Read-only verification may use an existing registered SDK. / 准备只克隆 Git 源码并登记独立归属，拒绝已有无归属目录和链接写入。错误 head、原锁变化、脏源码、工具链错误或缺产物均失败。消费者在 SDK 就绪后冻结安装并关闭隐式脚本，既有 prepare/prepack 行为保持。只读核验可使用已登记 SDK。
+Preparation clones only Git source, marks its independent ownership and rejects an existing unowned or symlinked destination. Checkout preserves committed line endings, including Windows and owned Core clones. Wrong head, changed original lock, dirty source, wrong toolchain or missing output fails. Consumers install only after SDK preparation, with `--frozen-lockfile --ignore-scripts --prefer-offline`; prepare/prepack package behavior is unchanged. Read-only verification may use an existing registered SDK. / 准备只克隆 Git 源码并登记独立归属，拒绝已有无归属目录和链接写入。Windows 和自有 Core 克隆保留已提交的换行字节。错误 head、原锁变化、脏源码、工具链错误或缺产物均失败。消费者在 SDK 就绪后冻结安装并关闭隐式脚本，既有 prepare/prepack 行为保持。只读核验可使用已登记 SDK。
 
 Workbench and GEA consume the same SDK module with their own consumer paths. Optional `withWeb` / `withFlock`, and the existing `prepareOfficialWeb` / `prepareOfficialFlock` interfaces retain their original source and artifact receipts. Windows archives do not request Web or flock. / Workbench 和 GEA 用自己的 consumer 路径复用同一模块。已有 Web/flock 可选准备接口及源码、产物回执保持。Windows 归档不请求 Web 或 flock。
+
+The selected Core's Git-tracked package names determine which full SDK mappings apply. Absent package aliases are listed with their original paths and reasons in `notApplicable`; actual registered packages must retain matching paths, all declared outputs and hashes. The quality typecheck still rejects any real consumer import of an unavailable package. / 所选 Core 的 Git 已跟踪 package.name 决定全量 SDK 映射的适用范围。缺包 alias 及原路径、原因写入 `notApplicable`；真实登记包仍要求匹配路径、完整声明产物和哈希。质量阶段的类型检查继续拒绝消费者对缺包的真实引用。
 
 ## Gates and receipts / 门禁与回执
 
 `check:refactor` includes `check:knowledge`, the actual historical missing-reference negative test, SDK/quality CLI rejection tests and the existing type, lint, format, contract, architecture and capability checks. Quality installs each peer with its own committed lock and disabled scripts: Workbench uses its exact npm toolchain, GEA its declared pnpm. Workbench's public declarations are tracked inputs and are read without rebuilding its library. Peer installation does not prove complete peer quality. The same `quality:ci` command runs locally and on hosted runners. / 综合门禁包含知识检查、真实历史缺引用反例、SDK/quality CLI 拒错测试，以及既有类型、lint、格式、合同、架构和能力检查。质量阶段按各 peer 原锁和工具链关闭脚本安装，读取 Workbench 已 tracked 的公开声明，不重建其 lib。peer 安装不表示完整 peer 质量通过。本地与 hosted runner 使用同一 quality 命令。
+
+After admission and SDK/dependency preparation succeed, quality independently collects `check:refactor`, `test` and `build` in `quality-checks.json`. One failure does not prevent later independent checks; any failed, cancelled or missing execution keeps the command nonzero. Admission or preparation failure stops immediately. / 输入、SDK 与依赖准备通过后，质量阶段独立收集综合门禁、完整测试、构建结果到 `quality-checks.json`。一项失败仍继续后续独立检查；失败、取消或缺执行均保持总体非零。输入或准备失败立即停止。
 
 Windows `--phase archives` preserves the original source-acquisition, zip-bomb and private-archive tests and loads the current Vitest configuration after selected Core preparation. macOS results do not prove hosted Windows or Linux execution. / Windows 保留原三个归档测试，在所选 Core 准备后加载当前 Vitest 配置。本机结果不证明 hosted Windows/Linux 已执行。
 
@@ -50,6 +54,8 @@ The final `candidate-quality` accepts only successful scope and every registered
 ## Security coverage / 安全覆盖
 
 `security-audit` is separate from `candidate-quality`. Its `--phase audit` verifies selected fixed Core source, original lock and toolchain, installs the consumer with the frozen lock and disabled scripts, then runs `pnpm audit --audit-level high --json`. Audit does not need unrelated SDK outputs. High/critical vulnerabilities, tool errors and registry errors remain nonzero; raw logs are uploaded even after failure. / 安全审计和质量聚合分别记录。审计核固定 Core 源码、原锁和工具链，冻结安装消费者后运行原漏洞审计，不要求无关 SDK 产物。高严重度漏洞、工具及 registry 错误保留非零退出，失败原日志仍上传。
+
+The original PR `dependency-review` job separately checks dependency changes and remains independently failing when private-repository features are unavailable. Its coverage is distinct from the consumer audit and quality aggregate. / 原 PR 依赖差异审查 job 单独保留；私有仓库能力不可用时保持独立失败，其覆盖与消费者漏洞审计及质量聚合分别记录。
 
 This covers known vulnerabilities in the consumer lock, including development dependencies. It does not establish dependency-diff, license-policy or linked Core's full dependency-closure coverage. The current private repository's CodeQL upload is blocked by disabled code scanning; the original CodeQL workflow and failure stay visible. A green quality result does not mean security coverage or full CI is green. / 此审计覆盖消费者锁内已知漏洞及开发依赖，依赖差异、许可证及 linked Core 完整安全闭包仍未证明。当前私有仓库 CodeQL 因未启用 code scanning 阻断，原 workflow 和失败保持可见。质量通过不表示安全覆盖或完整 CI 通过。
 

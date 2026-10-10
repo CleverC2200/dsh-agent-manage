@@ -175,12 +175,30 @@ export function verifyOfficialSDK({ core, consumer, coreHead, withWeb = false, w
   const configuration = existsSync(resolve(consumer, 'tsconfig.official-paths.json')) ? 'tsconfig.official-paths.json' : 'tsconfig.official.json'
   const paths = json(resolve(consumer, configuration)).compilerOptions.paths
   const artifacts = new Set()
-  for (const targets of Object.values(paths))
+  const notApplicable = []
+  // Consumer maps cover the full alpha SDK; applicability comes from the selected Git source.
+  const registeredPackages = new Map()
+  for (const file of run('git', ['ls-files', '*package.json'], core, true).split('\n')) {
+    if (!file || !(file.startsWith('packages/') || file.startsWith('vendor/') || file.startsWith('apps/'))) continue
+    const manifest = json(resolve(core, file))
+    if (manifest.name) registeredPackages.set(manifest.name, dirname(file))
+  }
+  for (const [alias, targets] of Object.entries(paths))
     for (const target of targets) {
       const prefix = '../../official-latest-standard/'
       if (/^\.\.\/dsh-agent-(workbench|manage)\//.test(target)) continue
       if (!target.startsWith(prefix)) refuse('SDK_PATH_REJECTED', target)
-      artifacts.add(resolve(core, target.slice(prefix.length)))
+      const packageName = alias.startsWith('@') ? alias.split('/').slice(0, 2).join('/') : alias.split('/')[0]
+      const registeredRoot = registeredPackages.get(packageName)
+      const local = target.slice(prefix.length)
+      if (registeredRoot === undefined) {
+        const manifestPath = resolve(core, local.split('/lib/')[0], 'package.json')
+        if (existsSync(manifestPath)) refuse('SDK_PACKAGE_PATH_MISMATCH', `${alias}: target belongs to ${json(manifestPath).name}`)
+        notApplicable.push({ alias, path: target, reason: 'package absent from the selected fixed Core Git source' })
+        continue
+      }
+      if (!local.startsWith(`${registeredRoot}/lib/`)) refuse('SDK_PACKAGE_PATH_MISMATCH', `${alias}: ${target}; registered ${registeredRoot}`)
+      artifacts.add(resolve(core, local))
     }
   const packages = new Set()
   for (const file of artifacts) {
@@ -212,6 +230,7 @@ export function verifyOfficialSDK({ core, consumer, coreHead, withWeb = false, w
     node: process.version,
     packageManager,
     packages: packages.size,
+    notApplicable,
     artifacts: [...artifacts].sort().map(file => ({ path: relative(core, file).split(sep).join('/'), sha256: hash(file) })),
     ...(withWeb ? { web: verifyWeb(core, coreHead) } : {}),
     ...(withFlock ? { flock: verifyFlock(core, coreHead) } : {})
@@ -311,7 +330,7 @@ export function prepareOfficialSDK(options) {
   if (!existsSync(resolve(core, '.git'))) {
     if (!options.source) refuse('SDK_SOURCE_REQUIRED', 'supply --source for a new independent checkout')
     mkdirSync(dirname(core), { recursive: true })
-    run('git', ['clone', '--no-checkout', '--no-hardlinks', options.source, core], dirname(core))
+    run('git', ['clone', '--config', 'core.autocrlf=false', '--no-checkout', '--no-hardlinks', options.source, core], dirname(core))
     run('git', ['checkout', '--detach', coreCommit], core)
     run('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], core)
   }

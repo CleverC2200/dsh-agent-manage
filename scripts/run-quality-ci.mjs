@@ -1,9 +1,10 @@
-import { readFileSync, appendFileSync } from 'node:fs'
+import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { prepareOfficialSDK, verifyOfficialSDK, verifyOfficialSource } from './prepare-official-sdk.mjs'
+import { runQualityChecks } from './run-quality-checks.mjs'
 
 const { values } = parseArgs({
   options: {
@@ -23,7 +24,8 @@ function run(command, args, cwd = process.cwd()) {
   finalGroup?.verifyUnchanged()
   const windows = process.platform === 'win32' && command === 'corepack'
   const result = spawnSync(windows ? 'corepack.cmd' : command, args, { cwd, stdio: 'inherit', shell: windows })
-  if (result.error || result.status !== 0) refuse('QUALITY_COMMAND_FAILED', `${command} ${args.join(' ')} exited ${result.status}: ${result.error?.message ?? ''}`)
+  if (result.error || result.status !== 0)
+    refuse('QUALITY_COMMAND_FAILED', `${command} ${args.join(' ')} exited ${result.status}: ${result.error?.message ?? result.signal ?? 'no exit result'}`)
 }
 try {
   if (values['final-group-sha256'] !== undefined) {
@@ -110,9 +112,9 @@ try {
     run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'])
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'dependencies-prepared=true\n')
     if (phase === 'quality') {
-      run('corepack', ['pnpm', 'run', 'check:refactor'])
-      run('corepack', ['pnpm', 'run', 'test'])
-      run('corepack', ['pnpm', 'run', 'build'])
+      const checks = await runQualityChecks(['check:refactor', 'test', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) })))
+      writeFileSync('quality-checks.json', JSON.stringify(checks, null, 2) + '\n')
+      if (checks.length !== 3 || checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')
     } else if (phase === 'archives') {
       run('corepack', ['pnpm', 'exec', 'vitest', 'run', 'tests/source-acquisition.test.ts', 'tests/zip-bomb.test.ts', 'tests/private-archive.test.ts'])
     } else {

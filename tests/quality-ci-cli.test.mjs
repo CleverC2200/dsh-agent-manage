@@ -26,6 +26,11 @@ test('quality result does not claim dependency audit coverage', () => {
   assert.equal(call('final', { QUALITY_SCOPE_RESULT: 'success', QUALITY_GATE_RESULT: 'success', QUALITY_WINDOWS_RESULT: 'success', QUALITY_AUDIT_RESULT: 'failure' }).status, 0)
 })
 
+test('hosted quality prepares the declared Workbench npm before peer installation', () => {
+  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  assert.match(workflow, /npm install --global npm@11\.11\.0/)
+})
+
 test('CI input binds the event and registered Core and refuses missing or unregistered Core heads', () => {
   const root = mkdtempSync(join(tmpdir(), 'manage-ci-input-'))
   try {

@@ -66,6 +66,9 @@ jobs:
       run:
         working-directory: candidate/dsh-agent-manage
     steps:
+      - name: Preserve committed source and lock bytes on every runner
+        working-directory: ${{ github.workspace }}
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -92,11 +95,23 @@ jobs:
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
           persist-credentials: false
       - name: Enable declared package managers
-        run: corepack enable
+        run: |
+          npm install --global npm@11.11.0
+          corepack enable
       - name: Bind actual event commit, Core and admitted peers
         run: node scripts/write-ci-input.mjs --root "${{ github.workspace }}" --sha "${{ env.QUALITY_EXPECTED_SHA }}" --core-head "${{ matrix.coreHead }}"
       - name: Prepare independent SDK before consumer installation and run local gates
         run: node scripts/run-quality-ci.mjs --phase ${{ matrix.phase }} --prepare-sdk --core-source https://github.com/deepseek-ai/deepseek-harness.git
+
+      - name: Keep admitted input and independent quality results including failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: quality-results-${{ matrix.os }}-${{ matrix.coreVersion }}
+          path: |
+            candidate-input.json
+            candidate/dsh-agent-manage/quality-checks.json
+          if-no-files-found: warn
 
   security-audit:
     needs: candidate-scope
@@ -155,6 +170,23 @@ jobs:
           name: dependency-audit-${{ matrix.coreVersion }}
           path: dependency-audit.raw.log
           if-no-files-found: warn
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
 
   candidate-quality:
     if: always()
