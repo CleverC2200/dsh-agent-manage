@@ -23,13 +23,15 @@ Staleness contract: local sources are still read in place, but working-tree edit
 - **Client-side lazy loading** (render sources, stream suites) was deferred: it changes the wire contract and UI flow, while the server-side cache removes the actual latency users felt.
 - **Parallelizing suite reads further** was measured to be pointless — the workload is CPU-bound in parsing, not I/O-bound.
 
-## Risks
+## Consequences
 
 - A 30 s staleness window for local-source live edits (documented in both READMEs); anyone editing a SKILL.md and expecting instant market-page updates must refresh or mutate a source.
 - The parse cache keys by path only across scans: a deleted-and-recreated file with identical mtime/size would serve the old verdict — practically unreachable (mtime granularity) but noted as a known stamp weakness.
 - Wholesale cache reset at the cap makes one scan after 20 000 skill files change slightly slower; acceptable at marketplace scales.
 
 ## Verification
+
+The observations below belong to the implementation input and environment recorded at that time. They are not a fresh acceptance result for the current checkout.
 
 - `tests/native-project.test.ts` pins the TTL-0 bypass; the full suite (277 tests) stays green; `check:refactor` green.
 - Measured on the live `~/.dsh/agent-plugins` catalog (~2,650 suites): cold overview ~1.2 s (once per boot/content change), post-toggle overview ~26 ms (was ~1.1 s), warm MCP status ~55 ms, LSP status ~1 ms, post-refresh rescan ~0.44 s (parse cache warm).

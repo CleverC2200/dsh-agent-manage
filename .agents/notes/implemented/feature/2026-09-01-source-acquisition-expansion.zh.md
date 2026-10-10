@@ -23,13 +23,15 @@ Status: implemented
 - **免依赖的系统 `unzip` 路径**被否决：原生 Windows 无 `unzip` 且旗标不一；fflate 零原生依赖且体积小。tar.gz 复用各目标平台自带的系统 `tar`。
 - **压缩包刷新的 ETag/If-None-Match 短路**被推迟：摘要钉已避免钉定源的无效安装，重新下载语义保持简单。
 
-## Risks
+## Consequences
 
 - 压缩包下载有 SSRF 邻近风险：默认仅 HTTPS 且 256 MiB 上限兜底，`allowHttpArchives` 是对内网镜像的显式信任决定。
 - tarball 回退产出的是非 git checkout；其「锁提交」是 sha256 十六进制而非 commit——下游必须把 `lockCommit` 当不透明令牌（现状已经如此）。
 - 更新时的 `reset --hard` 丢弃受管 checkout 的工作树漂移；这对只读输入源是预期语义，但原地改过 checkout 的用户会意外。
 
 ## Verification
+
+以下观察属于实现时记录的输入与环境，不是当前 checkout 的新验收结果。
 
 - `tests/source-acquisition.test.ts`：kind 推断、压缩包 URL 的 id 派生、codeload URL 映射、状态往返、经本地 HTTP 服务器的下载/校验/解压/剥壳/zip-slip/tar.gz 管线、收编列举/幂等收编/git+local 登记/移除保留用户目录。
 - `tests/routes.test.ts` 覆盖路由表；`tests/skills-provider.test.ts` 钉住 local 源的持久化形态。

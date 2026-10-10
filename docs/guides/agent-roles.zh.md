@@ -31,4 +31,4 @@ tools: [read_file, search_files]
 
 模型路由参考 [DSH Subagent Model Router](https://github.com/CypherNaught-0x/DSH-Subagent-Model-Router)，frontmatter 遵循 [Claude Code subagent 定义](https://code.claude.com/docs/en/sub-agents)。
 
-原生资源 host 同时挂载 `skill_reference_read` 与纯 `forecast_compute`。官方 registry 提供当前调用者 scope 的 Skill 正文和资源目录。参考只接受正文链接的相对路径，沿宿主文件读权限；owner 变化或撤销时不返回旧正文。预测计算要求同工作区已安装启用基线 Skill；它只报告草案结果和输入来源，不依赖 GEA Consumer，也不核验业务来源。
+参考读取与纯预测的输入、来源规则见[原生资源](native-resources.zh.md)。

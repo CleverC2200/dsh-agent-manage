@@ -44,10 +44,6 @@ Issue、PR 和文档均可使用英文或简体中文。为了方便审查，如
 
 ### Setup / 安装
 
-```sh
-corepack pnpm install --frozen-lockfile --ignore-scripts
-```
-
 Read [current development](docs/current-development.md) and prepare the registered official SDK before installation. Toolchain and scripts are declared in package.json; a frozen install alone does not prepare the SDK.
 
 先读[当前开发](docs/current-development.md)并准备登记的官方 SDK，再冻结安装。工具链与命令由 package.json 声明；冻结安装本身不生成 SDK。
@@ -70,9 +66,9 @@ corepack pnpm install --frozen-lockfile --ignore-scripts
 
 ## Quality gates / 质量门禁
 
-Run the focused checks that match your change, then run the full gate before opening a PR:
+Choose checks for the change and the task acceptance scope. Source changes use the declared full gate before opening a PR; a document-only review uses reference and script-existence checks unless broader validation is authorized:
 
-请先运行与改动相关的专项检查，再在创建 PR 前运行完整门禁：
+按改动与本票验收范围选择检查。源码改动在创建 PR 前运行声明的完整门禁；仅文档审查先核引用与命令存在性，扩大验证范围按本票授权：
 
 | Command                       | Purpose / 用途                                                                                  |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -83,7 +79,7 @@ Run the focused checks that match your change, then run the full gate before ope
 | `pnpm run test:contract`      | Fast host/client contract tests / 快速宿主/客户端契约测试                                       |
 | `pnpm run test`               | Full Vitest suite / 完整 Vitest 测试                                                            |
 | `pnpm run build`              | Published host and client artifacts / 发布用宿主与客户端构建产物                                |
-| `pnpm run check:refactor`     | Typecheck, lint, format, contract, and architecture gate / 类型、Lint、格式、契约与架构综合门禁 |
+| `pnpm run check:refactor`     | Declared aggregate gate; query package.json for its current members / 综合门禁成员以 package.json 当前声明为准 |
 
 The pull-request workflow runs the refactor gate, the full test suite, and the build automatically. A PR should not be considered ready while a required check is failing.
 
@@ -97,11 +93,13 @@ PR 工作流会自动运行重构门禁、完整测试和构建。任何必需�
 - Keep catalog discovery, install state, and enabled-suite derivation centralized. Avoid introducing a second source of truth.
 - Keep MCP, command, and hook mounts separate because their host APIs and failure semantics differ.
 - Preserve the stable package entry points, persisted `state.json` compatibility, and `/api/agent-plugins/*` routes unless a migration is explicitly designed and tested.
+- Changes across documented dependency boundaries update the rule and its reason; keep the architecture gate effective instead of bypassing it with ignore entries.
 
 - 新插件布局方言应放在 discovery/scanner 代码和 fixture 中；不要让客户端或运行时解析源格式。
 - 保持目录发现、安装状态和启用套件派生逻辑集中，避免引入第二个事实来源。
 - MCP、命令和 hook 挂载应保持分离，因为它们的宿主 API 和失败语义不同。
 - 除非明确设计并测试了迁移方案，否则请保持包入口、持久化 `state.json` 兼容性和 `/api/agent-plugins/*` 路由稳定。
+- 跨越既有依赖边界的改动同步规则和理由；保持架构门禁有效，不以 ignore 绕过。
 
 ### Client and contracts / 客户端与契约
 
@@ -143,14 +141,14 @@ Conventional Commit 类型决定自动化版本号和 CHANGELOG（由 [release-p
 
 ## Pull request process / PR 流程
 
-- Create a branch from `main` and keep the branch focused.
+- For isolated work, create the task branch from its registered frozen commit; use `main` only for a task explicitly targeting upstream contribution.
 - Implement the change with tests and documentation where needed.
 - Run the local quality gates listed above.
 - Fill in [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md), including the motivation, validation commands, and any compatibility or security impact.
 - Open the PR and respond to automated checks and reviewer feedback.
 - Squash or otherwise tidy fix-up commits when requested by the maintainer; do not rewrite a branch that someone else is actively reviewing without coordination.
 
-- 从 `main` 创建分支并保持分支目标单一。
+- 隔离任务从本票登记的冻结提交建立分支；明确面向上游贡献的任务才以 `main` 为起点。
 - 实现改动，并在需要时补充测试和文档。
 - 在本地运行上面的质量门禁。
 - 填写 [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)，说明动机、验证命令以及兼容性或安全影响。
@@ -162,6 +160,18 @@ Conventional Commit 类型决定自动化版本号和 CHANGELOG（由 [release-p
 The package includes built host/client artifacts under `lib/` and `client/`; these outputs are ignored in this checkout. GitHub installation runs the declared prepare build and requires its fixed SDK input. Do not hand-edit generated JavaScript or declarations. Build explicitly when required; preserve the current tgz delivery protocol. Historical publishing workflows do not authorize isolated-project publication.
 
 包包含 lib/client 宿主与客户端产物，但本 checkout 忽略这些输出。GitHub 安装运行声明的 prepare 构建并需要固定 SDK 输入。不要手改生成 JS 或声明；按需要显式构建并保持当前 tgz 协议。历史发布 workflow 不授予隔离项目发布权限。
+
+## Input and lifetime rules / 输入与生命周期
+
+- Preserve the existing shell-free subprocess, shallow clone, shallow fetch/reset update and timeout protocols. Resolve configured package paths within their declared root and retain symlink containment checks.
+- Keep plugin persistence in its own namespace and preserve host files, global configuration and other plugins' private data. Discovery content and user-owned installation state remain separate; user actions control installation and enablement.
+- Sensitive values remain write-only through the credential service; redact state/detail projections and logs. Mutation routes keep same-origin POST and the 64KiB body limit.
+- Invalid third-party units and missing optional peers report their own diagnostics; failed selection or mounting remains explicit. Side effects use the official lifecycle/effect or disposer so stop/update/undefine releases their resources. UI rendering errors retain the existing ErrorBoundary behavior.
+
+- 保留既有无 shell 子进程、浅克隆、浅 fetch/reset 更新和超时协议。配置的包内路径沿声明根解析，保留 symlink 越界检查。
+- 插件持久化沿自有命名空间，保护宿主文件、全局配置和其他插件私有数据。发现内容与用户安装状态分开，安装和启停由用户动作控制。
+- 敏感值经原凭据服务保持只写，状态、详情投影与日志脱敏。变更路由保持同源 POST 与 64KiB 正文限制。
+- 无效第三方单元和缺失的可选 peer 记录自己的诊断，选用与挂载失败明确保留。副作用沿官方生命周期、effect 或 disposer 释放，stop/update/undefine 回收自有资源；界面渲染异常保留既有 ErrorBoundary 行为。
 
 ## Security and responsible disclosure / 安全与负责任披露
 

@@ -14,7 +14,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs-only: ${{ steps.scope.outputs.docs-only }}
+      dependencies: ${{ steps.scope.outputs.dependencies }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Classify the actual PR diff
+        id: scope
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node --input-type=module <<'JS'
+          import { execFileSync } from 'node:child_process'
+          import { appendFileSync } from 'node:fs'
+
+          const { PR_BASE, PR_HEAD, GITHUB_OUTPUT } = process.env
+          const files = PR_BASE && PR_HEAD
+            ? execFileSync('git', ['diff', '--no-renames', '--name-only', '-z', `${PR_BASE}...${PR_HEAD}`], { encoding: 'utf8' }).split('\0').filter(Boolean)
+            : null
+          const documentation = path => {
+            if (path === 'docs/agent-knowledge.json') return true
+            if (['.github/workflows/quality.yml', '.github/workflows/codeql.yml'].includes(path)) return true
+            if (!path.endsWith('.md') || path.startsWith('tests/fixtures/') || path.startsWith('src/inventory-compute/dealer-config/')) return false
+            if (path.startsWith('business-resources/')) return /\/(README|SOURCE)\.md$/.test(path)
+            return true
+          }
+          const dependency = path => /(^|\/)(package\.json|pnpm-lock\.yaml|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-workspace\.yaml|\.npmrc)$/.test(path)
+          const docsOnly = files !== null && files.length > 0 && files.every(documentation)
+          const dependencies = files === null || files.some(dependency)
+          appendFileSync(GITHUB_OUTPUT, `docs-only=${docsOnly}\ndependencies=${dependencies}\n`)
+          console.log(JSON.stringify({ files, docsOnly, dependencies }))
+          JS
+
   windows-archives:
+    needs: changes
+    if: needs.changes.outputs.docs-only != 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -27,30 +66,57 @@ jobs:
       - run: pnpm exec vitest run tests/source-acquisition.test.ts tests/zip-bomb.test.ts tests/private-archive.test.ts
 
   quality:
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+      - name: Check out the shared documentation checker
+        if: needs.changes.outputs.docs-only == 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/dsh-agent-workbench
+          ref: 7b746ff9ceeabe81b2d86f94040d663f37c5e2ee
+          token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+          path: .ci/dsh-agent-workbench
+          persist-credentials: false
       - name: Set up pnpm
+        if: needs.changes.outputs.docs-only != 'true'
         uses: pnpm/action-setup@v6
         # Version is pinned via packageManager field in package.json.
       - name: Set up Node.js
+        if: needs.changes.outputs.docs-only != 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
+      - name: Set up documentation runtime
+        if: needs.changes.outputs.docs-only == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Check documentation knowledge without application dependencies
+        if: needs.changes.outputs.docs-only == 'true'
+        env:
+          DSH_WORKBENCH_CHECKOUT: .ci/dsh-agent-workbench
+        run: node scripts/check-agent-knowledge.mjs
       - name: Install dependencies
+        if: needs.changes.outputs.docs-only != 'true'
         run: pnpm install --frozen-lockfile
       - name: Run full quality gates
+        if: needs.changes.outputs.docs-only != 'true'
         run: pnpm run check:refactor
       - name: Run full tests
+        if: needs.changes.outputs.docs-only != 'true'
         run: pnpm run test
       - name: Build published artifacts
+        if: needs.changes.outputs.docs-only != 'true'
         run: pnpm run build
 
   dependency-review:
     name: Dependency review
-    if: github.event_name == 'pull_request'
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.dependencies == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

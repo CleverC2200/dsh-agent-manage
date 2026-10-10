@@ -4,20 +4,20 @@ Status: implemented
 
 [English](2026-09-29-source-core-ui-baseline.md) | 中文
 
-## 问题
+## Problem
 
 原 UI 开发依赖的图标名与隔离目标核心的导出不同。渲染测试必须使用与目标运行时相同的 UI 库。
 
-## 决定
+## Decision
 
 UI primitives 开发依赖链接到[唯一登记的官方 SDK](2026-10-04-one-official-sdk.zh.md)声明的固定官方核心。该记录持有当前 SDK 与 peer 输入，本记录保留 Regular 图标及 React 去重理由。客户端使用其 Regular 图标导出，运行时 peer 声明选定的 DSH 版本，Vitest 对跨链接的 React 去重。核心提交由工作区另行记录；这是本地开发配置，不是 registry 发布。
 
-## 考虑过的替代方案
+## Alternatives considered
 
 **在测试中模拟缺失图标。** 这会掩盖实际运行兼容问题，无法验证目标库。
 
 **授予运行版本豁免。** 豁免不能证明已删除导出仍然可用。客户端需要针对选定库完成适配和渲染验证。
 
-## 影响
+## Consequences
 
 同级核心必须先安装并构建。现有目录与登录归属不变；本决定不替代 GEA MCP 登录归属决定。完整本地测试覆盖更新后的渲染和既有资源行为。

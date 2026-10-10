@@ -1,6 +1,6 @@
 # 登录后自动接入 GEA MCP
 
-将更新后的 `dsh-gea-plugin` 与 `dsh-agent-manage` 加载到同一 Cordis 服务作用域。市场插件自动等待 GEA 登录，经 GEA 创建获授权的网关业务会话，然后连接 `/ai/gateway/mcp/proxy/mcp`，以 `mcp__gea-gateway__…` 名称注册发现的工具。
+将本票登记的 GEA Host 包 与 `dsh-agent-manage` 加载到同一 Cordis 服务作用域。市场插件自动等待 GEA 登录，经 GEA 创建获授权的网关业务会话，然后连接 `/ai/gateway/mcp/proxy/mcp`，以 `mcp__gea-gateway__…` 名称注册发现的工具。
 
 默认 Consumer 为 `AGENT`，编码取 GEA 部署的 `analysisAgentCode`，仅可见该 Agent 获授权的工具。使用其他**已注册** Consumer 时，在市场插件配置中设置：
 
