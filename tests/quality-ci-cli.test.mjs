@@ -132,3 +132,27 @@ test('CI input binds the event and registered Core and refuses missing or unregi
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('hosted checkout refs and public admission use the reviewed immutable peer commits', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'hosted-peer-pins-'))
+  try {
+    const core = '639ed015397290b3745d163aafe02ffee4aa3f84'
+    const created = spawnSync(process.execPath, ['scripts/write-ci-input.mjs', '--root', directory, '--sha', 'a'.repeat(40), '--core-head', core], { encoding: 'utf8' })
+    assert.equal(created.status, 0, created.stderr)
+    const input = JSON.parse(readFileSync(join(directory, 'candidate-input.json'), 'utf8'))
+    const expected = {
+      'dsh-agent-workbench': '48a232c6bede7ed64f0c439d18b29ffdaa0df03f',
+      'dsh-gea-plugin': '1abc2d208a27d6e3ded541b6741c09ed2eb201ae'
+    }
+    const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+    for (const [repo, head] of Object.entries(expected)) {
+      assert.equal(input.repositories.find(entry => entry.repo === repo)?.head, head)
+      const checkoutRefs = [...workflow.matchAll(new RegExp('repository: CleverC2200/' + repo + '\\s+ref: ([a-f0-9]{40})', 'g'))].map(match => match[1])
+      assert.ok(checkoutRefs.length > 0, repo + ' must be checked out')
+      assert.deepEqual([...new Set(checkoutRefs)], [head], repo + ' checkout and input must agree')
+      assert.ok(readFileSync('scripts/run-quality-ci.mjs', 'utf8').includes("'" + repo + "': '" + head + "'"), repo + ' admission validator must agree')
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
