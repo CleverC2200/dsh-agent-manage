@@ -54,7 +54,8 @@ function createRecordStore(initial: Map<string, unknown> = new Map()): {
 const TOKENS = {
   access_token: 'at-1',
   token_type: 'Bearer',
-  refresh_token: 'rt-1'
+  refresh_token: 'rt-1',
+  issuer: 'https://auth.example/'
 }
 
 afterEach(async () => {
@@ -109,7 +110,7 @@ describe('LoopbackOAuthClientProvider state', () => {
   it('round-trips client information through the record store', async () => {
     const store = createRecordStore()
     const provider = new LoopbackOAuthClientProvider('srv', {}, undefined, () => {}, store, openerStub)
-    await provider.saveClientInformation({ client_id: 'cid-1' })
+    await provider.saveClientInformation({ client_id: 'cid-1', issuer: 'https://auth.example/' })
     await expect(provider.clientInformation()).resolves.toMatchObject({ client_id: 'cid-1' })
   })
 
@@ -122,7 +123,7 @@ describe('LoopbackOAuthClientProvider state', () => {
   it('invalidateCredentials("all") drops the whole record; "tokens" keeps the client', async () => {
     const store = createRecordStore()
     const provider = new LoopbackOAuthClientProvider('srv', {}, undefined, () => {}, store, openerStub)
-    await provider.saveClientInformation({ client_id: 'cid-1' })
+    await provider.saveClientInformation({ client_id: 'cid-1', issuer: 'https://auth.example/' })
     await provider.saveTokens({ ...TOKENS })
 
     await provider.invalidateCredentials('tokens')
