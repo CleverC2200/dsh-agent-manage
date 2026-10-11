@@ -109,13 +109,13 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     userPanelControl?.invalidate()
   })
   const hostLocale: { t: HostTranslate } = { t }
-  const runtime = new RuntimeReconciler(ctx, dataRoot, key => hostLocale.t(key))
+  const runtime = new RuntimeReconciler(ctx, dataRoot, (key, params) => hostLocale.t(key, params))
 
   // User panel stores (skills / commands / agent personas) and their runtime
   // contributions: one extra skill provider plus one command mount registry.
   // 中文：创建用户面板存储，并分别接入技能提供器和命令挂载注册表。
   const panels = createUserPanelStores(userRoot)
-  const userCommands = new UserCommandMountRegistry(ctx, panels.commands, key => hostLocale.t(key))
+  const userCommands = new UserCommandMountRegistry(ctx, panels.commands, (key, params) => hostLocale.t(key, params))
 
   let disposed = false
   let projectCommands: ReturnType<typeof mountProjectCommands> | undefined
@@ -416,7 +416,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   // 中文：用户面板单独使用第二个提供器，面板编辑只失效自身目录贡献。
   ctx.skills.registerProvider(control => {
     userPanelControl = control
-    return new UserPanelSkillProvider(panels.skills, key => hostLocale.t(key))
+    return new UserPanelSkillProvider(panels.skills, (key, params) => hostLocale.t(key, params))
   })
 
   ctx.inject(['tools', 'llm', 'subagents', 'agents'], hostCtx => {
@@ -438,7 +438,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   ctx.inject(['agents'], hostCtx => {
     // 中文：挂载项目命令、MCP、Hook 和套件提示，并以同一 effect 管理销毁。
     hostCtx.effect(() => {
-      const mounted = mountProjectCommands(hostCtx, catalog, key => hostLocale.t(key))
+      const mounted = mountProjectCommands(hostCtx, catalog, (key, params) => hostLocale.t(key, params))
       const mcp = mountProjectMcp(hostCtx, catalog, dataRoot)
       const hooks = mountProjectHooks(hostCtx, catalog)
       const prompts = mountSuiteInstructions(hostCtx, catalog)
