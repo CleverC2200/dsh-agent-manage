@@ -1,9 +1,10 @@
+import { listenLoopback } from './helpers/http-fixture.js'
 import { mkdtemp, writeFile, mkdir, rm, readdir, symlink, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { zipSync } from 'fflate'
 import { createServer } from 'node:http'
 import { archiveInstall, ARCHIVE_MAX_ENTRIES } from '../src/catalog/archive.js'
@@ -26,7 +27,8 @@ describe('archive pre-extraction bounds', () => {
       response.writeHead(200)
       response.end(await readFile(tarball))
     })
-    await new Promise<void>(r => server.listen(0, '127.0.0.1', r))
+    onTestFinished(() => new Promise<void>(resolve => server.close(() => resolve())))
+    await listenLoopback(server)
     const addr = server.address()
     const url = addr !== null && typeof addr === 'object' ? `http://127.0.0.1:${addr.port}/p.tar` : ''
     const { sha256 } = await archiveInstall(url, dest, { allowHttp: true, format: 'tar' })
@@ -50,7 +52,8 @@ describe('archive pre-extraction bounds', () => {
       response.writeHead(200)
       response.end(await readFile(tarball))
     })
-    await new Promise<void>(r => server.listen(0, '127.0.0.1', r))
+    onTestFinished(() => new Promise<void>(resolve => server.close(() => resolve())))
+    await listenLoopback(server)
     const addr = server.address()
     const url = addr !== null && typeof addr === 'object' ? `http://127.0.0.1:${addr.port}/p.tar` : ''
     await expect(archiveInstall(url, dest, { allowHttp: true, format: 'tar' })).rejects.toThrow(/escaping the extraction root/)
@@ -69,7 +72,8 @@ describe('archive pre-extraction bounds', () => {
       response.writeHead(200)
       response.end(await readFile(payload))
     })
-    await new Promise<void>(r => server.listen(0, '127.0.0.1', r))
+    onTestFinished(() => new Promise<void>(resolve => server.close(() => resolve())))
+    await listenLoopback(server)
     const addr = server.address()
     const url = addr !== null && typeof addr === 'object' ? `http://127.0.0.1:${addr.port}/p.zip` : ''
     await expect(archiveInstall(url, dest, { allowHttp: true, format: 'zip' })).rejects.toThrow(/entry limit/)
