@@ -2,7 +2,7 @@ name: candidate-quality
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/quality-ci-maintenance-20261010]
   pull_request:
     types: [opened, synchronize, reopened]
 

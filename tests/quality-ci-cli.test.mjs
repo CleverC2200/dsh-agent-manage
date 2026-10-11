@@ -27,6 +27,20 @@ test('quality result does not claim dependency audit coverage', () => {
   assert.equal(call('final', { QUALITY_SCOPE_RESULT: 'success', QUALITY_GATE_RESULT: 'success', QUALITY_WINDOWS_RESULT: 'success', QUALITY_AUDIT_RESULT: 'failure' }).status, 0)
 })
 
+test('maintenance and main pushes use the read-only candidate quality workflow', () => {
+  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  const pushBranches = workflow
+    .match(/^ {2}push:\n {4}branches: \[([^\]]+)\]/m)?.[1]
+    .split(',')
+    .map(branch => branch.trim())
+  assert.deepEqual(pushBranches, ['main', 'codex/quality-ci-maintenance-20261010'])
+  assert.match(workflow, /pull_request:\n {4}types: \[opened, synchronize, reopened\]/)
+  assert.match(workflow, /permissions:\n {2}contents: read/)
+  assert.doesNotMatch(workflow, /pull_request_target/)
+  assert.match(workflow, /QUALITY_EXPECTED_SHA: \$\{\{ github.event.pull_request.head.sha \|\| github.sha \}\}/)
+  assert.match(workflow, /QUALITY_SCOPE_ALLOWED: \$\{\{ github.event_name != 'pull_request' \|\| github.event.pull_request.head.repo.full_name == github.repository \}\}/)
+})
+
 test('hosted quality prepares the declared Workbench npm before peer installation', () => {
   const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
   assert.match(workflow, /npm install --global npm@11\.11\.0/)

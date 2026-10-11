@@ -2,6 +2,8 @@
 
 `quality:ci` uses the existing Manage SDK preparation module, admits the frozen three-repository input, installs with the committed consumer lock, then runs `check:refactor`, full `test` and `build`. Uncommitted local development continues to use `check:refactor`. / `quality:ci` 复用已有 SDK 准备模块，核冻结三仓输入，按消费者已提交锁安装，再运行综合门禁、完整测试和构建。未提交的本地开发继续使用 `check:refactor`。
 
+The quality workflow accepts pushes to `main` and the exact `codex/quality-ci-maintenance-20261010` branch, and keeps PR `opened`, `synchronize` and `reopened` events. When a PR has merge conflicts, the maintenance candidate uses the same complete push quality gates. A workflow trigger or local configuration contract pass does not prove actual hosted quality success. / 质量工作流接受 `main` 和精确 `codex/quality-ci-maintenance-20261010` 分支的 push，保留 PR 的 `opened`、`synchronize` 和 `reopened` 事件。PR 存在合并冲突时，维护候选使用同一套完整 push 质量门禁。工作流触发或本地配置合同通过不表示实际 hosted 质量通过。
+
 ## Registered source / 登记来源
 
 The adjacent GEA [supported Core registry](../../dsh-gea-plugin/scripts/supported-cores.json) owns both accepted heads, versions, original lock hashes and exact toolchains. Manage does not maintain another Core version table. CI reads its quality and Windows archives matrix from that registry. / 相邻 GEA 登记表持有两版 Core 的提交、版本、原锁哈希和精确工具链。Manage 不另建版本表，CI 从同一表生成质量和 Windows 归档矩阵。
