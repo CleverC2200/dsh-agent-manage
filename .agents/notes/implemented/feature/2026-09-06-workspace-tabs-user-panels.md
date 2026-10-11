@@ -34,7 +34,7 @@ All six tabs use `ResourceCard` and `ResourceCollection` for state rails and gri
 
 Provider and model controls use linked dropdowns backed by the live DSH LLM registry. The `model-catalog` read route returns only public identities, loads models for one selected provider, and bounds waits to ten seconds. Requests are canceled or ignored when the selected provider changes. Unknown saved model ids remain visible and unchanged until the user selects another value. No provider catalogs are fetched during plugin startup.
 
-The plugin-owned MCP bridge already owns suite server lifecycle, so its persisted per-server `enabled` override is exposed as a live switch in the service detail dialog. LSP remains mounted through the plugin's own `dsh-lsp-stdio` registry; host-missing and conflict states are surfaced without pretending the host package supports a native toggle.
+The plugin-owned MCP bridge owns suite server lifecycle. Persisted per-server `enabled` overrides remain configuration facts; the detail dialog exposes retry and confirmed OAuth reset rather than an enable switch. LSP remains mounted through the plugin's own `dsh-lsp-stdio` registry; host-missing and conflict states are surfaced without pretending the host package supports a native toggle.
 
 [Current settings surface](../simplification/2026-09-30-current-settings-surface-only.md) removes the older page adapter and its DOM observer. [Official Workbench entry](../architecture/2026-10-04-official-workbench-entry.md) adds the public main registration while preserving this note's single workspace and six tabs. Closing the workspace releases its component tree and unsaved drafts.
 
@@ -46,7 +46,7 @@ The plugin-owned MCP bridge already owns suite server lifecycle, so its persiste
 - Auto-deleting checkouts on every source removal was rejected: silent `rm -rf` of a directory tree from a dialog default is the wrong side of the tradeoff; the checkbox makes the destructive path explicit while keeping it one click.
 - Keeping the override editor in the suite detail (but disabled when uninstalled) was rejected: two editors for one record invite divergent UX; the MCP panel already owns credentials, retries, and re-authorization.
 
-## Risks
+## Consequences
 
 - `SuiteDetailModal` no longer takes `credentials`; external embedders passing it are unaffected (optional prop), but credential editing from the suite context is now a redirect to the MCP panel.
 - The user-panel routes mount only when the HTTP layer receives the panel stores (`mountSuiteRoutes` third argument); a host that never passes them sees the old route table exactly.
@@ -54,6 +54,8 @@ The plugin-owned MCP bridge already owns suite server lifecycle, so its persiste
 - User skills rank at 600, below every shipped root: a user skill never shadows a suite skill of the same name; renaming is the escape hatch.
 
 ## Verification
+
+The observations below belong to the implementation input and environment recorded at that time. They are not a fresh acceptance result for the current checkout.
 
 - `pnpm run check:refactor` (typecheck, lint, format, routes+contracts tests, dependency-cruiser) green.
 - New tests: `tests/user-panels.test.ts` (store CRUD, disable round-trip, provider discovery, frontmatter helpers), `tests/feedback-tool.test.ts` (local spool, cooldown, body rendering), route tests for conditional panel routes and `deleteCheckout` pass-through, and a source-acquisition case proving an adopted `.sources` checkout is removed under `deleteCheckout: true` while an external `local` directory survives.

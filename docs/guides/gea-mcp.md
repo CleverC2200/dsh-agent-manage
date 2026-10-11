@@ -1,6 +1,6 @@
 # GEA MCP after login
 
-Load the updated `dsh-gea-plugin` and `dsh-agent-manage` in the same Cordis service scope. The market automatically waits for GEA login, creates an authorized gateway business session through GEA, then connects to `/ai/gateway/mcp/proxy/mcp` and discovers tools under `mcp__gea-gateway__…`.
+Load the task-registered GEA Host package and `dsh-agent-manage` in the same Cordis service scope. The market automatically waits for GEA login, creates an authorized gateway business session through GEA, then connects to `/ai/gateway/mcp/proxy/mcp` and discovers tools under `mcp__gea-gateway__…`.
 
 The default Consumer is `AGENT` with the GEA deployment's `analysisAgentCode`. Only that Agent's granted tools are visible. To use another **already registered** Consumer, configure the market plugin:
 

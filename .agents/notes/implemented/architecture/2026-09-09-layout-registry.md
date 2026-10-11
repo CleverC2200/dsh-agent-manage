@@ -28,6 +28,8 @@ The current `agent/created` listener attaches the agent scope and awaits its que
 
 ## Verification
 
+The observations below belong to the implementation input and environment recorded at that time. They are not a fresh acceptance result for the current checkout.
+
 The [subagent catalog decision](2026-09-09-subagent-catalog.md) replaces generated role aliases with exact role IDs, retaining both plain and compound-suffix Markdown definitions. Ordinary `agent-*` skills remain skills. The scan switch has been verified through the real settings UI across page reload and an isolated host-process restart, with its false value persisted in that host's `settings.yaml`.
 
 All three dialects resolve manifests and marketplaces, supported project layouts work through runtime consumers, the switch persists and invalidates cached/in-flight discovery correctly, and unsupported semantics are diagnosed. Tests cover execution, simultaneous projects and switching, not only file counts. Bilingual docs and compatibility matrices agree with current scanner behavior.

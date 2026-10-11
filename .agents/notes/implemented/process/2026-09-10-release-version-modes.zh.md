@@ -8,6 +8,8 @@ Status: implemented
 
 ## Decision
 
+本记录描述仓内发行 workflow，不授予发布权限，也不证明当前远端通过。隔离交付遵循[当前开发](../../../../docs/current-development.md)，发行操作须有明确授权目标。
+
 `npm-publish.yml` 保留自动路径，并新增一个手动输入：
 
 - **自动（默认）**：push 到 `main` 时由 release-please 依据上次发版以来的 conventional commits 推导版本（`feat:` → minor，`fix:`/`perf:` → patch，breaking → major）。无需改任何配置。

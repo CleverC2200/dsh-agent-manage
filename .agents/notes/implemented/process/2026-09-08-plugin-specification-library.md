@@ -33,6 +33,8 @@ The compatibility matrix in [README.md](../../../../README.md) named ten plugin 
 
 ## Verification
 
+The observations below belong to the implementation input and environment recorded at that time. They are not a fresh acceptance result for the current checkout.
+
 - `pnpm exec vitest run tests/schemas.test.ts` — 5 tests: schema count, Ajv 2020-12 compilation of every schema, unique absolute `$id`s, vendored ids pinned to `PLUGIN_SCHEMA_ID` / `MCP_SCHEMA_ID`, and the spec/paired-schema invariant.
 - Every authored schema was compiled and then run against real manifests taken from the cited repositories (ZCode `example-plugin` and the official catalog, Qoder's first-party `security-scan` and the Apify catalog, the Copilot LSP example, the Claude Code docs example and the official catalog entry, the Codex marketplace fixture, the Cursor template and `vercel/vercel-plugin`, the Kimi docs example, and `vercel/vercel-plugin/.plugin/plugin.json`).
 - `pnpm run typecheck`, `pnpm exec eslint tests/schemas.test.ts`, and `pnpm run test` (353 tests) pass.

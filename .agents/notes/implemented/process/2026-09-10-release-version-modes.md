@@ -8,6 +8,8 @@ The release version was decided solely by conventional-commit types. That fails 
 
 ## Decision
 
+This records the checked-in release workflow, not a publishing grant or current remote receipt. Isolated delivery follows [current development](../../../../docs/current-development.md); release operations require an explicitly authorized target.
+
 `npm-publish.yml` keeps the automatic path and adds one manual input:
 
 - **Automatic (default):** a push to `main` lets release-please derive the version from the conventional commits since the last release (`feat:` → minor, `fix:`/`perf:` → patch, breaking → major). No configuration changes.

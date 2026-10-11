@@ -8,7 +8,7 @@ The default Agent entry named the old market package and directed isolated work 
 
 ## Decision
 
-AGENTS links to current-development for current module ownership and fixed-input discovery. Package metadata owns scripts, versions and exports. The Workbench-owned check-agent-knowledge CLI checks the Manage declaration of current references; Manage adds no second checker implementation. Historical design/release/research and archived records remain explicitly historical references.
+AGENTS links to current-development for current module ownership and fixed-input discovery. Package metadata owns scripts, versions and exports. The Workbench-owned check-agent-knowledge CLI checks the Manage declaration of current references; Manage adds no second checker implementation. Historical design/release/research and archived records remain explicitly historical references. Former market release skills are preserved under docs/history outside skill discovery; the old standard path points to current owners and its original snapshot. Package metadata, the fixed SDK and current owners continue to define executable facts.
 
 Current notes update implementation facts and link the current owner. Partial supersession preserves unique reasons. The SDK/icon, workspace, project lifecycle and business-resource decisions stay in their existing owner records; the current source company slice does not become live acceptance.
 

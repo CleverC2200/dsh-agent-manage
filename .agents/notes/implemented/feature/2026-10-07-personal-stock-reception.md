@@ -8,11 +8,11 @@ The retained personal stock candidate has useful monitoring and feedback behavio
 
 ## Decision
 
-Manage publishes the original personal resource identity with an explicit mock evidence rule. Workbench owns the page and fixed input; Core owns the actual Session and unsent conversation draft. The page keeps unsent feedback fields through the existing scoped view state and appends text through the public Core edit event.
+The original reception published the personal resource identity with an explicit mock evidence rule. Current `inventory-personal/capability.json` and `mcp.json` declare nine tables and `governed-sql-read` under the independent Consumer. This source extension replaces the mock-only declaration, while fixed inputs remain offline regression evidence. Workbench owns the page and fixed input; Core owns the actual Session and unsent conversation draft. The page keeps unsent feedback fields through the existing scoped view state and appends text through the public Core edit event.
 
 ## Alternatives considered
 
-**Restore live readers.** This would exceed the authorized data scope, so the current reception artifact has no real reader.
+**Restore live readers.** This would exceed the authorized data scope, so the original mock reception artifact contained no real reader.
 
 **Send the conversation action.** That action queues a model Task. The feedback button inserts plain unsent text instead.
 

@@ -1,5 +1,8 @@
 # Versioning and release policy
 
+This records the repository’s release automation policy. The checked-in workflow is an implementation input, not proof of publishing permissions or a grant to publish from the isolated project. Use this policy only for an explicitly authorized release target; current source tasks use [current development](../current-development.md).
+
+
 Releases are automated through release-please (ADR-0001 companion): conventional commit messages drive the version bump, the CHANGELOG, the git tag, and the npm publish (OIDC trusted publishing, no long-lived token). This ADR fixes the decision rules that make that automation predictable. The single most important rule is the commit-type classification: **only user-visible behavior changes may use `feat:` or `fix:`** — everything else must use a non-bumping type, or every internal tweak becomes a release.
 
 ## Version strategy

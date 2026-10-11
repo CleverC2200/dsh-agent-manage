@@ -2,6 +2,12 @@
 
 Status: implemented
 
+## Problem
+
+Durable Sessions retain preset identities after restart, while package resource definitions have an in-process lifetime. Filesystem copies and fallback personas would split resource ownership.
+
+## Decision
+
 Manage owns one resource interface and the official Skill Provider for enabled package resources. Catalog continues to own Suite source and installed/enabled facts. A live package registers private file references through its effect; browser requests select stable resource identities and carry their absolute native workspace context, never resource-file paths or Consumer overrides. Inventory contains summaries, and only selected prompt/Skill bodies are loaded. Source files and user drafts are never overwritten.
 
 Skill and Prompt selection both confirm the official registry resolution is not broken before committing a selected identity. A failed Skill activation uses the existing preset disposer for rollback, including an already retained mount; failed release keeps its handle for explicit retry. Restoring a broken selected Skill rejects loading and leaves the original recovery index unchanged.
@@ -27,3 +33,11 @@ Production Core Session tests check final tools, commands, automatic and manual 
 Business prompt composition now follows [Business standard capabilities](../architecture/2026-10-09-business-standard-capabilities.md). That decision owns the complete standard declaration, trusted Agent metadata and the separation of general capabilities from business budgets. This note continues to own resource selection, provider lifecycle and recovery.
 
 Full Manage cold-start recovery awaits its existing StandardPreset initialization fiber before reading the selected-resource index. It waits locally, without polling, a fallback preset or a new readiness authority. The public app-boot can return before an injected resource child finishes, so the offline fixture waits for actual `agentResources` publication and verifies the Connection Fetch route. Normal, module-import-gated and clean starts preserve the selected preset, package Skill, final tools/commands/compaction, workspace and prior durable Session; real module failure leaves resources unavailable and retains startup diagnostics.
+
+## Alternatives considered
+
+The [business resource decision](../architecture/2026-09-29-workbench-business-resources.md#alternatives-considered) records why a second registry and arbitrary external paths were rejected. Its filesystem mount is replaced by official publication; package containment and Consumer separation remain.
+
+## Consequences
+
+Selected identities recover definitions without rewriting Session data or business resource bodies. Missing owners fail explicitly; failed release remains retryable. Native installation and business/model acceptance require their own receipts.

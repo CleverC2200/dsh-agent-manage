@@ -8,7 +8,7 @@ Status: implemented
 
 ## Decision
 
-页面保留原规则与完整分页接口，数据来自登记的本地模拟输入。Manage保持原Consumer标识，发布明确标记mock的资源，见[接收记录](../../../../docs/adr/2026-10-07-dealer-mock-reception.zh.md)。
+原接收以登记本地模拟输入保留经销商规则和完整分页接口。当前 `inventory-dealer/capability.json` 与 `mcp.json` 在原 Consumer 下声明十表及 `governed-sql-read`，源码扩展替代仅模拟声明；固定输入继续作为离线证据。[接收记录](../../../../docs/adr/2026-10-07-dealer-mock-reception.zh.md)区分原范围与未完成验收。
 
 ## Alternatives considered
 
@@ -18,4 +18,4 @@ Status: implemented
 
 ## Consequences
 
-当前本地结果可在零业务查询的条件下验证。原票16真实授权与验收仍未关闭。
+原模拟回执只证明固定本地输入，当前读取声明不证明 transport、身份、行权限或正式数据。原票16真实授权与验收仍未关闭。

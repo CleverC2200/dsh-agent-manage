@@ -8,7 +8,7 @@ Status: implemented
 
 ## Decision
 
-AGENTS 指向 current-development，定位当前职责和固定输入。命令、版本与导出归 package 配置。Manage 声明当前引用并调用 Workbench 的 check-agent-knowledge CLI，不另实现检查引擎。历史设计/发行/研究和归档仍作为明确历史参考。
+AGENTS 指向 current-development，定位当前职责和固定输入。命令、版本与导出归 package 配置。Manage 声明当前引用并调用 Workbench 的 check-agent-knowledge CLI，不另实现检查引擎。历史设计/发行/研究和归档仍作为明确历史参考。旧市场发行技能的原件位于 docs/history，退出当前技能发现目录；旧开发规范只指向现行规则与原件。package、固定 SDK 和现行 owner 继续负责执行事实。
 
 现行 Note 更新实现事实并指向当前 owner。部分替代保留独特理由；SDK/图标、工作区、项目生命周期和业务资源仍各归既有记录。当前公司源码接收不升级为真实验收。
 

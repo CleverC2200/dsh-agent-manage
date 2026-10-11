@@ -23,12 +23,14 @@ Status: implemented
 - 在边条旁保留文字徽章被否决：同一状态两套编码必然漂移，且该徽章是标签行里身份标签与状态混排的唯一原因。
 - 图标操作复用 harness `Button` 组件的 `variant: 'ghost'` 被否决：它会给纯图标内容加胶囊外框，恰恰是本次重构要去掉的盒子。
 
-## Risks
+## Consequences
 
 - 开关关闭态轨道变色（`#d1d5db` → `label-dimmed`）；亮色模式下略浅，但暗色模式从此正确适配。
 - 套件卡片现在在卡片点击本已生效的位置显示悬停示能；行为不变，仅可发现性提升。
 
 ## Verification
+
+以下观察属于实现时记录的输入与环境，不是当前 checkout 的新验收结果。
 
 - `grep` 审计：`src/client` 中不再有落在 `design-platform.css` 定义集之外的 `var(--dsw-*)` 引用。
 - 变更后 `pnpm run typecheck`、`lint`、`format:check`、`test:contract` 全绿。

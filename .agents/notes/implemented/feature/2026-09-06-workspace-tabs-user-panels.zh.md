@@ -1,8 +1,8 @@
-# Agent Note：工作区单页六 Tab、用户面板增删改查、套件详情 MCP 只读
+# Agent Note: 工作区单页六 Tab、用户面板增删改查、套件详情 MCP 只读
 
 Status: implemented
 
-## 问题
+## Problem
 
 十一项体验反馈集中到来；其中四项带有值得记录的决策：
 
@@ -11,7 +11,7 @@ Status: implemented
 3. **六个面板以三个并列设置区存在**（市场、MCP、LSP），而技能 / 命令 / 代理角色完全没有管理界面：无处查看用户自建条目、无处不删而禁用、无处新建。
 4. **每个面板各自实现列表/滚动/操作**，滚动条显隐让切换时整列抖动（滚动发生在整个设置列上）。
 
-## 决策
+## Decision
 
 MCP 详情移除启用控件，将重试与 OAuth 重置分开。后端能力决定授权按钮可见性，确认说明清除授权记录的影响，未保存草稿阻止连接操作。刷新原位更新详情；POST 成功和零工具声明均不能单独证明连接恢复。
 
@@ -36,7 +36,7 @@ MCP 详情移除启用控件，将重试与 OAuth 重置分开。后端能力决
 
 [当前设置接口](../simplification/2026-09-30-current-settings-surface-only.zh.md)删除旧页面适配器与 DOM observer；[官方工作台入口](../architecture/2026-10-04-official-workbench-entry.zh.md)增加公开 main 注册，保留本记录的单工作区与六页签决定。关闭工作区释放组件树和未保存草稿。
 
-## 已考虑的替代方案
+## Alternatives considered
 
 - 渲染六条 `settings.section` 被否决：一个插件把侧栏撑成六行，而需求本就是「一页内 Tab 切换」。
 - 把用户条目存进 `state.json` 被否决：技能/命令/角色卡是多行 Markdown 文档；文件形式可 diff、可手编，并与套件面对称。
@@ -44,20 +44,22 @@ MCP 详情移除启用控件，将重试与 OAuth 重置分开。后端能力决
 - 每次删除源都自动删 checkout 被否决：从对话框默认值静默 `rm -rf` 一棵目录树站错了取舍的另一边；勾选框让破坏性路径显式化，同时保持一步可达。
 - 保留详情弹窗内的覆盖编辑器（未安装时禁用）被否决：一份记录两个编辑器必然 UX 分叉；MCP 面板已经拥有凭据、重试与重新授权。
 
-## 风险
+## Consequences
 
 - `SuiteDetailModal` 不再接收 `credentials`；外部嵌入方继续传参不受影响（可选 prop），但套件上下文中的凭据编辑变为跳转 MCP 面板。
 - 仅当 HTTP 层拿到面板存储（`mountSuiteRoutes` 第三参数）时才挂载用户面板路由；不传的宿主看到的路由表与从前完全一致。
 - `scrollbar-gutter: stable` 在每个面板保留 gutter；不支持的浏览器退化为自动 gutter（抖动回归，但无破坏）。
 - 用户技能 rank 600，低于所有内建根：同名时用户技能永不遮蔽套件技能；改名是逃生通道。
 
-## 验证
+## Verification
+
+以下观察属于实现时记录的输入与环境，不是当前 checkout 的新验收结果。
 
 - `pnpm run check:refactor`（typecheck、lint、format、routes+contracts 测试、dependency-cruiser）全绿。
 - 新增测试：`tests/user-panels.test.ts`（存储 CRUD、禁用往返、提供者发现、frontmatter 助手）、`tests/feedback-tool.test.ts`（本地卷宗、冷却、正文渲染）、条件面板路由与 `deleteCheckout` 透传的路由测试，以及证明收编的 `.sources` 检出在 `deleteCheckout: true` 下被删除、而外部 `local` 目录存活下来的 source-acquisition 用例。
 - 全量 `pnpm run test`：46 个文件、300+ 测试全绿。
 
-## 关联
+## Related
 
 - 扩展 [2026-09-01-source-acquisition-expansion](2026-09-01-source-acquisition-expansion.md) 的删除语义（`.sources/<id>` 检出获得可选物理删除，仅 `.sources/` 之外的本地目录受保护）。
 

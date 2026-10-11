@@ -24,4 +24,6 @@ Status: implemented
 
 ## Verification
 
+以下观察属于实现时记录的输入与环境，不是当前 checkout 的新验收结果。
+
 `tests/catalog-runtime.test.ts`覆盖零启用冷启动、来源选择、并发合并和失效。类型检查、lint 及针对性 Vitest 测试通过。

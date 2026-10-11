@@ -1,5 +1,5 @@
-# Dealer mock reception
+# Dealer reception
 
-The next inventory batch preserves the dealer rules from Workbench 67674ec and resource content from Manage aa5dc746. The current installed declaration uses the same consumer identity, an explicit mock flag, empty data tables and empty MCP capabilities. The page loads its registered local fixture through the original complete-paging interface. It never requests Host SQL or creates a model task.
+The [dealer Agent Note](../../.agents/notes/implemented/feature/2026-10-07-dealer-reception.md) owns the reception decision. Original fixed inputs retain Workbench `67674ec` and Manage `aa5dc746` provenance. The original mock declaration had no data tables or MCP capability. Current source declares the original Consumer’s ten read-only tables and governed SQL; the fixture proves its original local input only.
 
-Page visibility, resource selection and resource enablement use their existing owners independently. View recovery stores authored filters and local unsubmitted drafts under the current Core Session; query facts are read again. Moving to real data requires the original ticket 16 authorization and acceptance conditions.
+Page visibility, resource selection and enablement remain separate facts. Session view recovery stores filters and local unfinished drafts; query facts require a fresh read. Original ticket 16 real interface, identity, data, row-grant and Native acceptance remain open.

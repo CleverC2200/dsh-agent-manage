@@ -8,6 +8,10 @@ GEA reparsed Skill frontmatter after Manage had already parsed it, so YAML block
 
 ## Decision
 
+Current publication uses `BusinessResources` and the catalog Skill parser. [Selected native resources](../feature/2026-10-04-selected-business-resources.md) replaces the filesystem mount, and [async release ownership](../bug-fix/2026-10-09-async-result-ownership.md) owns failed Core preset disposal. No current `loadBusinessResources` file mount writes or cleans source Skill files.
+
+## Original file-mount decision
+
 `loadBusinessResources` returns `skillName` and `skillDescription` from the existing catalog parser. Disposal preserves ENOENT and later edits, but reports other read failures without releasing the owner claim. The same disposer can complete after the file is repaired.
 
 ## Alternatives considered
@@ -18,6 +22,6 @@ GEA reparsed Skill frontmatter after Manage had already parsed it, so YAML block
 
 ## Consequences
 
-GEA consumes parsed metadata. A failed cleanup can block remounting until cleanup succeeds or the isolated process is restarted; it does not automatically bypass ownership. This is local isolated implementation, not production release.
+The current catalog parser supplies Skill metadata to native publication. The original file-mount cleanup could block remounting until cleanup succeeded or the isolated process restarted; that historical behavior did not grant permission to bypass ownership. This is local isolated implementation, not production release.
 
-[Async result and release ownership](../bug-fix/2026-10-09-async-result-ownership.md) extends this rule to Core preset releases in `BusinessResources`; the file cleanup and metadata decisions here remain unchanged.
+[Async result and release ownership](../bug-fix/2026-10-09-async-result-ownership.md) extends this rule to Core preset releases in `BusinessResources`; the original file-cleanup rationale remains historical, while metadata continues to use the shared parser.

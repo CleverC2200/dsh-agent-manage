@@ -9,7 +9,7 @@ The plugin settings card includes **Scan project Agent layouts** (`scanProjectLa
 Codex project MCP is read from `.codex/config.toml`. Its enabled flags, environment references, tool allow/deny lists and timeouts are preserved; unsupported fields are diagnosed. Project LSP is not mounted because the host registry is global; this plugin does not modify host APIs.
 
 - Node.js 22 or later, a DSH Web profile and the host skill service (`ctx.skills`). Git sources require Git.
-- The current package declares DSH peer packages in the `0.2.1-alpha.1` range. This is a dependency declaration, not a verified minimum version for every feature or historical Web shell.
+- The current peer declarations are in [package.json](../../package.json). This is a dependency declaration, not a verified minimum version for every feature or historical Web shell.
 - Slash commands require the host command service. `subagents_run` role delegation requires agents, tools, LLM and subagent services; it applies the saved persona, provider, model, reasoning effort and tool restrictions to a real subagent and waits for its result.
 - MCP uses the built-in bridge by default. Host-client compatibility mode additionally needs `@deepseek-ai/dsh-mcp-client`; hooks need `@deepseek-ai/dsh-hooks-claude-code`.
 - LSP mounting needs `@deepseek-ai/dsh-lsp` and `@deepseek-ai/dsh-lsp-stdio`; expose `@deepseek-ai/dsh-tool-lsp` in the profile to let the agent call the tool. Language-server executables must also be available.
@@ -29,7 +29,7 @@ For a GitHub installation:
 dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
-npm packages contain built `lib/` and `client/` artifacts. GitHub installs build them through `prepare` and require Node.js and pnpm on the installing machine.
+npm packages contain built `lib/` and `client/` artifacts. GitHub installs run `prepare` and require the registered official SDK at the declared relative links. Follow [current development](../current-development.md) for isolated input preparation; a GitHub install alone does not create those artifacts.
 
 If managing the profile manually, install the package and include `dsh-agent-manage` in the profile's `dsh.profile.bundles` array, alongside its existing bundles. The package's `cordis.patch.yml` supplies the plugin row. Keep the dependency version written by your package manager.
 
@@ -48,7 +48,7 @@ Sources persist in `~/.dsh/agent-plugins/state.json`; cordis config seeds them (
       - { id: knowledge-work-plugins, url: 'https://github.com/anthropics/knowledge-work-plugins' }
 ```
 
-A `local: true` source reads the directory in place (live working tree; never deleted on removal). Discovery results are cached for up to 30 seconds and reused across install/enable/panel actions, so working-tree edits of local sources appear on the next cache refresh (any source mutation, the refresh button, or the 30 s TTL). Startup mounts and user skill listing scan only sources containing enabled installs; browsing the market still discovers all configured sources. Concurrent reads share discovery work. Startup does not fetch Git updates; source refresh is explicit. An `archive` source downloads an HTTPS `.zip` / `.tar.gz` / `.tgz` / `.tar` payload (256 MiB cap, optional `sha256` integrity pin) and extracts it as the checkout.
+A `local: true` source reads the directory in place. External local directories are preserved; a managed `.sources/<id>` checkout is deleted only with the removal dialog’s explicit delete-files choice. Discovery results are cached for up to 30 seconds and reused across install/enable/panel actions, so working-tree edits of local sources appear on the next cache refresh (any source mutation, the refresh button, or the 30 s TTL). Startup mounts and user skill listing scan only sources containing enabled installs; browsing the market still discovers all configured sources. Concurrent reads share discovery work. Startup does not fetch Git updates; source refresh is explicit. An `archive` source downloads an HTTPS `.zip` / `.tar.gz` / `.tgz` / `.tar` payload (256 MiB cap, optional `sha256` integrity pin) and extracts it as the checkout.
 
 ### Manual clones, adoption, and network tuning
 
@@ -101,7 +101,7 @@ The **MCP enhancement** setting (`mcpEnhanced`, default `true`) selects the buil
 
 Use references such as `"env": { "FOO_TOKEN": "${FOO_TOKEN}" }`. Missing references block startup with `needs-credentials`. Host credential writes are write-only and do not put literal tokens into suite state or override JSON. Read-only launch-environment values must be changed before restarting DSH.
 
-`mcp.json` uses strict schema validation. `.mcp.json` supports common compatibility forms: top-level server maps, `http` / `local` transport aliases, omitted type inferred from `command`, and `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}` and `${NAME:-default}` placeholders. Invalid servers are diagnosed and skipped rather than started with partial configuration.
+Portable agent-plugins v1 `mcp.json` uses strict schema validation; schema-less native files are interpreted under their dialect contract. `.mcp.json` supports common compatibility forms: top-level server maps, `http` / `local` transport aliases, omitted type inferred from `command`, and `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_DATA}` and `${NAME:-default}` placeholders. Invalid servers are diagnosed and skipped rather than started with partial configuration.
 
 ### Hooks and LSP
 
@@ -119,7 +119,7 @@ For vulnerability reports, follow the [security policy](../../SECURITY.md).
 
 ### Experience feedback
 
-The `feedbackEnabled` setting defaults to `true`. When the host provides tools and settings, it enables the model-facing `report_market_issue` tool. With `GITHUB_TOKEN` or `GH_TOKEN`, submissions create issues in this plugin's GitHub repository; otherwise they are saved under `data/feedback/`. Submissions have a 60-second cooldown. Disable the setting in the plugin configuration card to unregister the tool.
+The `feedbackEnabled` setting defaults to `true`. When the host provides tools and SettingsForms, it enables the model-facing `report_market_issue` tool. With `GITHUB_TOKEN` or `GH_TOKEN`, submissions create issues in this plugin's GitHub repository; otherwise they are saved under `data/feedback/`. Submissions have a 60-second cooldown. Disable the setting in the plugin configuration card to unregister the tool.
 
 The workspace tabs share a saved grid/list preference; search and filters remain resource-specific. Add and refresh are header actions. MCP Add validates a JSON server declaration and persists it under `~/.dsh/agent-plugins/data/mcp-servers.json`, then mounts it through the plugin bridge. Invalid declarations and duplicate names are rejected. Existing host-owned MCP services remain observation-only.
 
@@ -145,6 +145,6 @@ Manual download-region selection follows the saved host setting without reopenin
 
 Private GitHub suites can use an explicit archive source such as `https://api.github.com/repos/OWNER/REPO/zipball/REF`. The desktop administrator supplies `DSH_AGENT_MANAGE_GITHUB_TOKEN` in the launch environment. Authorization is sent only to the initial HTTPS GitHub API request, never to redirect destinations; it is not stored in source settings. Download failures preserve installed content.
 
-### Native resource workspace context
+### Native resources
 
-Workbench discovers resources with GET /api/agent-manage/resources?cwd=... and selects with POST /api/agent-manage/resources/select using { id, cwd }. cwd is the same absolute native workspace that owns the new Session. Manage passes it to the existing Skill registry, so project Skills participate in discovery and body lookup without copying resources. Missing or relative paths return INVALID_AGENT_RESOURCE_WORKSPACE.
+Use [native resources](native-resources.md) for workspace context, selected identities, reference reads and calculation provenance.

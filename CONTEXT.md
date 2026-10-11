@@ -23,3 +23,19 @@ The user-owned record that says whether a suite is installed and enabled, togeth
 ## User and project dimensions
 
 The user dimension applies across sessions. The project dimension applies to a workspace project. The two dimensions can use the same layout dialects but have different ownership and precedence rules.
+
+## Business resource
+
+An original business Prompt, Skill and capability declaration owned by Manage. Native selection publishes it through Core's public preset/Skill interfaces; the original source body remains with its owner. A business resource is separate from a Workbench page and from GEA authorization.
+
+## Selected resource identity
+
+The persisted identity of a selected business resource, used to recover its native declaration. It is not resource prose, a Session draft, a credential or an authorization receipt.
+
+## Page interpreter
+
+An explicitly declared Agent identity allowed to interpret a business page. Manage validates resource ownership and enablement; Workbench associates the page with an official Core Session. Interpretation and analysis initiation do not grant business submission or writes.
+
+## Consumer
+
+The Consumer identifier whose grants GEA Host checks for governed access, distinct from the current business user subject, tenant/environment and local Agent preset. A local preset, enabled Agent or visible page does not grant Consumer permissions. Login and credentials belong to GEA Host.
