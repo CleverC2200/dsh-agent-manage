@@ -1,0 +1,8 @@
+{
+  "name": "sinian-demand-forecast",
+  "version": "0.1.4",
+  "description": "思念食品需求预测：语义核对、候选范围、基线计算与质量复核 / Sinian demand forecast",
+  "agents": "./agents",
+  "skills": "./skills",
+  "commands": "./commands"
+}

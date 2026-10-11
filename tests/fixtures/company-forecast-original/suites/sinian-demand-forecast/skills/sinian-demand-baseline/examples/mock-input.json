@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "data_mode": "mock",
+  "snapshot_at": "2026-09-12T12:00:00+08:00",
+  "base_month": "2026-09",
+  "target_month": "2026-10",
+  "prior_base_month": "2025-09",
+  "prior_target_month": "2025-10",
+  "period_mapping_confirmation": "mock-only: current Sep to target Oct, prior-year Sep/Oct; not business approval",
+  "candidate_policy_confirmation": "mock-only: explicit three-row candidate fixture; no production shrinking applied",
+  "records": [
+    {
+      "customer_id": "MOCK-C001",
+      "sku_id": "MOCK-SKU001",
+      "unit": "件",
+      "source_ref": "synthetic-fixture:regular-example",
+      "eligible": true,
+      "product_kind": "regular",
+      "seasonal": false,
+      "quality_issues": [],
+      "base_plan_qty": 1000,
+      "base_actual_to_cutoff_qty": 800,
+      "prior_base_actual_qty": 800,
+      "prior_target_actual_qty": 1200,
+      "target_yoy_growth": 0.1,
+      "target_mom_growth": 0.2
+    },
+    {
+      "customer_id": "MOCK-C001",
+      "sku_id": "MOCK-NEW001",
+      "unit": "件",
+      "source_ref": "synthetic-fixture:new-product",
+      "eligible": true,
+      "product_kind": "new",
+      "seasonal": false,
+      "quality_issues": [],
+      "base_plan_qty": 1000,
+      "base_actual_to_cutoff_qty": 800,
+      "prior_base_actual_qty": 800,
+      "prior_target_actual_qty": 1200,
+      "target_yoy_growth": 0.1,
+      "target_mom_growth": 0.2
+    },
+    {
+      "customer_id": "MOCK-C001",
+      "sku_id": "MOCK-SEASON001",
+      "unit": "件",
+      "source_ref": "synthetic-fixture:seasonal",
+      "eligible": true,
+      "product_kind": "regular",
+      "seasonal": true,
+      "quality_issues": [],
+      "base_plan_qty": 1000,
+      "base_actual_to_cutoff_qty": 800,
+      "prior_base_actual_qty": 800,
+      "prior_target_actual_qty": 1200,
+      "target_yoy_growth": 0.1,
+      "target_mom_growth": 0.2
+    }
+  ]
+}

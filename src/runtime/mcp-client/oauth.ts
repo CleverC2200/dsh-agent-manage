@@ -205,9 +205,10 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     }
   }
 
-  /** 读取已注册 OAuth 客户端信息。 */
+  /** 未绑定 issuer 的旧记录保留在存储中，但不发送，交给 SDK 重新注册和授权。 */
   async clientInformation(): Promise<OAuthClientInformationMixed | undefined> {
-    return (await this.load()).clientInformation
+    const client = (await this.load()).clientInformation
+    return typeof client?.issuer === 'string' && client.issuer.length > 0 ? client : undefined
   }
 
   /** 持久化服务端返回的客户端注册信息。 */
@@ -217,9 +218,10 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     })
   }
 
-  /** 读取当前 OAuth token，缺失时交给 SDK 触发授权。 */
+  /** 只返回绑定 issuer 的 token，缺少归属时交给 SDK 触发重新授权。 */
   async tokens(): Promise<OAuthTokens | undefined> {
-    return (await this.load()).tokens
+    const tokens = (await this.load()).tokens
+    return typeof tokens?.issuer === 'string' && tokens.issuer.length > 0 ? tokens : undefined
   }
 
   /** 保存新 token，并保留刷新所需的全部字段。 */

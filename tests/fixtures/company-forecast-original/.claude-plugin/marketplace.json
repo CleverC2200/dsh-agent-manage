@@ -1,0 +1,33 @@
+{
+  "name": "company-agent-suites",
+  "owner": {
+    "name": "CleverC2200"
+  },
+  "plugins": [
+    {
+      "name": "business-analysis-starter",
+      "description": "业务需求分析示例套件 / Business analysis starter",
+      "source": "./suites/business-analysis-starter"
+    },
+    {
+      "name": "sinian-demand-forecast",
+      "description": "思念食品需求预测：业务语义、基线计算、质量复核 / Sinian demand forecast",
+      "source": "./suites/sinian-demand-forecast"
+    },
+    {
+      "name": "sinian-base-safety-stock",
+      "description": "基地安全库存：原业务对话规则、只读分析角色与命令",
+      "source": "./suites/sinian-base-safety-stock"
+    },
+    {
+      "name": "sinian-branch-inventory",
+      "description": "分仓库存：原业务对话规则、只读分析角色与命令",
+      "source": "./suites/sinian-branch-inventory"
+    },
+    {
+      "name": "sinian-full-chain-inventory",
+      "description": "全链路库存：原业务对话规则、只读分析角色与命令",
+      "source": "./suites/sinian-full-chain-inventory"
+    }
+  ]
+}

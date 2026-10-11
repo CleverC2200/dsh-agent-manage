@@ -1,3 +1,4 @@
+import { listenLoopback } from './helpers/http-fixture.js'
 import { createServer, type Server } from 'node:http'
 import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises'
@@ -118,7 +119,7 @@ describe('archive acquisition', () => {
       response.writeHead(200, { 'content-type': 'application/zip', 'content-length': String(payload.byteLength) })
       response.end(payload)
     })
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    await listenLoopback(server)
     const address = server.address()
     if (address !== null && typeof address === 'object') baseUrl = `http://127.0.0.1:${address.port}`
   })
@@ -154,7 +155,7 @@ describe('archive acquisition', () => {
       response.writeHead(200, { 'content-length': String(payload.byteLength) })
       response.end(payload)
     })
-    await new Promise<void>(resolve => server2.listen(0, '127.0.0.1', resolve))
+    await listenLoopback(server2)
     const address = server2.address()
     const url = address !== null && typeof address === 'object' ? `http://127.0.0.1:${address.port}/slip.zip` : ''
     await expect(archiveInstall(url, dest, { allowHttp: true })).rejects.toThrow(/escapes the extraction root/)
@@ -173,7 +174,7 @@ describe('archive acquisition', () => {
       response.writeHead(200)
       response.end(await readFile(tarball))
     })
-    await new Promise<void>(resolve => server3.listen(0, '127.0.0.1', resolve))
+    await listenLoopback(server3)
     const address = server3.address()
     const url = address !== null && typeof address === 'object' ? `http://127.0.0.1:${address.port}/payload.tar.gz` : ''
     const { sha256 } = await archiveInstall(url, dest, { allowHttp: true })
@@ -231,7 +232,7 @@ describe('archive acquisition', () => {
       response.writeHead(200)
       response.end(await readFile(tarball))
     })
-    await new Promise<void>(resolve => server4.listen(0, '127.0.0.1', resolve))
+    await listenLoopback(server4)
     const address = server4.address()
     const url = address !== null && typeof address === 'object' ? `http://127.0.0.1:${address.port}/tar.gz/refs/heads/main` : ''
     expect(archiveFormatOf(url)).toBeUndefined()
