@@ -250,7 +250,7 @@ Manage 提供 `skill_reference_read`，只读当前模型可见 Skill 正文明�
 
 纯 `forecast_compute` 能力沿调用者工作区核已安装启用的 `sinian-demand-baseline`。原 §5.5 精确十进制算法、缺数据分支、草案与无外写语义保持。结果携算法版本、完整输入 SHA-256 和是否来自实际用户消息的完整 JSON；这些来源事实不核验业务来源、不授予 Consumer 权限，模型声明 `data_mode` 不算来源证明。
 
-本轮开发SDK登记为固定官方 `dsh-v0.2.1-alpha.1` / `5badb15009ae1756c3afe0ae0cef1faafc290ccc` 标准构建。Host/Client类型和真实开发依赖消费同一批官方包，运行peer对应其实际版本。客户端只声明真实slots/locale/settings接口，不保已移除client-runtime alias。Manage资源/MCP的实际implementation和官方Core插件管理继续保持原有独立归属。
+本轮开发 SDK 登记为自有私有安全候选 `8ff14441ac932b55cf1f14b1715128eaa162b1ec`，基于官方 `dsh-v0.2.1-alpha.1`。原官方源码和客户端保持保护。Host/Client类型和真实开发依赖消费同一批官方包，运行peer对应其实际版本。客户端只声明真实slots/locale/settings接口，不保已移除client-runtime alias。Manage资源/MCP的实际implementation和官方Core插件管理继续保持原有独立归属。
 
 Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用结果中返回可选的 `interpreters` 数组。数组只包含原声明允许、资源仍已注册启用且没有已记录加载错误的解释器。工作台据此选择官方 Session 的预设。GEA 继续检查实际预设和所需 Consumer 权限。
 

@@ -5,9 +5,9 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 
-// Expectations are the admitted official input, not supplied by a PR's manifest.
-const coreCommit = '5badb15009ae1756c3afe0ae0cef1faafc290ccc'
-const coreLock = '2893d71a9ef07d2d72d47b2199e581b9e8d90638a15ee151908eebf69dfc637c'
+// Expectations are the admitted private security input, not supplied by a PR's manifest.
+const coreCommit = '8ff14441ac932b55cf1f14b1715128eaa162b1ec'
+const coreLock = '10da992dcf0e2a50cdf94c3335adf18c63beca7fdaa0d4adf649f0a5428dd266'
 const hash = file => createHash('sha256').update(readFileSync(file)).digest('hex')
 const json = file => JSON.parse(readFileSync(file, 'utf8'))
 function refuse(code, detail) {
@@ -31,14 +31,14 @@ function source(core, writing) {
   if (run('git', ['rev-parse', 'HEAD'], core, true) !== coreCommit) refuse('SDK_CORE_MISMATCH', core)
   if (hash(resolve(core, 'pnpm-lock.yaml')) !== coreLock) refuse('SDK_LOCK_MISMATCH', core)
   if (run('git', ['status', '--porcelain', '--untracked-files=normal'], core, true)) refuse('SDK_DIRTY_SOURCE', core)
-  if (json(resolve(core, 'package.json')).packageManager !== 'pnpm@11.7.0') refuse('SDK_TOOLCHAIN_MISMATCH', core)
+  if (json(resolve(core, 'package.json')).packageManager !== 'pnpm@11.11.0') refuse('SDK_TOOLCHAIN_MISMATCH', core)
   if (Number(process.versions.node.split('.')[0]) !== 24) refuse('SDK_TOOLCHAIN_MISMATCH', `Node ${process.versions.node}; expected 24`)
 }
 
 /** Verify fixed Git source and original lock without requiring or preparing SDK outputs. */
 export function verifyOfficialSource(core) {
   source(core, false)
-  return { root: realpathSync(core), commit: coreCommit, lockSha256: coreLock, packageManager: 'pnpm@11.7.0' }
+  return { root: realpathSync(core), commit: coreCommit, lockSha256: coreLock, packageManager: 'pnpm@11.11.0' }
 }
 
 function ownedSource(core) {
@@ -46,7 +46,7 @@ function ownedSource(core) {
   if (owner.status !== 0 || owner.stdout.trim() !== 'independent-fixed-core')
     refuse('SDK_PRIVATE_CHECKOUT_REQUIRED', 'use --source with a new checkout; an existing shared SDK is read-only')
   source(core, true)
-  if (run('corepack', ['pnpm', '--version'], core, true) !== '11.7.0') refuse('SDK_TOOLCHAIN_MISMATCH', 'pnpm')
+  if (run('corepack', ['pnpm', '--version'], core, true) !== '11.11.0') refuse('SDK_TOOLCHAIN_MISMATCH', 'pnpm')
 }
 
 const webScript = 'pnpm --filter @deepseek-ai/dsh-web-frontend run build'
@@ -199,7 +199,7 @@ export function verifyOfficialSDK({ core, consumer, withWeb = false, withFlock =
     platform: process.platform,
     arch: process.arch,
     node: process.version,
-    packageManager: 'pnpm@11.7.0',
+    packageManager: 'pnpm@11.11.0',
     packages: packages.size,
     artifacts: [...artifacts].sort().map(file => ({ path: relative(core, file).split(sep).join('/'), sha256: hash(file) })),
     ...(withWeb ? { web: verifyWeb(core) } : {}),

@@ -12,7 +12,7 @@ before(() => {
   checkout = mkdtempSync(join(tmpdir(), 'manage-sdk-input-'))
   const result = spawnSync('git', ['clone', '--quiet', '--no-hardlinks', '--no-checkout', resolve('../../official-latest-standard'), checkout], { encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
-  assert.equal(spawnSync('git', ['checkout', '--quiet', '--detach', '5badb15009ae1756c3afe0ae0cef1faafc290ccc'], { cwd: checkout }).status, 0)
+  assert.equal(spawnSync('git', ['checkout', '--quiet', '--detach', '8ff14441ac932b55cf1f14b1715128eaa162b1ec'], { cwd: checkout }).status, 0)
 })
 after(() => rmSync(checkout, { recursive: true, force: true }))
 
