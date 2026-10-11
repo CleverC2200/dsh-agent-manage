@@ -1,3 +1,5 @@
+const { builtinModules } = require('node:module')
+
 module.exports = {
   forbidden: [
     {
@@ -16,7 +18,7 @@ module.exports = {
       name: 'client-cannot-import-node',
       severity: 'error',
       from: { path: '^src/client' },
-      to: { path: '^node:' }
+      to: { dependencyTypes: ['core'] }
     },
     {
       name: 'catalog-cannot-import-host-or-client',
@@ -40,7 +42,7 @@ module.exports = {
   options: {
     doNotFollow: { path: 'node_modules' },
     exclude: '(^|/)node_modules/',
-    includeOnly: '^src',
+    includeOnly: `^(src(?:/|$)|node:|(?:${builtinModules.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$)`,
     tsPreCompilationDeps: true
   }
 }
