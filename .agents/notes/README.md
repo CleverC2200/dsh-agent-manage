@@ -18,7 +18,6 @@ The date in the filename is when the topic was **first proposed** (per git histo
 
 The active lifecycle tree is the working inventory: browse its lifecycle/class folders or search the repository. Do not add a centralized `INDEX.md` — the tree and search own discovery, and an index is a second cache that goes stale. Low-future-value implemented records move to the separate frozen [`archived/`](archived/AGENTS.md) tree described below.
 
-
 Implementation status records the source decision. Test counts, timings and runtime observations belong to their recorded input and environment; they do not certify the current checkout. Current acceptance requires a receipt tied to its commit, configuration and environment.
 
 ## Classification
@@ -32,7 +31,7 @@ Each Agent Note belongs to exactly one path-encoded class from this closed set; 
 | `simplification` | Removes code, behavior, or surface area without adding a capability.                                                    |
 | `architecture`   | A structural decision about the **shipped source** — how `src/` layers relate, what the runtime vocabulary is.          |
 | `process`        | Tooling, policy, or workflow **around** the code — release flow, gates, CI, the package manager — not runtime behavior. |
-| `performance`    | Measured latency, throughput or resource-cost decisions. |
+| `performance`    | Measured latency, throughput or resource-cost decisions.                                                                |
 | `testing`        | Test infrastructure and strategy.                                                                                       |
 
 The `architecture` / `process` line: **architecture** is about the source we ship; **process** is the surrounding tooling and workflow. (`refactor` is deliberately absent — it overlaps `simplification`, whose discriminator, "does observable behavior change?", already covers it.)
