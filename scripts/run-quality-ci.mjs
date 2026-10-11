@@ -24,6 +24,7 @@ function run(command, args, cwd = process.cwd()) {
   const windows = process.platform === 'win32' && command === 'corepack'
   const result = spawnSync(windows ? 'corepack.cmd' : command, args, { cwd, stdio: 'inherit', shell: windows })
   if (result.error || result.status !== 0) refuse('QUALITY_COMMAND_FAILED', `${command} ${args.join(' ')} exited ${result.status}: ${result.error?.message ?? ''}`)
+  finalGroup?.verifyUnchanged()
 }
 try {
   if (values['final-group-sha256'] !== undefined) {
@@ -110,6 +111,7 @@ try {
       run('corepack', ['pnpm', 'audit', '--audit-level', 'high', '--json'])
     }
   }
+  finalGroup?.verifyUnchanged()
   console.log(JSON.stringify({ status: 'passed', phase, platform: process.platform, runtime: 'not-observed' }))
 } catch (error) {
   console.error(error.message)
