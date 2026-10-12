@@ -164,11 +164,11 @@ jobs:
 
       - name: Prepare independent SDK and run all frozen joint group gates
         if: github.event_name == 'workflow_dispatch'
-        shell: bash
         env:
           QUALITY_PHASE: ${{ matrix.phase }}
           INPUT_SHA256: ${{ steps.group.outputs.input-sha256 }}
-        run: node scripts/run-quality-ci.mjs --phase "$QUALITY_PHASE" --prepare-sdk --core-source "$GITHUB_WORKSPACE/source/official-core" --final-group-sha256 "$INPUT_SHA256"
+        run: |
+          node --input-type=module -e "import { spawnSync } from 'node:child_process'; import { resolve } from 'node:path'; const result = spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', process.env.QUALITY_PHASE, '--prepare-sdk', '--core-source', resolve(process.env.GITHUB_WORKSPACE, 'source/official-core'), '--final-group-sha256', process.env.INPUT_SHA256], { stdio: 'inherit' }); if (result.error) throw result.error; process.exitCode = result.status ?? 1;"
 
       - name: Keep admitted input and independent quality results including failure
         if: always()
