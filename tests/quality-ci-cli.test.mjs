@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import process from 'node:process'
 import { mkdtempSync, readFileSync, existsSync, rmSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs'
@@ -85,7 +86,7 @@ test('quality requests real flock preparation and verification; archives and aud
           const stop = (method, options) => { throw Error('SDK_BOUNDARY:' + JSON.stringify({ method, options })) };
           export const prepareOfficialSDK = options => stop('prepare', options);
           export const verifyOfficialSDK = options => stop('verify', options);
-          export const verifyOfficialSource = (core, options) => stop('source', options);
+          export const verifyOfficialSource = (core, options) => stop('source', { ...options, observedCore: core });
         \` };
       } })`
     )
@@ -104,6 +105,8 @@ test('quality requests real flock preparation and verification; archives and aud
             input,
             '--final-group-sha256',
             'a'.repeat(64),
+            '--core-source',
+            join(root, 'source', 'official-core'),
             ...(prepare ? ['--prepare-sdk'] : [])
           ],
           { cwd: own.path, encoding: 'utf8', env: { ...process.env, QUALITY_EXPECTED_SHA: own.head } }
@@ -114,6 +117,7 @@ test('quality requests real flock preparation and verification; archives and aud
         assert.equal(boundary.method, phase === 'audit' ? 'source' : prepare ? 'prepare' : 'verify')
         assert.equal(boundary.options.coreHead, coreHead)
         assert.equal(boundary.options.withFlock, phase === 'quality')
+        if (phase === 'audit') assert.equal(boundary.options.observedCore, join(root, 'source', 'official-core'))
       }
     }
   } finally {
@@ -161,7 +165,7 @@ test('hosted checkout refs and public admission use the reviewed immutable peer 
     const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
     for (const [repo, head] of Object.entries(expected)) {
       assert.equal(input.repositories.find(entry => entry.repo === repo)?.head, head)
-      const checkoutRefs = [...workflow.matchAll(new RegExp('repository: CleverC2200/' + repo + '\\s+ref: ([a-f0-9]{40})', 'g'))].map(match => match[1])
+      const checkoutRefs = [...workflow.matchAll(new RegExp('repository: CleverC2200/' + repo + '\\s+ref: \\$\\{\\{ (?:steps.group|needs.candidate-scope).outputs.[a-z-]+ \\|\\| \'([a-f0-9]{40})\' \\}\\}', 'g'))].map(match => match[1])
       assert.ok(checkoutRefs.length > 0, repo + ' must be checked out')
       assert.deepEqual([...new Set(checkoutRefs)], [head], repo + ' checkout and input must agree')
       assert.ok(readFileSync('scripts/run-quality-ci.mjs', 'utf8').includes("'" + repo + "': '" + head + "'"), repo + ' admission validator must agree')
@@ -169,4 +173,51 @@ test('hosted checkout refs and public admission use the reviewed immutable peer 
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
+})
+
+
+test('joint dispatch refuses incomplete, malformed and event-mismatched commits before emitting a group', () => {
+  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  const validator = workflow.match(/node --input-type=module <<'NODE'\n([\s\S]*?)\n {10}NODE/)?.[1].split('\n').map(line => line.slice(10)).join('\n')
+  assert.ok(validator, 'scope must validate the dispatch group before peer checkout')
+  const root = mkdtempSync(join(tmpdir(), 'manage-dispatch-scope-'))
+  try {
+    const valid = { GEA_SHA: 'a'.repeat(40), WORKBENCH_SHA: 'b'.repeat(40), MANAGE_SHA: 'c'.repeat(40), EXPECTED_SHA: 'c'.repeat(40) }
+    const output = join(root, 'output')
+    for (const change of [
+      { GEA_SHA: '' },
+      { WORKBENCH_SHA: 'main' },
+      { MANAGE_SHA: 'C'.repeat(40) },
+      { GEA_SHA: 'a'.repeat(40) + '\n' },
+      { GEA_SHA: '$(touch unsafe)' },
+      { EXPECTED_SHA: 'd'.repeat(40) }
+    ]) {
+      const result = spawnSync(process.execPath, ['--input-type=module', '-e', validator], { encoding: 'utf8', env: { ...process.env, ...valid, ...change, GITHUB_OUTPUT: output } })
+      assert.notEqual(result.status, 0)
+      assert.match(result.stderr, /CANDIDATE_GROUP_REQUIRED|CANDIDATE_EVENT_MISMATCH/)
+      assert.equal(existsSync(output), false)
+    }
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', validator], { encoding: 'utf8', env: { ...process.env, ...valid, GITHUB_OUTPUT: output } })
+    assert.equal(result.status, 0, result.stderr)
+    const id = createHash('sha256').update(JSON.stringify([['dsh-agent-manage', valid.MANAGE_SHA], ['dsh-agent-workbench', valid.WORKBENCH_SHA], ['dsh-gea-plugin', valid.GEA_SHA]])).digest('hex')
+    assert.equal(readFileSync(output, 'utf8'), `gea-sha=${valid.GEA_SHA}\nworkbench-sha=${valid.WORKBENCH_SHA}\nmanage-sha=${valid.MANAGE_SHA}\ngroup-id=${id}\n`)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('joint dispatch isolates in-flight runs and keeps all original Core, Windows and audit lanes', () => {
+  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  for (const key of ['gea_sha', 'workbench_sha', 'manage_sha']) {
+    assert.match(workflow, new RegExp('      ' + key + ':\\n        description: [^\\n]+\\n        required: true\\n        type: string'))
+  }
+  assert.match(workflow, /github.event_name == 'workflow_dispatch' && github.run_id/)
+  assert.match(workflow, /cancel-in-progress: \$\{\{ github.event_name != 'workflow_dispatch' \}\}/)
+  assert.match(workflow, /QUALITY_PHASE: \$\{\{ matrix.phase \}\}/)
+  assert.match(workflow, /--phase "\$QUALITY_PHASE" --prepare-sdk --core-source "\$GITHUB_WORKSPACE\/source\/official-core" --final-group-sha256 "\$INPUT_SHA256"/)
+  assert.match(workflow, /--phase audit --core-source "\$GITHUB_WORKSPACE\/source\/official-core" --final-group-sha256 "\$INPUT_SHA256"/)
+  assert.match(workflow, /path: source\/official-core/)
+  assert.match(workflow, /candidate-group\.json/)
+  assert.match(workflow, /dependency-review:[\s\S]*if: github.event_name == 'pull_request'/)
+  assert.doesNotMatch(workflow, /continue-on-error|pull_request_target/)
 })

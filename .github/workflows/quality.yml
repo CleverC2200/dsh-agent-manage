@@ -1,17 +1,32 @@
 name: candidate-quality
+run-name: "${{ github.event_name == 'workflow_dispatch' && 'Joint frozen three-repository quality' || 'Source event quality' }} — ${{ github.sha }}"
 
 on:
   push:
     branches: [main, codex/quality-ci-maintenance-20261010]
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      gea_sha:
+        description: Frozen GEA commit
+        required: true
+        type: string
+      workbench_sha:
+        description: Frozen Workbench commit
+        required: true
+        type: string
+      manage_sha:
+        description: Frozen Manage commit
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: candidate-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: candidate-quality-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   candidate-scope:
@@ -19,6 +34,10 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       audit-matrix: ${{ steps.matrix.outputs.audit-matrix }}
+      gea-sha: ${{ steps.group.outputs.gea-sha }}
+      workbench-sha: ${{ steps.group.outputs.workbench-sha }}
+      manage-sha: ${{ steps.group.outputs.manage-sha }}
+      group-id: ${{ steps.group.outputs.group-id }}
     defaults:
       run:
         working-directory: candidate/dsh-agent-manage
@@ -36,6 +55,24 @@ jobs:
         env:
           QUALITY_SCOPE_ALLOWED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         run: node scripts/run-quality-ci.mjs --phase scope
+      - name: Validate frozen joint dispatch commits
+        if: github.event_name == 'workflow_dispatch'
+        id: group
+        env:
+          GEA_SHA: ${{ inputs.gea_sha }}
+          WORKBENCH_SHA: ${{ inputs.workbench_sha }}
+          MANAGE_SHA: ${{ inputs.manage_sha }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs'
+          import { createHash } from 'node:crypto'
+          const group = [['dsh-agent-manage', process.env.MANAGE_SHA], ['dsh-agent-workbench', process.env.WORKBENCH_SHA], ['dsh-gea-plugin', process.env.GEA_SHA]]
+          if (group.some(([, head]) => head?.length !== 40 || !/^[a-f0-9]{40}$/.test(head ?? ''))) throw Error('CANDIDATE_GROUP_REQUIRED: three full lowercase commit SHAs')
+          if (process.env.MANAGE_SHA !== process.env.EXPECTED_SHA) throw Error('CANDIDATE_EVENT_MISMATCH: Manage dispatch head')
+          const groupId = createHash('sha256').update(JSON.stringify(group)).digest('hex')
+          appendFileSync(process.env.GITHUB_OUTPUT, `gea-sha=${process.env.GEA_SHA}\nworkbench-sha=${process.env.WORKBENCH_SHA}\nmanage-sha=${process.env.MANAGE_SHA}\ngroup-id=${groupId}\n`)
+          NODE
       - name: Require explicit read-only peer credential
         env:
           PEER_READ_TOKEN: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
@@ -44,7 +81,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-gea-plugin
-          ref: 1abc2d208a27d6e3ded541b6741c09ed2eb201ae
+          ref: ${{ steps.group.outputs.gea-sha || '1abc2d208a27d6e3ded541b6741c09ed2eb201ae' }}
           fetch-depth: 0
           path: candidate/dsh-gea-plugin
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
@@ -81,7 +118,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-agent-workbench
-          ref: 48a232c6bede7ed64f0c439d18b29ffdaa0df03f
+          ref: ${{ needs.candidate-scope.outputs.workbench-sha || '48a232c6bede7ed64f0c439d18b29ffdaa0df03f' }}
           fetch-depth: 0
           path: candidate/dsh-agent-workbench
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
@@ -89,19 +126,49 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-gea-plugin
-          ref: 1abc2d208a27d6e3ded541b6741c09ed2eb201ae
+          ref: ${{ needs.candidate-scope.outputs.gea-sha || '1abc2d208a27d6e3ded541b6741c09ed2eb201ae' }}
           fetch-depth: 0
           path: candidate/dsh-gea-plugin
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+          persist-credentials: false
+      - name: Observe registered Core source for the frozen dispatch group
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v7
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: ${{ matrix.coreHead }}
+          fetch-depth: 0
+          path: source/official-core
           persist-credentials: false
       - name: Enable declared package managers
         run: |
           npm install --global npm@11.11.0
           corepack enable
       - name: Bind actual event commit, Core and admitted peers
+        if: github.event_name != 'workflow_dispatch'
         run: node scripts/write-ci-input.mjs --root "${{ github.workspace }}" --sha "${{ env.QUALITY_EXPECTED_SHA }}" --core-head "${{ matrix.coreHead }}"
+      - name: Bind frozen joint group to the actual event and observed Core
+        if: github.event_name == 'workflow_dispatch'
+        id: group
+        shell: bash
+        env:
+          QUALITY_GROUP_GEA: ${{ needs.candidate-scope.outputs.gea-sha }}
+          QUALITY_GROUP_WORKBENCH: ${{ needs.candidate-scope.outputs.workbench-sha }}
+          QUALITY_GROUP_MANAGE: ${{ needs.candidate-scope.outputs.manage-sha }}
+          QUALITY_GROUP_ID: ${{ needs.candidate-scope.outputs.group-id }}
+          CORE_HEAD: ${{ matrix.coreHead }}
+        run: node ../dsh-agent-workbench/scripts/write-hosted-group.mjs --repo dsh-agent-manage --root "$GITHUB_WORKSPACE" --core-head "$CORE_HEAD"
       - name: Prepare independent SDK before consumer installation and run local gates
+        if: github.event_name != 'workflow_dispatch'
         run: node scripts/run-quality-ci.mjs --phase ${{ matrix.phase }} --prepare-sdk --core-source https://github.com/deepseek-ai/deepseek-harness.git
+
+      - name: Prepare independent SDK and run all frozen joint group gates
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          QUALITY_PHASE: ${{ matrix.phase }}
+          INPUT_SHA256: ${{ steps.group.outputs.input-sha256 }}
+        run: node scripts/run-quality-ci.mjs --phase "$QUALITY_PHASE" --prepare-sdk --core-source "$GITHUB_WORKSPACE/source/official-core" --final-group-sha256 "$INPUT_SHA256"
 
       - name: Keep admitted input and independent quality results including failure
         if: always()
@@ -110,6 +177,7 @@ jobs:
           name: quality-results-${{ matrix.os }}-${{ matrix.coreVersion }}
           path: |
             candidate-input.json
+            candidate-group.json
             candidate/dsh-agent-manage/quality-checks.json
           if-no-files-found: warn
 
@@ -138,7 +206,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-agent-workbench
-          ref: 48a232c6bede7ed64f0c439d18b29ffdaa0df03f
+          ref: ${{ needs.candidate-scope.outputs.workbench-sha || '48a232c6bede7ed64f0c439d18b29ffdaa0df03f' }}
           fetch-depth: 0
           path: candidate/dsh-agent-workbench
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
@@ -146,29 +214,61 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: CleverC2200/dsh-gea-plugin
-          ref: 1abc2d208a27d6e3ded541b6741c09ed2eb201ae
+          ref: ${{ needs.candidate-scope.outputs.gea-sha || '1abc2d208a27d6e3ded541b6741c09ed2eb201ae' }}
           fetch-depth: 0
           path: candidate/dsh-gea-plugin
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
           persist-credentials: false
       - uses: actions/checkout@v7
+        if: github.event_name != 'workflow_dispatch'
         with:
           repository: deepseek-ai/deepseek-harness
           ref: ${{ matrix.coreHead }}
           fetch-depth: 0
           path: official-latest-standard
           persist-credentials: false
+      - name: Observe registered Core source for the frozen dispatch group
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v7
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: ${{ matrix.coreHead }}
+          fetch-depth: 0
+          path: source/official-core
+          persist-credentials: false
       - run: corepack enable
       - name: Bind actual event commit, Core and admitted peers
+        if: github.event_name != 'workflow_dispatch'
         run: node scripts/write-ci-input.mjs --root "${{ github.workspace }}" --sha "${{ env.QUALITY_EXPECTED_SHA }}" --core-head "${{ matrix.coreHead }}"
+      - name: Bind frozen joint group to the actual event and observed Core
+        if: github.event_name == 'workflow_dispatch'
+        id: group
+        shell: bash
+        env:
+          QUALITY_GROUP_GEA: ${{ needs.candidate-scope.outputs.gea-sha }}
+          QUALITY_GROUP_WORKBENCH: ${{ needs.candidate-scope.outputs.workbench-sha }}
+          QUALITY_GROUP_MANAGE: ${{ needs.candidate-scope.outputs.manage-sha }}
+          QUALITY_GROUP_ID: ${{ needs.candidate-scope.outputs.group-id }}
+          CORE_HEAD: ${{ matrix.coreHead }}
+        run: node ../dsh-agent-workbench/scripts/write-hosted-group.mjs --repo dsh-agent-manage --root "$GITHUB_WORKSPACE" --core-head "$CORE_HEAD"
       - name: Audit dependencies with fixed source and original consumer lock
+        if: github.event_name != 'workflow_dispatch'
         run: node scripts/run-quality-ci.mjs --phase audit > "${{ github.workspace }}/dependency-audit.raw.log" 2>&1
+      - name: Audit frozen joint group with observed Core and original consumer lock
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          INPUT_SHA256: ${{ steps.group.outputs.input-sha256 }}
+        run: node scripts/run-quality-ci.mjs --phase audit --core-source "$GITHUB_WORKSPACE/source/official-core" --final-group-sha256 "$INPUT_SHA256" > "$GITHUB_WORKSPACE/dependency-audit.raw.log" 2>&1
       - name: Keep audit result including failure
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: dependency-audit-${{ matrix.coreVersion }}
-          path: dependency-audit.raw.log
+          path: |
+            dependency-audit.raw.log
+            candidate-input.json
+            candidate-group.json
           if-no-files-found: warn
 
   dependency-review:

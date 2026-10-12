@@ -86,7 +86,7 @@ try {
     const options = { core, consumer: process.cwd(), coreHead: manifest.core, source: values['core-source'], withFlock: phase === 'quality' }
     process.env.DSH_CORE_CHECKOUT = core
     finalGroup?.verifyUnchanged()
-    if (phase === 'audit') verifyOfficialSource(core, options)
+    if (phase === 'audit') verifyOfficialSource(finalGroup ? resolve(values['core-source']) : core, options)
     else if (values['prepare-sdk']) prepareOfficialSDK(options)
     else verifyOfficialSDK(options)
     if (phase !== 'audit')
