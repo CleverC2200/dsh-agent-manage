@@ -10,9 +10,13 @@ describe('experience feedback tool', () => {
   beforeEach(() => {
     vi.stubEnv('GITHUB_TOKEN', undefined)
     vi.stubEnv('GH_TOKEN', undefined)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('EXTERNAL_FEEDBACK_DISABLED_IN_TEST')))
   })
   afterEach(() => {
+    const blockedFetch = fetch
+    vi.unstubAllGlobals()
     vi.unstubAllEnvs()
+    expect(blockedFetch).not.toHaveBeenCalled()
     for (const key of ['GITHUB_TOKEN', 'GH_TOKEN'] as const) expect(process.env[key] === originalTokens[key]).toBe(true)
   })
   it('spools reports locally when no GitHub token is present', async () => {
