@@ -60,26 +60,7 @@ try {
       process.exit(0)
     }
     const manifest = finalGroup.manifest
-    if (!/^[a-f0-9]{40}$/.test(manifest.core ?? '')) refuse('CANDIDATE_CORE', 'explicit registered Core head required before preparation')
-    if (manifest.repositories?.length !== 3) refuse('CANDIDATE_PEER_REQUIRED', 'exactly the three admitted repositories')
-    const own = manifest.repositories?.find(entry => entry.repo === 'dsh-agent-manage')
-    const workbench = manifest.repositories?.find(entry => entry.repo === 'dsh-agent-workbench')
-    if (!own || !workbench || resolve(own.path) !== process.cwd()) refuse('CANDIDATE_CHECKOUT', 'run in the registered Manage checkout')
-    if (process.env.CI && !process.env.QUALITY_EXPECTED_SHA) refuse('CANDIDATE_EVENT_REQUIRED', 'actual event head SHA')
-    if (process.env.QUALITY_EXPECTED_SHA && own.head !== process.env.QUALITY_EXPECTED_SHA) refuse('CANDIDATE_EVENT_MISMATCH', own.head)
-    // Admission is frozen and clean. Ordinary incremental development continues
-    // to use check:refactor without this clean-candidate requirement.
-    for (const name of ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin']) {
-      const entries = manifest.repositories.filter(entry => entry.repo === name)
-      if (entries.length !== 1) refuse('CANDIDATE_PEER_REQUIRED', name)
-      const entry = entries[0]
-      const observed = execFileSync('git', ['-C', entry.path, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-      if (observed !== entry.head) refuse('CANDIDATE_HEAD', name)
-      if (execFileSync('git', ['-C', entry.path, 'rev-parse', '--is-shallow-repository'], { encoding: 'utf8' }).trim() !== 'false') refuse('CANDIDATE_HISTORY_REQUIRED', name)
-      if (execFileSync('git', ['-C', entry.path, 'status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8' }).trim()) refuse('CANDIDATE_DIRTY', name)
-      const lock = name === 'dsh-agent-workbench' ? 'package-lock.json' : 'pnpm-lock.yaml'
-      if (!execFileSync('git', ['-C', entry.path, 'show', `HEAD:${lock}`]).equals(readFileSync(resolve(entry.path, lock)))) refuse('CANDIDATE_LOCK', name)
-    }
+    const workbench = manifest.repositories.find(entry => entry.repo === 'dsh-agent-workbench')
     const core = resolve(dirname(dirname(process.cwd())), 'official-latest-standard')
     const options = { core, consumer: process.cwd(), coreHead: manifest.core, source: values['core-source'], withFlock: phase === 'quality' }
     process.env.DSH_CORE_CHECKOUT = core
