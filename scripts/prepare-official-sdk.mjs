@@ -11,8 +11,9 @@ import { createRequire } from 'node:module'
 // GEA owns the registered Core source, original lock and toolchain authority.
 function supportedCore(coreHead) {
   const registry = json(new URL('../../dsh-gea-plugin/scripts/supported-cores.json', import.meta.url))
-  const selected = registry.find(entry => (coreHead === undefined ? entry.version === '0.2.1-alpha.1' : entry.head === coreHead))
-  if (!selected) refuse('SDK_CORE_UNSUPPORTED', coreHead ?? 'default alpha Core')
+  const selectedHead = coreHead === undefined ? json(new URL('../../dsh-gea-plugin/scripts/current-core.json', import.meta.url)).adaptation : coreHead
+  const selected = registry.find(entry => entry.head === selectedHead)
+  if (!selected) refuse('SDK_CORE_UNSUPPORTED', selectedHead ?? 'registered current adaptation required')
   if (
     !/^[a-f0-9]{40}$/.test(selected.head) ||
     !/^[a-f0-9]{64}$/.test(selected.lockSha256) ||

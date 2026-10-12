@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { resolve, join } from 'node:path'
-import { mkdtempSync, existsSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, existsSync, rmSync, readFileSync, writeFileSync, mkdirSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import process from 'node:process'
 import { pathToFileURL, URL } from 'node:url'
@@ -25,7 +25,7 @@ before(() => {
 after(() => rmSync(checkout, { recursive: true, force: true }))
 
 test('unprepared fixed Core refuses SDK verification without creating outputs', () => {
-  const result = spawnSync(process.execPath, ['scripts/prepare-official-sdk.mjs', '--core', checkout, '--consumer', process.cwd()], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['scripts/prepare-official-sdk.mjs', '--core', checkout, '--consumer', process.cwd(), '--core-head', alpha.head], { encoding: 'utf8' })
   assert.notEqual(result.status, 0)
   assert.match(result.stderr, /SDK_MATERIAL_REQUIRED/)
   assert.equal(existsSync(join(checkout, 'node_modules')), false)
@@ -126,6 +126,7 @@ test('cold SDK clone preserves lock bytes even when the runner defaults to CRLF'
     const upstream = join(fixture, 'upstream')
     const ordinary = join(fixture, 'ordinary')
     const owned = join(fixture, 'owned')
+    const defaultOwned = join(fixture, 'default-owned')
     mkdirSync(upstream)
     const git = (args, cwd = upstream) => {
       const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
@@ -148,6 +149,12 @@ test('cold SDK clone preserves lock bytes even when the runner defaults to CRLF'
     git(['checkout', '--quiet', '--detach', head], owned)
     assert.equal(readFileSync(join(owned, 'pnpm-lock.yaml'), 'utf8'), 'lockfileVersion: 9.0\n')
     assert.equal(existsSync(join(owned, 'node_modules')), false)
+    const current = JSON.parse(readFileSync(new URL('../../dsh-gea-plugin/scripts/current-core.json', import.meta.url), 'utf8'))
+    assert.throws(
+      () => prepareOfficialSDK({ core: defaultOwned, consumer: process.cwd(), source: upstream }),
+      error => error.message.includes(`SDK_COMMAND_FAILED: git checkout --detach ${current.adaptation}`)
+    )
+    assert.equal(existsSync(join(defaultOwned, 'node_modules')), false)
   } finally {
     if (originalGlobalConfig === undefined) delete process.env.GIT_CONFIG_GLOBAL
     else process.env.GIT_CONFIG_GLOBAL = originalGlobalConfig
@@ -161,4 +168,24 @@ test('registered private security candidate retains source admission without cre
   const missing = join(checkout, '.git', 'missing-private-core')
   assert.throws(() => verifyOfficialSource(missing, { coreHead: privateCore.head }), /SDK_SOURCE_REQUIRED/)
   assert.equal(existsSync(missing), false)
+})
+
+test('omitted Core head selects the registered current adaptation while explicit official axes remain admitted', () => {
+  const current = JSON.parse(readFileSync(new URL('../../dsh-gea-plugin/scripts/current-core.json', import.meta.url), 'utf8'))
+  const defaultCore = supported.find(core => core.head === current.adaptation)
+  assert.ok(defaultCore, 'current adaptation must have a registered source and toolchain')
+  assert.notEqual(defaultCore.head, alpha.head)
+  const observed = verifyOfficialSource(checkout, { coreHead: alpha.head })
+  assert.equal(observed.commit, alpha.head)
+  assert.equal(observed.packageManager, alpha.packageManager)
+  assert.throws(() => verifyOfficialSource(checkout), /SDK_CORE_MISMATCH/)
+  assert.throws(() => verifyOfficialSDK({ core: checkout, consumer: process.cwd() }), /SDK_CORE_MISMATCH/)
+  const owner = spawnSync('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], { cwd: checkout })
+  assert.equal(owner.status, 0)
+  try {
+    assert.throws(() => prepareOfficialSDK({ core: realpathSync(checkout), consumer: process.cwd() }), /SDK_CORE_MISMATCH/)
+    assert.equal(existsSync(join(checkout, 'node_modules')), false)
+  } finally {
+    assert.equal(spawnSync('git', ['config', '--local', '--unset', 'dsh.sdkPreparation'], { cwd: checkout }).status, 0)
+  }
 })
