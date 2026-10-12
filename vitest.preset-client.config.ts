@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import ts from 'typescript'
 import { defineConfig } from 'vitest/config'
 import { standardDecoratorPlugin, vitestExecArgv } from '../../official-latest-standard/vitest.shared.ts'
+import { presetLanes } from './scripts/preset-test-lanes.mjs'
 import { core } from './tests/official-core-input.js'
 
 const { config, error } = ts.parseConfigFileTextToJson(`${core}/tsconfig.base.json`, readFileSync(`${core}/tsconfig.base.json`, 'utf8'))
@@ -29,14 +30,7 @@ export default defineConfig({
   test: {
     // Each client file starts an official Host process; keep those process groups serial.
     fileParallelism: false,
-    include: [
-      'tests/standard-preset-draft.test.ts',
-      'tests/preset-catalog-client.test.ts',
-      'tests/skill-preset-client.test.ts',
-      'tests/base-preset-client.test.ts',
-      'tests/sales-preset-client.test.ts',
-      'tests/inventory-family-client.test.ts'
-    ],
+    include: Object.keys(presetLanes.client),
     environment: 'jsdom',
     testTimeout: 30_000,
     execArgv: vitestExecArgv,

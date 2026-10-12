@@ -1,25 +1,12 @@
 import { defineConfig } from 'vitest/config'
+import { presetLanes, presetHostHelpers } from './scripts/preset-test-lanes.mjs'
 import { officialHostAliases } from './tests/official-core-input.js'
 
 export default defineConfig({
   resolve: { alias: officialHostAliases(), dedupe: ['react', 'react-dom'] },
   test: {
     include: ['tests/**/*.test.ts'],
-    exclude: [
-      'tests/standard-preset-draft.test.ts',
-      'tests/preset-catalog-client.test.ts',
-      'tests/standard-preset-gea.test.ts',
-      'tests/skill-preset-gea.test.ts',
-      'tests/skill-preset-client.test.ts',
-      'tests/base-preset-client.test.ts',
-      'tests/sales-preset-client.test.ts',
-      'tests/base-resource-host.test.ts',
-      'tests/sales-preset-gea.test.ts',
-      'tests/sales-resource-host.test.ts',
-      'tests/inventory-family-preset.test.ts',
-      'tests/inventory-family-client.test.ts',
-      'tests/inventory-family-host.test.ts'
-    ],
+    exclude: [...Object.keys(presetLanes.client), ...Object.keys(presetLanes.gea), ...presetHostHelpers],
     environment: 'node',
     testTimeout: 30_000,
     // Serial execution: several tests share fixture directories and global
