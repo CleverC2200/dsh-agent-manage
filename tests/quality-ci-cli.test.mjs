@@ -208,6 +208,7 @@ test('joint dispatch refuses incomplete, malformed and event-mismatched commits 
 
 test('joint dispatch isolates in-flight runs and keeps all original Core, Windows and audit lanes', () => {
   const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  assert.match(workflow, /github\.ref \}\}-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/)
   for (const key of ['gea_sha', 'workbench_sha', 'manage_sha']) {
     assert.match(workflow, new RegExp('      ' + key + ':\\n        description: [^\\n]+\\n        required: true\\n        type: string'))
   }
