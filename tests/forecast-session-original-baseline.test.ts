@@ -1,6 +1,6 @@
 import { test, vi } from 'vitest'
 import assert from 'node:assert/strict'
-import { cp, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -30,23 +30,19 @@ test('Manage entry registers pure calculation for an official Session and the un
     throw Error('No network allowed in pure Session calculation')
   })
   t.onTestFinished(() => vi.restoreAllMocks())
-  // Install an independent original source so the bundled provider cannot satisfy its path assertion.
-  const source = join(root, 'original-company')
-  await cp(fileURLToPath(new URL('../business-resources/sinian-demand-forecast/', import.meta.url)), source, { recursive: true })
-  const provenance = JSON.parse(await readFile(join(source, 'SOURCE.json'), 'utf8'))
-  assert.equal(provenance.commit, '374a0ab62eee184d3edb3a99e594836ee685534f')
-  for (const [file, hash] of Object.entries(provenance.files)) {
-    assert.equal(
-      createHash('sha256')
-        .update(await readFile(join(source, file)))
-        .digest('hex'),
-      hash,
-      file
-    )
-  }
-  const skillPath = join(source, 'skills/sinian-demand-baseline/SKILL.md')
+  const source = fileURLToPath(new URL('./fixtures/company-forecast-original/', import.meta.url))
+  const skillPath = join(source, 'suites/sinian-demand-forecast/skills/sinian-demand-baseline/SKILL.md')
   const original = await readFile(skillPath, 'utf8')
   const originalHash = createHash('sha256').update(original).digest('hex')
+  assert.equal(originalHash, '9b18565da7dd147edcf29391af29aca237604133eb6a6d428f233767189e247e')
+  const provenance = JSON.parse(await readFile(join(source, 'provenance.json'), 'utf8'))
+  for (const file of provenance.files)
+    assert.equal(
+      createHash('sha256')
+        .update(await readFile(join(source, file.path)))
+        .digest('hex'),
+      file.sha256
+    )
   const catalog = new Catalog({ userRoot: join(root, 'agent-plugins'), dataRoot: join(root, 'agent-plugins/data'), onChanged: () => {} })
   await catalog.load()
   await catalog.mergeSources([{ id: 'original-company', url: source, local: true }])

@@ -1,3 +1,6 @@
+import { URL } from 'node:url'
+import process from 'node:process'
+import console from 'node:console'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync, writeFileSync, mkdirSync, readdirSync, lstatSync } from 'node:fs'
 import { dirname, resolve, relative, sep } from 'node:path'
@@ -10,7 +13,12 @@ function supportedCore(coreHead) {
   const registry = json(new URL('../../dsh-gea-plugin/scripts/supported-cores.json', import.meta.url))
   const selected = registry.find(entry => (coreHead === undefined ? entry.version === '0.2.1-alpha.1' : entry.head === coreHead))
   if (!selected) refuse('SDK_CORE_UNSUPPORTED', coreHead ?? 'default alpha Core')
-  if (!/^[a-f0-9]{40}$/.test(selected.head) || !/^[a-f0-9]{64}$/.test(selected.lockSha256) || selected.packageManager !== 'pnpm@11.7.0' || selected.nodeMajor !== 24)
+  if (
+    !/^[a-f0-9]{40}$/.test(selected.head) ||
+    !/^[a-f0-9]{64}$/.test(selected.lockSha256) ||
+    !['pnpm@11.7.0', 'pnpm@11.11.0'].includes(selected.packageManager) ||
+    selected.nodeMajor !== 24
+  )
     refuse('SDK_AUTHORITY_REQUIRED', 'registered head, original lock and exact toolchain')
   return { coreCommit: selected.head, coreLock: selected.lockSha256, packageManager: selected.packageManager, nodeMajor: selected.nodeMajor }
 }
@@ -326,7 +334,7 @@ export function prepareOfficialFlock(options) {
 export function prepareOfficialSDK(options) {
   const core = resolve(options.core)
   const coreHead = options.coreHead
-  const { coreCommit, coreLock } = supportedCore(coreHead)
+  const { coreCommit } = supportedCore(coreHead)
   if (!existsSync(resolve(core, '.git'))) {
     if (!options.source) refuse('SDK_SOURCE_REQUIRED', 'supply --source for a new independent checkout')
     mkdirSync(dirname(core), { recursive: true })

@@ -29,6 +29,7 @@ permissions:
 
 jobs:
   release-please:
+    if: github.repository != 'CleverC2200/dsh-agent-manage'
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release-please.outputs.release_created }}
@@ -72,7 +73,7 @@ jobs:
     needs: release-please
     # npm 0.5.1 already exists; keep its GitHub release record without republishing it.
     if: >-
-      needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.tag_name != 'dsh-agent-plugins-market-v0.5.1'
+      github.repository != 'CleverC2200/dsh-agent-manage' && needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.tag_name != 'dsh-agent-plugins-market-v0.5.1'
     runs-on: ubuntu-latest
     environment: npm
     permissions:

@@ -1,0 +1,81 @@
+{
+  "sourceRepository": "company-agent-suites",
+  "sourceCommit": "374a0ab62eee184d3edb3a99e594836ee685534f",
+  "sourceRegistration": "repositories.json: company-agent-suites; read-only Git source",
+  "scope": "Original forecast suite and original marketplace index, byte-preserved test input only. Missing other marketplace suites are outside this test slice.",
+  "files": [
+    {
+      "path": ".claude-plugin/marketplace.json",
+      "sha256": "88c7203827cdcfc7a33a0aa2f4ee7c2e5bffb1050f299a029cf953356be14712"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/.claude-plugin/plugin.json",
+      "sha256": "a2c20475202c90d11c4f2e7fa089494f8e7fa1c83c8d22ecb240064befd99203"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/README.md",
+      "sha256": "eac13547c5e367748fe204b33ad06f6e1a98963d81cb08ed6043338dae858545"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/README.zh.md",
+      "sha256": "bb8c63ba5b1063b59374ce74ee6de96df60ae227a601d77920c7646311f690d7"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/agents/sinian-demand-forecaster.md",
+      "sha256": "17aeed82303c56739e710ebab59a44dc137b9e6bd06be4a8971a43f31e6a64b6"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/commands/forecast-demand.md",
+      "sha256": "e5a47a5091a8bf263c1d02d95767a89fecd531867fd4f41f38fa9bd7c5caef42"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/references/data-contract.md",
+      "sha256": "1695a24f52b89c1f15c78b3ce05f23aeeec0394cb372221e7da5dafd606a1f49"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/references/report-template.md",
+      "sha256": "ef7eb765195398e6ef53f49ee96d730df2fe27a653e6a9c3503542c3e388feb1"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/references/rules-and-conflicts.md",
+      "sha256": "dbf7f96027eae9c4e48397097bccc43de012b2c6ab65bb71c3fad1b93f3cc374"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/references/sales-ontology-v2.md",
+      "sha256": "9b5e82c3b461a129d28c720212655dd612c5777e3652c0f89b56b9aaea6c9eb6"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/references/source-provenance.json",
+      "sha256": "3bffed6e95e90919bd6d354e0e9a77df8598163ec3752c9d8f0185e135fea3ce"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/skills/sinian-demand-baseline/SKILL.md",
+      "sha256": "9b18565da7dd147edcf29391af29aca237604133eb6a6d428f233767189e247e"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/skills/sinian-demand-baseline/examples/mock-input.json",
+      "sha256": "b60e892989cd17802b120c237ffbdac3d40974d9cdaf17d23b52149bb4667abf"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/skills/sinian-demand-baseline/scripts/calculate_baseline.py",
+      "sha256": "54c637d3e0bd6503ed7b99222b10b7f1096a20807a083b47e318bad04bddc619"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/skills/sinian-demand-dialogue/SKILL.md",
+      "sha256": "4c43c8b4d8f457b77c51155df6af233e11b77ff24980ef911303a48e08e5c7c2"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/skills/sinian-forecast-review/SKILL.md",
+      "sha256": "c2707a6a611f099329c887d57e385123e2f73b613c40fcdb77c9c0acae612a0a"
+    },
+    {
+      "path": "suites/sinian-demand-forecast/skills/sinian-forecast-scope/SKILL.md",
+      "sha256": "ec85b3f4305ee49b2a8cb63f861a6f047fdece61b8471e8e4fd5f97161f8948a"
+    }
+  ],
+  "license": {
+    "status": "not-declared-in-source-tree",
+    "sourceTreeLicenseFiles": [],
+    "scope": "Private byte-preserved test input authorized for this isolated task; no license is inferred and this fixture is excluded from the package files list."
+  }
+}

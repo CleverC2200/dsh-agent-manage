@@ -6,13 +6,14 @@ The quality workflow accepts pushes to `main` and the exact `codex/quality-ci-ma
 
 ## Registered source / 登记来源
 
-The adjacent GEA [supported Core registry](../../dsh-gea-plugin/scripts/supported-cores.json) owns both accepted heads, versions, original lock hashes and exact toolchains. Manage does not maintain another Core version table. CI reads its quality and Windows archives matrix from that registry. / 相邻 GEA 登记表持有两版 Core 的提交、版本、原锁哈希和精确工具链。Manage 不另建版本表，CI 从同一表生成质量和 Windows 归档矩阵。
+The adjacent GEA [supported Core registry](../../dsh-gea-plugin/scripts/supported-cores.json) owns the registered sources, including the two original official CI heads and the explicit private security candidate, versions, original lock hashes and exact toolchains. Manage does not maintain another Core version table. CI reads the two original official quality and Windows archives axes from that registry; private security preparation requires its explicit registered head. / 相邻 GEA 登记表持有登记来源，包括两版原官方 CI Core 和显式私有安全候选的提交、版本、原锁哈希和精确工具链。Manage 不另建版本表，CI 从同一表生成两版原官方质量和 Windows 归档矩阵；私有安全来源须显式指定登记 head。
 
 Use this independent layout for cold preparation. / 冷准备使用独立目录：
 
 ```text
 job-root/
-  official-latest-standard/
+  source/official-core/ # observed full-history source
+  official-latest-standard/ # independently owned SDK output
   candidate-input.json
   candidate/
     dsh-agent-workbench/
@@ -22,10 +23,13 @@ job-root/
 
 ```sh
 node scripts/run-quality-ci.mjs --phase quality --input /absolute/job-root/candidate-input.json \
-  --prepare-sdk --core-source https://github.com/deepseek-ai/deepseek-harness.git
+  --prepare-sdk --core-source /absolute/job-root/source/official-core \
+  --final-group-sha256 <candidate-input-original-byte-sha256>
 ```
 
-`candidate-input.json` binds `core` to an explicit registered head and `repositories` to the three real `{repo,path,head}` inputs. Manage's own head is the actual PR or push SHA; peer refs are fixed in the workflow and input writer. Full histories, clean sources and committed locks are required. / 输入的 `core` 显式绑定登记 head，`repositories` 绑定真实三仓路径和提交。本仓绑定实际 PR 或 push SHA，peer 引用固定在 workflow 和输入 writer 中。要求完整历史、干净源码和已提交锁。
+`scripts/write-ci-input.mjs --matrix` emits only the registered original Core axes. The shared Workbench `scripts/write-hosted-group.mjs` writes candidate inputs and source-kind receipts after peer resolution. / 本仓 matrix 命令只输出登记的原 Core 轴；peer 解析后由 Workbench 公共 writer 写入候选输入与来源回执。
+
+`candidate-input.json` binds `core` to an explicit registered head and `repositories` to the three real `{repo,path,head}` inputs. Manage's own head is the actual PR or push SHA; ordinary push/PR peer refs come from the committed three-repository `scripts/quality-peer-baseline.json`, with only the own role replaced by the actual event. The shared Workbench reader admits the complete tuple. Dispatch requires all three explicit immutable heads and is the only joint-group result. Full histories, clean sources and committed locks are required. / 输入的 `core` 显式绑定登记 head，`repositories` 绑定真实三仓路径和提交。本仓绑定实际 PR 或 push SHA，普通 push/PR 从已提交的三仓 baseline 读取 peer，仅本仓替换为实际事件提交，由 Workbench 公共 reader 核完整组合。dispatch 必须显式提供三个不可变提交，只有该路径声明联合组合结果。要求完整历史、干净源码和已提交锁。
 
 The public [SDK module](../scripts/prepare-official-sdk.mjs) retains `prepareOfficialSDK(options)` and `verifyOfficialSDK(options)`. `options` includes `core`, `consumer`, and selected `coreHead`; `source` is needed for a new owned clone. `verifyOfficialSource(core, {coreHead})` verifies source without requiring outputs. The omitted `coreHead` keeps the previous alpha default for existing callers; CI must bind it explicitly from its input. / SDK 模块保留原公开准备与核验函数，选项增加 `coreHead`。只读 source 核验不要求产物。未传 head 的既有调用保持 alpha 缺省，CI 必须从输入显式绑定。
 
@@ -39,7 +43,7 @@ Preparation clones only Git source, marks its independent ownership and rejects 
 
 Workbench and GEA consume the same SDK module with their own consumer paths. Optional `withWeb` / `withFlock`, and the existing `prepareOfficialWeb` / `prepareOfficialFlock` interfaces retain their original source and artifact receipts. Windows archives do not request Web or flock. / Workbench 和 GEA 用自己的 consumer 路径复用同一模块。已有 Web/flock 可选准备接口及源码、产物回执保持。Windows 归档不请求 Web 或 flock。
 
-Manage's quality phase requires the real host flock addon for the official Session writer-lock tests. It passes `withFlock: true` to the existing SDK prepare/verify interface; archives and audit do not request flock. The original forecast Session baseline installs an independent temporary copy of the complete tracked `business-resources/sinian-demand-forecast` suite and verifies all file hashes against its fixed `SOURCE.json`. Its Skill path assertion still distinguishes the installed original source from the bundled provider, without an external company-agent-suites checkout. / Manage 质量阶段的官方 Session writer-lock 测试要求真实宿主 flock addon，通过已有 SDK 准备和核验接口传入 `withFlock: true`；归档与审计不要求 flock。原预测 Session 基线在独立临时目录安装已跟踪的完整原销售套件，并按固定 `SOURCE.json` 核验全部文件哈希。Skill 路径断言仍区分已安装原始源与包内 provider，不依赖外部 company-agent-suites checkout。
+Manage's quality phase requires the real host flock addon for the official Session writer-lock tests. It passes `withFlock: true` to the existing SDK prepare/verify interface; archives and audit do not request flock. The original forecast Session baseline installs an independent temporary copy of the independently frozen original `tests/fixtures/company-forecast-original` suite and verifies all file hashes against its provenance receipt. Its Skill path assertion still distinguishes the installed original source from the bundled provider, without an external company-agent-suites checkout. / Manage 质量阶段的官方 Session writer-lock 测试要求真实宿主 flock addon，通过已有 SDK 准备和核验接口传入 `withFlock: true`；归档与审计不要求 flock。原预测 Session 基线在独立临时目录安装独立冻结的原公司套件 `tests/fixtures/company-forecast-original`，并按 provenance 回执核验全部文件哈希。Skill 路径断言仍区分已安装原始源与包内 provider，不依赖外部 company-agent-suites checkout。
 
 The selected Core's Git-tracked package names determine which full SDK mappings apply. Absent package aliases are listed with their original paths and reasons in `notApplicable`; actual registered packages must retain matching paths, all declared outputs and hashes. The quality typecheck still rejects any real consumer import of an unavailable package. / 所选 Core 的 Git 已跟踪 package.name 决定全量 SDK 映射的适用范围。缺包 alias 及原路径、原因写入 `notApplicable`；真实登记包仍要求匹配路径、完整声明产物和哈希。质量阶段的类型检查继续拒绝消费者对缺包的真实引用。
 
@@ -53,7 +57,7 @@ Windows `--phase archives` preserves the original source-acquisition, zip-bomb a
 
 Fork PRs are rejected before private checkout. Private peers require a separately configured contents-read `PLUGIN_SPLIT_READ_TOKEN`; personal high-permission tokens are not appropriate. Missing credentials or inaccessible fixed peers block execution. Checkout does not persist credentials. / fork PR 在私有检出前拒绝。私有 peer 要求独立配置的 contents-read 凭据；个人高权限 token 不适用于此用途。缺凭据或固定提交不可达阻断执行，checkout 不保存凭据。
 
-The final `candidate-quality` accepts only successful scope and every registered quality/archives matrix entry. Failure, missing results, cancellation and skipped execution fail the aggregate. Frozen final groups may additionally pass `--final-group-sha256 <original-byte-hash>`; the shared Workbench reader rechecks the original bytes before effects. / 最终质量聚合仅接受 scope 和每一项登记 quality/archives 矩阵成功。失败、缺结果、取消和跳过不能通过。显式最终组可另传原字节哈希，Workbench 共享 reader 在产生效果前复核。
+The final `candidate-quality` accepts only successful scope and every registered quality/archives matrix entry. Failure, missing results, cancellation and skipped execution fail the aggregate. Every candidate quality, archives, audit and verify-input invocation must pass `--final-group-sha256 <original-byte-hash>` and a local observed registered Core source; the shared Workbench reader rechecks the original bytes before effects. / 最终质量聚合仅接受 scope 和每一项登记 quality/archives 矩阵成功。失败、缺结果、取消和跳过不能通过。每次候选 quality、archives、audit 和 verify-input 都须显式传原字节哈希与本地登记 Core 源，Workbench 共享 reader 在产生效果前复核。
 
 ## Security coverage / 安全覆盖
 
@@ -61,6 +65,10 @@ The final `candidate-quality` accepts only successful scope and every registered
 
 The original PR `dependency-review` job separately checks dependency changes and remains independently failing when private-repository features are unavailable. Its coverage is distinct from the consumer audit and quality aggregate. / 原 PR 依赖差异审查 job 单独保留；私有仓库能力不可用时保持独立失败，其覆盖与消费者漏洞审计及质量聚合分别记录。
 
-This covers known vulnerabilities in the consumer lock, including development dependencies. It does not establish dependency-diff, license-policy or linked Core's full dependency-closure coverage. The current private repository's CodeQL upload is blocked by disabled code scanning; the original CodeQL workflow and failure stay visible. A green quality result does not mean security coverage or full CI is green. / 此审计覆盖消费者锁内已知漏洞及开发依赖，依赖差异、许可证及 linked Core 完整安全闭包仍未证明。当前私有仓库 CodeQL 因未启用 code scanning 阻断，原 workflow 和失败保持可见。质量通过不表示安全覆盖或完整 CI 通过。
+This covers known vulnerabilities in the consumer lock, including development dependencies. It does not establish dependency-diff, license-policy or linked Core's full dependency-closure coverage. The current private repository's CodeQL upload is blocked by disabled code scanning; the original CodeQL workflow and failure stay visible. A green quality result does not mean security coverage or full CI is green. / 此审计覆盖消费者锁内已知漏洞及开发依赖，依赖差异、许可证及 linked Core 完整安全闭包仍未证明。历史私有仓 CodeQL 阻断证据保留；当前公开仓扫描须以本次精确提交结果核验。质量通过不表示安全覆盖或完整 CI 通过。
 
 Source tests, remote CI, Windows, Native, real business/model behavior and repository protection need their own evidence. No SDK preparation or quality command grants production release or business write permission. / 源码测试、远端 CI、Windows、Native、真实业务/模型和仓库保护分别留证。SDK 准备与质量命令不授予正式发行或业务写入权限。
+
+Ordinary source-event receipts retain `sourceKind` and the committed baseline byte hash; they do not combine independent push/PR runs into a joint pass. Missing, changed or incomplete baseline data is rejected before peer checkout. The same CLI admission applies locally and on GitHub. / 普通 source-event 回执保留来源分类与已提交 baseline 字节哈希，不能将独立 push/PR 结果拼成联合通过。缺失、变化或不完整 baseline 在 peer 检出前拒绝。本地与 GitHub 使用同一 CLI 入场。
+
+The registered personal repository denies upstream release-please, npm and Pages jobs at job scope. Their upstream definitions remain available for the upstream repository. Quality artifact uploads remain enabled. / 登记个人仓在 job 层拒绝上游 release-please、npm 和 Pages 发布，上游定义保留，质量证据上传继续执行。

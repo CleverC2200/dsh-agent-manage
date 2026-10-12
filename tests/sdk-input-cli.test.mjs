@@ -154,3 +154,11 @@ test('cold SDK clone preserves lock bytes even when the runner defaults to CRLF'
     rmSync(fixture, { recursive: true, force: true })
   }
 })
+
+test('registered private security candidate retains source admission without creating or accepting missing SDK inputs', () => {
+  const privateCore = supported.find(core => core.id === 'private-core-high-20261011')
+  assert.ok(privateCore, 'the private security source remains in the single Core authority')
+  const missing = join(checkout, '.git', 'missing-private-core')
+  assert.throws(() => verifyOfficialSource(missing, { coreHead: privateCore.head }), /SDK_SOURCE_REQUIRED/)
+  assert.equal(existsSync(missing), false)
+})

@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.repository != 'CleverC2200/dsh-agent-manage'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -34,6 +35,7 @@ jobs:
           path: docs-site/dist
 
   deploy:
+    if: github.repository != 'CleverC2200/dsh-agent-manage'
     needs: build
     runs-on: ubuntu-latest
     environment:

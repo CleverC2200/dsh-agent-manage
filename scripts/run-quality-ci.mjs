@@ -1,3 +1,5 @@
+import process from 'node:process'
+import console from 'node:console'
 import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -40,27 +42,24 @@ try {
     }
   } else {
     if (!['quality', 'archives', 'audit', 'verify-input'].includes(phase)) refuse('QUALITY_PHASE_REJECTED', phase)
-    if (phase === 'verify-input' && !values['final-group-sha256']) refuse('CANDIDATE_FINAL_GROUP_REQUIRED', 'verify-input requires explicit final-group hash')
+    if (!values['final-group-sha256']) refuse('CANDIDATE_FINAL_GROUP_REQUIRED', 'candidate execution requires explicit admitted group hash')
     const input = values.input ?? process.env.QUALITY_CANDIDATE
     if (!input) refuse('CANDIDATE_INPUT_REQUIRED', '--input <frozen group JSON>')
-    if (values['final-group-sha256']) {
-      // The default fixed Workbench peer predates this interface; only explicit final groups load it.
-      const { readFinalGroup } = await import(pathToFileURL(resolve('../dsh-agent-workbench/scripts/candidate-input.mjs')))
-      finalGroup = await readFinalGroup({
-        input,
-        sha256: values['final-group-sha256'],
-        checkout: process.cwd(),
-        repo: 'dsh-agent-manage',
-        coreSource: values['core-source'],
-        expectedSha: process.env.QUALITY_EXPECTED_SHA,
-        ci: process.env.CI
-      })
-      if (phase === 'verify-input') {
-        console.log(JSON.stringify(finalGroup.receipt))
-        process.exit(0)
-      }
+    const { readFinalGroup } = await import(pathToFileURL(resolve('../dsh-agent-workbench/scripts/candidate-input.mjs')))
+    finalGroup = await readFinalGroup({
+      input,
+      sha256: values['final-group-sha256'],
+      checkout: process.cwd(),
+      repo: 'dsh-agent-manage',
+      coreSource: values['core-source'],
+      expectedSha: process.env.QUALITY_EXPECTED_SHA,
+      ci: process.env.CI
+    })
+    if (phase === 'verify-input') {
+      console.log(JSON.stringify(finalGroup.receipt))
+      process.exit(0)
     }
-    const manifest = finalGroup?.manifest ?? JSON.parse(readFileSync(resolve(input), 'utf8'))
+    const manifest = finalGroup.manifest
     if (!/^[a-f0-9]{40}$/.test(manifest.core ?? '')) refuse('CANDIDATE_CORE', 'explicit registered Core head required before preparation')
     if (manifest.repositories?.length !== 3) refuse('CANDIDATE_PEER_REQUIRED', 'exactly the three admitted repositories')
     const own = manifest.repositories?.find(entry => entry.repo === 'dsh-agent-manage')
@@ -70,13 +69,12 @@ try {
     if (process.env.QUALITY_EXPECTED_SHA && own.head !== process.env.QUALITY_EXPECTED_SHA) refuse('CANDIDATE_EVENT_MISMATCH', own.head)
     // Admission is frozen and clean. Ordinary incremental development continues
     // to use check:refactor without this clean-candidate requirement.
-    const expectedPeers = { 'dsh-agent-workbench': '48a232c6bede7ed64f0c439d18b29ffdaa0df03f', 'dsh-gea-plugin': '1abc2d208a27d6e3ded541b6741c09ed2eb201ae' }
     for (const name of ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin']) {
       const entries = manifest.repositories.filter(entry => entry.repo === name)
       if (entries.length !== 1) refuse('CANDIDATE_PEER_REQUIRED', name)
       const entry = entries[0]
       const observed = execFileSync('git', ['-C', entry.path, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-      if (observed !== entry.head || (!finalGroup && expectedPeers[name] && entry.head !== expectedPeers[name])) refuse('CANDIDATE_HEAD', name)
+      if (observed !== entry.head) refuse('CANDIDATE_HEAD', name)
       if (execFileSync('git', ['-C', entry.path, 'rev-parse', '--is-shallow-repository'], { encoding: 'utf8' }).trim() !== 'false') refuse('CANDIDATE_HISTORY_REQUIRED', name)
       if (execFileSync('git', ['-C', entry.path, 'status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8' }).trim()) refuse('CANDIDATE_DIRTY', name)
       const lock = name === 'dsh-agent-workbench' ? 'package-lock.json' : 'pnpm-lock.yaml'
@@ -86,7 +84,7 @@ try {
     const options = { core, consumer: process.cwd(), coreHead: manifest.core, source: values['core-source'], withFlock: phase === 'quality' }
     process.env.DSH_CORE_CHECKOUT = core
     finalGroup?.verifyUnchanged()
-    if (phase === 'audit') verifyOfficialSource(finalGroup ? resolve(values['core-source']) : core, options)
+    if (phase === 'audit') verifyOfficialSource(resolve(values['core-source']), options)
     else if (values['prepare-sdk']) prepareOfficialSDK(options)
     else verifyOfficialSDK(options)
     if (phase !== 'audit')
@@ -96,7 +94,8 @@ try {
         resolve(input),
         '--checkout',
         process.cwd(),
-        ...(finalGroup ? ['--final-group-sha256', values['final-group-sha256']] : [])
+        '--final-group-sha256',
+        values['final-group-sha256']
       ])
     if (phase === 'quality') {
       const npmManager = JSON.parse(readFileSync(resolve(workbench.path, 'package.json'), 'utf8')).packageManager

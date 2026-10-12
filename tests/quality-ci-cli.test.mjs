@@ -1,6 +1,5 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import process from 'node:process'
 import { mkdtempSync, readFileSync, existsSync, rmSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs'
@@ -125,100 +124,106 @@ test('quality requests real flock preparation and verification; archives and aud
   }
 })
 
-test('CI input binds the event and registered Core and refuses missing or unregistered Core heads', () => {
-  const root = mkdtempSync(join(tmpdir(), 'manage-ci-input-'))
-  try {
-    const matrix = spawnSync(process.execPath, ['scripts/write-ci-input.mjs', '--matrix'], { encoding: 'utf8' })
-    assert.equal(matrix.status, 0, matrix.stderr)
-    const lanes = JSON.parse(matrix.stdout).include
-    assert.deepEqual([...new Set(lanes.map(lane => lane.coreVersion))].sort(), ['0.2.0-rc.2', '0.2.1-alpha.1'])
-    assert.equal(lanes.filter(lane => lane.phase === 'quality' && lane.os === 'ubuntu-latest').length, 2)
-    assert.equal(lanes.filter(lane => lane.phase === 'archives' && lane.os === 'windows-latest').length, 2)
-    const args = ['scripts/write-ci-input.mjs', '--root', root, '--sha', 'a'.repeat(40)]
-    for (const tail of [[], ['--core-head', '0'.repeat(40)]]) {
-      const bad = spawnSync(process.execPath, [...args, ...tail], { encoding: 'utf8' })
-      assert.notEqual(bad.status, 0)
-      assert.match(bad.stderr, /CANDIDATE_CORE_REQUIRED/)
-      assert.equal(existsSync(join(root, 'candidate-input.json')), false)
-    }
-    const good = spawnSync(process.execPath, [...args, '--core-head', lanes[0].coreHead], { encoding: 'utf8' })
-    assert.equal(good.status, 0, good.stderr)
-    const input = JSON.parse(readFileSync(join(root, 'candidate-input.json'), 'utf8'))
-    assert.equal(input.core, lanes[0].coreHead)
-    assert.equal(input.repositories.find(repo => repo.repo === 'dsh-agent-manage').head, 'a'.repeat(40))
-  } finally {
-    rmSync(root, { recursive: true, force: true })
+test('CI matrix retains both original Core axes and legacy peer input creation is refused', () => {
+  const matrix = spawnSync(process.execPath, ['scripts/write-ci-input.mjs', '--matrix'], { encoding: 'utf8' })
+  assert.equal(matrix.status, 0, matrix.stderr)
+  const lanes = JSON.parse(matrix.stdout).include
+  assert.deepEqual([...new Set(lanes.map(lane => lane.coreVersion))].sort(), ['0.2.0-rc.2', '0.2.1-alpha.1'])
+  assert.equal(lanes.filter(lane => lane.phase === 'quality' && lane.os === 'ubuntu-latest').length, 2)
+  assert.equal(lanes.filter(lane => lane.phase === 'archives' && lane.os === 'windows-latest').length, 2)
+  const obsolete = spawnSync(process.execPath, ['scripts/write-ci-input.mjs'], { encoding: 'utf8' })
+  assert.notEqual(obsolete.status, 0)
+  assert.match(obsolete.stderr, /CANDIDATE_INPUT_REQUIRED/)
+  for (const phase of ['quality', 'archives', 'audit']) {
+    const result = call(phase, { QUALITY_CANDIDATE: '' })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /CANDIDATE_FINAL_GROUP_REQUIRED/)
   }
 })
 
-test('hosted checkout refs and public admission use the reviewed immutable peer commits', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'hosted-peer-pins-'))
-  try {
-    const core = '639ed015397290b3745d163aafe02ffee4aa3f84'
-    const created = spawnSync(process.execPath, ['scripts/write-ci-input.mjs', '--root', directory, '--sha', 'a'.repeat(40), '--core-head', core], { encoding: 'utf8' })
-    assert.equal(created.status, 0, created.stderr)
-    const input = JSON.parse(readFileSync(join(directory, 'candidate-input.json'), 'utf8'))
-    const expected = {
-      'dsh-agent-workbench': '48a232c6bede7ed64f0c439d18b29ffdaa0df03f',
-      'dsh-gea-plugin': '1abc2d208a27d6e3ded541b6741c09ed2eb201ae'
-    }
-    const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
-    for (const [repo, head] of Object.entries(expected)) {
-      assert.equal(input.repositories.find(entry => entry.repo === repo)?.head, head)
-      const checkoutRefs = [
-        ...workflow.matchAll(
-          new RegExp('repository: CleverC2200/' + repo + "\\s+ref: \\$\\{\\{ (?:steps.group|needs.candidate-scope).outputs.[a-z-]+ \\|\\| '([a-f0-9]{40})' \\}\\}", 'g')
-        )
-      ].map(match => match[1])
-      assert.ok(checkoutRefs.length > 0, repo + ' must be checked out')
-      assert.deepEqual([...new Set(checkoutRefs)], [head], repo + ' checkout and input must agree')
-      assert.ok(readFileSync('scripts/run-quality-ci.mjs', 'utf8').includes("'" + repo + "': '" + head + "'"), repo + ' admission validator must agree')
-    }
-  } finally {
-    rmSync(directory, { recursive: true, force: true })
+test('candidate execution refuses missing input and malformed original-byte hashes before source effects', () => {
+  for (const hash of ['', 'main', 'A'.repeat(64), 'a'.repeat(64) + '\n']) {
+    const result = spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', 'verify-input', '--final-group-sha256', hash], {
+      encoding: 'utf8',
+      env: { ...process.env, QUALITY_CANDIDATE: '' }
+    })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /CANDIDATE_FINAL_GROUP_REQUIRED/)
   }
+  const missing = spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', 'verify-input', '--final-group-sha256', 'a'.repeat(64)], {
+    encoding: 'utf8',
+    env: { ...process.env, QUALITY_CANDIDATE: '' }
+  })
+  assert.notEqual(missing.status, 0)
+  assert.match(missing.stderr, /CANDIDATE_INPUT_REQUIRED/)
 })
 
-test('joint dispatch refuses incomplete, malformed and event-mismatched commits before emitting a group', () => {
+test('hosted events use the immutable public peer reader and admitted group without legacy fallbacks', () => {
+  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  assert.match(workflow, /repository: CleverC2200\/dsh-agent-workbench\n {10}ref: \$\{\{ steps.reader.outputs.workbench-sha \}\}/)
+  assert.match(workflow, /node \.\.\/\.\.\/scope-peer\/dsh-agent-workbench\/scripts\/read-hosted-peer-input.mjs --repo dsh-agent-manage/)
+  for (const field of ['gea-sha', 'workbench-sha', 'manage-sha', 'group-id', 'source-kind', 'baseline-id']) assert.ok(workflow.includes('steps.group.outputs.' + field), field)
+  assert.doesNotMatch(workflow, /outputs\.[a-z-]+ \|\| '|write-ci-input.mjs --root|if: github.event_name != 'workflow_dispatch'/)
+  assert.equal((workflow.match(/write-hosted-group.mjs --repo dsh-agent-manage/g) ?? []).length, 2)
+  assert.equal((workflow.match(/QUALITY_SOURCE_KIND: \$\{\{ needs.candidate-scope.outputs.source-kind \}\}/g) ?? []).length, 2)
+})
+
+test('peer reader bootstrap rejects malformed dispatch heads, event mismatch and uncommitted source baseline', () => {
   const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
   const validator = workflow
     .match(/node --input-type=module <<'NODE'\n([\s\S]*?)\n {10}NODE/)?.[1]
     .split('\n')
     .map(line => line.slice(10))
     .join('\n')
-  assert.ok(validator, 'scope must validate the dispatch group before peer checkout')
-  const root = mkdtempSync(join(tmpdir(), 'manage-dispatch-scope-'))
+  assert.ok(validator)
+  const root = mkdtempSync(join(tmpdir(), 'manage-reader-scope-'))
+  const git = args => {
+    const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' })
+    assert.equal(result.status, 0, result.stderr)
+    return result.stdout.trim()
+  }
   try {
-    const valid = { GEA_SHA: 'a'.repeat(40), WORKBENCH_SHA: 'b'.repeat(40), MANAGE_SHA: 'c'.repeat(40), EXPECTED_SHA: 'c'.repeat(40) }
+    mkdirSync(join(root, 'scripts'))
+    const baselineFile = join(root, 'scripts/quality-peer-baseline.json')
+    writeFileSync(baselineFile, JSON.stringify({ schemaVersion: 1, repositories: [{ repo: 'dsh-agent-workbench', head: 'b'.repeat(40) }] }))
+    git(['init', '--quiet'])
+    git(['add', '.'])
+    git(['-c', 'user.name=CI fixture', '-c', 'user.email=ci@example.invalid', 'commit', '--quiet', '-m', 'fixture'])
+    const own = git(['rev-parse', 'HEAD'])
     const output = join(root, 'output')
+    const valid = {
+      GITHUB_REPOSITORY: 'CleverC2200/dsh-agent-manage',
+      QUALITY_OWN_REPO: 'dsh-agent-manage',
+      QUALITY_SCOPE_ALLOWED: 'true',
+      QUALITY_EXPECTED_SHA: own,
+      GITHUB_EVENT_NAME: 'workflow_dispatch',
+      QUALITY_GROUP_WORKBENCH: 'b'.repeat(40)
+    }
+    const run = change =>
+      spawnSync(process.execPath, ['--input-type=module', '-e', validator], { cwd: root, encoding: 'utf8', env: { ...process.env, ...valid, ...change, GITHUB_OUTPUT: output } })
     for (const change of [
-      { GEA_SHA: '' },
-      { WORKBENCH_SHA: 'main' },
-      { MANAGE_SHA: 'C'.repeat(40) },
-      { GEA_SHA: 'a'.repeat(40) + '\n' },
-      { GEA_SHA: '$(touch unsafe)' },
-      { EXPECTED_SHA: 'd'.repeat(40) }
+      { QUALITY_GROUP_WORKBENCH: '' },
+      { QUALITY_GROUP_WORKBENCH: 'main' },
+      { QUALITY_GROUP_WORKBENCH: 'B'.repeat(40) },
+      { QUALITY_GROUP_WORKBENCH: 'b'.repeat(40) + '\n' },
+      { QUALITY_GROUP_WORKBENCH: '$(touch unsafe)' },
+      { QUALITY_EXPECTED_SHA: 'd'.repeat(40) },
+      { QUALITY_SCOPE_ALLOWED: 'false' }
     ]) {
-      const result = spawnSync(process.execPath, ['--input-type=module', '-e', validator], {
-        encoding: 'utf8',
-        env: { ...process.env, ...valid, ...change, GITHUB_OUTPUT: output }
-      })
+      const result = run(change)
       assert.notEqual(result.status, 0)
-      assert.match(result.stderr, /CANDIDATE_GROUP_REQUIRED|CANDIDATE_EVENT_MISMATCH/)
+      assert.match(result.stderr, /CANDIDATE_BASELINE_REQUIRED|CANDIDATE_EVENT_MISMATCH|CANDIDATE_SCOPE_REQUIRED/)
       assert.equal(existsSync(output), false)
     }
-    const result = spawnSync(process.execPath, ['--input-type=module', '-e', validator], { encoding: 'utf8', env: { ...process.env, ...valid, GITHUB_OUTPUT: output } })
-    assert.equal(result.status, 0, result.stderr)
-    const id = createHash('sha256')
-      .update(
-        JSON.stringify([
-          ['dsh-agent-manage', valid.MANAGE_SHA],
-          ['dsh-agent-workbench', valid.WORKBENCH_SHA],
-          ['dsh-gea-plugin', valid.GEA_SHA]
-        ])
-      )
-      .digest('hex')
-    assert.equal(readFileSync(output, 'utf8'), `gea-sha=${valid.GEA_SHA}\nworkbench-sha=${valid.WORKBENCH_SHA}\nmanage-sha=${valid.MANAGE_SHA}\ngroup-id=${id}\n`)
+    const good = run({ GITHUB_EVENT_NAME: 'push' })
+    assert.equal(good.status, 0, good.stderr)
+    assert.equal(readFileSync(output, 'utf8'), 'workbench-sha=' + 'b'.repeat(40) + '\n')
+    rmSync(output)
+    writeFileSync(baselineFile, '{}')
+    const dirty = run({ GITHUB_EVENT_NAME: 'push' })
+    assert.notEqual(dirty.status, 0)
+    assert.match(dirty.stderr, /CANDIDATE_BASELINE_REQUIRED/)
+    assert.equal(existsSync(output), false)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
@@ -235,9 +240,9 @@ test('joint dispatch isolates in-flight runs and keeps all original Core, Window
   assert.match(workflow, /QUALITY_PHASE: \$\{\{ matrix.phase \}\}/)
   assert.match(
     workflow,
-    /'--phase', process.env.QUALITY_PHASE, '--prepare-sdk', '--core-source', resolve\(process.env.GITHUB_WORKSPACE, 'source\/official-core'\), '--final-group-sha256', process.env.INPUT_SHA256/
+    /'--phase', process.env.QUALITY_PHASE, '--input', process.env.QUALITY_CANDIDATE, '--prepare-sdk', '--core-source', resolve\(process.env.GITHUB_WORKSPACE, 'source\/official-core'\), '--final-group-sha256', process.env.INPUT_SHA256/
   )
-  assert.match(workflow, /--phase audit --core-source "\$GITHUB_WORKSPACE\/source\/official-core" --final-group-sha256 "\$INPUT_SHA256"/)
+  assert.match(workflow, /--phase audit --input "\$QUALITY_CANDIDATE" --core-source "\$GITHUB_WORKSPACE\/source\/official-core" --final-group-sha256 "\$INPUT_SHA256"/)
   assert.match(workflow, /path: source\/official-core/)
   assert.match(workflow, /candidate-group\.json/)
   assert.match(workflow, /dependency-review:[\s\S]*if: github.event_name == 'pull_request'/)
@@ -246,7 +251,7 @@ test('joint dispatch isolates in-flight runs and keeps all original Core, Window
 
 test('joint execution keeps the native runner environment and forwards the complete CLI with failure status', () => {
   const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
-  const step = workflow.match(/ {6}- name: Prepare independent SDK and run all frozen joint group gates\n([\s\S]*?)\n {6}- name:/)?.[1]
+  const step = workflow.match(/ {6}- name: Prepare independent SDK and run all admitted group gates\n([\s\S]*?)\n {6}- name:/)?.[1]
   assert.ok(step, 'joint quality step must exist')
   assert.doesNotMatch(step, /shell:/, 'Windows must retain the native PowerShell runner environment')
   const code = step.match(/node --input-type=module -e "([^"\n]+)"/)?.[1]
@@ -265,15 +270,52 @@ test('joint execution keeps the native runner environment and forwards the compl
         const result = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
           cwd: own,
           encoding: 'utf8',
-          env: { ...process.env, GITHUB_WORKSPACE: root, QUALITY_PHASE: phase, INPUT_SHA256: 'a'.repeat(64), PROTOCOL_OUTPUT: output, PROTOCOL_EXIT: String(exit) }
+          env: {
+            ...process.env,
+            GITHUB_WORKSPACE: root,
+            QUALITY_PHASE: phase,
+            QUALITY_CANDIDATE: join(root, 'candidate-input.json'),
+            INPUT_SHA256: 'a'.repeat(64),
+            PROTOCOL_OUTPUT: output,
+            PROTOCOL_EXIT: String(exit)
+          }
         })
         assert.equal(result.status, exit, result.stderr)
         const observed = JSON.parse(readFileSync(output, 'utf8'))
-        assert.deepEqual(observed.args, ['--phase', phase, '--prepare-sdk', '--core-source', resolve(root, 'source/official-core'), '--final-group-sha256', 'a'.repeat(64)])
+        assert.deepEqual(observed.args, [
+          '--phase',
+          phase,
+          '--input',
+          join(root, 'candidate-input.json'),
+          '--prepare-sdk',
+          '--core-source',
+          resolve(root, 'source/official-core'),
+          '--final-group-sha256',
+          'a'.repeat(64)
+        ])
         assert.equal(observed.path, process.env.PATH, 'Node must preserve the runner PATH for archive tools')
       }
     }
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+test('personal integration cannot trigger upstream release or Pages publication', () => {
+  const npm = readFileSync('.github/workflows/npm-publish.yml', 'utf8')
+  const pages = readFileSync('.github/workflows/docs-pages.yml', 'utf8')
+  const deny = "github.repository != 'CleverC2200/dsh-agent-manage'"
+  const job = (workflow, name) => workflow.match(new RegExp('^  ' + name + ':\\n([\\s\\S]*?)(?=^  [a-z-]+:|$(?![\\s\\S]))', 'm'))?.[1]
+  for (const [workflow, name] of [
+    [npm, 'release-please'],
+    [npm, 'npm-publish'],
+    [pages, 'build'],
+    [pages, 'deploy']
+  ]) {
+    const body = job(workflow, name)
+    assert.ok(body, name)
+    assert.ok(body.includes(deny), name + ' must refuse publication from the registered personal repository')
+  }
+  assert.match(npm, /pnpm publish --no-git-checks --provenance/)
+  assert.match(pages, /actions\/deploy-pages@v5/)
 })
