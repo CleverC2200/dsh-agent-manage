@@ -246,7 +246,7 @@ test('joint dispatch isolates in-flight runs and keeps all original Core, Window
 
 test('joint execution keeps the native runner environment and forwards the complete CLI with failure status', () => {
   const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
-  const step = workflow.match(/      - name: Prepare independent SDK and run all frozen joint group gates\n([\s\S]*?)\n      - name:/)?.[1]
+  const step = workflow.match(/ {6}- name: Prepare independent SDK and run all frozen joint group gates\n([\s\S]*?)\n {6}- name:/)?.[1]
   assert.ok(step, 'joint quality step must exist')
   assert.doesNotMatch(step, /shell:/, 'Windows must retain the native PowerShell runner environment')
   const code = step.match(/node --input-type=module -e "([^"\n]+)"/)?.[1]
