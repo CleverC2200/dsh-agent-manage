@@ -5,7 +5,7 @@ import { baseInventoryHarness } from './base-inventory-harness.js'
 import { completion, turn } from './core-preset-harness.js'
 import { profileFor } from 'preset-integration-gea/host/prompt-policy'
 
-it.skipIf(!process.env.BASE_HOST_RECEIPT)('selects the base resource and materializes its returned preset in the requested workspace', async () => {
+it('selects the base resource and materializes its returned preset in the requested workspace', async () => {
   const request = JSON.parse(process.env.BASE_HOST_REQUEST!) as { id: string; cwd: string; sessionId: string }
   expect(request.id).toBe('gea-html-inventory-aqkc')
   const f = await baseInventoryHarness({ sessionId: request.sessionId, cwd: request.cwd })

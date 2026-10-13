@@ -16,17 +16,15 @@ import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-preset-registry/type
 it('uses the same actual catalog names and descriptions in official settings and every selected new-task chip', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'preset-catalog-display-'))
   onTestFinished(() => rm(directory, { recursive: true, force: true }))
-  await promisify(execFile)(
-    process.execPath,
-    [resolve('node_modules/vitest/vitest.mjs'), 'run', '--config', 'vitest.preset-integration.config.ts', 'tests/standard-preset-gea.test.ts', '-t', 'one described registry'],
-    {
-      cwd: resolve(import.meta.dirname, '..'),
-      env: { ...process.env, PRESET_EVIDENCE_DIR: directory },
-      timeout: 30_000,
-      maxBuffer: 4 * 1024 * 1024
-    }
-  )
-  const { catalog, resources } = JSON.parse(await readFile(join(directory, 'company-catalog.json'), 'utf8')) as {
+  await promisify(execFile)(process.execPath, [resolve('node_modules/vitest/vitest.mjs'), 'run', '--config', 'vitest.preset-host.config.ts', 'tests/preset-catalog-host.test.ts'], {
+    cwd: resolve(import.meta.dirname, '..'),
+    env: { ...process.env, PRESET_EVIDENCE_DIR: directory },
+    timeout: 30_000,
+    maxBuffer: 4 * 1024 * 1024
+  })
+  const hostReceipt = await readFile(join(directory, 'company-catalog.json'), 'utf8')
+  if (process.env.PRESET_EVIDENCE_DIR) await writeFile(join(process.env.PRESET_EVIDENCE_DIR, 'company-catalog.json'), hostReceipt)
+  const { catalog, resources } = JSON.parse(hostReceipt) as {
     catalog: AgentPresetRow[]
     resources: { id: string; label: string; description?: string }[]
   }

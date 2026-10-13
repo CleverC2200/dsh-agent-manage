@@ -2,6 +2,7 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'
+import { presetLanes } from './scripts/preset-test-lanes.mjs'
 import base from './vitest.config.js'
 
 const gea = resolve(process.env.DSH_GEA_CHECKOUT ?? '../dsh-gea-plugin')
@@ -27,15 +28,7 @@ export default defineConfig({
   },
   test: {
     ...base.test,
-    include: [
-      'tests/standard-preset-gea.test.ts',
-      'tests/skill-preset-gea.test.ts',
-      'tests/base-resource-host.test.ts',
-      'tests/sales-preset-gea.test.ts',
-      'tests/sales-resource-host.test.ts',
-      'tests/inventory-family-preset.test.ts',
-      'tests/inventory-family-host.test.ts'
-    ],
+    include: Object.keys(presetLanes.gea),
     exclude: []
   }
 })

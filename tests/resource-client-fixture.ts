@@ -95,15 +95,11 @@ export async function resourceClientFixture<Receipt extends ResourceHostReceipt 
     const request = JSON.parse(input!.body as string)
     expect(request).toEqual({ id: options.resourceId, cwd })
     const receiptPath = join(cwd, 'host.json')
-    const output = await promisify(execFile)(
-      process.execPath,
-      [resolve('node_modules/vitest/vitest.mjs'), 'run', '--config', 'vitest.preset-integration.config.ts', options.hostTest],
-      {
-        cwd: resolve(import.meta.dirname, '..'),
-        env: { ...process.env, [`${options.hostEnv}_REQUEST`]: JSON.stringify({ ...request, sessionId: options.sessionId }), [`${options.hostEnv}_RECEIPT`]: receiptPath },
-        timeout: 30_000
-      }
-    )
+    const output = await promisify(execFile)(process.execPath, [resolve('node_modules/vitest/vitest.mjs'), 'run', '--config', 'vitest.preset-host.config.ts', options.hostTest], {
+      cwd: resolve(import.meta.dirname, '..'),
+      env: { ...process.env, [`${options.hostEnv}_REQUEST`]: JSON.stringify({ ...request, sessionId: options.sessionId }), [`${options.hostEnv}_RECEIPT`]: receiptPath },
+      timeout: 30_000
+    })
     expect(output.stdout).toContain('1 passed')
     receipt = JSON.parse(await readFile(receiptPath, 'utf8'))
     return Response.json(receipt.selection)

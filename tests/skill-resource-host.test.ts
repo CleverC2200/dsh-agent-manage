@@ -5,7 +5,7 @@ import { writeFile } from 'node:fs/promises'
 import { BusinessResources } from '../src/runtime/business-resources.js'
 import { completion, official, presetHarness } from './core-preset-harness.js'
 
-it.skipIf(!process.env.SKILL_HOST_RECEIPT)('serves a selected Skill and materializes its real Core Session in the requested workspace', async () => {
+it('serves a selected Skill and materializes its real Core Session in the requested workspace', async () => {
   const request = JSON.parse(process.env.SKILL_HOST_REQUEST!) as { id: string; cwd: string; sessionId: string }
   const { ctx, home } = await presetHarness()
   await completion(ctx)

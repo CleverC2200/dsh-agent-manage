@@ -92,9 +92,11 @@ try {
     run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'])
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'dependencies-prepared=true\n')
     if (phase === 'quality') {
-      const checks = await runQualityChecks(['check:refactor', 'test', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) })))
+      const checks = await runQualityChecks(
+        ['check:static', 'test:ci-unit', 'check:capabilities', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) }))
+      )
       writeFileSync('quality-checks.json', JSON.stringify(checks, null, 2) + '\n')
-      if (checks.length !== 3 || checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')
+      if (checks.length !== 4 || checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')
     } else if (phase === 'archives') {
       run('corepack', ['pnpm', 'exec', 'vitest', 'run', 'tests/source-acquisition.test.ts', 'tests/zip-bomb.test.ts', 'tests/private-archive.test.ts'])
     } else {

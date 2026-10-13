@@ -6,7 +6,7 @@ import { agentOn, completion, turn } from './core-preset-harness.js'
 import { profileFor } from 'preset-integration-gea/host/prompt-policy'
 import { salesRoleInput, salesRoles } from './sales-role-input.js'
 
-it.skipIf(!process.env.SALES_HOST_RECEIPT)('selects the requested sales resource and creates its actual Session in the requested workspace', async () => {
+it('selects the requested sales resource and creates its actual Session in the requested workspace', async () => {
   const request = JSON.parse(process.env.SALES_HOST_REQUEST!) as { id: string; cwd: string; sessionId: string }
   const role = salesRoles.find(row => row.id === request.id)!
   expect(role).toBeDefined()
