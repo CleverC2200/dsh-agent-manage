@@ -47,7 +47,7 @@ import { mountFeedbackTool } from './runtime/feedback-tool.js'
 import { createUserPanelStores } from './runtime/user-panels.js'
 import { UserPanelSkillProvider } from './runtime/user-panels.js'
 import { UserCommandMountRegistry } from './runtime/user-commands.js'
-import { mountGeaMcp, type GeaMcpConsumer } from './runtime/gea-mcp.js'
+import { mountGeaMcp } from './runtime/gea-mcp.js'
 import type { SourceRef } from './model/types.js'
 export { pluginPackageVersion } from './plugin-package-version.js'
 
@@ -64,7 +64,7 @@ export interface Config {
   scanProjectLayouts: Volatile<boolean>
   /** Registered GEA Consumer for automatic MCP discovery after GEA plugin login. */
   /** 中文：GEA 登录后用于自动发现 MCP 的消费者；显式 false 时不挂载。 */
-  geaMcp?: GeaMcpConsumer | false
+  geaMcp?: false
   /** Initial repository sources, merged into the persisted state on first load. */
   /** 中文：首次加载时并入持久化状态的初始仓库源。 */
   sources?: SourceRef[]
@@ -95,7 +95,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   const standardInitialization = ctx.inject(['agentPresets', 'loader'], async host => {
     await host.plugin(StandardPreset)
   })
-  if (config.geaMcp !== false) mountGeaMcp(ctx, config.geaMcp)
+  if (config.geaMcp !== false) mountGeaMcp(ctx)
   const userRoot = resolveUserRoot()
   const dataRoot = resolveDataRoot()
   let providerControl: SkillProviderControl | undefined
