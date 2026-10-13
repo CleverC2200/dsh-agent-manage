@@ -5,7 +5,7 @@ import { inventoryFamilyHarness, inventoryRoles } from './inventory-family-harne
 import { completion, history, turn } from './core-preset-harness.js'
 import { profileFor } from 'preset-integration-gea/host/prompt-policy'
 
-it.skipIf(!process.env.INVENTORY_HOST_RECEIPT)('materializes the selected inventory preset in its requested workspace and queries its authorized Consumer', async () => {
+it('materializes the selected inventory preset in its requested workspace and queries its authorized Consumer', async () => {
   const request = JSON.parse(process.env.INVENTORY_HOST_REQUEST!) as { id: string; cwd: string; sessionId: string }
   const role = inventoryRoles.find(row => `gea-html-${row.id}` === request.id)!
   expect(role).toBeDefined()

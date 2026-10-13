@@ -152,6 +152,14 @@ describe('LoopbackOAuthClientProvider state', () => {
     await expect(provider.clientInformation()).resolves.toBeUndefined()
   })
 
+  it('rejects a legacy grant without an issuer so it cannot cross authorization servers', async () => {
+    const key = String(credentialKey('mcp-auth', 'srv'))
+    const records = new Map<string, unknown>([[key, { kind: 'grant', payload: { tokens: { ...TOKENS, issuer: undefined } } }]])
+    const store = createRecordStore(records)
+    const provider = new LoopbackOAuthClientProvider('srv', {}, undefined, () => {}, store, openerStub)
+    await expect(provider.tokens()).resolves.toBeUndefined()
+  })
+
   it('treats a store without the record surface as absent', async () => {
     const provider = new LoopbackOAuthClientProvider('srv', {}, undefined, () => {}, { nope: true }, openerStub)
     await provider.saveTokens({ ...TOKENS })

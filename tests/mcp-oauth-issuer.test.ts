@@ -101,6 +101,40 @@ describe('MCP OAuth issuer binding through the real SDK', () => {
     expect(JSON.stringify(d.requests)).not.toMatch(/old-secret|old-refresh|old-access/)
   })
 
+  it('preserves legacy token data through fresh registration and a failed authorization exchange', async () => {
+    const legacyTokens = { access_token: 'old-access', refresh_token: 'old-refresh', token_type: 'Bearer' }
+    const f = fixture({ clientInformation: { client_id: 'old-client', client_secret: 'old-secret' }, tokens: legacyTokens })
+    const p = f.provider()
+    vi.spyOn(p, 'redirectToAuthorization').mockResolvedValue()
+    const d = discovery(ISSUER)
+    await expect(auth(p, d.options)).resolves.toBe('REDIRECT')
+    expect(f.read()).toMatchObject({ kind: 'grant', payload: { tokens: legacyTokens } })
+    await expect(f.provider().clientInformation()).resolves.toMatchObject({ client_id: 'new-client', issuer: ISSUER })
+    await expect(f.provider().tokens()).resolves.toBeUndefined()
+
+    const unavailable = new Error('authorization server unavailable')
+    const fetchFn = d.options.fetchFn
+    let exchangeBody = ''
+    await expect(
+      auth(p, {
+        ...d.options,
+        authorizationCode: 'new-code',
+        fetchFn: async (input, init) => {
+          if (String(input) === new URL('token', ISSUER).href) {
+            exchangeBody = String(init?.body ?? '')
+            throw unavailable
+          }
+          return fetchFn(input, init)
+        }
+      })
+    ).rejects.toBe(unavailable)
+    expect(exchangeBody).toContain('new-code')
+    expect(exchangeBody).not.toMatch(/old-secret|old-refresh|old-access/)
+    expect(f.read()).toMatchObject({ kind: 'grant', payload: { tokens: legacyTokens } })
+    await expect(f.provider().tokens()).resolves.toBeUndefined()
+    expect(JSON.stringify(d.requests)).not.toMatch(/old-secret|old-refresh|old-access/)
+  })
+
   it.each([undefined, '', 42, null])('does not expose credentials with invalid issuer %s', async issuer => {
     const f = fixture({ clientInformation: { ...client, issuer }, tokens: { ...tokens, issuer } })
     await expect(f.provider().clientInformation()).resolves.toBeUndefined()

@@ -8,13 +8,15 @@ Status: implemented
 
 ## Decision
 
-DSH 运行 peer 精确接受 `0.2.0-rc.2 || 0.2.1-alpha.1`。Cordis、Schemastery 和 Include 精确接受这两版 Core manifest 声明的版本。开发依赖和生成类型路径继续使用已登记的 alpha.1 SDK。GEA 交付描述持有受支持 Core 的提交和版本集合。
+DSH 运行 peer 精确接受 `0.2.0-rc.2 || 0.2.1-alpha.1`。Cordis、Schemastery 和 Include 精确接受这两版 Core manifest 声明的版本。开发依赖路径保持单一 SDK 布局。干净 CI 在消费者安装前准备显式选择的登记 Core；GEA supported-Core 登记表持有受支持 head、原锁哈希和工具链。[干净 CI](../../../../docs/clean-ci.md) 记录共享 SDK 接口及分开的质量、安全结果。
+
+Manage 质量阶段要求 SDK 模块准备并核验真实宿主 flock，用于官方 Session writer lock。归档和审计保留各自较窄的输入要求。原预测 Session 测试在独立临时目录安装已跟踪的完整销售套件，并核对固定源哈希，不依赖 runner checkout 外的仓库。Skill 路径断言区分已安装原始源与包内 provider。
 
 资源与 Skill 发布使用两版共同的 registry 和 provider 接口。Standard 组合读取当前 Host 的 `readDocument('standard')`，包括禁用行和用户配置，不移植另一版的声明。生产路径不增加版本分支或复制的 SDK。
 
 `DSH_CORE_CHECKOUT` 为既有能力验证 lane 选择官方输入。Host fixture 和静态 SDK 导入解析同一批公开 exports；浏览器 lane 读取该 Core 的源码映射，并将既有相对官方源码引用导向同一 Core。Native Loader 与真实 Session 继续执行，本地 completion 和受控业务 adapter 保持原有离线范围。
 
-本决定部分替代[唯一登记的官方 SDK](2026-10-04-one-official-sdk.zh.md)中的单版运行 peer 决定。其单一开发 SDK、现行 exports、已移除的 client-runtime metadata 和既有 module 归属保持。
+本决定部分替代[唯一登记的官方 SDK](2026-10-04-one-official-sdk.zh.md)中的单版运行 peer 决定。其单一所选开发 SDK 布局、现行 exports、已移除的 client-runtime metadata 和既有 module 归属保持。
 
 浏览器 fixture 使用官方 `createConversationStore`，并挂载所选 `DefaultConversationViews`。共用的字符串草稿输入符合 rc.2 的已声明持久化格式，真实挂载负责 rc.2 的草稿恢复和两版持久化。准备期间的用户打字调用真实输入的 `setDraft`，冲突与取消仍验证常驻输入状态。测试保留各官方 Host 自己的开发工具可见性和时间上下文声明，不要求 rc.2 提供 alpha 独有行为。
 

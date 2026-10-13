@@ -370,7 +370,10 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     // too; the process-local PKCE verifier is the only non-durable field.
     // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const verifier = this.providerState.codeVerifier
-    this.providerState = { ...payload, ...(verifier === undefined ? {} : { codeVerifier: verifier }) }
+    this.providerState = {
+      ...payload,
+      ...(verifier === undefined ? {} : { codeVerifier: verifier })
+    }
     return this.providerState
   }
 

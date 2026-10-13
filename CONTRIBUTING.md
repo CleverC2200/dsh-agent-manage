@@ -70,15 +70,15 @@ Choose checks for the change and the task acceptance scope. Source changes use t
 
 按改动与本票验收范围选择检查。源码改动在创建 PR 前运行声明的完整门禁；仅文档审查先核引用与命令存在性，扩大验证范围按本票授权：
 
-| Command                       | Purpose / 用途                                                                                  |
-| ----------------------------- | ----------------------------------------------------------------------------------------------- |
-| `pnpm run typecheck`          | TypeScript host and client type checks / TypeScript 宿主与客户端类型检查                        |
-| `pnpm run lint`               | ESLint checks / ESLint 检查                                                                     |
-| `pnpm run format:check`       | Prettier formatting check / Prettier 格式检查                                                   |
-| `pnpm run check:architecture` | Dependency-boundary check / 依赖边界检查                                                        |
-| `pnpm run test:contract`      | Fast host/client contract tests / 快速宿主/客户端契约测试                                       |
-| `pnpm run test`               | Full Vitest suite / 完整 Vitest 测试                                                            |
-| `pnpm run build`              | Published host and client artifacts / 发布用宿主与客户端构建产物                                |
+| Command                       | Purpose / 用途                                                                                                 |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `pnpm run typecheck`          | TypeScript host and client type checks / TypeScript 宿主与客户端类型检查                                       |
+| `pnpm run lint`               | ESLint checks / ESLint 检查                                                                                    |
+| `pnpm run format:check`       | Prettier formatting check / Prettier 格式检查                                                                  |
+| `pnpm run check:architecture` | Dependency-boundary check / 依赖边界检查                                                                       |
+| `pnpm run test:contract`      | Fast host/client contract tests / 快速宿主/客户端契约测试                                                      |
+| `pnpm run test`               | Full Vitest suite / 完整 Vitest 测试                                                                           |
+| `pnpm run build`              | Published host and client artifacts / 发布用宿主与客户端构建产物                                               |
 | `pnpm run check:refactor`     | Declared aggregate gate; query package.json for its current members / 综合门禁成员以 package.json 当前声明为准 |
 
 The pull-request workflow runs the refactor gate, the full test suite, and the build automatically. A PR should not be considered ready while a required check is failing.

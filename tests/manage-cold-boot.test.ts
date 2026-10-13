@@ -136,11 +136,21 @@ if (!childHome) {
                 })
                 // Exercise the public Skill discovery and resource Fetch interfaces
                 // while the standard module remains gated. No polling or timer.
-                await runtime.skills.list({ cwd: childHome })
-                const pending = await runtime.connection
-                  .createSharedFetchHandler('/api')
-                  .fetch(new Request(`http://localhost/api/agent-manage/resources?cwd=${encodeURIComponent(childHome)}`))
-                expect(pending.status).toBe(404)
+                await new Promise<void>((resolveProbe, rejectProbe) => {
+                  runtime.inject(['skills', 'connection'], async host => {
+                    try {
+                      await host.skills.list({ cwd: childHome })
+                      const pending = await host.connection
+                        .createSharedFetchHandler('/api')
+                        .fetch(new Request(`http://localhost/api/agent-manage/resources?cwd=${encodeURIComponent(childHome)}`))
+                      expect(pending.status).toBe(404)
+                      resolveProbe()
+                    } catch (error) {
+                      rejectProbe(error)
+                      throw error
+                    }
+                  })
+                })
               }
               return official(name)
             }

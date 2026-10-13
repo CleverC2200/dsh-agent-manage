@@ -1,6 +1,6 @@
 {
   "name": "dsh-agent-manage",
-  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) \u2014 zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
+  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) — zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
   "version": "0.6.3-company.6",
   "type": "module",
   "main": "lib/index.js",
@@ -59,7 +59,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:architecture": "depcruise --validate .dependency-cruiser.cjs src",
-    "check:refactor": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test:contract && pnpm run check:architecture && pnpm run check:capabilities",
+    "check:refactor": "pnpm run check:static && pnpm run test:contract && pnpm run check:capabilities",
     "prepack": "pnpm run build",
     "prepare": "pnpm run build",
     "check:knowledge": "node scripts/check-agent-knowledge.mjs",
@@ -68,7 +68,11 @@
     "test:preset-integration": "vitest run --config vitest.preset-integration.config.ts",
     "check:capabilities": "node scripts/check-preset-capabilities.mjs",
     "sdk:verify": "node scripts/prepare-official-sdk.mjs",
-    "sdk:prepare": "node scripts/prepare-official-sdk.mjs --prepare"
+    "sdk:prepare": "node scripts/prepare-official-sdk.mjs --prepare",
+    "quality:ci": "node scripts/run-quality-ci.mjs",
+    "test:ci-inputs": "node --test tests/sdk-input-cli.test.mjs tests/quality-ci-cli.test.mjs tests/run-quality-checks.test.mjs tests/preset-capabilities-cli.test.mjs",
+    "check:static": "pnpm run check:knowledge && pnpm run test:knowledge && pnpm run test:ci-inputs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
+    "test:ci-unit": "vitest run --config vitest.ci-unit.config.ts"
   },
   "dsh": {
     "bundle": {
@@ -144,7 +148,7 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "ajv": "^8.17.1",
     "fflate": "^0.8.3",
     "smol-toml": "^1.8.0",

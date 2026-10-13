@@ -11,3 +11,5 @@ coverage/
 .playwright-cli/
 # IDE state
 .idea/
+# Independent quality command receipts
+quality-checks.json

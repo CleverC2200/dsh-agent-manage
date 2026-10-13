@@ -110,21 +110,11 @@
     ".agents/notes/proposed/feature/2026-10-08-full-chain-company-read.zh.md",
     "schemas/README.md",
     ".agents/notes/implemented/process/2026-10-10-two-official-core-releases.md",
-    ".agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md"
+    ".agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md",
+    "docs/clean-ci.md"
   ],
-  "paths": [
-    "src/runtime/business-resources.ts",
-    "src/inventory-compute",
-    "src/aps-compute",
-    "tsconfig.official-paths.json"
-  ],
-  "scripts": [
-    "check:knowledge",
-    "check:architecture",
-    "test:contract",
-    "check:refactor",
-    "test:knowledge"
-  ],
+  "paths": ["src/runtime/business-resources.ts", "src/inventory-compute", "src/aps-compute", "tsconfig.official-paths.json"],
+  "scripts": ["check:knowledge", "check:architecture", "test:contract", "check:refactor", "test:knowledge", "sdk:verify", "sdk:prepare", "quality:ci", "test:ci-inputs"],
   "exports": false,
   "history": [
     "docs/release",
@@ -138,5 +128,9 @@
     "docs/design/lsp-surface-support.md",
     ".agents/notes/archived",
     "docs/history"
-  ]
+  ],
+  "peers": ["../../official-latest-standard", "../dsh-gea-plugin"],
+  "commandRoots": {
+    "docs/clean-ci.md": ["../../official-latest-standard"]
+  }
 }

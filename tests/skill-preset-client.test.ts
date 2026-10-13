@@ -88,11 +88,15 @@ it('opens a real selected Skill Session through the resource entry and preserves
     expect(request).toEqual({ id: 'skill:selected-skill', cwd })
     const sessionId = `skill-entry-${receipts.length + 1}`
     const receiptPath = join(cwd, `${sessionId}.json`)
-    const output = await promisify(execFile)(process.execPath, [resolve('node_modules/vitest/vitest.mjs'), 'run', 'tests/skill-resource-host.test.ts'], {
-      cwd: resolve(import.meta.dirname, '..'),
-      env: { ...process.env, SKILL_HOST_REQUEST: JSON.stringify({ ...request, sessionId }), SKILL_HOST_RECEIPT: receiptPath },
-      timeout: 30_000
-    })
+    const output = await promisify(execFile)(
+      process.execPath,
+      [resolve('node_modules/vitest/vitest.mjs'), 'run', '--config', 'vitest.preset-host.config.ts', 'tests/skill-resource-host.test.ts'],
+      {
+        cwd: resolve(import.meta.dirname, '..'),
+        env: { ...process.env, SKILL_HOST_REQUEST: JSON.stringify({ ...request, sessionId }), SKILL_HOST_RECEIPT: receiptPath },
+        timeout: 30_000
+      }
+    )
     expect(output.stdout).toContain('1 passed')
     prepared = JSON.parse(await readFile(receiptPath, 'utf8'))
     receipts.push(prepared!)

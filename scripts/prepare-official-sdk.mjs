@@ -1,3 +1,6 @@
+import { URL } from 'node:url'
+import process from 'node:process'
+import console from 'node:console'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync, writeFileSync, mkdirSync, readdirSync, lstatSync } from 'node:fs'
 import { dirname, resolve, relative, sep } from 'node:path'
@@ -5,9 +8,21 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 
-// Expectations are the admitted private security input, not supplied by a PR's manifest.
-const coreCommit = '8ff14441ac932b55cf1f14b1715128eaa162b1ec'
-const coreLock = '10da992dcf0e2a50cdf94c3335adf18c63beca7fdaa0d4adf649f0a5428dd266'
+// GEA owns the registered Core source, original lock and toolchain authority.
+function supportedCore(coreHead) {
+  const registry = json(new URL('../../dsh-gea-plugin/scripts/supported-cores.json', import.meta.url))
+  const selectedHead = coreHead === undefined ? json(new URL('../../dsh-gea-plugin/scripts/current-core.json', import.meta.url)).adaptation : coreHead
+  const selected = registry.find(entry => entry.head === selectedHead)
+  if (!selected) refuse('SDK_CORE_UNSUPPORTED', selectedHead ?? 'registered current adaptation required')
+  if (
+    !/^[a-f0-9]{40}$/.test(selected.head) ||
+    !/^[a-f0-9]{64}$/.test(selected.lockSha256) ||
+    !['pnpm@11.7.0', 'pnpm@11.11.0'].includes(selected.packageManager) ||
+    selected.nodeMajor !== 24
+  )
+    refuse('SDK_AUTHORITY_REQUIRED', 'registered head, original lock and exact toolchain')
+  return { coreCommit: selected.head, coreLock: selected.lockSha256, packageManager: selected.packageManager, nodeMajor: selected.nodeMajor }
+}
 const hash = file => createHash('sha256').update(readFileSync(file)).digest('hex')
 const json = file => JSON.parse(readFileSync(file, 'utf8'))
 function refuse(code, detail) {
@@ -25,28 +40,31 @@ function run(command, args, cwd, capture = false) {
   return capture ? result.stdout.trim() : undefined
 }
 
-function source(core, writing) {
+function source(core, writing, coreHead) {
+  const baseline = supportedCore(coreHead)
+  const { coreCommit, coreLock, packageManager, nodeMajor } = baseline
   if (!existsSync(resolve(core, '.git'))) refuse('SDK_SOURCE_REQUIRED', core)
   if (writing && realpathSync(core) !== resolve(core)) refuse('SDK_PRIVATE_CHECKOUT_REQUIRED', core)
   if (run('git', ['rev-parse', 'HEAD'], core, true) !== coreCommit) refuse('SDK_CORE_MISMATCH', core)
   if (hash(resolve(core, 'pnpm-lock.yaml')) !== coreLock) refuse('SDK_LOCK_MISMATCH', core)
   if (run('git', ['status', '--porcelain', '--untracked-files=normal'], core, true)) refuse('SDK_DIRTY_SOURCE', core)
-  if (json(resolve(core, 'package.json')).packageManager !== 'pnpm@11.11.0') refuse('SDK_TOOLCHAIN_MISMATCH', core)
-  if (Number(process.versions.node.split('.')[0]) !== 24) refuse('SDK_TOOLCHAIN_MISMATCH', `Node ${process.versions.node}; expected 24`)
+  if (json(resolve(core, 'package.json')).packageManager !== packageManager) refuse('SDK_TOOLCHAIN_MISMATCH', core)
+  if (Number(process.versions.node.split('.')[0]) !== nodeMajor) refuse('SDK_TOOLCHAIN_MISMATCH', `Node ${process.versions.node}; expected ${nodeMajor}`)
+  return baseline
 }
 
 /** Verify fixed Git source and original lock without requiring or preparing SDK outputs. */
-export function verifyOfficialSource(core) {
-  source(core, false)
-  return { root: realpathSync(core), commit: coreCommit, lockSha256: coreLock, packageManager: 'pnpm@11.11.0' }
+export function verifyOfficialSource(core, { coreHead } = {}) {
+  const { coreCommit, coreLock, packageManager } = source(core, false, coreHead)
+  return { root: realpathSync(core), commit: coreCommit, lockSha256: coreLock, packageManager }
 }
 
-function ownedSource(core) {
+function ownedSource(core, coreHead) {
   const owner = spawnSync('git', ['config', '--local', '--get', 'dsh.sdkPreparation'], { cwd: core, encoding: 'utf8' })
   if (owner.status !== 0 || owner.stdout.trim() !== 'independent-fixed-core')
     refuse('SDK_PRIVATE_CHECKOUT_REQUIRED', 'use --source with a new checkout; an existing shared SDK is read-only')
-  source(core, true)
-  if (run('corepack', ['pnpm', '--version'], core, true) !== '11.11.0') refuse('SDK_TOOLCHAIN_MISMATCH', 'pnpm')
+  const { packageManager } = source(core, true, coreHead)
+  if (run('corepack', ['pnpm', '--version'], core, true) !== packageManager.slice('pnpm@'.length)) refuse('SDK_TOOLCHAIN_MISMATCH', 'pnpm')
 }
 
 const webScript = 'pnpm --filter @deepseek-ai/dsh-web-frontend run build'
@@ -80,7 +98,8 @@ function webIndex(core) {
   if (!localAssets || !/<script\b[^>]*\btype=["']module["']/.test(html)) refuse('SDK_WEB_ENTRY_REQUIRED', 'built module entry and its local assets required')
 }
 
-function verifyWeb(core) {
+function verifyWeb(core, coreHead) {
+  const { coreCommit, coreLock } = supportedCore(coreHead)
   webIndex(core)
   const receipt = webReceipt(core)
   if (!existsSync(receipt)) refuse('SDK_WEB_RECEIPT_REQUIRED', 'run --prepare-web in the owned prepared checkout')
@@ -127,7 +146,8 @@ function flockTarget(core) {
   }
 }
 
-function verifyFlock(core) {
+function verifyFlock(core, coreHead) {
+  const { coreCommit, coreLock } = supportedCore(coreHead)
   const target = flockTarget(core)
   const file = resolve(core, target.path)
   if (!existsSync(file)) refuse('SDK_FLOCK_MATERIAL_REQUIRED', target.path)
@@ -157,19 +177,37 @@ function verifyFlock(core) {
   return { ...record, status: 'prepared', loadable: true }
 }
 
-export function verifyOfficialSDK({ core, consumer, withWeb = false, withFlock = false }) {
+export function verifyOfficialSDK({ core, consumer, coreHead, withWeb = false, withFlock = false }) {
   core = resolve(core)
   consumer = resolve(consumer)
-  source(core, false)
+  const { coreCommit, coreLock, packageManager } = source(core, false, coreHead)
   const configuration = existsSync(resolve(consumer, 'tsconfig.official-paths.json')) ? 'tsconfig.official-paths.json' : 'tsconfig.official.json'
   const paths = json(resolve(consumer, configuration)).compilerOptions.paths
   const artifacts = new Set()
-  for (const targets of Object.values(paths))
+  const notApplicable = []
+  // Consumer maps cover the full alpha SDK; applicability comes from the selected Git source.
+  const registeredPackages = new Map()
+  for (const file of run('git', ['ls-files', '*package.json'], core, true).split('\n')) {
+    if (!file || !(file.startsWith('packages/') || file.startsWith('vendor/') || file.startsWith('apps/'))) continue
+    const manifest = json(resolve(core, file))
+    if (manifest.name) registeredPackages.set(manifest.name, dirname(file))
+  }
+  for (const [alias, targets] of Object.entries(paths))
     for (const target of targets) {
       const prefix = '../../official-latest-standard/'
       if (/^\.\.\/dsh-agent-(workbench|manage)\//.test(target)) continue
       if (!target.startsWith(prefix)) refuse('SDK_PATH_REJECTED', target)
-      artifacts.add(resolve(core, target.slice(prefix.length)))
+      const packageName = alias.startsWith('@') ? alias.split('/').slice(0, 2).join('/') : alias.split('/')[0]
+      const registeredRoot = registeredPackages.get(packageName)
+      const local = target.slice(prefix.length)
+      if (registeredRoot === undefined) {
+        const manifestPath = resolve(core, local.split('/lib/')[0], 'package.json')
+        if (existsSync(manifestPath)) refuse('SDK_PACKAGE_PATH_MISMATCH', `${alias}: target belongs to ${json(manifestPath).name}`)
+        notApplicable.push({ alias, path: target, reason: 'package absent from the selected fixed Core Git source' })
+        continue
+      }
+      if (!local.startsWith(`${registeredRoot}/lib/`)) refuse('SDK_PACKAGE_PATH_MISMATCH', `${alias}: ${target}; registered ${registeredRoot}`)
+      artifacts.add(resolve(core, local))
     }
   const packages = new Set()
   for (const file of artifacts) {
@@ -199,22 +237,25 @@ export function verifyOfficialSDK({ core, consumer, withWeb = false, withFlock =
     platform: process.platform,
     arch: process.arch,
     node: process.version,
-    packageManager: 'pnpm@11.11.0',
+    packageManager,
     packages: packages.size,
+    notApplicable,
     artifacts: [...artifacts].sort().map(file => ({ path: relative(core, file).split(sep).join('/'), sha256: hash(file) })),
-    ...(withWeb ? { web: verifyWeb(core) } : {}),
-    ...(withFlock ? { flock: verifyFlock(core) } : {})
+    ...(withWeb ? { web: verifyWeb(core, coreHead) } : {}),
+    ...(withFlock ? { flock: verifyFlock(core, coreHead) } : {})
   }
 }
 
 /** Build only the official static Web product in an already-owned, prepared SDK. */
 export function prepareOfficialWeb(options) {
   const core = resolve(options.core)
-  ownedSource(core)
+  const coreHead = options.coreHead
+  const { coreCommit, coreLock } = supportedCore(coreHead)
+  ownedSource(core, coreHead)
   const before = verifyOfficialSDK({ ...options, withWeb: false })
   if (json(resolve(core, 'package.json')).scripts['build:web'] !== webScript) refuse('SDK_WEB_SOURCE_MISMATCH', 'official build:web script')
   run('corepack', ['pnpm', 'run', 'build:web'], core)
-  source(core, true)
+  source(core, true, coreHead)
   const after = verifyOfficialSDK({ ...options, withWeb: false })
   if (JSON.stringify(before.artifacts) !== JSON.stringify(after.artifacts)) refuse('SDK_WEB_CHANGED_SDK', 'static Web preparation changed SDK targets')
   webIndex(core)
@@ -250,10 +291,12 @@ export function prepareOfficialWeb(options) {
 /** Compile only the declared host Node-API flock dependency for real writer-lock tests. */
 export function prepareOfficialFlock(options) {
   const core = resolve(options.core)
+  const coreHead = options.coreHead
+  const { coreCommit, coreLock } = supportedCore(coreHead)
   const target = flockTarget(core)
-  ownedSource(core)
+  ownedSource(core, coreHead)
   const before = verifyOfficialSDK({ ...options, withFlock: false })
-  const beforeWeb = existsSync(webReceipt(core)) ? verifyWeb(core) : undefined
+  const beforeWeb = existsSync(webReceipt(core)) ? verifyWeb(core, coreHead) : undefined
   if (json(resolve(core, 'package.json')).scripts['build:native-system'] !== flockScript) refuse('SDK_FLOCK_SOURCE_MISMATCH', 'official host-addon-only script')
   const headers = resolve(dirname(process.execPath), '../include/node')
   const headerPaths = ['node_api.h', 'node_api_types.h', 'js_native_api.h', 'js_native_api_types.h']
@@ -262,10 +305,10 @@ export function prepareOfficialFlock(options) {
   const tool = spawnSync(compiler, ['--version'], { encoding: 'utf8' })
   if (tool.error || tool.status !== 0) refuse('SDK_FLOCK_COMPILER_REQUIRED', `${compiler}: ${tool.error?.message ?? tool.stderr ?? tool.status}`)
   run('corepack', ['pnpm', 'run', 'build:native-system'], core)
-  source(core, true)
+  source(core, true, coreHead)
   const after = verifyOfficialSDK({ ...options, withFlock: false })
   if (JSON.stringify(before.artifacts) !== JSON.stringify(after.artifacts)) refuse('SDK_FLOCK_CHANGED_SDK', 'flock preparation changed SDK targets')
-  if (beforeWeb && JSON.stringify(beforeWeb) !== JSON.stringify(verifyWeb(core))) refuse('SDK_FLOCK_CHANGED_WEB', 'flock preparation changed static Web targets')
+  if (beforeWeb && JSON.stringify(beforeWeb) !== JSON.stringify(verifyWeb(core, coreHead))) refuse('SDK_FLOCK_CHANGED_WEB', 'flock preparation changed static Web targets')
   if (!existsSync(resolve(core, target.path))) refuse('SDK_FLOCK_MATERIAL_REQUIRED', target.path)
   writeFileSync(
     flockReceipt(core),
@@ -291,15 +334,17 @@ export function prepareOfficialFlock(options) {
 
 export function prepareOfficialSDK(options) {
   const core = resolve(options.core)
+  const coreHead = options.coreHead
+  const { coreCommit } = supportedCore(coreHead)
   if (!existsSync(resolve(core, '.git'))) {
     if (!options.source) refuse('SDK_SOURCE_REQUIRED', 'supply --source for a new independent checkout')
     mkdirSync(dirname(core), { recursive: true })
-    run('git', ['clone', '--no-checkout', '--no-hardlinks', options.source, core], dirname(core))
+    run('git', ['clone', '--config', 'core.autocrlf=false', '--no-checkout', '--no-hardlinks', options.source, core], dirname(core))
     run('git', ['checkout', '--detach', coreCommit], core)
     run('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], core)
   }
   if (options.withFlock) flockTarget(core)
-  ownedSource(core)
+  ownedSource(core, coreHead)
   // Default SDK stages exclude desktop/native products and runtime startup.
   // The declared host flock test dependency is built only when requested.
   run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], core)
@@ -326,6 +371,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       core: value('--core') ?? '../../official-latest-standard',
       consumer: value('--consumer') ?? process.cwd(),
       source: value('--source'),
+      coreHead: value('--core-head'),
       withWeb: args.includes('--with-web'),
       withFlock: args.includes('--with-flock')
     }

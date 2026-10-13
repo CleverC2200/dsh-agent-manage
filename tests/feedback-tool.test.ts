@@ -1,16 +1,26 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { submitFeedback, FEEDBACK_TOOL_NAME, renderFeedbackBody } from '../src/runtime/feedback-tool.js'
 
+const originalTokens = { GITHUB_TOKEN: process.env['GITHUB_TOKEN'], GH_TOKEN: process.env['GH_TOKEN'] }
+
 describe('experience feedback tool', () => {
+  beforeEach(() => {
+    vi.stubEnv('GITHUB_TOKEN', undefined)
+    vi.stubEnv('GH_TOKEN', undefined)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('EXTERNAL_FEEDBACK_DISABLED_IN_TEST')))
+  })
+  afterEach(() => {
+    const blockedFetch = fetch
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+    expect(blockedFetch).not.toHaveBeenCalled()
+    for (const key of ['GITHUB_TOKEN', 'GH_TOKEN'] as const) expect(process.env[key] === originalTokens[key]).toBe(true)
+  })
   it('spools reports locally when no GitHub token is present', async () => {
     const root = await mkdtemp(join(tmpdir(), 'feedback-'))
-    const oldToken = process.env['GITHUB_TOKEN']
-    const oldAlt = process.env['GH_TOKEN']
-    delete process.env['GITHUB_TOKEN']
-    delete process.env['GH_TOKEN']
     try {
       const outcome = await submitFeedback(
         root,
@@ -30,16 +40,12 @@ describe('experience feedback tool', () => {
       expect(record.body).toContain('invalid override payload')
       expect(record.body).toContain('**Expected:** The suite installs.')
     } finally {
-      if (oldToken !== undefined) process.env['GITHUB_TOKEN'] = oldToken
-      if (oldAlt !== undefined) process.env['GH_TOKEN'] = oldAlt
       await rm(root, { recursive: true, force: true })
     }
   })
 
   it('enforces the burst cooldown between submissions', async () => {
     const root = await mkdtemp(join(tmpdir(), 'feedback-'))
-    delete process.env['GITHUB_TOKEN']
-    delete process.env['GH_TOKEN']
     try {
       const first = await submitFeedback(root, { title: 'a', description: 'b' }, 2_000_000)
       expect(first.ok).toBe(true)
@@ -54,7 +60,18 @@ describe('experience feedback tool', () => {
     }
   })
 
-  it('rejects a blank title and renders a deterministic body', () => {
+  it('rejects a blank title without creating feedback files', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'feedback-'))
+    try {
+      expect(await submitFeedback(root, { title: ' \t\n ', description: 'y' })).toEqual({ ok: false, reason: 'title is required' })
+      await expect(readFile(join(root, 'feedback', 'reports.jsonl'))).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readFile(join(root, 'feedback', 'last-submit-at'))).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('renders a deterministic body', () => {
     expect(renderFeedbackBody({ title: 'x', description: 'y', actual: 'z' })).toContain('**Actual:** z')
   })
 
