@@ -121,9 +121,9 @@ jobs:
           path: candidate/dsh-gea-plugin
           token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
           persist-credentials: false
-      - name: Read both Core baselines from the registered authority
+      - name: Read required Core policy from the registered authority
         id: matrix
-        run: node scripts/write-ci-input.mjs --matrix
+        run: node scripts/write-ci-input.mjs --matrix --lane required
 
   gates:
     needs: candidate-scope

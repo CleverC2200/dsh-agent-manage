@@ -124,13 +124,22 @@ test('quality requests real flock preparation and verification; archives and aud
   }
 })
 
-test('CI matrix retains both original Core axes and legacy peer input creation is refused', () => {
-  const matrix = spawnSync(process.execPath, ['scripts/write-ci-input.mjs', '--matrix'], { encoding: 'utf8' })
-  assert.equal(matrix.status, 0, matrix.stderr)
-  const lanes = JSON.parse(matrix.stdout).include
-  assert.deepEqual([...new Set(lanes.map(lane => lane.coreVersion))].sort(), ['0.2.0-rc.2', '0.2.1-alpha.1'])
-  assert.equal(lanes.filter(lane => lane.phase === 'quality' && lane.os === 'ubuntu-latest').length, 2)
-  assert.equal(lanes.filter(lane => lane.phase === 'archives' && lane.os === 'windows-latest').length, 2)
+test('CI matrix separates required rc.2 from optional alpha and legacy input creation is refused', () => {
+  for (const [lane, version] of [
+    ['required', '0.2.0-rc.2'],
+    ['compatibility', '0.2.1-alpha.1']
+  ]) {
+    const matrix = spawnSync(process.execPath, ['scripts/write-ci-input.mjs', '--matrix', '--lane', lane], { encoding: 'utf8' })
+    assert.equal(matrix.status, 0, matrix.stderr)
+    const lanes = JSON.parse(matrix.stdout).include
+    assert.deepEqual([...new Set(lanes.map(item => item.coreVersion))], [version])
+    assert.equal(lanes.length, 2)
+    assert.equal(lanes.filter(item => item.phase === 'quality' && item.os === 'ubuntu-latest').length, 1)
+    assert.equal(lanes.filter(item => item.phase === 'archives' && item.os === 'windows-latest').length, 1)
+  }
+  const defaultMatrix = spawnSync(process.execPath, ['scripts/write-ci-input.mjs', '--matrix'], { encoding: 'utf8' })
+  assert.equal(defaultMatrix.status, 0, defaultMatrix.stderr)
+  assert.deepEqual([...new Set(JSON.parse(defaultMatrix.stdout).include.map(item => item.coreVersion))], ['0.2.0-rc.2'])
   const obsolete = spawnSync(process.execPath, ['scripts/write-ci-input.mjs'], { encoding: 'utf8' })
   assert.notEqual(obsolete.status, 0)
   assert.match(obsolete.stderr, /CANDIDATE_INPUT_REQUIRED/)
@@ -229,7 +238,7 @@ test('peer reader bootstrap rejects malformed dispatch heads, event mismatch and
   }
 })
 
-test('joint dispatch isolates in-flight runs and keeps all original Core, Windows and audit lanes', () => {
+test('joint dispatch isolates in-flight runs and retains required Windows and audit lanes', () => {
   const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
   assert.match(workflow, /github\.ref \}\}-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/)
   for (const key of ['gea_sha', 'workbench_sha', 'manage_sha']) {

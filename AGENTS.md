@@ -25,7 +25,7 @@
 
 | 规则 | 执行机制 |
 | --- | --- |
-| 固定 Core、原锁、工具链与冷 runner 输入 | `sdk:verify` / `sdk:prepare`、`test:ci-inputs` 和双版 quality/archives workflow，共用 GEA `supported-cores.json` |
+| 固定 Core、原锁、工具链与冷 runner 输入 | `sdk:verify` / `sdk:prepare`、`test:ci-inputs` 和rc.2 quality/archives 阻断门禁；alpha 为独立手动兼容检查，共用 GEA `scripts/ci-core-policy.json` |
 | 当前导航与历史缺文档反例 | `check:refactor` 串接 `check:knowledge` 与 `test:knowledge` |
 | 普通空 Home 必须发现原销售 Skill 及其完整引用资产；新任务默认智能编排并保留用户显式选择 | `check:capabilities` 的 standard-skill lane 运行 `bundled-sales-skills.test.ts` 和 `manage-bundle-default.test.ts`；已有 quality workflow 同时运行 `check:refactor` 和 `test` |
 
