@@ -39,8 +39,7 @@ function service(): MarketService {
       hostClient: { available: true, version: '0.1.1-rc.2' },
       downloadRegion: { setting: 'auto' as const, effective: 'global' as const }
     }),
-    setMcpBackend: async () => {},
-    notifyPanelsChanged: async () => {}
+    setMcpBackend: async () => {}
   }
 }
 
@@ -202,27 +201,19 @@ describe('market HTTP routes', () => {
       commands: store('commands'),
       agents: store('agents')
     } as unknown as Parameters<typeof mountSuiteRoutes>[2]
-    const notifyCalls: number[] = []
-    const panelService = {
-      ...service(),
-      notifyPanelsChanged: async () => {
-        notifyCalls.push(1)
-      }
-    }
-    const dispose = mountSuiteRoutes({ webServer }, panelService, panels)
+    const dispose = mountSuiteRoutes({ webServer }, service(), panels)
 
     // Three panels × five routes each (list, entry read, create, update, delete).
     const panelRoutes = [...routes.keys()].filter(path => path.startsWith(MARKET_ROUTES.userPanel))
     expect(panelRoutes).toHaveLength(15)
 
-    // Create: POST body {name, text} → entry, then a change notification.
+    // Resource stores own successful writes and their change publication.
     const createPath = `${MARKET_ROUTES.userPanel}/skills/create`
     const postResponse = response()
     await routes.get(createPath)?.(postRequest(createPath, { name: 'demo', text: '---\ndescription: d\n---\nbody' }), postResponse)
     await settle()
     expect(postResponse.value()).toMatchObject({ ok: true, entry: { name: 'demo' } })
     expect(created).toEqual([{ kind: 'skills', name: 'demo', text: '---\ndescription: d\n---\nbody' }])
-    expect(notifyCalls).toHaveLength(1)
 
     dispose()
     expect(routes.size).toBe(0)
@@ -246,7 +237,7 @@ describe('market HTTP routes', () => {
       }
     }
     const panels = { skills: store, commands: store, agents: store } as unknown as Parameters<typeof mountSuiteRoutes>[2]
-    const dispose = mountSuiteRoutes({ webServer }, { ...service(), notifyPanelsChanged: async () => {} }, panels)
+    const dispose = mountSuiteRoutes({ webServer }, service(), panels)
 
     // Traversal names hit the store but the grammar guard turns them into a
     // 400 before any filesystem call.

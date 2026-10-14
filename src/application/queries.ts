@@ -87,14 +87,6 @@ export interface MarketMutations {
   }>
   /** Switch the MCP mount backend and remount every suite server through it. 中文：切换 MCP 挂载后端，并让全部 suite 服务按新后端重新挂载。 */
   setMcpBackend(backend: McpBackend): Promise<void>
-  /**
-   * Panel change hook: the HTTP layer notifies after a user-panel mutation
-   * (skills / commands / agent personas) so the runtime remounts commands
-   * and the skill providers re-read their catalogs.
-   *
-   * 中文：用户面板资源变更后由 HTTP 层触发，让运行时重挂命令，并让技能提供器重读目录。
-   */
-  notifyPanelsChanged(): Promise<void>
 }
 
 /** Complete application surface required by the HTTP routes. 中文：路由层所需的完整应用服务约定，由查询与写操作组合而成。 */

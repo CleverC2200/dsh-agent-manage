@@ -576,6 +576,16 @@ export class Catalog {
     return promise
   }
 
+  /** Read installed suites from one captured install state without market checkout probes. */
+  async readInstalledSuites(sourceId?: string): Promise<Suite[]> {
+    const state = this.state
+    const installedSources = new Set(Object.keys(state.installed).map(key => key.slice(0, key.indexOf('/'))))
+    const sources = state.sources.filter(source => installedSources.has(source.id) && (sourceId === undefined || source.id === sourceId))
+    if (sources.length === 0) return []
+    const snapshot = await this.buildSnapshot({ ...state, sources }, 'user', this.options.userRoot)
+    return snapshot.suites.filter(suite => suite.remote === undefined && state.installed[installKey(suite.sourceId, suite.id)] !== undefined)
+  }
+
   /** Read one coherent project-dimension snapshot for a workspace cwd. */
   /** 中文：根据工作区 cwd 定位项目根，并读取项目维度一致性快照。 */
   async readProjectCatalog(cwd: string): Promise<CatalogSnapshot> {
@@ -1185,15 +1195,13 @@ export class Catalog {
     this.invalidateSnapshot(true)
   }
 
-  /**
-   * Panel changed hook: the HTTP layer notifies after a user-panel mutation
-   * (skills / commands / agent personas). Catalog state is untouched — this
-   * only runs the change pipeline so the runtime remounts commands and the
-   * skill providers re-read their catalogs.
-   * 中文：用户面板变化不改目录状态，只触发命令挂载和技能提供器重新读取目录。
-   */
-  async notifyPanelsChanged(): Promise<void> {
-    await this.notifyChanged()
+  /** Serialize a resource write with catalog changes and publish only successful writes. */
+  async changePanelResources<T>(change: () => Promise<T>): Promise<T> {
+    return this.enqueue(async () => {
+      const result = await change()
+      await this.notifyChanged()
+      return result
+    })
   }
 
   /** 更新一个套件的持久化安装记录，不负责触发变更通知。 */

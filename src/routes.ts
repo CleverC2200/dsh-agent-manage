@@ -367,7 +367,6 @@ export function mountSuiteRoutes(
         const text = String(body['text'] ?? '')
         if (name === '') throw new Error('missing entry name')
         const entry = await storeOf(kind).create(name, text)
-        await manager.notifyPanelsChanged()
         return { entry }
       })
 
@@ -376,7 +375,6 @@ export function mountSuiteRoutes(
         const text = String(body['text'] ?? '')
         if (name === '') throw new Error('missing entry name')
         await storeOf(kind).update(name, text)
-        await manager.notifyPanelsChanged()
         return {}
       })
 
@@ -384,7 +382,6 @@ export function mountSuiteRoutes(
         const name = String(body['name'] ?? '')
         if (name === '') throw new Error('missing entry name')
         await storeOf(kind).remove(name)
-        await manager.notifyPanelsChanged()
         return {}
       })
     }

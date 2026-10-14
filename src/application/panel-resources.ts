@@ -7,12 +7,16 @@
  */
 import { realpath, unlink, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative } from 'node:path'
+import { z } from 'zod'
 import type { UserPanelEntryWire, UserPanelKind } from '../contracts/market.js'
 import { defaultMarkdownResources, resourceText } from '../catalog/component-files.js'
 import { stripFrontmatter } from '../catalog/skills-parse.js'
 import { parseFrontmatterRecord } from '../runtime/user-store.js'
 import type { UserPanelStore } from '../runtime/user-panels.js'
 import type { Catalog } from './catalog.js'
+import type { Suite } from '../model/types.js'
+
+const installedResourceIdentity = z.tuple([z.string().min(1), z.string().min(1), z.enum(['skills', 'commands', 'agents']), z.string().min(1)])
 
 /** The routes consume this structural surface, also implemented by user-only stores in tests. 中文：路由层依赖的面板资源仓库接口，测试可用纯用户资源实现替换。 */
 export interface PanelResourceStore {
@@ -48,52 +52,65 @@ class PanelResources implements PanelResourceStore {
   /** 合并用户资源与已安装的本地 suite 资源，同时投影禁用状态、frontmatter 和所属 suite。 */
   async list(strict = false): Promise<UserPanelEntryWire[]> {
     const entries: UserPanelEntryWire[] = await this.users.list(strict)
-    const snapshot = await this.catalog.readUserCatalog()
-    const installed = new Set((await this.catalog.overview()).suites.filter(suite => suite.installed).map(suite => JSON.stringify([suite.sourceId, suite.suiteId])))
-    for (const suite of snapshot.suites) {
-      if (!installed.has(JSON.stringify([suite.sourceId, suite.id])) || suite.remote !== undefined) continue
-      const files =
-        this.kind === 'skills'
-          ? suite.skills.map(skill => ({ name: skill.name, file: skill.file }))
-          : (suite.resources?.[this.kind] ?? (await defaultMarkdownResources(suite.root, this.kind)))
-      for (const resource of files) {
-        const { name, file } = resource
-        const rawText = await resourceText(resource).catch(error => {
-          if (strict && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-          return undefined
-        })
-        if (rawText === undefined) continue
-        let metadata: Record<string, unknown>
-        try {
-          metadata = parseFrontmatterRecord(rawText)
-        } catch (error) {
-          metadata = { disabled: true, validationError: String(error) }
-        }
-        entries.push({
-          id: JSON.stringify([suite.sourceId, suite.id, this.kind, name]),
-          name,
-          origin: 'plugin',
-          suiteName: suite.manifest.name,
-          disabled: !suite.enabled || suite.activeSurfaces?.[this.kind] === false || metadata.disabled === true,
-          metadata,
-          rawText,
-          content: stripFrontmatter(rawText),
-          path: file,
-          description: typeof metadata.description === 'string' ? metadata.description : ''
-        })
+    for (const suite of await this.catalog.readInstalledSuites()) entries.push(...(await this.suiteEntries(suite, strict)))
+    return entries
+  }
+
+  private async suiteEntries(suite: Suite, strict: boolean, resourceName?: string): Promise<UserPanelEntryWire[]> {
+    const entries: UserPanelEntryWire[] = []
+    const files =
+      this.kind === 'skills'
+        ? suite.skills.map(skill => ({ name: skill.name, file: skill.file }))
+        : (suite.resources?.[this.kind] ?? (await defaultMarkdownResources(suite.root, this.kind)))
+    for (const resource of files) {
+      if (resourceName !== undefined && resource.name !== resourceName) continue
+      const { name, file } = resource
+      const rawText = await resourceText(resource).catch(error => {
+        if (strict && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+        return undefined
+      })
+      if (rawText === undefined) continue
+      let metadata: Record<string, unknown>
+      try {
+        metadata = parseFrontmatterRecord(rawText)
+      } catch (error) {
+        metadata = { disabled: true, validationError: String(error) }
       }
+      entries.push({
+        id: JSON.stringify([suite.sourceId, suite.id, this.kind, name]),
+        name,
+        origin: 'plugin',
+        suiteName: suite.manifest.name,
+        disabled: !suite.enabled || suite.activeSurfaces?.[this.kind] === false || metadata.disabled === true,
+        metadata,
+        rawText,
+        content: stripFrontmatter(rawText),
+        path: file,
+        description: typeof metadata.description === 'string' ? metadata.description : ''
+      })
     }
     return entries
   }
 
-  /** 基于完整合并清单查找单个资源，兼容旧数据使用 name 作标识。 */
+  /** Read one user entry or a stable installed identity without loading other resource bodies. */
   async get(id: string): Promise<UserPanelEntryWire | undefined> {
-    return (await this.list()).find(entry => (entry.id ?? entry.name) === id)
+    if (!id.startsWith('[')) return this.users.get(id)
+    let identity: unknown
+    try {
+      identity = JSON.parse(id)
+    } catch {
+      return undefined
+    }
+    const parsed = installedResourceIdentity.safeParse(identity)
+    if (!parsed.success || parsed.data[2] !== this.kind) return undefined
+    const [sourceId, suiteId, , name] = parsed.data
+    const suite = (await this.catalog.readInstalledSuites(sourceId)).find(entry => entry.id === suiteId)
+    return suite === undefined ? undefined : (await this.suiteEntries(suite, false, name))[0]
   }
 
   /** 将创建请求交给对应的用户资源存储，不直接修改 suite 源文件。 */
   create(name: string, text: string): Promise<UserPanelEntryWire> {
-    return this.users.create(name, text)
+    return this.catalog.changePanelResources(() => this.users.create(name, text))
   }
 
   /** 将插件资源 id 解析为可写真实路径，拒绝内联 JSON、外部源和符号链越界。 */
@@ -110,14 +127,18 @@ class PanelResources implements PanelResourceStore {
 
   /** 验证新 frontmatter 后更新资源；普通 id 走用户存储，复合 id 走受管插件路径。 */
   async update(id: string, text: string): Promise<void> {
-    if (!id.startsWith('[')) return this.users.update(id, text)
-    parseFrontmatterRecord(text)
-    await writeFile(await this.pluginPath(id), text, 'utf8')
+    await this.catalog.changePanelResources(async () => {
+      if (!id.startsWith('[')) return this.users.update(id, text)
+      parseFrontmatterRecord(text)
+      await writeFile(await this.pluginPath(id), text, 'utf8')
+    })
   }
 
   /** 删除资源；普通 id 交给用户存储，插件资源则先经过路径安全校验。 */
   async remove(id: string): Promise<void> {
-    if (!id.startsWith('[')) return this.users.remove(id)
-    await unlink(await this.pluginPath(id))
+    await this.catalog.changePanelResources(async () => {
+      if (!id.startsWith('[')) return this.users.remove(id)
+      await unlink(await this.pluginPath(id))
+    })
   }
 }
