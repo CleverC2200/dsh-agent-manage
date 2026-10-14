@@ -51,21 +51,18 @@ export const MCP_AUTH_RECORD_SCOPE = 'mcp-auth'
 const CALLBACK_TIMEOUT_MS = 5 * 60_000
 
 /**
- * Fold a `serverName` into a credential-key id segment. Server names carry
+ * Address the OAuth grant shared by the provider and reauthorization. Server names carry
  * `__` separators (e.g. `cloudflare__cloudflare-api`), and the key grammar
  * admits only `[a-z0-9-]`, so non-conforming characters collapse to `-` —
- * deterministic, so the same server always reads and writes one record. Two
- * servers colliding after the fold is impossible in practice (the separator
- * plus an existing `-` would have to differ); a collision would surface as
- * two servers sharing one token store, not as a crash.
+ * deterministic, so saving, reading and deleting address the existing record.
  */
-/** 为服务名生成 OAuth 凭据存储标识，保证不同 MCP 服务隔离。 */
-function credentialIdFor(serverName: string): string {
+/** 保存、读取和重新授权删除共用原有 OAuth 凭据键，不迁移记录。 */
+export function mcpAuthRecordKey(serverName: string): CredentialKey {
   const folded = serverName
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
-  return folded === '' ? 'server' : folded
+  return credentialKey(MCP_AUTH_RECORD_SCOPE, folded === '' ? 'server' : folded)
 }
 
 /** Credential record this module persists, when the store is available. */
@@ -176,7 +173,7 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     store: unknown,
     private readonly opener: BrowserOpener = platformBrowserOpener
   ) {
-    this.recordKey = credentialKey(MCP_AUTH_RECORD_SCOPE, credentialIdFor(serverName))
+    this.recordKey = mcpAuthRecordKey(serverName)
     this.store = typeof (store as Partial<CredentialRecordStore> | undefined)?.modifyRecord === 'function' ? (store as CredentialRecordStore) : undefined
   }
 

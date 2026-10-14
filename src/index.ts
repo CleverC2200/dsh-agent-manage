@@ -29,6 +29,7 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-settings'
 import { Catalog } from './application/catalog.js'
 import { RuntimeReconciler } from './runtime/reconciler.js'
+import { mcpAuthRecordKey } from './runtime/mcp-client/oauth.js'
 import { inspectToolRegistry } from './runtime/tool-registry-observer.js'
 import { mountAgentRoleTool } from './runtime/agent-role-router.js'
 import { projectAgentRoles } from './application/project-agent-roles.js'
@@ -304,20 +305,11 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
 
   await catalog.mergeSources(config.sources ?? [])
   const resources = createPanelResources(catalog, panels)
-  // Mirror oauth.ts's `credentialIdFor`: the record is stored under the folded
-  // serverName, so the delete must fold the same way or it misses the record.
-  // 中文：凭据记录使用折叠后的 serverName 作为键，删除时必须复用完全相同的折叠规则。
-  /** 将 MCP serverName 归一化为凭据存储使用的稳定 ID。 */
-  const credentialIdFor = (serverName: string): string =>
-    serverName
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'server'
   catalog.setCredentialsStore({
     deleteGrantRecord: async serverName => {
       const store = (ctx as unknown as { get?: (name: string) => unknown }).get?.('credentials') as { deleteRecord?: (key: string) => Promise<void> } | undefined
       if (store?.deleteRecord === undefined) throw new Error('credentials service is not mounted')
-      await store.deleteRecord(`mcp-auth/${credentialIdFor(serverName)}` as never)
+      await store.deleteRecord(mcpAuthRecordKey(serverName))
     }
   })
   runtime.setMcpOverridesProvider(async () => catalog.allMcpOverrides(await catalog.enabledUserSuites()))
