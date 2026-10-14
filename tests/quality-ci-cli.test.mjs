@@ -259,7 +259,9 @@ test('joint dispatch isolates in-flight runs and retains required Windows and au
   assert.match(workflow, /path: source\/official-core/)
   assert.match(workflow, /candidate-group\.json/)
   assert.match(workflow, /dependency-review:[\s\S]*if: github.event_name == 'pull_request'/)
-  assert.doesNotMatch(workflow, /continue-on-error|pull_request_target/)
+  const requiredWorkflow = workflow.replace(/      - name: Save verified SDK cache[\s\S]*?(?=\n      - name: Keep)/g, '')
+  assert.doesNotMatch(requiredWorkflow, /continue-on-error|pull_request_target/)
+  assert.match(workflow, /timeout-minutes: 1\n        uses: actions\/cache\/save@v4/)
 })
 
 test('joint execution keeps the native runner environment and forwards the complete CLI with failure status', () => {

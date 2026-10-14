@@ -205,7 +205,7 @@ jobs:
         shell: bash
         run: |
           echo "store=$(corepack pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         with:
           path: |
             ~/.npm
@@ -218,7 +218,8 @@ jobs:
         env:
           CORE_HEAD: ${{ matrix.coreHead }}
         run: node "$GITHUB_WORKSPACE/candidate/dsh-agent-manage/scripts/prepare-official-sdk.mjs" --prepare-source --core "$GITHUB_WORKSPACE/official-latest-standard" --core-head "$CORE_HEAD" --source "$GITHUB_WORKSPACE/source/official-core"
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: sdk-cache
         with:
           path: |
             official-latest-standard/packages/**/lib/**
@@ -236,6 +237,21 @@ jobs:
         run: |
           node --input-type=module -e "import { spawnSync } from 'node:child_process'; import { resolve } from 'node:path'; const result = spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', process.env.QUALITY_PHASE, '--input', process.env.QUALITY_CANDIDATE, '--prepare-sdk', '--core-source', resolve(process.env.GITHUB_WORKSPACE, 'source/official-core'), '--final-group-sha256', process.env.INPUT_SHA256], { stdio: 'inherit' }); if (result.error) throw result.error; process.exitCode = result.status ?? 1;"
 
+      - name: Save verified SDK cache without delaying required checks
+        if: success() && steps.sdk-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        timeout-minutes: 1
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            official-latest-standard/packages/**/lib/**
+            official-latest-standard/vendor/**/lib/**
+            official-latest-standard/apps/**/lib/**
+            !official-latest-standard/**/node_modules/**
+            official-latest-standard/.git/dsh-sdk-*.json
+            official-latest-standard/apps/web/dist
+            official-latest-standard/native/system/packages/**/*.node
+          key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
       - name: Keep admitted input and independent quality results including failure
         if: always()
         uses: actions/upload-artifact@v7
@@ -245,7 +261,7 @@ jobs:
             candidate-input.json
             candidate-group.json
             candidate/dsh-agent-manage/quality-checks.json
-            candidate/dsh-agent-manage/quality-test-plan.json
+            quality-test-plan.json
           if-no-files-found: warn
 
   security-audit:

@@ -70,7 +70,7 @@ try {
         repo: 'dsh-agent-manage',
         base: process.env.QUALITY_BASE_SHA || baseline.repositories.find(entry => entry.repo === 'dsh-agent-manage').head
       })
-      writeFileSync('quality-test-plan.json', JSON.stringify(plan, null, 2) + '\n')
+      writeFileSync(resolve(dirname(resolve(input)), 'quality-test-plan.json'), JSON.stringify(plan, null, 2) + '\n')
     }
 
     const core = resolve(dirname(dirname(process.cwd())), 'official-latest-standard')
