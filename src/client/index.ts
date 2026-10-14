@@ -181,3 +181,4 @@ export function apply(ctx: SuiteClientContext): void {
     }
   })
 }
+export { pluginPackageVersion } from '../plugin-package-version.js'
