@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: candidate-compatibility-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  group: candidate-compatibility-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
@@ -47,6 +47,7 @@ jobs:
           path: candidate/dsh-agent-manage
           persist-credentials: false
       - uses: actions/setup-node@v7
+        id: node
         with:
           node-version: 24
       - name: Require supported same-repository scope
@@ -128,6 +129,8 @@ jobs:
       matrix: ${{ fromJSON(needs.candidate-scope.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     env:
+      QUALITY_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      QUALITY_REUSE_SDK: 'true'
       QUALITY_EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       QUALITY_CANDIDATE: ${{ github.workspace }}/candidate-input.json
     defaults:
@@ -144,6 +147,7 @@ jobs:
           path: candidate/dsh-agent-manage
           persist-credentials: false
       - uses: actions/setup-node@v7
+        id: node
         with:
           node-version: 24
       - uses: actions/checkout@v7
@@ -186,6 +190,36 @@ jobs:
           QUALITY_BASELINE_ID: ${{ needs.candidate-scope.outputs.baseline-id }}
           CORE_HEAD: ${{ matrix.coreHead }}
         run: node ../dsh-agent-workbench/scripts/write-hosted-group.mjs --repo dsh-agent-manage --root "$GITHUB_WORKSPACE" --core-head "$CORE_HEAD"
+      - name: Locate package download cache
+        id: cache-path
+        working-directory: candidate/dsh-agent-manage
+        shell: bash
+        run: |
+          echo "store=$(corepack pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/node/corepack
+            ${{ steps.cache-path.outputs.store }}
+          key: downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/package-lock.json', '**/pnpm-lock.yaml') }}
+          restore-keys: downloads-${{ runner.os }}-${{ runner.arch }}-
+      - name: Prepare owned Core source without compiling
+        shell: bash
+        env:
+          CORE_HEAD: ${{ matrix.coreHead }}
+        run: node "$GITHUB_WORKSPACE/candidate/dsh-agent-manage/scripts/prepare-official-sdk.mjs" --prepare-source --core "$GITHUB_WORKSPACE/official-latest-standard" --core-head "$CORE_HEAD" --source "$GITHUB_WORKSPACE/source/official-core"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            official-latest-standard/packages/**/lib/**
+            official-latest-standard/vendor/**/lib/**
+            official-latest-standard/apps/**/lib/**
+            !official-latest-standard/**/node_modules/**
+            official-latest-standard/.git/dsh-sdk-*.json
+            official-latest-standard/apps/web/dist
+            official-latest-standard/native/system/packages/**/*.node
+          key: sdk-${{ github.repository }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ matrix.coreHead }}-${{ hashFiles('candidate/dsh-agent-manage/scripts/prepare-official-sdk.mjs', 'candidate/dsh-agent-manage/scripts/sdk-artifact-cache.mjs', 'candidate/dsh-gea-plugin/scripts/supported-cores.json', 'source/official-core/pnpm-lock.yaml') }}
       - name: Prepare independent SDK and run all admitted group gates
         env:
           QUALITY_PHASE: ${{ matrix.phase }}
@@ -202,6 +236,7 @@ jobs:
             candidate-input.json
             candidate-group.json
             candidate/dsh-agent-manage/quality-checks.json
+            candidate/dsh-agent-manage/quality-test-plan.json
           if-no-files-found: warn
 
   security-audit:
@@ -211,6 +246,8 @@ jobs:
       matrix: ${{ fromJSON(needs.candidate-scope.outputs.audit-matrix) }}
     runs-on: ubuntu-latest
     env:
+      QUALITY_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+      QUALITY_REUSE_SDK: 'true'
       QUALITY_EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       QUALITY_CANDIDATE: ${{ github.workspace }}/candidate-input.json
     defaults:
@@ -224,6 +261,7 @@ jobs:
           path: candidate/dsh-agent-manage
           persist-credentials: false
       - uses: actions/setup-node@v7
+        id: node
         with:
           node-version: 24
       - uses: actions/checkout@v7
@@ -307,6 +345,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v7
+        id: node
         with:
           node-version: 24
       - name: Reject failure, cancellation, missing or skipped quality gates

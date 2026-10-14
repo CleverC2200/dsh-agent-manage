@@ -70,7 +70,7 @@
     "sdk:verify": "node scripts/prepare-official-sdk.mjs",
     "sdk:prepare": "node scripts/prepare-official-sdk.mjs --prepare",
     "quality:ci": "node scripts/run-quality-ci.mjs",
-    "test:ci-inputs": "node --test tests/sdk-input-cli.test.mjs tests/quality-ci-cli.test.mjs tests/run-quality-checks.test.mjs tests/preset-capabilities-cli.test.mjs",
+    "test:ci-inputs": "node --test tests/sdk-input-cli.test.mjs tests/quality-ci-cli.test.mjs tests/run-quality-checks.test.mjs tests/preset-capabilities-cli.test.mjs tests/sdk-artifact-cache.test.mjs",
     "check:static": "pnpm run check:knowledge && pnpm run test:knowledge && pnpm run test:ci-inputs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
     "test:ci-unit": "vitest run --config vitest.ci-unit.config.ts"
   },
