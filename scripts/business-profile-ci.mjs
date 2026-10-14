@@ -3,9 +3,9 @@ import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 export const productSources = {
-  'dsh-agent-workbench': 'a2514469a76e873d4dfd985dac87cf17bb6ef28b',
+  'dsh-agent-workbench': '4d67ee3320ccb3cb3c45856369f1bf9c8f03e289',
   'dsh-agent-manage': 'a09eb720ae5a4e9a746160272e99635f2377c1d9',
-  'dsh-gea-plugin': '335d4e29248228479a329bba24a0e68ccfc85bb9'
+  'dsh-gea-plugin': '9c2c84a379ce5560ed2ca833df2311de1139fa77'
 }
 const ciPaths = new Set([
   '.github/workflows/quality.yml',
