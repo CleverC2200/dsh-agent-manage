@@ -60,12 +60,13 @@ try {
       process.exit(0)
     }
     const manifest = finalGroup.manifest
-    if (phase === 'business-profile')
-      (
-        await (await import('./business-profile-ci.mjs')).loadBusinessProfilePolicy(manifest.repositories.find(entry => entry.repo === 'dsh-agent-workbench').path)
-      ).validateBusinessProfileGroup(manifest.repositories)
     const workbench = manifest.repositories.find(entry => entry.repo === 'dsh-agent-workbench')
     process.env.QUALITY_POLICY_WORKBENCH = workbench.path
+    if (phase === 'business-profile') {
+      const { loadBusinessProfilePolicy } = await import('./business-profile-ci.mjs')
+      const policy = await loadBusinessProfilePolicy(workbench.path)
+      policy.validateBusinessProfileGroup(manifest.repositories)
+    }
     let plan
     if (phase === 'quality') {
       const { selectCiTests } = await import(pathToFileURL(resolve(workbench.path, 'scripts/ci-test-plan.mjs')))
