@@ -1,0 +1,61 @@
+{
+  "scope": "historical retired query/evidence expectations; never executed as active tests",
+  "reason": "Current Manage mounts GEA v2 raw inspect/query tools. Historical branches preserve original claims while active public Core/Host tests migrate retained behavior.",
+  "files": [
+    {
+      "source": "tests/base-inventory-harness.ts",
+      "snapshot": "tests/fixtures/retired-preset-query/base-inventory-harness.ts.raw",
+      "sha256": "e2fb08d1c6997c17ffd751a926ecea53ed9403f6e16ef74374e7351438ca978b",
+      "commit": "1a6c165dbd005e0aac6d3148c2d80c7490686ef9"
+    },
+    {
+      "source": "tests/base-resource-host.test.ts",
+      "snapshot": "tests/fixtures/retired-preset-query/base-resource-host.test.ts.raw",
+      "sha256": "c7243e533a9ff769b4a2d453f31c3cc0dd79faefadfc3d03aa791d34575dfa2e",
+      "commit": "1a6c165dbd005e0aac6d3148c2d80c7490686ef9"
+    },
+    {
+      "source": "tests/inventory-family-host.test.ts",
+      "snapshot": "tests/fixtures/retired-preset-query/inventory-family-host.test.ts.raw",
+      "sha256": "cae71a069132805378495cdfea56969467d13843c95b98d4e1e0e04e38c1a7d3",
+      "commit": "1a6c165dbd005e0aac6d3148c2d80c7490686ef9"
+    },
+    {
+      "source": "tests/sales-resource-host.test.ts",
+      "snapshot": "tests/fixtures/retired-preset-query/sales-resource-host.test.ts.raw",
+      "sha256": "9b9ef9d03bb7c6bef80877b432482c28aafbb2211ae8cd4e3ba7c9f10c5a1145",
+      "commit": "1a6c165dbd005e0aac6d3148c2d80c7490686ef9"
+    },
+    {
+      "source": "tests/standard-preset-gea.test.ts",
+      "snapshot": "tests/fixtures/retired-preset-query/standard-preset-gea.test.ts.raw",
+      "sha256": "e2b2cc0cc71692a816ead9fb40df600c575000796a8779e73a19c090de70e670",
+      "commit": "1a6c165dbd005e0aac6d3148c2d80c7490686ef9"
+    },
+    {
+      "source": "tests/sales-preset-gea.test.ts",
+      "snapshot": "tests/fixtures/retired-preset-query/sales-preset-gea.test.ts.raw",
+      "sha256": "2a5be8551a87b1b62719e419ec3bdc96a7e143683fc667e7e382f1618caee992",
+      "commit": "1a6c165dbd005e0aac6d3148c2d80c7490686ef9"
+    },
+    {
+      "source": "tests/inventory-family-preset.test.ts",
+      "snapshot": "tests/fixtures/retired-preset-query/inventory-family-preset.test.ts.raw",
+      "sha256": "c865b813ddde2ef3d9c8f4287f78a73e3c0288343e265585c0f55e5b957d3914",
+      "commit": "1a6c165dbd005e0aac6d3148c2d80c7490686ef9"
+    },
+    {
+      "source": "tests/skill-preset-gea.test.ts",
+      "snapshot": "tests/fixtures/retired-preset-query/skill-preset-gea.test.ts.raw",
+      "sha256": "d1d8c26e00993caf5eaa74f4709a4577f92586b4439fb1b13ca2963009cf2c2b",
+      "commit": "1a6c165dbd005e0aac6d3148c2d80c7490686ef9"
+    }
+  ],
+  "retainedBehavior": [
+    "Actual resource selection, official Session preset/cwd and preserved user drafts.",
+    "20 business calls and independent 12 evidence reads; general tools survive idle limits, running turns stop tool use, new user turns reset.",
+    "Missing identity and forged Consumer arguments cannot issue data requests; actual Session selects Consumer. Trusted declared cross-route policy remains tested independently of forbidden model arguments.",
+    "Capability/resource withdrawal, parent-child identity, logout cancellation, protected nulls and access denial without cross-Consumer retries.",
+    "Official Web orientation, complete general tool schemas, compaction/pruning boundaries, checkpoint/head/tail and durable original Session history."
+  ]
+}

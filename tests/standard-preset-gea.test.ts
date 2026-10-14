@@ -11,7 +11,7 @@ it('keeps general Session tools across the GEA hooks and rejects unprofiled busi
   const agent = await agentOn(ctx, 'gea-general', 'auto-negotiation')
   const standardTools = ctx.tools.schemas(agent).map(row => row.name)
   const identity = { config: { runtimeDir: home }, watchIdentity: () => () => {} }
-  const release = mountBusinessPrompts(ctx, identity as never, createCapabilityRegistry([]), new Map())
+  const release = mountBusinessPrompts(ctx, identity as never, createCapabilityRegistry([]))
   onTestFinished(release)
   await turn(ctx, agent, 'Organize the general task with the official todo tool.')
   const finalTools = requests.at(-1)?.tools?.map(row => row.name) ?? []
@@ -82,16 +82,17 @@ it('retains official tools and executes general work after the GEA business call
   const catalog = (await f.ctx.agentPresets.list()).find(row => row.id === summary?.id)
   expect(catalog).toMatchObject({ name: '基地库存Agent', description: summary?.description })
   expect(summary?.label).toBe('基地库存Agent')
-  f.login()
+  await f.login()
   await turn(f.ctx, f.agent, 'Prepare the inventory analysis.')
   expect(requests.at(-1)?.tools?.map(row => row.name)).toContain('todo_write')
   const first = await f.query()
   expect(JSON.stringify(first)).toContain('42')
-  for (let i = 1; i < 20; i++) await f.execute('gea_module_mcp', { tool: 'query_business_data', schema: true })
+  for (let i = 1; i < 20; i++) expect((await f.query()).isError).toBe(false)
   expect(JSON.stringify(await f.query())).toContain('GEA_CALL_BUDGET')
   const assembled = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
   expect(assembled.tools.map(row => row.name)).toContain('todo_write')
-  expect(assembled.tools.map(row => row.name)).not.toContain('gea_cube_query')
+  expect(assembled.tools.map(row => row.name)).not.toContain('mcp__gea-gateway__query_business_data')
+  expect(assembled.tools.map(row => row.name)).not.toContain('mcp__gea-gateway__inspect_cube_model')
   const todo = await f.execute('todo_write', { todos: [{ content: 'Deliver verified inventory', status: 'in_progress' }] })
   expect(todo.isError).toBe(false)
   const file = `${f.home}/inventory.txt`
@@ -121,13 +122,14 @@ it('rejects missing identity and undeclared Consumer routes before transport, wi
   const f = await baseInventoryHarness()
   const requests = await completion(f.ctx)
   const missingIdentity = await f.query()
-  expect(JSON.stringify(missingIdentity)).toContain('LOGIN_REQUIRED')
+  expect(JSON.stringify(missingIdentity)).toContain('GEA MCP requires an enabled business Agent and current GEA identity')
+  expect(f.ctx.tools.schemas(f.agent).map(row => row.name)).not.toContain('mcp__gea-gateway__query_business_data')
   expect(f.network).toEqual([])
-  f.login()
+  await f.login()
   await record('base-agent-lookup', { id: f.agent.id, found: !!f.ctx.agents.get(f.agent.id), preset: f.ctx.sessionProjections.stateOf(f.agent.session, 'agentPreset') })
-  const wrongConsumer = await f.execute('gea_module_mcp', { consumerCode: 'branch-safety-stock' })
-  expect(JSON.stringify(wrongConsumer)).toContain('GEA_CONSUMER_ROUTE_NOT_REGISTERED')
-  expect(f.network).toEqual([])
+  const wrongConsumer = await f.execute('mcp__gea-gateway__query_business_data', { consumerCode: 'branch-safety-stock' })
+  expect(JSON.stringify(wrongConsumer)).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])
   expect(() => f.business.assertExecutionAllowed('base-safety-stock', 'submit')).toThrow('GEA_CAPABILITY_EFFECT_NOT_ALLOWED')
   expect(JSON.stringify(await f.query())).toContain('42')
   expect(f.network.find(row => row.path === '/ai/gateway/session')?.body.consumerCode).toBe('base-safety-stock')
@@ -145,14 +147,14 @@ it('inherits the actual business preset in a standard child and refuses undeclar
   const { baseInventoryHarness } = await import('./base-inventory-harness.js')
   const f = await baseInventoryHarness()
   await completion(f.ctx)
-  f.login()
+  await f.login()
   const children: unknown[] = []
   const off = f.ctx.on(
     'agent/pre-step',
     async ({ agent }, next) => {
       if (agent !== f.agent) {
         const preset = f.ctx.sessionProjections.stateOf(agent.session, 'agentPreset')
-        const denied = await f.execute('gea_module_mcp', { consumerCode: 'branch-safety-stock' }, agent)
+        const denied = await f.execute('mcp__gea-gateway__query_business_data', { consumerCode: 'branch-safety-stock' }, agent)
         const allowed = await f.query(undefined, agent)
         children.push({ preset, denied, allowed })
       }
@@ -170,7 +172,7 @@ it('inherits the actual business preset in a standard child and refuses undeclar
   await record('base-children-inspect', { children, result })
   expect(children).toHaveLength(1)
   expect(JSON.stringify(children)).toContain('gea-html-inventory-aqkc')
-  expect(JSON.stringify(children)).toContain('GEA_CONSUMER_ROUTE_NOT_REGISTERED')
+  expect(JSON.stringify(children)).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
   expect(JSON.stringify(children)).toContain('42')
   expect(f.network.filter(row => row.path === '/ai/gateway/session').every(row => row.body.consumerCode === 'base-safety-stock')).toBe(true)
   await record('base-subagent-inheritance', { children, result })
@@ -181,17 +183,17 @@ it('revokes business execution when its resource owner is withdrawn or its capab
   const { createCapabilityRegistry } = await import('preset-integration-gea/capability/registry')
   const f = await baseInventoryHarness()
   await completion(f.ctx)
-  f.login()
+  await f.login()
   f.business.setCapabilities(createCapabilityRegistry([{ ...f.contract, enabled: false }]))
   expect(JSON.stringify(await f.query())).toContain('GEA_CAPABILITY_DISABLED')
-  expect(f.network).toEqual([])
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])
   f.business.setCapabilities(f.capabilities)
   await f.releaseResource()
   const missing = await f.query()
   expect(JSON.stringify(missing)).toContain('GEA_AGENT_RESOURCE_MISSING')
   const general = await f.execute('todo_write', { todos: [] })
   expect(JSON.stringify(general)).toContain('GEA_AGENT_RESOURCE_MISSING')
-  expect(f.network).toEqual([])
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])
   await record('base-resource-revocation', { missing, general })
 })
 
@@ -199,7 +201,7 @@ it('cancels a pending authorized query when GEA changes identity and cannot reus
   const { baseInventoryHarness } = await import('./base-inventory-harness.js')
   const f = await baseInventoryHarness()
   await completion(f.ctx)
-  f.login()
+  await f.login()
   let release!: () => void
   let started!: () => void
   const ready = new Promise<void>(resolve => {
@@ -218,7 +220,7 @@ it('cancels a pending authorized query when GEA changes identity and cannot reus
   const cancelled = await pending
   expect(cancelled.isError).toBe(true)
   const afterLogout = await f.query()
-  expect(JSON.stringify(afterLogout)).toContain('LOGIN_REQUIRED')
+  expect(JSON.stringify(afterLogout)).toContain('GEA MCP requires an enabled business Agent and current GEA identity')
   expect(f.network.filter(row => row.path === '/ai/gateway/session')).toHaveLength(1)
   await record('base-identity-cancellation', { cancelled, afterLogout })
 })
@@ -227,13 +229,13 @@ it('automatically and manually compacts a real base inventory Session through it
   const { baseInventoryHarness } = await import('./base-inventory-harness.js')
   const f = await baseInventoryHarness({ seed: await history(20_000) })
   const requests = await completion(f.ctx, 262_144, true)
-  f.login()
+  await f.login()
   await turn(f.ctx, f.agent, 'Continue the original base inventory task with the current read-only scope.')
   expect(f.agent.session.snapshotEvents().map(row => row.type)).toContain('compaction/summary')
   expect(requests.at(-1)?.messages.some(message => message.content.some(block => block.text?.includes('CHECKPOINT: preserve original task')))).toBe(true)
   const manual = await f.ctx.commands.execute(f.agent, '/compact', [], new AbortController().signal)
   expect(manual?.result).toMatchObject({ kind: 'success', text: expect.stringMatching(/^Compacted/) })
-  expect(f.network).toEqual([])
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])
   await record('base-gea-compaction', {
     events: f.agent.session.snapshotEvents().filter(row => row.type.startsWith('compaction/') || row.type === 'turn/end'),
     manual: manual?.result,
@@ -245,7 +247,7 @@ it('keeps standard tools after the independent evidence read allowance is exhaus
   const { baseInventoryHarness } = await import('./base-inventory-harness.js')
   const f = await baseInventoryHarness()
   await completion(f.ctx)
-  f.login()
+  await f.login()
   for (let i = 0; i < 12; i++) await f.execute('gea_evidence_read', { evidenceId: 'missing-evidence' })
   expect(JSON.stringify(await f.execute('gea_evidence_read', { evidenceId: 'missing-evidence' }))).toContain('GEA_EVIDENCE_BUDGET')
   expect((await f.execute('todo_write', { todos: [] })).isError).toBe(false)
@@ -270,7 +272,9 @@ it('preserves the enabled official Web Host orientation and standard runtime con
   const web = standard.sections.find(row => row.name === 'app:web-surface')
   expect(web?.text).toContain('DeepSeek Harness')
   expect(business.sections.find(row => row.name === 'app:web-surface')).toEqual(web)
-  for (const row of standard.sections) {
+  expect(standard.sections.some(row => row.name === 'gea:admission')).toBe(true)
+  expect(business.sections.some(row => row.name === 'gea:admission')).toBe(false)
+  for (const row of standard.sections.filter(row => !row.name.startsWith('gea:'))) {
     const observed = business.sections.find(section => section.name === row.name)
     if (row.name === 'genui:fence') {
       expect(observed?.text).toContain('dsh-ui')
@@ -302,12 +306,12 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
     ...Array.from({ length: 60 }, (_, index) => `MIDDLE_${index}: ${'Verified inventory evidence. '.repeat(21)}`),
     'TAIL_KEEP: preserve read-only scope and the original user decision.'
   ].join('\n')
-  f.login()
+  await f.login()
   expect((await f.execute('write', { file_path: file, content: payload })).isError).toBe(false)
   const requests = await completion(f.ctx, contextWindow, false, undefined, {
     checkpoint: 'CHECKPOINT: Explain the 42 inventory rows for base-safety-stock; retain the user decision to make no stock adjustment. Continue read-only analysis.',
     tools: [
-      { name: 'gea_cube_query', arguments: { queries: [{ name: 'inv', query: { measures: ['inv.row_count'], limit: 3 } }] } },
+      { name: 'mcp__gea-gateway__query_business_data', arguments: { queries: [{ name: 'inv', query: { measures: ['inv.row_count'], limit: 3 } }] } },
       { name: 'read', arguments: { file_path: file } },
       { name: 'todo_write', arguments: { todos: [{ content: 'Continue after the verified evidence', status: 'in_progress' }] } }
     ]
@@ -367,8 +371,8 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
   expect(f.network.find(row => row.path === '/ai/gateway/session')?.body.consumerCode).toBe('base-safety-stock')
   expect(JSON.stringify(await f.query())).toContain('42')
   const networkBeforeDenial = f.network.length
-  const denied = await f.execute('gea_module_mcp', { consumerCode: 'branch-inventory' })
-  expect(JSON.stringify(denied)).toContain('GEA_CONSUMER_ROUTE_NOT_REGISTERED')
+  const denied = await f.execute('mcp__gea-gateway__query_business_data', { consumerCode: 'branch-inventory' })
+  expect(JSON.stringify(denied)).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
   expect(f.network).toHaveLength(networkBeforeDenial)
   await turn(f.ctx, f.agent, 'Continue the same inventory task after pruning without extending Consumer access.')
   expect(requests.at(-1)?.tools?.map(tool => tool.name)).toContain('todo_write')
