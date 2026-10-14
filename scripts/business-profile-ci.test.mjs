@@ -1,6 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { matchesProductSource, selectBusinessProfileLane } from './business-profile-ci.mjs'
+import { resolve } from 'node:path'
+import { loadBusinessProfilePolicy } from './business-profile-ci.mjs'
+const { matchesProductSource, selectBusinessProfileLane } = await loadBusinessProfilePolicy(
+  process.env.QUALITY_POLICY_WORKBENCH ?? resolve(import.meta.dirname, '../../dsh-agent-workbench')
+)
 const input = {
   event: 'pull_request',
   repository: 'CleverC2200/dsh-gea-plugin',
@@ -20,4 +24,8 @@ test('only the authorized product source and CI supplement enter the targeted la
     assert.equal(selectBusinessProfileLane({ ...input, event, ref: 'refs/heads/main' }), 'business-profile')
     assert.equal(selectBusinessProfileLane({ ...input, event, ref: 'refs/heads/main', matches: false }), 'full')
   }
+})
+
+test('the source adapter requires an explicit Workbench path instead of searching another checkout', async () => {
+  for (const value of [undefined, '', 'main', '../dsh-agent-workbench']) await assert.rejects(loadBusinessProfilePolicy(value), /BUSINESS_PROFILE_WORKBENCH_REQUIRED/)
 })
