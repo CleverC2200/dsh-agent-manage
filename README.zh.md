@@ -201,6 +201,8 @@ MCP 读取根 `.mcp.json`、`.cursor/mcp.json`，以及 `.qoder/settings.json`�
 
 ## 更多文档
 
+Host 与 client 入口均导出冻结的 `pluginPackageVersion {name, version}`，记录编译时的包身份。构建从当前 package.json 生成标记，类型检查拒绝过期标记；已加载模块不会重读更新后的 manifest。运行核对应读取实际 ACTIVE Loader 模块的导出，另核安装来源与重启过程；标记本身不证明 Native 装载或业务验收。
+
 - [使用指南](docs/guides/usage.zh.md)：安装、来源配置、存储、宿主要求、MCP / LSP 和反馈设置。
 - [插件规范](schemas/README.md)：各布局的参考 schema 与依据，以及内置的 agent-plugins.org v1.0.0 契约。
 - [兼容性报告](docs/compat-report.md)：每个 schema 一个真实仓库，含提交号、schema 结论与扫描器输出。

@@ -211,6 +211,8 @@ Only when you tick **also delete the managed market directory** in the confirmat
 
 ## More documentation
 
+Both the Host and client entrypoints export the frozen `pluginPackageVersion {name, version}` captured during compilation. Builds generate it from the current package.json; typechecking rejects a stale stamp. Loaded modules do not reread an updated manifest. Runtime checks must read the actual ACTIVE Loader module exports and separately verify the installation source and restart; this stamp alone does not establish Native loading or business acceptance.
+
 - [Usage guide](docs/guides/usage.md): installation, source configuration, storage, host requirements, MCP / LSP and feedback settings.
 - [Plugin specifications](schemas/README.md): per-dialect reference schemas and evidence, plus the vendored agent-plugins.org v1.0.0 contracts.
 - [Compatibility report](docs/compat-report.md): one real repository per schema, with commits, schema verdicts and scanner output.

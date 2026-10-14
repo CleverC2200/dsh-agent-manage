@@ -49,10 +49,10 @@
     "src/aps-compute"
   ],
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
-    "build": "tsc -p tsconfig.json && pnpm run build:client",
-    "build:client": "tsdown && node scripts/normalize-client-banner.mjs",
-    "test": "vitest run && pnpm run test:preset-client",
+    "typecheck": "node scripts/generate-plugin-package-version.mjs --check && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
+    "build": "node scripts/generate-plugin-package-version.mjs && tsc -p tsconfig.json && pnpm run build:client",
+    "build:client": "node scripts/generate-plugin-package-version.mjs && tsdown && node scripts/normalize-client-banner.mjs",
+    "test": "pnpm run test:package-version && vitest run && pnpm run test:preset-client",
     "test:contract": "vitest run tests/market-contracts.test.ts tests/routes.test.ts",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src tests",
@@ -64,6 +64,7 @@
     "prepare": "pnpm run build",
     "check:knowledge": "node scripts/check-agent-knowledge.mjs",
     "test:knowledge": "node --test tests/agent-knowledge.test.mjs",
+    "test:package-version": "node --test tests/plugin-package-version.test.mjs",
     "test:preset-client": "vitest run --config vitest.preset-client.config.ts",
     "test:preset-integration": "vitest run --config vitest.preset-integration.config.ts",
     "check:capabilities": "node scripts/check-preset-capabilities.mjs",
@@ -72,7 +73,7 @@
     "quality:ci": "node scripts/run-quality-ci.mjs",
     "test:ci-inputs": "node --test tests/sdk-input-cli.test.mjs tests/quality-ci-cli.test.mjs tests/run-quality-checks.test.mjs tests/preset-capabilities-cli.test.mjs tests/sdk-artifact-cache.test.mjs",
     "check:static": "pnpm run check:knowledge && pnpm run test:knowledge && pnpm run test:ci-inputs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
-    "test:ci-unit": "vitest run --config vitest.ci-unit.config.ts"
+    "test:ci-unit": "pnpm run test:package-version && vitest run --config vitest.ci-unit.config.ts"
   },
   "dsh": {
     "bundle": {

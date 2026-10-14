@@ -49,6 +49,7 @@ import { UserPanelSkillProvider } from './runtime/user-panels.js'
 import { UserCommandMountRegistry } from './runtime/user-commands.js'
 import { mountGeaMcp, type GeaMcpConsumer } from './runtime/gea-mcp.js'
 import type { SourceRef } from './model/types.js'
+export { pluginPackageVersion } from './plugin-package-version.js'
 
 export const name = 'dsh-agent-manage'
 export const inject = ['skills', 'commands']
