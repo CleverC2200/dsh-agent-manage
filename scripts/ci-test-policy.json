@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "required": ["tests/market-contracts.test.ts", "tests/routes.test.ts"],
+  "tests": ["tests/*.test.ts"],
+  "rules": [
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|tsconfig|vitest|\\.github/|scripts/)",
+      "tests": ["tests/market-contracts.test.ts", "tests/routes.test.ts"],
+      "exclusive": true
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:business-resources|presets)/",
+      "tests": ["tests/bundled-sales-skills.test.ts", "tests/manage-bundle-default.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-workbench",
+      "pattern": "^(?:src|scripts|theme|business)/",
+      "tests": ["tests/market-contracts.test.ts"]
+    },
+    {
+      "repo": "dsh-gea-plugin",
+      "pattern": "^(?:src|scripts|presets|default-presets)/",
+      "tests": ["tests/routes.test.ts"]
+    }
+  ]
+}

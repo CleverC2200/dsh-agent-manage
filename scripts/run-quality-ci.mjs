@@ -62,12 +62,24 @@ try {
     const manifest = finalGroup.manifest
     if (phase === 'business-profile') (await import('./business-profile-ci.mjs')).validateBusinessProfileGroup(manifest.repositories)
     const workbench = manifest.repositories.find(entry => entry.repo === 'dsh-agent-workbench')
+    let plan
+    if (phase === 'quality') {
+      const { selectCiTests } = await import(pathToFileURL(resolve(workbench.path, 'scripts/ci-test-plan.mjs')))
+      const baseline = JSON.parse(readFileSync('scripts/quality-peer-baseline.json'))
+      plan = selectCiTests({
+        repositories: manifest.repositories,
+        repo: 'dsh-agent-manage',
+        base: process.env.QUALITY_BASE_SHA || baseline.repositories.find(entry => entry.repo === 'dsh-agent-manage').head
+      })
+      writeFileSync(resolve(dirname(resolve(input)), 'quality-test-plan.json'), JSON.stringify(plan, null, 2) + '\n')
+    }
+
     const core = resolve(dirname(dirname(process.cwd())), 'official-latest-standard')
     const options = { core, consumer: process.cwd(), coreHead: manifest.core, source: values['core-source'], withFlock: phase === 'quality' }
     process.env.DSH_CORE_CHECKOUT = core
     finalGroup?.verifyUnchanged()
     if (phase === 'audit') verifyOfficialSource(resolve(values['core-source']), options)
-    else if (values['prepare-sdk']) prepareOfficialSDK(options)
+    else if (values['prepare-sdk']) prepareOfficialSDK({ ...options, reusePrepared: process.env.QUALITY_REUSE_SDK === 'true' })
     else verifyOfficialSDK(options)
     if (phase !== 'audit')
       run(process.execPath, [
@@ -117,7 +129,7 @@ try {
               },
               { name: 'build', execute: () => run('corepack', ['pnpm', 'build']) }
             ]
-          : ['check:static', 'test:ci-unit', 'check:capabilities', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) }))
+          : [...['check:static', 'check:capabilities', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) })), { name: 'required-and-affected', execute: () => run('corepack', ['pnpm', 'exec', 'vitest', 'run', ...plan.files]) }]
       )
       writeFileSync('quality-checks.json', JSON.stringify(checks, null, 2) + '\n')
       if (checks.length !== 4 || checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')

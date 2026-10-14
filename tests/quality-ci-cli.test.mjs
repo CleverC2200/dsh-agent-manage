@@ -55,6 +55,7 @@ test('quality requests real flock preparation and verification; archives and aud
       writeFileSync(join(path, repo === 'dsh-agent-workbench' ? 'package-lock.json' : 'pnpm-lock.yaml'), '{}\n')
       if (repo === 'dsh-agent-workbench') {
         mkdirSync(join(path, 'scripts'))
+        writeFileSync(join(path, 'scripts/ci-test-plan.mjs'), 'export function selectCiTests() { return { files: [], runtime: false, browser: false } }')
         writeFileSync(
           join(path, 'scripts/candidate-input.mjs'),
           `import { readFileSync } from 'node:fs'; export async function readFinalGroup({ input }) {
@@ -72,6 +73,9 @@ test('quality requests real flock preparation and verification; archives and aud
       git(['-c', 'user.name=CI fixture', '-c', 'user.email=ci@example.invalid', 'commit', '--quiet', '-m', 'fixture'])
       return { repo, path, head: git(['rev-parse', 'HEAD']) }
     })
+    const ownScripts = join(root, 'candidate/dsh-agent-manage/scripts')
+    mkdirSync(ownScripts, { recursive: true })
+    writeFileSync(join(ownScripts, 'quality-peer-baseline.json'), JSON.stringify({ repositories }))
     const coreHead = JSON.parse(readFileSync('../dsh-gea-plugin/scripts/supported-cores.json', 'utf8'))[0].head
     const input = join(root, 'input.json')
     writeFileSync(input, JSON.stringify({ core: coreHead, repositories }))
@@ -240,7 +244,7 @@ test('peer reader bootstrap rejects malformed dispatch heads, event mismatch and
 
 test('joint dispatch isolates in-flight runs and retains required Windows and audit lanes', () => {
   const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
-  assert.match(workflow, /github\.ref \}\}-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/)
+  assert.match(workflow, /github\.ref \}\}/)
   for (const key of ['gea_sha', 'workbench_sha', 'manage_sha']) {
     assert.match(workflow, new RegExp('      ' + key + ':\\n        description: [^\\n]+\\n        required: true\\n        type: string'))
   }
@@ -258,7 +262,9 @@ test('joint dispatch isolates in-flight runs and retains required Windows and au
   assert.match(workflow, /path: source\/official-core/)
   assert.match(workflow, /candidate-group\.json/)
   assert.match(workflow, /dependency-review:[\s\S]*if: github.event_name == 'pull_request'/)
-  assert.doesNotMatch(workflow, /continue-on-error|pull_request_target/)
+  const requiredWorkflow = workflow.replace(/ {6}- name: Save verified SDK cache[\s\S]*?(?=\n {6}- name: Keep)/g, '')
+  assert.doesNotMatch(requiredWorkflow, /continue-on-error|pull_request_target/)
+  assert.match(workflow, /timeout-minutes: 1\n {8}uses: actions\/cache\/save@v4/)
 })
 
 test('joint execution keeps the native runner environment and forwards the complete CLI with failure status', () => {

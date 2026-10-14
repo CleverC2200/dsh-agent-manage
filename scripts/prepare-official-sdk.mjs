@@ -7,6 +7,7 @@ import { dirname, resolve, relative, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
+import { verifySDKArtifacts, writeSDKArtifacts } from './sdk-artifact-cache.mjs'
 
 // GEA owns the registered Core source, original lock and toolchain authority.
 function supportedCore(coreHead) {
@@ -332,7 +333,7 @@ export function prepareOfficialFlock(options) {
   return verifyOfficialSDK({ ...options, withFlock: true })
 }
 
-export function prepareOfficialSDK(options) {
+export function prepareOfficialSource(options) {
   const core = resolve(options.core)
   const coreHead = options.coreHead
   const { coreCommit } = supportedCore(coreHead)
@@ -343,18 +344,37 @@ export function prepareOfficialSDK(options) {
     run('git', ['checkout', '--detach', coreCommit], core)
     run('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], core)
   }
-  if (options.withFlock) flockTarget(core)
   ownedSource(core, coreHead)
+  return verifyOfficialSource(core, { coreHead })
+}
+
+export function prepareOfficialSDK(options) {
+  const core = resolve(options.core)
+  const coreHead = options.coreHead
+  prepareOfficialSource(options)
+  if (options.withFlock) flockTarget(core)
   // Default SDK stages exclude desktop/native products and runtime startup.
   // The declared host flock test dependency is built only when requested.
   run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], core)
-  const tsc = resolve(core, 'node_modules/typescript/bin/tsc')
-  run(process.execPath, ['--max-old-space-size=4096', tsc, '-b', 'tsconfig.host.json'], core)
-  run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'], core)
-  run(process.execPath, [tsc, '-b', 'tsconfig.client.json'], core)
-  run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'], core)
-  if (options.withWeb) prepareOfficialWeb({ ...options, withFlock: false })
-  if (options.withFlock) prepareOfficialFlock(options)
+  const identity = { ...supportedCore(coreHead), node: process.version, platform: process.platform, arch: process.arch, builder: hash(fileURLToPath(import.meta.url)) }
+  const reused = options.reusePrepared === true && verifySDKArtifacts(core, identity)
+  if (!reused) {
+    const tsc = resolve(core, 'node_modules/typescript/bin/tsc')
+    run(process.execPath, ['--max-old-space-size=4096', tsc, '-b', 'tsconfig.host.json'], core)
+    run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'], core)
+    run(process.execPath, [tsc, '-b', 'tsconfig.client.json'], core)
+    run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'], core)
+    writeSDKArtifacts(core, identity)
+  }
+  if (options.withWeb) {
+    if (reused && existsSync(webReceipt(core))) verifyWeb(core, coreHead)
+    else prepareOfficialWeb({ ...options, withFlock: false })
+  }
+  if (options.withFlock) {
+    if (reused && existsSync(flockReceipt(core))) verifyFlock(core, coreHead)
+    else prepareOfficialFlock(options)
+  }
+  console.log(JSON.stringify({ stage: 'sdk-preparation', reused, core: coreHead }))
   return verifyOfficialSDK(options)
 }
 
@@ -365,7 +385,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const i = args.indexOf(name)
       return i < 0 ? undefined : args[i + 1]
     }
-    if (['--prepare', '--prepare-web', '--prepare-flock'].filter(mode => args.includes(mode)).length > 1)
+    if (['--prepare', '--prepare-source', '--prepare-web', '--prepare-flock'].filter(mode => args.includes(mode)).length > 1)
       refuse('SDK_PREPARATION_MODE_CONFLICT', 'choose cold, web-only or flock-only preparation')
     const options = {
       core: value('--core') ?? '../../official-latest-standard',
@@ -373,15 +393,18 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       source: value('--source'),
       coreHead: value('--core-head'),
       withWeb: args.includes('--with-web'),
-      withFlock: args.includes('--with-flock')
+      withFlock: args.includes('--with-flock'),
+      reusePrepared: args.includes('--reuse-prepared')
     }
     const result = args.includes('--prepare-flock')
       ? prepareOfficialFlock(options)
       : args.includes('--prepare-web')
         ? prepareOfficialWeb(options)
-        : args.includes('--prepare')
-          ? prepareOfficialSDK(options)
-          : verifyOfficialSDK(options)
+        : args.includes('--prepare-source')
+          ? prepareOfficialSource(options)
+          : args.includes('--prepare')
+            ? prepareOfficialSDK(options)
+            : verifyOfficialSDK(options)
     const receipt = value('--receipt')
     if (receipt) {
       mkdirSync(dirname(resolve(receipt)), { recursive: true })
