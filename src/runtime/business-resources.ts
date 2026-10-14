@@ -24,6 +24,8 @@ export interface BusinessResourceDefinition {
   description?: string
   root: string
   prompt?: string
+  /** Publish a validated preset when the enabled package registers, without selecting it or changing user defaults. */
+  publishPreset?: boolean
   /** Owning capability declaration, for explicit references to existing analysis Skills. */
   capability?: string
   /** A policy JSON file may contain several original profiles. */
@@ -135,8 +137,8 @@ export class BusinessResources {
     }
     for (const definition of definitions) this.entries.set(definition.id, { definition, owner })
     this.control?.invalidate()
-    for (const id of ids)
-      if (this.selected.has(id)) {
+    for (const { id, publishPreset, enabled } of definitions)
+      if (this.selected.has(id) || (publishPreset && enabled !== false)) {
         try {
           await this.serialize(() => this.mountPrompt(id, new AbortController().signal))
         } catch (error) {

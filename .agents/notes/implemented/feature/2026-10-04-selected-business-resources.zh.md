@@ -8,7 +8,7 @@ Status: implemented
 
 ## Decision
 
-Manage 持有唯一的资源interface与已启用包资源的官方Skill Provider。Catalog继续持有Suite源、安装与启用事实。当前包在自己的effect下登记私有文件引用；浏览器选用稳定资源标识并传入原生工作区绝对路径上下文，不传资源文件路径或Consumer覆盖。目录只返回轻量摘要，正文只在选用时装载。原文件与用户草稿不覆盖。
+Manage 持有唯一的资源interface与已启用包资源的官方Skill Provider。Catalog继续持有Suite源、安装与启用事实。当前包在自己的effect下登记私有文件引用；浏览器选用稳定资源标识并传入原生工作区绝对路径上下文，不传资源文件路径或Consumer覆盖。目录只返回轻量摘要；Prompt 正文在选用时或已启用包 owner 明确启用 `publishPreset` 时装载，Skill 正文仍在选用时装载。原文件与用户草稿不覆盖。
 
 Skill 和 Prompt 选用均确认官方 Registry resolve 未返回 broken 后才提交选中身份。Skill 激活失败沿现有预设释放句柄回滚，已保留的挂载也重新核对可用性；释放失败保留句柄供显式重试。恢复已选 Skill 时，broken 预设使 load 拒绝，原恢复索引保持不变。
 
@@ -40,4 +40,4 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 
 ## Consequences
 
-已选身份恢复定义，不改写 Session 数据或业务资源正文。缺少 owner 明确失败，释放失败可显式重试。Native 安装与真实业务、模型验收分别留证。
+已选身份恢复定义，不改写 Session 数据或业务资源正文。缺少 owner 明确失败，释放失败可显式重试。Native 安装与真实业务、模型验收分别留证。包 owner 可声明 `publishPreset`，在安装/启用后发布已校验的业务预设，供官方列表发现。发布不改变当前 Session、用户默认或 selected-resources.json，也不授予 Consumer 权限；演示 owner 不启用该选项。无效 Prompt 保留资源诊断，健康 Prompt 继续发布，owner 卸载仍释放自己的声明。

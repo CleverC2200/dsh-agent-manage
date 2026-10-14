@@ -4,6 +4,8 @@
 
 ## 发现与选用
 
+包 owner 可通过 `publishPreset` 为已启用的 Prompt 资源声明安装时发布。Manage 在 owner 登记时校验并发布原组合，使其在首次选用前出现在官方预设列表；不自动选用、不改变用户默认、不写恢复索引，也不授予 GEA 权限。禁用资源不发布；无效资源保留诊断，不阻止健康资源发布。owner 卸载释放声明，演示资源不启用该选项。
+
 `GET /api/agent-manage/resources?cwd=...` 根据明确的原生工作区绝对路径返回提示词和可由用户调用的 Skill 轻量清单，安装启用事实沿用资源所属模块。`POST /api/agent-manage/resources/select` 仅接受 `{ "id": "...", "cwd": "/absolute/workspace" }`，经官方原生 preset/Skill 接口发布所选原资源。发现、正文选用和工作台新 Session 使用同一个当前原生工作区；尚无 Session 时使用明确配置的隔离工作区，Skill 只暂存 `/skill-name` 草稿，不自动请求模型。未安装 Skill 和 Consumer 业务授权分别报告。`selected-resources.json` 只保存已选标识以恢复必要声明，不保存资源正文或凭据。
 
 Skill 选用在返回成功或保存选中身份前解析官方 `agent-resource-skill` 预设。broken 预设拒绝选用，沿现有释放句柄清理；释放失败保留句柄供显式重试。恢复已选 Skill 时，broken 预设使加载拒绝，不重写恢复索引。[选用决定](../../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.zh.md)持有该生命周期。

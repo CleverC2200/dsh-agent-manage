@@ -8,7 +8,7 @@ Durable Sessions retain preset identities after restart, while package resource 
 
 ## Decision
 
-Manage owns one resource interface and the official Skill Provider for enabled package resources. Catalog continues to own Suite source and installed/enabled facts. A live package registers private file references through its effect; browser requests select stable resource identities and carry their absolute native workspace context, never resource-file paths or Consumer overrides. Inventory contains summaries, and only selected prompt/Skill bodies are loaded. Source files and user drafts are never overwritten.
+Manage owns one resource interface and the official Skill Provider for enabled package resources. Catalog continues to own Suite source and installed/enabled facts. A live package registers private file references through its effect; browser requests select stable resource identities and carry their absolute native workspace context, never resource-file paths or Consumer overrides. Inventory contains summaries. Prompt bodies load when selected or when their enabled package owner opts into `publishPreset`; Skill bodies still load on selection. Source files and user drafts are never overwritten.
 
 Skill and Prompt selection both confirm the official registry resolution is not broken before committing a selected identity. A failed Skill activation uses the existing preset disposer for rollback, including an already retained mount; failed release keeps its handle for explicit retry. Restoring a broken selected Skill rejects loading and leaves the original recovery index unchanged.
 
@@ -37,6 +37,8 @@ Full Manage cold-start recovery awaits its existing StandardPreset initializatio
 ## Alternatives considered
 
 The [business resource decision](../architecture/2026-09-29-workbench-business-resources.md#alternatives-considered) records why a second registry and arbitrary external paths were rejected. Its filesystem mount is replaced by official publication; package containment and Consumer separation remain.
+
+Package owners may declare `publishPreset` to publish validated business presets on installation/activation for official roster discovery. Publication does not change Sessions, user defaults or selected-resources.json, and grants no Consumer access. Preview owners do not opt in. Invalid prompts retain resource diagnostics while healthy prompts publish; owner unload still releases its declarations.
 
 ## Consequences
 
