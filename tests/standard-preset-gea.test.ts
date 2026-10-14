@@ -303,7 +303,7 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
   const file = `${f.home}/large-inventory-evidence.txt`
   const payload = [
     'HEAD_KEEP: original inventory decision; Consumer base-safety-stock.',
-    ...Array.from({ length: 60 }, (_, index) => `MIDDLE_${index}: ${'Verified inventory evidence. '.repeat(21)}`),
+    ...Array.from({ length: 60 }, (_, index) => `MIDDLE_${index}: ${'Verified inventory evidence. '.repeat(27)}`),
     'TAIL_KEEP: preserve read-only scope and the original user decision.'
   ].join('\n')
   await f.login()
@@ -317,7 +317,15 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
     ]
   })
   const before = f.agent.session.snapshotEvents()
-  const pressure: unknown[] = []
+  const pressure: {
+    seq: number
+    type: string
+    totalTokens: number
+    surfaceTokens: number
+    baseline: unknown
+    data?: unknown
+    toolResult?: { callId: string; isError: boolean | undefined; chars: number }
+  }[] = []
   f.ctx.on('session/event', (session, event) => {
     if (session !== f.agent.session) return
     if (!['step/start', 'tool/result', 'request/context', 'compaction/summary', 'compaction/prune'].includes(event.type)) return
@@ -343,6 +351,13 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
   const events = f.agent.session.snapshotEvents()
   expect(events.at(-1)).toMatchObject({ type: 'turn/end', data: { reason: { kind: 'completed' } } })
   expect(JSON.stringify(events.filter(event => event.type === 'assistant/message'))).toContain('Continued original task from the checkpoint.')
+  // rc2 reserves 65536 tokens of headroom in the unchanged 98304-token model.
+  // The real read must cross that pressure line on each supported platform.
+  const pressureThreshold = 32768
+  const afterRead = pressure.find(row => row.toolResult?.callId === 'scripted-task-step-2')
+  const beforeRead = pressure.findLast(row => row.type === 'step/start' && row.seq < (afterRead?.seq ?? -1))
+  expect(beforeRead?.totalTokens, JSON.stringify(pressure)).toBeLessThan(pressureThreshold)
+  expect(afterRead?.totalTokens, JSON.stringify(pressure)).toBeGreaterThan(pressureThreshold)
   const prunes = events.filter(event => event.type === 'compaction/prune')
   expect(
     prunes,
@@ -416,6 +431,7 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
     sessionId: f.agent.id,
     contextWindow,
     pressure,
+    pressureThreshold,
     consumer: f.selection.profile!.consumerCode,
     prunes,
     originalSeq: original.seq,
