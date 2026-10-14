@@ -33,6 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      business-lane: ${{ steps.business.outputs.lane }}
       audit-matrix: ${{ steps.matrix.outputs.audit-matrix }}
       gea-sha: ${{ steps.group.outputs.gea-sha }}
       workbench-sha: ${{ steps.group.outputs.workbench-sha }}
@@ -57,6 +58,13 @@ jobs:
         env:
           QUALITY_SCOPE_ALLOWED: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         run: node scripts/run-quality-ci.mjs --phase scope
+      - name: Select the authorized business repair lane
+        id: business
+        env:
+          QUALITY_EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          QUALITY_PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          QUALITY_PR_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+        run: node scripts/business-profile-ci.mjs
       - name: Resolve immutable Workbench reader source
         id: reader
         env:
@@ -192,7 +200,7 @@ jobs:
         run: node ../dsh-agent-workbench/scripts/write-hosted-group.mjs --repo dsh-agent-manage --root "$GITHUB_WORKSPACE" --core-head "$CORE_HEAD"
       - name: Prepare independent SDK and run all admitted group gates
         env:
-          QUALITY_PHASE: ${{ matrix.phase }}
+          QUALITY_PHASE: ${{ matrix.phase == 'quality' && needs.candidate-scope.outputs.business-lane == 'business-profile' && 'business-profile' || matrix.phase }}
           INPUT_SHA256: ${{ steps.group.outputs.input-sha256 }}
         run: |
           node --input-type=module -e "import { spawnSync } from 'node:child_process'; import { resolve } from 'node:path'; const result = spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', process.env.QUALITY_PHASE, '--input', process.env.QUALITY_CANDIDATE, '--prepare-sdk', '--core-source', resolve(process.env.GITHUB_WORKSPACE, 'source/official-core'), '--final-group-sha256', process.env.INPUT_SHA256], { stdio: 'inherit' }); if (result.error) throw result.error; process.exitCode = result.status ?? 1;"

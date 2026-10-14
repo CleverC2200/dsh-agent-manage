@@ -74,3 +74,9 @@ Source tests, remote CI, Windows, Native, real business/model behavior and repos
 Ordinary source-event receipts retain `sourceKind` and the committed baseline byte hash; they do not combine independent push/PR runs into a joint pass. Missing, changed or incomplete baseline data is rejected before peer checkout. The same CLI admission applies locally and on GitHub. / 普通 source-event 回执保留来源分类与已提交 baseline 字节哈希，不能将独立 push/PR 结果拼成联合通过。缺失、变化或不完整 baseline 在 peer 检出前拒绝。本地与 GitHub 使用同一 CLI 入场。
 
 The registered personal repository denies upstream release-please, npm and Pages jobs at job scope. Their upstream definitions remain available for the upstream repository. Quality artifact uploads remain enabled. / 登记个人仓在 job 层拒绝上游 release-please、npm 和 Pages 发布，上游定义保留，质量证据上传继续执行。
+
+## Frozen business repair exception
+
+The user authorized merging the 2026-10-14 business repair group without full tests. The `business-profile` lane is limited to the reviewed product commits declared in `scripts/business-profile-ci.mjs`, plus the listed CI and evidence files. It validates all three actual source checkouts against those commits. A different product source rejects this lane; other PR branches keep the normal gates. Same-tree main and explicit main dispatch can use the targeted lane. The existing final aggregate still rejects failed, cancelled, skipped or missing jobs, and branch protection is unchanged.
+
+Targeted checks retain static gates and builds. Workbench runs the new-conversation/inventory/company/version cases and the sidebar browser file. Manage runs business resources, raw MCP scope, bundled tools and the real Core business-admission file; existing Windows archive and security lanes remain. GEA runs reasoning, history, identity/budgets, Cube-New, HTTP errors and plugin-update regressions. This is source acceptance, not real model, business, Native or release acceptance. The separate CI optimization and new query direct-return work are excluded.

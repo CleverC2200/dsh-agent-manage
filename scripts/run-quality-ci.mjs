@@ -32,7 +32,7 @@ function run(command, args, cwd = process.cwd()) {
 try {
   if (values['final-group-sha256'] !== undefined) {
     if (!/^[a-f0-9]{64}$/.test(values['final-group-sha256'])) refuse('CANDIDATE_FINAL_GROUP_REQUIRED', 'original bytes SHA256 required')
-    if (!['quality', 'archives', 'audit', 'verify-input'].includes(phase)) refuse('CANDIDATE_FINAL_GROUP_PHASE', phase)
+    if (!['quality', 'business-profile', 'archives', 'audit', 'verify-input'].includes(phase)) refuse('CANDIDATE_FINAL_GROUP_PHASE', phase)
   }
   if (phase === 'scope') {
     if (process.env.QUALITY_SCOPE_ALLOWED !== 'true') refuse('CANDIDATE_SCOPE_REQUIRED', 'same-repository read-only execution only')
@@ -41,7 +41,7 @@ try {
       if (process.env[key] !== 'success') refuse('QUALITY_REQUIRED', `${key}=${process.env[key] ?? 'missing'}`)
     }
   } else {
-    if (!['quality', 'archives', 'audit', 'verify-input'].includes(phase)) refuse('QUALITY_PHASE_REJECTED', phase)
+    if (!['quality', 'business-profile', 'archives', 'audit', 'verify-input'].includes(phase)) refuse('QUALITY_PHASE_REJECTED', phase)
     if (!values['final-group-sha256']) refuse('CANDIDATE_FINAL_GROUP_REQUIRED', 'candidate execution requires explicit admitted group hash')
     const input = values.input ?? process.env.QUALITY_CANDIDATE
     if (!input) refuse('CANDIDATE_INPUT_REQUIRED', '--input <frozen group JSON>')
@@ -60,6 +60,7 @@ try {
       process.exit(0)
     }
     const manifest = finalGroup.manifest
+    if (phase === 'business-profile') (await import('./business-profile-ci.mjs')).validateBusinessProfileGroup(manifest.repositories)
     const workbench = manifest.repositories.find(entry => entry.repo === 'dsh-agent-workbench')
     const core = resolve(dirname(dirname(process.cwd())), 'official-latest-standard')
     const options = { core, consumer: process.cwd(), coreHead: manifest.core, source: values['core-source'], withFlock: phase === 'quality' }
@@ -78,7 +79,7 @@ try {
         '--final-group-sha256',
         values['final-group-sha256']
       ])
-    if (phase === 'quality') {
+    if (['quality', 'business-profile'].includes(phase)) {
       const npmManager = JSON.parse(readFileSync(resolve(workbench.path, 'package.json'), 'utf8')).packageManager
       if (npmManager !== 'npm@11.11.0' || execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim() !== npmManager.slice('npm@'.length))
         refuse('QUALITY_TOOLCHAIN_REQUIRED', 'Workbench npm@11.11.0')
@@ -91,9 +92,32 @@ try {
     }
     run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'])
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'dependencies-prepared=true\n')
-    if (phase === 'quality') {
+    if (['quality', 'business-profile'].includes(phase)) {
       const checks = await runQualityChecks(
-        ['check:static', 'test:ci-unit', 'check:capabilities', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) }))
+        phase === 'business-profile'
+          ? [
+              { name: 'static', execute: () => run('corepack', ['pnpm', 'check:static']) },
+              {
+                name: 'business-profile',
+                execute: () =>
+                  run('corepack', [
+                    'pnpm',
+                    'exec',
+                    'vitest',
+                    'run',
+                    'tests/business-resources.test.ts',
+                    'tests/bundled-business-tools.test.ts',
+                    'tests/gea-mcp-scope.test.ts',
+                    'tests/gea-mcp.test.ts'
+                  ])
+              },
+              {
+                name: 'admission',
+                execute: () => run('corepack', ['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.preset-integration.config.ts', 'tests/business-admission-gea.test.ts'])
+              },
+              { name: 'build', execute: () => run('corepack', ['pnpm', 'build']) }
+            ]
+          : ['check:static', 'test:ci-unit', 'check:capabilities', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) }))
       )
       writeFileSync('quality-checks.json', JSON.stringify(checks, null, 2) + '\n')
       if (checks.length !== 4 || checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')
