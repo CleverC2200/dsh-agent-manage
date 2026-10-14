@@ -86,6 +86,7 @@ export function apply(ctx: SuiteClientContext): void {
     if (typeof document === 'undefined' || typeof __dshManageClientCss !== 'string') return
     const style = document.createElement('style')
     style.dataset.dshClient = 'dsh-agent-manage'
+    style.dataset.plugin = 'dsh-agent-manage'
     style.textContent = __dshManageClientCss
     document.head.append(style)
     return () => style.remove()

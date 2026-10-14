@@ -55,6 +55,7 @@ describe('current settings surface', () => {
     expect(pages).toEqual([{ id: 'agent-plugin-workspace', label: expect.any(Function) }])
     expect(document.querySelector('[data-dsh-agent-plugins-market-entry]')).toBeNull()
     expect(document.querySelector('style[data-dsh-client="dsh-agent-manage"]')?.textContent).toContain('.test-style')
+    expect(document.querySelector('style[data-dsh-client="dsh-agent-manage"]')?.getAttribute('data-plugin')).toBe('dsh-agent-manage')
     expect(missingPrimitives({})).toEqual(['Button', 'Input', 'Modal', 'Toast', 'Tooltip'])
     for (const cleanup of dispose.reverse()) cleanup()
     expect(pages).toEqual([])
