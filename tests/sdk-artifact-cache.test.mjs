@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, unlinkSync, symlinkSync 
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { verifySDKArtifacts, writeSDKArtifacts } from '../scripts/sdk-artifact-cache.mjs'
+import { verifySDKArtifacts, writeSDKArtifacts, sdkCachePaths } from '../scripts/sdk-artifact-cache.mjs'
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'sdk-cache-'))
@@ -47,4 +47,14 @@ test('dependency links are not accepted as produced SDK artifact bytes', t => {
   const f = fixture(t)
   symlinkSync(f.file, join(f.root, 'packages/host/lib/link.js'))
   assert.throws(() => writeSDKArtifacts(f.root, f.identity), /SDK_CACHE_ARTIFACT_TYPE/)
+})
+test('cache paths name only tracked package outputs without dependency traversal or globs', t => {
+  const f = fixture(t)
+  mkdirSync(join(f.root, 'packages/host/node_modules/unrelated'), { recursive: true })
+  writeFileSync(join(f.root, 'packages/host/node_modules/unrelated/package.json'), '{}')
+  execFileSync('git', ['-C', f.root, 'add', 'packages/host/node_modules/unrelated/package.json'])
+  const paths = sdkCachePaths(f.root)
+  assert.ok(paths.includes(join(f.root, 'packages/host/lib')))
+  assert.ok(paths.includes(join(f.root, '.git/dsh-sdk-artifacts.json')))
+  assert.ok(paths.every(path => !path.includes('node_modules') && !path.includes('*')))
 })
