@@ -18,6 +18,8 @@ The [dual official Core decision](../.agents/notes/implemented/process/2026-10-1
 
 ## Current ownership / 当前决定归属
 
+- [Resource runtime management](../.agents/notes/implemented/architecture/2026-10-15-resource-runtime-management.md) and [中文](../.agents/notes/implemented/architecture/2026-10-15-resource-runtime-management.zh.md) own runtime configuration, status, credential events, backend remounts and ordered release behind `Catalog.runtime`. / 运行配置、状态、凭据事件、后端重挂与释放顺序归 `Catalog.runtime`。
+
 - [Installed panel resources](../.agents/notes/implemented/architecture/2026-10-14-installed-panel-resources.md) and [中文](../.agents/notes/implemented/architecture/2026-10-14-installed-panel-resources.zh.md) own source-limited resource reads and serialized writes with runtime notification. / 已安装资源按需读取，资源 module 统一写入与运行时通知。
 
 - [Selected native resources](../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.md) and [中文](../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.zh.md) own one official Skill/preset publication interface, explicit cwd and selected-identity recovery. / 统一原生资源发布、明确 cwd 和选中身份恢复。
