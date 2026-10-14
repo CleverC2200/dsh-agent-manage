@@ -7,12 +7,6 @@ function service(): MarketService {
   return {
     sources: [],
     overview: async () => ({ sources: [], suites: [], totals: { all: 0, installed: 0, enabled: 0 }, roots: { user: '/user', data: '/data' } }),
-    mcpStatus: async () => ({
-      entries: [],
-      observedAt: '',
-      totals: { all: 0, connected: 0, degraded: 0, failed: 0, needsCredentials: 0, orphaned: 0, disabled: 0, foreign: 0 },
-      directObservationOnly: true
-    }),
     sourceProgress: () => ({ active: false, sourceId: '', step: '' }),
     suiteDetail: async () => {
       throw new Error('not found')
@@ -29,17 +23,33 @@ function service(): MarketService {
     uninstall: async () => {},
     setEnabled: async () => {},
     setSurface: async () => {},
-    setMcpOverride: async () => {},
-    addMcpServer: async () => {},
-    retryMounts: async () => {},
-    reauthorizeMcpServer: async () => {},
-    mcpReauthorizeAvailable: () => true,
-    mcpBackendInfo: async () => ({
-      backend: 'builtin' as const,
-      hostClient: { available: true, version: '0.1.1-rc.2' },
-      downloadRegion: { setting: 'auto' as const, effective: 'global' as const }
-    }),
-    setMcpBackend: async () => {}
+    runtime: {
+      mcpStatus: async () => ({
+        entries: [],
+        observedAt: '',
+        totals: { all: 0, connected: 0, degraded: 0, failed: 0, needsCredentials: 0, orphaned: 0, disabled: 0, foreign: 0 },
+        directObservationOnly: true
+      }),
+      serverConfig: async () => ({ kind: 'mcp', id: '', editable: true, config: {} }),
+      saveServerConfig: async () => {},
+      lspStatus: async () => ({ entries: [], observedAt: '', totals: { all: 0, mounted: 0, failed: 0, blocked: 0, disabled: 0 }, hostMissing: false }),
+      lspServers: async () => ({}),
+      mcpOverrides: async () => ({}),
+      setLspServers: async () => ({}),
+      setLspServerEnabled: async () => {},
+      addLspServer: async () => {},
+      setMcpOverride: async () => {},
+      addMcpServer: async () => {},
+      retryMounts: async () => {},
+      reauthorizeMcpServer: async () => {},
+      mcpReauthorizeAvailable: () => true,
+      mcpBackendInfo: async () => ({
+        backend: 'builtin' as const,
+        hostClient: { available: true, version: '0.1.1-rc.2' },
+        downloadRegion: { setting: 'auto' as const, effective: 'global' as const }
+      }),
+      setMcpBackend: async () => {}
+    }
   }
 }
 
@@ -134,8 +144,11 @@ describe('market HTTP routes', () => {
     const reauthCalls: Array<string> = []
     const reauthService = {
       ...service(),
-      reauthorizeMcpServer: async (serverName: string) => {
-        reauthCalls.push(serverName)
+      runtime: {
+        ...service().runtime,
+        reauthorizeMcpServer: async (serverName: string) => {
+          reauthCalls.push(serverName)
+        }
       }
     }
     // The second mount gets its own table: the strict mock enforces the

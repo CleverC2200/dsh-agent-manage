@@ -166,6 +166,7 @@ export class McpMountRegistry {
     this.lastEnabled = [...enabledSuites]
     const active = enabledSuites.filter(suite => suite.activeSurfaces?.mcp !== false)
     const overrides = await this.overridesProvider()
+    const backend = await this.backendProvider()
     const resolver = mcpCredentialResolver(this.ctx)
     const wanted = new Map<string, { suite: Suite; serverKey: string; request: McpMountRequest }>()
     const diagnostics: McpMountDiagnostic[] = []
@@ -213,8 +214,7 @@ export class McpMountRegistry {
       // only the explicit instruction tears the live bridge down and lets
       // the server's 401 restart the browser authorization.
       // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
-      if (live !== undefined && !this.forcedRemounts.has(key) && live.configFingerprint === fingerprintOf(entry.request)) continue
-      this.forcedRemounts.delete(key)
+      if (live !== undefined && !this.forcedRemounts.has(key) && live.configFingerprint === fingerprintOf(entry.request, backend)) continue
       // Either a fresh mount, or a remount because the resolved config moved
       // (a credential rotation rewrites the env/header/url values while the
       // suite stays enabled) — keeping the old mount would keep serving the
@@ -227,10 +227,11 @@ export class McpMountRegistry {
           continue
         }
       }
+      this.forcedRemounts.delete(key)
       // A retry attempt runs the same mount path; only the last failure is
       // reported so a transient error does not shadow the final state.
       // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
-      const failure = await this.mountWith(entry.request)
+      const failure = await this.mountWith(entry.request, backend)
       if (failure !== undefined) {
         diagnostics.push({ suiteId: qualifiedSuiteId(entry.suite.sourceId, entry.suite.id), serverKey: entry.serverKey, reason: failure.reason, code: failure.code })
         // Foreign and duplicate skips are deterministic, not transient:
@@ -300,7 +301,7 @@ export class McpMountRegistry {
 
   /** Mount one precomputed request (source config merged with overrides). */
   /** 挂载单个 MCP 请求，后端不可用或工具命名冲突时返回结构化失败。 */
-  private async mountWith(request: McpMountRequest): Promise<{ reason: string; code: McpMountFailureCode } | undefined> {
+  private async mountWith(request: McpMountRequest, backend: McpBackend): Promise<{ reason: string; code: McpMountFailureCode } | undefined> {
     const owner = this.names.get(request.config.serverName)
     if (owner !== undefined) {
       // Two sources shipping the same suite/server pair derive one serverName:
@@ -339,7 +340,7 @@ export class McpMountRegistry {
       return { reason: 'the host context does not support dynamic plugin mounting', code: 'mount-failed' }
     }
     let pluginModule: unknown = mcpBridge
-    if ((await this.backendProvider()) === 'host') {
+    if (backend === 'host') {
       if (request.config.enabledTools !== undefined || request.config.disabledTools !== undefined || request.config.startupTimeoutMs !== undefined) {
         return { reason: 'native MCP tool filters and startup timeouts require the built-in backend; host compatibility mode cannot enforce them', code: 'mount-failed' }
       }
@@ -382,7 +383,7 @@ export class McpMountRegistry {
       suiteId: request.suiteId,
       serverKey: request.serverKey,
       serverName: request.config.serverName,
-      configFingerprint: fingerprintOf(request),
+      configFingerprint: fingerprintOf(request, backend),
       disposer: () => handle.dispose()
     })
     this.names.set(request.config.serverName, `${request.suiteId}\u0000${request.serverKey}`)
@@ -411,10 +412,12 @@ function mountKey(suiteId: string, serverKey: string): string {
 
 /**
  * Stable fingerprint of one resolved mount request: any change to the
- * transport, url, headers, env, args, or auth shape produces a different
+ * backend, transport, url, headers, env, args, or auth shape produces a different
  * fingerprint and forces a remount on the next reconcile pass.
  */
 /** 生成挂载请求指纹，避免配置未变时重复断开重连。 */
-function fingerprintOf(request: McpMountRequest): string {
-  return createHash('sha256').update(JSON.stringify(request.config)).digest('hex')
+function fingerprintOf(request: McpMountRequest, backend: McpBackend): string {
+  return createHash('sha256')
+    .update(JSON.stringify({ backend, config: request.config }))
+    .digest('hex')
 }

@@ -38,7 +38,7 @@ describe('runtime catalog discovery', () => {
     const catalog = await setup(false)
     const scan = vi.spyOn(discovery, 'discoverSourceListWithNotes')
     expect(await new SuiteSkillProvider(catalog).list({})).toEqual([])
-    expect(await catalog.allMcpOverrides(await catalog.enabledUserSuites())).toEqual(new Map())
+    expect(await catalog.runtime.allMcpOverrides(await catalog.enabledUserSuites())).toEqual(new Map())
     expect(scan).not.toHaveBeenCalled()
   })
 
@@ -49,7 +49,7 @@ describe('runtime catalog discovery', () => {
     expect(results.every(suites => suites.length === 1 && suites[0]!.sourceId === 'active')).toBe(true)
     expect(scan).toHaveBeenCalledTimes(1)
     expect(scan.mock.calls[0]![0].map(source => source.id)).toEqual(['active'])
-    await catalog.allMcpOverrides(results[0])
+    await catalog.runtime.allMcpOverrides(results[0])
     expect(scan).toHaveBeenCalledTimes(1)
     expect((await catalog.readUserCatalog()).suites).toHaveLength(2)
     expect(scan).toHaveBeenCalledTimes(2)

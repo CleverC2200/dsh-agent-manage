@@ -87,7 +87,7 @@ export function mountSuiteRoutes(
   })
 
   get(MARKET_ROUTES.mcpStatus, async (_request, response) => {
-    sendJson(response, 200, await manager.mcpStatus())
+    sendJson(response, 200, await manager.runtime.mcpStatus())
   })
 
   get(MARKET_ROUTES.serverConfig, async (request, response) => {
@@ -95,7 +95,7 @@ export function mountSuiteRoutes(
       const query = queryOf(request)
       const kind = query.get('kind')
       if (kind !== 'mcp' && kind !== 'lsp') throw new Error('invalid service kind')
-      sendJson(response, 200, await manager.serverConfig(kind, query.get('id') ?? ''))
+      sendJson(response, 200, await manager.runtime.serverConfig(kind, query.get('id') ?? ''))
     } catch (error) {
       sendJson(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) })
     }
@@ -103,22 +103,22 @@ export function mountSuiteRoutes(
   post(MARKET_ROUTES.saveServerConfig, async body => {
     if (body.kind !== 'mcp' && body.kind !== 'lsp') throw new Error('invalid service kind')
     if (typeof body.id !== 'string' || body.id === '') throw new Error('missing service id')
-    await manager.saveServerConfig(body.kind, body.id, body.config)
+    await manager.runtime.saveServerConfig(body.kind, body.id, body.config)
     return {}
   })
 
   post(MARKET_ROUTES.addMcpServer, async body => {
     if (typeof body.name !== 'string') throw new Error('MCP server name is required')
-    await manager.addMcpServer(body.name, body.config)
+    await manager.runtime.addMcpServer(body.name, body.config)
     return {}
   })
 
   get(MARKET_ROUTES.lspStatus, async (_request, response) => {
-    sendJson(response, 200, await manager.lspStatus())
+    sendJson(response, 200, await manager.runtime.lspStatus())
   })
 
   get(MARKET_ROUTES.lspServers, async (_request, response) => {
-    sendJson(response, 200, { lspServers: await manager.lspServers() })
+    sendJson(response, 200, { lspServers: await manager.runtime.lspServers() })
   })
 
   get(MARKET_ROUTES.progress, async (_request, response) => {
@@ -266,7 +266,7 @@ export function mountSuiteRoutes(
       return
     }
     try {
-      sendJson(response, 200, { ok: true, overrides: await manager.mcpOverrides(sourceId, suiteId) })
+      sendJson(response, 200, { ok: true, overrides: await manager.runtime.mcpOverrides(sourceId, suiteId) })
     } catch (error) {
       sendJson(response, 404, { ok: false, error: error instanceof Error ? error.message : String(error) })
     }
@@ -279,7 +279,7 @@ export function mountSuiteRoutes(
     const override = body['override']
     const sanitized = sanitizeOverridePatch(override)
     if (override !== null && sanitized === undefined) throw new Error('invalid override payload')
-    await manager.setMcpOverride(sourceId, suiteId, serverKey, sanitized ?? null)
+    await manager.runtime.setMcpOverride(sourceId, suiteId, serverKey, sanitized ?? null)
     return {}
   })
 
@@ -287,7 +287,7 @@ export function mountSuiteRoutes(
   // without touching any catalog state.
   // 中文：手动触发 MCP 对账，重试失败挂载并清理残留工具，不改动目录状态。
   post(MARKET_ROUTES.mcpRetry, async () => {
-    await manager.retryMounts()
+    await manager.runtime.retryMounts()
     return {}
   })
 
@@ -297,7 +297,7 @@ export function mountSuiteRoutes(
   post(MARKET_ROUTES.mcpReauthorize, async body => {
     const serverName = body['serverName']
     if (typeof serverName !== 'string' || serverName === '') throw new Error('serverName is required')
-    await manager.reauthorizeMcpServer(serverName)
+    await manager.runtime.reauthorizeMcpServer(serverName)
     return {}
   })
 
@@ -305,14 +305,14 @@ export function mountSuiteRoutes(
   // host's dsh-mcp-client is resolvable as the compatibility option.
   // 中文：MCP 后端配置块同时说明当前由谁挂载 suite 服务，以及主机 dsh-mcp-client 是否可作兼容后端。
   get(MARKET_ROUTES.mcpBackend, async (_request, response) => {
-    sendJson(response, 200, await manager.mcpBackendInfo())
+    sendJson(response, 200, await manager.runtime.mcpBackendInfo())
   })
 
   post(MARKET_ROUTES.setMcpBackend, async body => {
     const backend = body['backend']
     if (backend !== 'builtin' && backend !== 'host') throw new Error('backend must be "builtin" or "host"')
-    await manager.setMcpBackend(backend)
-    return await manager.mcpBackendInfo()
+    await manager.runtime.setMcpBackend(backend)
+    return await manager.runtime.mcpBackendInfo()
   })
 
   // Validate and persist the user's direct LSP server table; the reconcile
@@ -321,18 +321,18 @@ export function mountSuiteRoutes(
   // is keyed by pathname only, so a same-path GET/POST pair cannot coexist.
   // 中文：验证并保存用户直接 LSP 配置，再由对账流程挂载；主机只按 pathname 匹配，所以读写使用不同路径。
   post(`${MARKET_ROUTES.lspServers}/save`, async body => {
-    const servers = await manager.setLspServers(body['lspServers'])
+    const servers = await manager.runtime.setLspServers(body['lspServers'])
     return { lspServers: servers }
   })
   post(MARKET_ROUTES.addLspServer, async body => {
     if (typeof body.name !== 'string') throw new Error('missing LSP server name')
-    await manager.addLspServer(body.name.trim(), body.config)
+    await manager.runtime.addLspServer(body.name.trim(), body.config)
     return {}
   })
   post(`${MARKET_ROUTES.lspServers}/enabled`, async body => {
     const id = String(body['id'] ?? '')
     if (id === '') throw new Error('missing LSP server id')
-    await manager.setLspServerEnabled(id, body['enabled'] !== false)
+    await manager.runtime.setLspServerEnabled(id, body['enabled'] !== false)
     return {}
   })
 

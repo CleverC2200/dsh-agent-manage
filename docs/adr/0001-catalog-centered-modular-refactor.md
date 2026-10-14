@@ -13,6 +13,8 @@ The `SuiteManager` facade was deleted after its deletion condition was met — r
 
 ## Consequences
 
+[Resource runtime management](../../.agents/notes/implemented/architecture/2026-10-15-resource-runtime-management.md) implements operations under `Catalog.runtime`. Catalog retains discovery, installation, coherent snapshots and its mutation queue; runtime operations and event scheduling no longer live in Catalog or require bidirectional host setters. This is an internal module within the existing Catalog-centered package, not the rejected vertical feature split.
+
 Runtime user-suite queries select sources from enabled install state before discovery; market queries retain the full configured source inventory. Both use the same scanner and bounded discovery cache. Content invalidation clears all scan entries and increments a generation so older in-flight work cannot repopulate caches. Identical concurrent scans share one promise. This preserves Catalog ownership without making session initialization pay for uninstalled sources.
 
 New layout dialects belong in discovery/scanner code and fixtures; runtime mounts and client modules do not parse source formats. MCP, command, and hook mounts remain separate because their host APIs and failure semantics differ. The isolated project supports its registered official Core releases and public interfaces. Runtime compatibility with retired host APIs is removed after retained behavior moves to the current interface; input layout dialects remain supported on their own contracts.

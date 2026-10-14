@@ -9,3 +9,5 @@ Inspect the actual model or View, use its current `aliasMember`, and submit the 
 Tool discovery, model visibility and business query success are separate acceptance results. Preserve `DATA_QUERY_MEMBER_NOT_PUBLISHED` and stop the current query turn; it requires server publication checks, not parameter retries.
 
 Logout and identity changes cancel old calls before retiring their tools. New login generations rediscover. Failed discovery does not recreate business sessions automatically. The old `gea_gateway_catalog`, `gea_cube_query` and `gea_module_mcp` wrappers are retired. Durable Sessions, drafts and historical evidence remain.
+
+GEA projects its current identity through `geaMcp.identitySignal()`. Manage keeps current schemas while preparing a resource refresh under the same identity. Core's serial creation event and public prompt assembly interface wait for publication, including the first business request. A changed identity cancels old calls and retires its schemas before discovery; a refresh does not recreate the business Session.
