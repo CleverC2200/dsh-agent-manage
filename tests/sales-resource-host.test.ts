@@ -20,7 +20,7 @@ it('selects the requested sales resource and creates its actual Session in the r
   expect(f.selection.preset).toBe(request.id)
   expect(f.agent.session.header).toMatchObject({ cwd: request.cwd, agentPreset: f.selection.preset })
   expect(profileFor(f.ctx.agentPresets.composedPreset(f.agent.ctx)!)).toMatchObject({ consumerCode: role.consumer })
-  f.login()
+  await f.login()
   await turn(f.ctx, f.agent, 'Continue the selected task with its existing business authorization.')
   const tools = requests.at(-1)?.tools?.map(row => row.name) ?? []
   expect(tools).toEqual(expect.arrayContaining(standardTools))

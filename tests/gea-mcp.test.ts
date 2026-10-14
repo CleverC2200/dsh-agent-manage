@@ -7,10 +7,12 @@ import { createTransport } from '../src/runtime/mcp-client/transport.js'
 
 function fixture() {
   let authenticated = false
+  let identity = new AbortController()
   let listener = () => {}
   const service: GeaMcpService = {
     version: 2,
     authenticated: () => authenticated,
+    identitySignal: () => identity.signal,
     watch: callback => {
       listener = callback
       return () => {
@@ -24,14 +26,26 @@ function fixture() {
   const dispose = vi.fn()
   const mount = vi.fn(() => ({ await: async () => {}, dispose }))
   const warn = vi.fn()
-  const stop = followGeaLogin(service, mount, warn)
+  const runtime = followGeaLogin(service, mount, warn)
+  const stop = () => runtime.dispose()
   return {
     service,
+    runtime,
     mount,
     dispose,
     warn,
     stop,
+    switchIdentity: () => {
+      identity.abort()
+      identity = new AbortController()
+      authenticated = true
+      listener()
+    },
     login: (next: boolean) => {
+      if (authenticated !== next) {
+        identity.abort()
+        identity = new AbortController()
+      }
       authenticated = next
       listener()
     }
@@ -48,6 +62,7 @@ it('registers only the two original schemas and executes with the calling Core S
   const service: GeaMcpService = {
     version: 2,
     authenticated: () => true,
+    identitySignal: () => signal,
     watch: listener => {
       refresh = listener
       return () => {}
@@ -61,6 +76,7 @@ it('registers only the two original schemas and executes with the calling Core S
   }
   const host = {
     geaMcp: service,
+    systemPrompt: { tools: () => () => {} },
     agents: { list: () => [] },
     agentPresets: {},
     tools: {
@@ -101,7 +117,27 @@ it('registers only the two original schemas and executes with the calling Core S
   const inFlight = query.execute(args, { signal, agent: { id: 'sales-session' } } as Parameters<ToolDefinition['execute']>[1])
   const requestSignal = call.mock.calls.at(-1)?.[3]
   expect(requestSignal).toBe(signal)
+  let discoveryStarted!: () => void
+  const started = new Promise<void>(resolve => {
+    discoveryStarted = resolve
+  })
+  let finishDiscovery!: () => void
+  const discovery = new Promise<void>(resolve => {
+    finishDiscovery = resolve
+  })
+  const priorTools = service.listTools
+  service.listTools = async signal => {
+    discoveryStarted()
+    await discovery
+    return priorTools(signal)
+  }
   refresh()
+  await started
+  try {
+    expect(definitions.size).toBe(2)
+  } finally {
+    finishDiscovery()
+  }
   expect(requestSignal?.aborted).toBe(false)
   await vi.waitFor(() => expect(definitions.size).toBe(2))
   finish('retained-session-result')
@@ -210,7 +246,88 @@ it('refuses a new namespace while an old mount failed disposal', async () => {
   f.login(true)
   await vi.waitFor(() => expect(f.warn).toHaveBeenCalledOnce())
   expect(f.mount).toHaveBeenCalledOnce()
-  expect(f.service.listTools).toHaveBeenCalledOnce()
+  expect(f.service.listTools).toHaveBeenCalledTimes(2)
   await f.stop()
   expect(f.dispose).toHaveBeenCalledTimes(2)
+})
+
+it('publishes both original schemas in the first real Core assembly while discovery is still pending', async () => {
+  const { official } = await import('./core-preset-harness.js')
+  const { Context } = await official('@deepseek-ai/cordis')
+  const { default: SystemPrompt } = await official('@deepseek-ai/dsh-system-prompt')
+  const { default: Tools } = await official('@deepseek-ai/dsh-tools')
+  const ctx = new Context()
+  await ctx.plugin(SystemPrompt, {})
+  await ctx.plugin(Tools)
+  const identity = new AbortController()
+  let finish!: (tools: Awaited<ReturnType<GeaMcpService['listTools']>>) => void
+  let started!: () => void
+  const discoveryStarted = new Promise<void>(resolve => {
+    started = resolve
+  })
+  const service: GeaMcpService = {
+    version: 2,
+    authenticated: () => true,
+    identitySignal: () => identity.signal,
+    watch: () => () => {},
+    allows: id => id === 'business-session',
+    listTools: () => {
+      started()
+      return new Promise(resolve => {
+        finish = resolve
+      })
+    },
+    call: async () => '{}'
+  }
+  ctx.provide('agents', { list: () => [] })
+  ctx.provide('agentPresets', {})
+  ctx.provide('geaMcp', service)
+  try {
+    await ctx.plugin({ apply: mountGeaMcp })
+    await discoveryStarted
+    const agent = { id: 'business-session' }
+    const assembly = ctx.systemPrompt.assemble({ agent, scope: agent, signal: new AbortController().signal })
+    finish([
+      { name: 'inspect_cube_model', description: 'inspect', inputSchema: { type: 'object' } },
+      { name: 'query_business_data', description: 'query', inputSchema: { type: 'object', properties: { queries: { type: 'array' } }, required: ['queries'] } }
+    ])
+    expect((await assembly).tools.map(tool => tool.name)).toEqual(['mcp__gea-gateway__inspect_cube_model', 'mcp__gea-gateway__query_business_data'])
+  } finally {
+    await ctx.fiber.dispose()
+  }
+})
+
+it('retires an old identity before discovering its replacement and rejects cancelled readiness', async () => {
+  const f = fixture()
+  f.login(true)
+  await f.runtime.ready()
+  const oldIdentity = f.mount.mock.calls[0][1]
+  let started!: () => void
+  const discovering = new Promise<void>(resolve => {
+    started = resolve
+  })
+  let finish!: (tools: []) => void
+  vi.mocked(f.service.listTools).mockImplementation(() => {
+    started()
+    return new Promise(resolve => {
+      finish = resolve
+    })
+  })
+  f.switchIdentity()
+  await discovering
+  expect(oldIdentity.aborted).toBe(true)
+  expect(f.dispose).toHaveBeenCalledOnce()
+  expect(f.mount).toHaveBeenCalledOnce()
+  const controller = new AbortController()
+  const pending = f.runtime.ready(controller.signal)
+  const cancelled = Error('turn cancelled')
+  controller.abort(cancelled)
+  try {
+    await expect(pending).rejects.toBe(cancelled)
+  } finally {
+    finish([])
+  }
+  await f.runtime.ready()
+  expect(f.mount).toHaveBeenCalledTimes(2)
+  await f.stop()
 })
