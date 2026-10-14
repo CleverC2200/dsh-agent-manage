@@ -4,6 +4,8 @@
 
 ## 发现与选用
 
+包 owner 可通过 `publishPreset` 为已启用的 Prompt 资源声明安装时发布。Manage 在 owner 登记时校验并发布原组合，使其在首次选用前出现在官方预设列表；不自动选用、不改变用户默认、不写恢复索引，也不授予 GEA 权限。禁用资源不发布；无效资源保留诊断，不阻止健康资源发布。owner 卸载释放声明，演示资源不启用该选项。
+
 `GET /api/agent-manage/resources?cwd=...` 根据明确的原生工作区绝对路径返回提示词和可由用户调用的 Skill 轻量清单，安装启用事实沿用资源所属模块。`POST /api/agent-manage/resources/select` 仅接受 `{ "id": "...", "cwd": "/absolute/workspace" }`，经官方原生 preset/Skill 接口发布所选原资源。发现、正文选用和工作台新 Session 使用同一个当前原生工作区；尚无 Session 时使用明确配置的隔离工作区，Skill 只暂存 `/skill-name` 草稿，不自动请求模型。未安装 Skill 和 Consumer 业务授权分别报告。`selected-resources.json` 只保存已选标识以恢复必要声明，不保存资源正文或凭据。
 
 Skill 选用在返回成功或保存选中身份前解析官方 `agent-resource-skill` 预设。broken 预设拒绝选用，沿现有释放句柄清理；释放失败保留句柄供显式重试。恢复已选 Skill 时，broken 预设使加载拒绝，不重写恢复索引。[选用决定](../../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.zh.md)持有该生命周期。
@@ -11,6 +13,12 @@ Skill 选用在返回成功或保存选中身份前解析官方 `agent-resource-
 资源选用只接受同源POST JSON，流式计数不超过64KiB，在选用前拒绝超限正文并返回413，chunked同样受限。坏包内Skill元数据只诊断并跳过该项，健康资源继续可用，取消仍向调用者抛出。
 
 Manage 提供 `skill_reference_read`，只读当前模型可见 Skill 正文明确链接的本地相对参考文件。沿宿主文件系统读权限与同一工作区/scope/取消信号，核 UTF-8、大小和行分页限制，并在返回前重新确认安装 owner。MCP 资源仍使用对应服务的 reader。
+
+## 基地库存问题的入口
+
+普通或自定义预设会话加载 `inventory-aqkc` Skill 后，可以解释库存规则，不能因此取得 `base-safety-stock` 业务身份。需要实际取数时，Workbench 的“使用基地库存 Agent 分析”入口选用已启用的基地库存资源并创建新 Core Session，复制原问题为新草稿，关联基地库存页面。用户默认预设、原会话和原草稿保留；页面连接完成后由用户发送。
+
+Skill 区分规则说明、同会话页面分析和受控独立查询。页面失败与独立 MCP 来源分别说明；角色名称或子智能体提示词不改变实际父会话的身份。运行条件和权限由 GEA 继续校验。
 
 ## 引用读取与计算
 

@@ -76,3 +76,9 @@ Ordinary source-event receipts retain `sourceKind` and the committed baseline by
 The registered personal repository denies upstream release-please, npm and Pages jobs at job scope. Their upstream definitions remain available for the upstream repository. Quality artifact uploads remain enabled. / 登记个人仓在 job 层拒绝上游 release-please、npm 和 Pages 发布，上游定义保留，质量证据上传继续执行。
 
 GitHub 不再执行无条件全量普通测试。当前必需检查、受影响选择、缓存与失败汇总统一见[当前 CI 规则](../../dsh-agent-workbench/docs/ci-required-and-affected.md)，本页的 SDK、Windows 与安全检查约束继续适用。
+
+## Frozen business repair exception
+
+The user authorized merging the 2026-10-14 business repair group without full tests. The `business-profile` lane is limited to the reviewed product commits declared in `scripts/business-profile-ci.mjs`, plus the listed CI and evidence files. It validates all three actual source checkouts against those commits. A different product source rejects this lane; other PR branches keep the normal gates. Same-tree main and explicit main dispatch can use the targeted lane. The existing final aggregate still rejects failed, cancelled, skipped or missing jobs, and branch protection is unchanged.
+
+Targeted checks retain static gates and builds. Workbench runs the new-conversation/inventory/company/version cases and the sidebar browser file. Manage runs business resources, raw MCP scope, bundled tools and the real Core business-admission file; existing Windows archive and security lanes remain. GEA runs reasoning, history, identity/budgets, Cube-New, HTTP errors and plugin-update regressions. This is source acceptance, not real model, business, Native or release acceptance. The separate CI optimization and new query direct-return work are excluded.

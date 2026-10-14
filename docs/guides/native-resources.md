@@ -4,6 +4,8 @@ English | [中文](native-resources.zh.md)
 
 ## Discovery and selection
 
+Package owners may opt an enabled prompt resource into `publishPreset`. Manage validates and publishes its original composition when the owner registers, so it appears in the official preset roster before selection. This does not select the preset, change user defaults, write the recovery index, or grant GEA access. Disabled resources are not published; invalid resources retain a diagnostic and do not prevent healthy resources from publishing. Owner unload releases the declaration. Preview resources keep the opt-in off.
+
 `GET /api/agent-manage/resources?cwd=...` returns lightweight installed/enabled prompt and human-invocable Skill summaries for the explicit absolute native workspace. `POST /api/agent-manage/resources/select` accepts only `{ "id": "...", "cwd": "/absolute/workspace" }` and publishes the selected original resource through the official native preset/Skill interfaces. Discovery, body selection and the new Workbench Session use the same current native workspace (or the explicitly configured workspace before a Session exists) and stages `/skill-name` without sending a model request. Missing installed Skills are reported separately from Consumer authorization. `selected-resources.json` stores only selected identities for restart recovery; it contains no resource prose or credentials.
 
 Skill selection resolves the official `agent-resource-skill` preset before returning success or persisting its identity. A broken preset rejects selection and uses the existing disposer for cleanup; a failed release retains its handle for explicit retry. Recovery of a broken selected Skill rejects loading without rewriting the recovery index. [The selection decision](../../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.md) owns this lifecycle.
@@ -49,3 +51,9 @@ APS uses the public `aps-compute/*` source and runtime exports. Its original pre
 DMS mock reception resources live only in `business-resources/inventory-dms`. `src/inventory-compute/dms-mock-packets.ts` owns the supplied-input quantity, three-decimal formatting and M/Z packet-key calculation. Workbench owns the page-local simulator and reuses its existing sales workflow projection. No DMS credential, SQL capability or write MCP is included.
 
 Skill resource Sessions use the active official standard preset, retaining general tools and compaction. The existing resource list displays each Skill description; selecting a Skill does not grant a business Consumer.
+
+## Base inventory entry
+
+Loading `inventory-aqkc` in an ordinary or custom-preset Session provides inventory rules, not a `base-safety-stock` business identity. Workbench offers an explicit inventory entry that selects the enabled business resource, creates a fresh Core Session, copies the original question into a draft and associates its inventory page. The user default, original Session and original draft are retained; the user sends the question after the page connects.
+
+The Skill distinguishes rule explanations, bound-page analysis and governed independent queries. Page failures and independent MCP results retain separate sources. Child labels and persona instructions do not change the actual inherited business identity. GEA still validates execution and authorization.

@@ -250,7 +250,10 @@ test('joint dispatch isolates in-flight runs and retains required Windows and au
   }
   assert.match(workflow, /github.event_name == 'workflow_dispatch' && github.run_id/)
   assert.match(workflow, /cancel-in-progress: \$\{\{ github.event_name != 'workflow_dispatch' \}\}/)
-  assert.match(workflow, /QUALITY_PHASE: \$\{\{ matrix.phase \}\}/)
+  assert.match(
+    workflow,
+    /QUALITY_PHASE: \$\{\{ matrix.phase == 'quality' && needs.candidate-scope.outputs.business-lane == 'business-profile' && 'business-profile' \|\| matrix.phase \}\}/
+  )
   assert.match(
     workflow,
     /'--phase', process.env.QUALITY_PHASE, '--input', process.env.QUALITY_CANDIDATE, '--prepare-sdk', '--core-source', resolve\(process.env.GITHUB_WORKSPACE, 'source\/official-core'\), '--final-group-sha256', process.env.INPUT_SHA256/

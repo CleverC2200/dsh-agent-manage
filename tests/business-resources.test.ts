@@ -113,6 +113,51 @@ it('lists installed prompt metadata before reading the selected original persona
   await restored.dispose()
   await owner()
 })
+it('publishes opted-in installed business presets before any selection and releases them with their owner', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'resource-discovery-'))
+  roots.push(root)
+  const registered: Definition[] = []
+  const host = {
+    skills: {
+      registerProvider: () => () => {},
+      async list() {
+        return []
+      }
+    },
+    agentPresets: {
+      readDocument: officialStandardDocument,
+      async resolve(id: string) {
+        return { id }
+      },
+      async register(value: Definition) {
+        registered.push(value)
+        return async () => {
+          registered.splice(registered.indexOf(value), 1)
+        }
+      }
+    }
+  }
+  const resources = new BusinessResources(host as unknown as NativeHost, join(root, 'selected.json'))
+  await resources.load()
+  await writeFile(join(root, 'prompt.json'), JSON.stringify({ label: 'Base stock', consumerCode: 'base-safety-stock', skills: [], persona: 'Exact original business persona' }))
+  const owner = await resources.register([
+    { id: 'base-stock', label: 'Base stock', root, prompt: 'prompt.json', publishPreset: true, profile: { label: 'Base stock', consumerCode: 'base-safety-stock', skills: [] } },
+    { id: 'preview', label: 'Preview', root, prompt: 'missing.json', publishPreset: false, profile: { label: 'Preview', consumerCode: 'preview', skills: [] } },
+    { id: 'disabled', label: 'Disabled', root, prompt: 'missing.json', publishPreset: true, enabled: false, profile: { label: 'Disabled', consumerCode: 'disabled', skills: [] } },
+    { id: 'broken', label: 'Broken', root, prompt: 'missing.json', publishPreset: true, profile: { label: 'Broken', consumerCode: 'broken', skills: [] } }
+  ])
+  expect(registered.map(p => p.id)).toEqual(['base-stock'])
+  expect((registered[0].plugins[0].config as { prefix: string }).prefix).toContain('Exact original business persona')
+  await expect(readFile(join(root, 'selected.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+  expect(await resources.list()).toEqual(
+    expect.arrayContaining([expect.objectContaining({ id: 'broken', enabled: false, error: expect.any(String) }), expect.objectContaining({ id: 'base-stock', enabled: true })])
+  )
+  await resources.select('base-stock', new AbortController().signal)
+  expect(registered.map(p => p.id)).toEqual(['base-stock'])
+  await owner()
+  expect(registered).toEqual([])
+  await resources.dispose()
+})
 it('refuses disabled resources and cleans partial registration on cancellation without writing source files', async () => {
   const root = await mkdtemp(join(tmpdir(), 'resource-cancel-'))
   roots.push(root)
