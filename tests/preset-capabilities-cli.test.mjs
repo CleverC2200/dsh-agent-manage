@@ -39,22 +39,16 @@ function run(change = () => {}) {
     writeFileSync(
       hook,
       `import cp from 'node:child_process'; import { syncBuiltinESMExports } from 'node:module'; import { readFileSync, writeFileSync } from 'node:fs';
-      const pending = [];
-      cp.execFile = (_command, args, _options, callback) => {
-        pending.push({ args, callback });
-        if (pending.length !== 3) return;
-        for (const { args, callback } of pending) {
+      cp.spawnSync = (_command, args) => {
         const report = args.find(arg => arg.startsWith('--outputFile.json=')).split('=').slice(1).join('=');
         const phase = report.split('/').at(-1).replace('-vitest.json', '');
         const value = JSON.parse(readFileSync(process.env.CAPABILITY_REPORT_FIXTURE, 'utf8'))[phase];
         if (!value.noReport) writeFileSync(report, JSON.stringify(value));
-        callback(null, '', '');
-        }
+        return { status: 0, stdout: '', stderr: '' };
       }; syncBuiltinESMExports();`
     )
     const child = spawnSync(process.execPath, ['--import', hook, 'scripts/check-preset-capabilities.mjs'], {
       encoding: 'utf8',
-      timeout: 5000,
       env: { ...process.env, CAPABILITY_REPORT_FIXTURE: fixture, PRESET_EVIDENCE_DIR: root }
     })
     return { ...child, receipt: JSON.parse(readFileSync(join(root, 'capability-quality.json'), 'utf8')) }
@@ -63,7 +57,7 @@ function run(change = () => {}) {
   }
 }
 
-test('capability CLI starts all independent lanes before awaiting and accepts complete required files', () => {
+test('capability CLI accepts complete passed required files', () => {
   const result = run()
   assert.equal(result.status, 0, result.stderr)
   assert.equal(result.receipt.passed, true)

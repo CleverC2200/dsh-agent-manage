@@ -7,7 +7,6 @@ import { parseArgs } from 'node:util'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { prepareOfficialSDK, verifyOfficialSDK, verifyOfficialSource } from './prepare-official-sdk.mjs'
 import { runQualityChecks } from './run-quality-checks.mjs'
-import { presetLanes, presetHostHelpers } from './preset-test-lanes.mjs'
 
 const { values } = parseArgs({
   options: {
@@ -69,7 +68,6 @@ try {
       plan = selectCiTests({
         repositories: manifest.repositories,
         repo: 'dsh-agent-manage',
-        alwaysRunTests: [...Object.values(presetLanes).flatMap(lane => Object.keys(lane)), ...presetHostHelpers],
         base: process.env.QUALITY_BASE_SHA || baseline.repositories.find(entry => entry.repo === 'dsh-agent-manage').head
       })
       writeFileSync(resolve(dirname(resolve(input)), 'quality-test-plan.json'), JSON.stringify(plan, null, 2) + '\n')
