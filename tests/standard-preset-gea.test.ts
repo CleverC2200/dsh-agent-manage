@@ -274,7 +274,7 @@ it('preserves the enabled official Web Host orientation and standard runtime con
   expect(business.sections.find(row => row.name === 'app:web-surface')).toEqual(web)
   expect(standard.sections.some(row => row.name === 'gea:admission')).toBe(true)
   expect(business.sections.some(row => row.name === 'gea:admission')).toBe(false)
-  for (const row of standard.sections.filter(row => !row.name.startsWith('gea:'))) {
+  for (const row of standard.sections.filter(row => row.name !== 'gea:admission')) {
     const observed = business.sections.find(section => section.name === row.name)
     if (row.name === 'genui:fence') {
       expect(observed?.text).toContain('dsh-ui')
