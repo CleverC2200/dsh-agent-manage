@@ -19,7 +19,7 @@ it.each(salesRoles)('$name keeps its catalog identity and complete standard capa
   expect(catalog).toMatchObject({ name: role.name, description: summary.description })
   expect(summary.description).toContain('上下文压缩')
   expect(f.selection).toMatchObject({ preset: role.id, profile: { consumerCode: role.consumer } })
-  f.login()
+  await f.login()
   await turn(f.ctx, f.agent, 'Continue the selected sales task using its original business scope.')
   const final = requests.at(-1)!
   expect(final.tools?.map(row => row.name)).toEqual(expect.arrayContaining(expectedTools))
@@ -30,7 +30,7 @@ it.each(salesRoles)('$name keeps its catalog identity and complete standard capa
   const standardPrompt = await f.ctx.systemPrompt.assemble({ scope: baseline, agent: baseline } as never)
   const businessPrompt = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
   expect(businessPrompt.contexts.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.contexts.map(row => row.name)))
-  expect(businessPrompt.sections.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.sections.map(row => row.name)))
+  expect(businessPrompt.sections.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.sections.filter(row => !row.name.startsWith('gea:')).map(row => row.name)))
   const standardDocument = await f.ctx.agentPresets.readDocument('standard')
   expect(final.messages.some(message => message.content.some(block => block.text?.includes('Time sampled while preparing turn')))).toBe(
     standardDocument.content.includes('@deepseek-ai/dsh-time-context')
@@ -55,13 +55,13 @@ it.each(salesRoles)('$name keeps its catalog identity and complete standard capa
 it.each(salesRoles)('$name automatically and manually compacts its actual business Session and continues the task', async role => {
   const f = await baseInventoryHarness({ ...(await salesRoleInput(role.id)), sessionId: role.id + '-compact', seed: await history(20_000) })
   const requests = await completion(f.ctx, 262_144, true)
-  f.login()
+  await f.login()
   await turn(f.ctx, f.agent, 'Continue the original task with the current Consumer and read-only query scope.')
   expect(f.agent.session.snapshotEvents().map(row => row.type)).toContain('compaction/summary')
   expect(requests.at(-1)?.messages.some(message => message.content.some(block => block.text?.includes('CHECKPOINT: preserve original task')))).toBe(true)
   const compact = await f.ctx.commands.execute(f.agent, '/compact', [], new AbortController().signal)
   expect(compact?.result).toMatchObject({ kind: 'success', text: expect.stringMatching(/^Compacted/) })
-  expect(f.network).toEqual([])
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])
   await record(role.id + '-compaction', {
     compact: compact?.result,
     events: f.agent.session.snapshotEvents().filter(row => row.type.startsWith('compaction/') || row.type === 'turn/end'),
@@ -73,12 +73,13 @@ it.each(salesRoles)('$name executes authorized queries and rejects undeclared Co
   const f = await baseInventoryHarness({ ...(await salesRoleInput(role.id)), sessionId: role.id + '-authorization' })
   await completion(f.ctx)
   const missingIdentity = await f.query()
-  expect(JSON.stringify(missingIdentity)).toContain('LOGIN_REQUIRED')
+  expect(JSON.stringify(missingIdentity)).toContain('GEA MCP requires an enabled business Agent and current GEA identity')
+  expect(f.ctx.tools.schemas(f.agent).map(row => row.name)).not.toContain('mcp__gea-gateway__query_business_data')
   expect(f.network).toEqual([])
-  f.login()
-  const wrongConsumer = await f.execute('gea_module_mcp', { consumerCode: 'dealer-inventory-replenishment' })
-  expect(JSON.stringify(wrongConsumer)).toContain('GEA_CONSUMER_ROUTE_NOT_REGISTERED')
-  expect(f.network).toEqual([])
+  await f.login()
+  const wrongConsumer = await f.execute('mcp__gea-gateway__query_business_data', { consumerCode: 'dealer-inventory-replenishment' })
+  expect(JSON.stringify(wrongConsumer)).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])
   const allowed = await f.query()
   expect(JSON.stringify(allowed)).toContain('42')
   expect(f.network.find(row => row.path === '/ai/gateway/session')?.body.consumerCode).toBe(role.consumer)
@@ -89,9 +90,11 @@ it.each(salesRoles)('$name executes authorized queries and rejects undeclared Co
   let cross: unknown
   let nativeRead: unknown
   if (role.consumer === 'aps') {
+    const { toolConsumer } = await import('preset-integration-gea/host/business-identity')
+    expect(toolConsumer(f.ctx, f.business, f.agent.id, 'sales_forecast')).toBe('sales_forecast')
     cross = await f.query('sales_forecast')
-    expect(JSON.stringify(cross)).toContain('42')
-    expect(f.network.filter(row => row.path === '/ai/gateway/session').map(row => row.body.consumerCode)).toEqual(['aps', 'sales_forecast'])
+    expect(JSON.stringify(cross)).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
+    expect(f.network.filter(row => row.path === '/ai/gateway/session').map(row => row.body.consumerCode)).toEqual(['aps'])
     expect(() => f.business.assertExecutionAllowed('aps', 'submit')).toThrow('GEA_CAPABILITY_EFFECT_NOT_ALLOWED')
     expect(JSON.stringify(await f.execute('gea_sales_plan_read', { kind: 'list', query: { periodId: 'offline-period' } }))).toContain('GEA_BUSINESS_TOOL_NOT_ALLOWED')
   } else {
@@ -120,6 +123,8 @@ it.each(salesRoles)('$name keeps disabled resources unavailable and leaves the o
   expect(await readFile(resolve(f.home, 'selected-resources.json'))).toEqual(index)
   expect(await readFile(source)).toEqual(original)
   await releaseDisabled()
+  await f.login()
+  expect(JSON.stringify(await f.query())).toContain('42')
   await f.releaseResource()
   expect(JSON.stringify(await f.query())).toContain('GEA_AGENT_RESOURCE_MISSING')
   await record(role.id + '-resource-owner', {
@@ -140,7 +145,7 @@ it('keeps the existing sales readonly validation scope and rejects write effects
     }
   })
   await completion(f.ctx)
-  f.login()
+  await f.login(false)
   const value = await f.business.workbenchQuery({ kind: 'list', query: { periodId: 'offline-period', orderType: 'M' } }, new AbortController().signal)
   expect(JSON.stringify(value)).toContain('offline-plan')
   const before = f.network.length
@@ -160,14 +165,14 @@ it('keeps the existing sales readonly validation scope and rejects write effects
 it.each(salesRoles)('$name gives actual child Sessions the same business preset without undeclared Consumer access', async role => {
   const f = await baseInventoryHarness({ ...(await salesRoleInput(role.id)), sessionId: role.id + '-parent' })
   await completion(f.ctx)
-  f.login()
+  await f.login()
   const children: unknown[] = []
   const release = f.ctx.on(
     'agent/pre-step',
     async ({ agent }, next) => {
       if (agent !== f.agent) {
         const preset = f.ctx.sessionProjections.stateOf(agent.session, 'agentPreset')
-        const denied = await f.execute('gea_module_mcp', { consumerCode: 'dealer-inventory-replenishment' }, agent)
+        const denied = await f.execute('mcp__gea-gateway__query_business_data', { consumerCode: 'dealer-inventory-replenishment' }, agent)
         const allowed = await f.query(undefined, agent)
         children.push({ preset, denied, allowed })
       }
@@ -179,7 +184,7 @@ it.each(salesRoles)('$name gives actual child Sessions the same business preset 
     const result = await f.execute('subagent', { description: '核对原销售范围', prompt: 'Continue with the original Consumer scope and evidence.', run_in_background: false })
     expect(result.isError).toBe(false)
     expect(children).toEqual([expect.objectContaining({ preset: role.id })])
-    expect(JSON.stringify(children)).toContain('GEA_CONSUMER_ROUTE_NOT_REGISTERED')
+    expect(JSON.stringify(children)).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
     expect(JSON.stringify(children)).toContain('42')
     expect(f.network.filter(row => row.path === '/ai/gateway/session').every(row => row.body.consumerCode === role.consumer)).toBe(true)
     await record(role.id + '-child-inheritance', { children, result })

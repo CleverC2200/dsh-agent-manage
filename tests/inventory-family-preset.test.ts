@@ -23,7 +23,7 @@ it.each(inventoryRoles)('$name keeps the actual standard tools through GEA hooks
   await turn(baseline.ctx, reference, 'Read the standard task capabilities.')
   const standardTools = baselineRequests.at(-1)?.tools?.map(row => row.name) ?? []
   const standardCommands = baseline.ctx.commands.list(reference).map(row => row.name)
-  f.login()
+  await f.login()
   await turn(f.ctx, f.agent, 'Continue the original inventory task within its read-only Consumer scope.')
   const finalTools = requests.at(-1)?.tools?.map(row => row.name) ?? []
   expect(finalTools).toEqual(expect.arrayContaining(standardTools))
@@ -61,12 +61,13 @@ it.each(inventoryRoles)('$name queries its own Consumer and refuses another inve
   expect((await f.resources.list()).find(row => row.id === other.resource.id)).toMatchObject({ enabled: true })
   expect(() => f.business.assertExecutionAllowed(role.forbiddenConsumer, 'view')).not.toThrow()
   const missingIdentity = await f.query()
-  expect(JSON.stringify(missingIdentity)).toContain('LOGIN_REQUIRED')
+  expect(JSON.stringify(missingIdentity)).toContain('GEA MCP requires an enabled business Agent and current GEA identity')
+  expect(f.ctx.tools.schemas(f.agent).map(row => row.name)).not.toContain('mcp__gea-gateway__query_business_data')
   expect(f.network).toEqual([])
-  f.login()
-  const denied = await f.execute('gea_module_mcp', { consumerCode: role.forbiddenConsumer })
-  expect(JSON.stringify(denied)).toContain('GEA_CONSUMER_ROUTE_NOT_REGISTERED')
-  expect(f.network).toEqual([])
+  await f.login()
+  const denied = await f.execute('mcp__gea-gateway__query_business_data', { consumerCode: role.forbiddenConsumer })
+  expect(JSON.stringify(denied)).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])
   expect(() => f.business.assertExecutionAllowed(role.consumer, 'submit')).toThrow('GEA_CAPABILITY_EFFECT_NOT_ALLOWED')
   const allowed = await f.query()
   expect(JSON.stringify(allowed)).toContain('42')
@@ -79,7 +80,7 @@ it.each(inventoryRoles)('$name queries its own Consumer and refuses another inve
     async ({ agent }, next) => {
       if (agent !== f.agent) {
         const preset = f.ctx.sessionProjections.stateOf(agent.session, 'agentPreset')
-        const denied = await f.execute('gea_module_mcp', { consumerCode: role.forbiddenConsumer }, agent)
+        const denied = await f.execute('mcp__gea-gateway__query_business_data', { consumerCode: role.forbiddenConsumer }, agent)
         const allowed = await f.query(undefined, agent)
         children.push({ preset, denied, allowed })
       }
@@ -96,7 +97,7 @@ it.each(inventoryRoles)('$name queries its own Consumer and refuses another inve
   expect(childResult.isError).toBe(false)
   expect(children).toHaveLength(1)
   expect(JSON.stringify(children)).toContain(f.resource.id)
-  expect(JSON.stringify(children)).toContain('GEA_CONSUMER_ROUTE_NOT_REGISTERED')
+  expect(JSON.stringify(children)).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
   expect(JSON.stringify(children)).toContain('42')
   expect(f.network.filter(row => row.path === '/ai/gateway/session').every(row => row.body.consumerCode === role.consumer)).toBe(true)
   await record(`${role.id}-authorization`, {
@@ -116,20 +117,20 @@ it.each(inventoryRoles)('$name queries its own Consumer and refuses another inve
 it.each(inventoryRoles)('$name cleans up a disabled resource and restores its registration without changing the old Session or identity', async role => {
   const f = await inventoryFamilyHarness(role, { seed: await history(100) })
   await completion(f.ctx)
-  f.login()
+  await f.login()
   const identity = f.business.identitySignal()
   const header = JSON.stringify(f.agent.session.header)
   const oldEvents = JSON.stringify(f.agent.session.snapshotEvents())
   f.business.setCapabilities(createCapabilityRegistry([{ ...f.contract, enabled: false }]))
   const disabledQuery = await f.query()
   expect(JSON.stringify(disabledQuery)).toContain('GEA_CAPABILITY_DISABLED')
-  expect(f.network).toEqual([])
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])
   await f.releaseResource()
   expect((await f.resources.list()).some(row => row.id === f.resource.id)).toBe(false)
   expect((await f.ctx.agentPresets.list()).some(row => row.id === f.resource.id)).toBe(false)
   const removedQuery = await f.query()
   expect(JSON.stringify(removedQuery)).toContain('GEA_AGENT_RESOURCE_MISSING')
-  expect(f.network).toEqual([])
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])
   const releaseDisabled = await f.resources.register([{ ...f.resource, enabled: false }])
   expect((await f.resources.list()).find(row => row.id === f.resource.id)).toMatchObject({ enabled: false })
   await expect(f.resources.select(f.resource.id, new AbortController().signal)).rejects.toThrow('AGENT_RESOURCE_DISABLED_OR_MISSING')
@@ -152,7 +153,7 @@ it.each(inventoryRoles)('$name cleans up a disabled resource and restores its re
 it('keeps the dealer gateway customer scope, protected nulls and access denial without retrying through another Consumer', async () => {
   const f = await inventoryFamilyHarness(inventoryRoles[2])
   await completion(f.ctx)
-  f.login()
+  await f.login()
   const fetchGateway = globalThis.fetch
   const customerRequests: unknown[] = []
   vi.stubGlobal('fetch', async (input: string | Request, init?: RequestInit) => {
@@ -160,7 +161,7 @@ it('keeps the dealer gateway customer scope, protected nulls and access denial w
     const body = JSON.parse(String(init?.body ?? '{}'))
     if (path === '/ai/gateway/mcp/proxy/mcp' && body.method === 'tools/call') {
       const args = body.params.arguments
-      if (args.action === 'inspect')
+      if (body.params.name === 'inspect_cube_model')
         return Response.json({
           jsonrpc: '2.0',
           id: body.id,
@@ -187,7 +188,27 @@ it('keeps the dealer gateway customer scope, protected nulls and access denial w
               type: 'text',
               text: JSON.stringify(
                 customer === 'authorized-customer'
-                  ? { datasets: [{ name: 'inv', rows: [{ 'inv.customer': 'authorized-customer', 'inv.row_count': 42, protectedPrice: null }] }] }
+                  ? {
+                      action: 'query',
+                      status: 'completed',
+                      executedQueryCount: 1,
+                      datasets: [
+                        {
+                          name: 'inv',
+                          rowCount: 1,
+                          dataStatus: 'ok',
+                          offset: 0,
+                          totalRowCount: 1,
+                          hasMorePages: false,
+                          fields: [
+                            { name: 'inv.customer', type: 'string' },
+                            { name: 'inv.row_count', type: 'number' },
+                            { name: 'protectedPrice', type: 'number' }
+                          ],
+                          rows: [{ 'inv.customer': 'authorized-customer', 'inv.row_count': 42, protectedPrice: null }]
+                        }
+                      ]
+                    }
                   : { code: 'ACCESS_DENIED', message: 'Customer is outside the current gateway row authorization.' }
               )
             }
@@ -198,7 +219,7 @@ it('keeps the dealer gateway customer scope, protected nulls and access denial w
     return fetchGateway(input, init)
   })
   const query = (customer: string) =>
-    f.execute('gea_cube_query', {
+    f.execute('mcp__gea-gateway__query_business_data', {
       queries: [
         {
           name: 'inv',
