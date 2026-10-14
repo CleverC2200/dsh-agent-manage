@@ -11,7 +11,7 @@ function artifactRoots(core) {
   return execFileSync('git', ['-C', core, 'ls-files', '*package.json'], { encoding: 'utf8' })
     .trim()
     .split('\n')
-    .filter(file => /^(?:packages|vendor|apps)\//.test(file) && !file.includes('/node_modules/'))
+    .filter(file => /^(?:packages|vendor|apps|native)\//.test(file) && !file.includes('/node_modules/'))
     .map(file => resolve(core, dirname(file), 'lib'))
 }
 /** Concrete roots avoid glob traversal of the installed dependency graph during cache upload. */

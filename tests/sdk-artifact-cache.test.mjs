@@ -59,3 +59,18 @@ test('cache paths name only tracked package outputs without dependency traversal
   assert.ok(paths.includes(join(f.root, '.git/dsh-sdk-artifacts.json')))
   assert.ok(paths.every(path => !path.includes('node_modules') && !path.includes('*')))
 })
+
+test('native JavaScript entry wrappers are cached and missing wrappers refuse reuse', t => {
+  const f = fixture(t)
+  const entry = join(f.root, 'native/system/packages/entry')
+  mkdirSync(join(entry, 'lib'), { recursive: true })
+  writeFileSync(join(entry, 'package.json'), '{"name":"@fixture/native-system","exports":{"./flock":"./lib/flock.js"}}')
+  execFileSync('git', ['-C', f.root, 'add', 'native/system/packages/entry/package.json'])
+  writeFileSync(join(entry, 'lib/flock.js'), 'export const flock = true;')
+  const record = writeSDKArtifacts(f.root, f.identity)
+  assert.ok(sdkCachePaths(f.root).includes(join(entry, 'lib')))
+  assert.ok(record.artifacts['native/system/packages/entry/lib/flock.js'])
+  assert.equal(verifySDKArtifacts(f.root, f.identity), true)
+  unlinkSync(join(entry, 'lib/flock.js'))
+  assert.throws(() => verifySDKArtifacts(f.root, f.identity), /SDK_CACHE_ARTIFACT_CHANGED/)
+})
