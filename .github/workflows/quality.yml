@@ -194,6 +194,11 @@ jobs:
           QUALITY_BASELINE_ID: ${{ needs.candidate-scope.outputs.baseline-id }}
           CORE_HEAD: ${{ matrix.coreHead }}
         run: node ../dsh-agent-workbench/scripts/write-hosted-group.mjs --repo dsh-agent-manage --root "$GITHUB_WORKSPACE" --core-head "$CORE_HEAD"
+      - name: Verify frozen source before cache preparation
+        shell: bash
+        env:
+          INPUT_SHA256: ${{ steps.group.outputs.input-sha256 }}
+        run: node scripts/run-quality-ci.mjs --phase verify-input --input "$QUALITY_CANDIDATE" --core-source "$GITHUB_WORKSPACE/source/official-core" --final-group-sha256 "$INPUT_SHA256"
       - name: Locate package download cache
         id: cache-path
         working-directory: candidate/dsh-agent-manage
