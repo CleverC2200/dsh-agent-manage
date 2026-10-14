@@ -129,7 +129,10 @@ try {
               },
               { name: 'build', execute: () => run('corepack', ['pnpm', 'build']) }
             ]
-          : [...['check:static', 'check:capabilities', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) })), { name: 'required-and-affected', execute: () => run('corepack', ['pnpm', 'exec', 'vitest', 'run', ...plan.files]) }]
+          : [
+              ...['check:static', 'check:capabilities', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) })),
+              { name: 'required-and-affected', execute: () => run('corepack', ['pnpm', 'exec', 'vitest', 'run', ...plan.files]) }
+            ]
       )
       writeFileSync('quality-checks.json', JSON.stringify(checks, null, 2) + '\n')
       if (checks.length !== 4 || checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')
