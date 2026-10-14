@@ -44,10 +44,14 @@ it('registers only the two original schemas and executes with the calling Core S
   const inputSchema = { type: 'object', properties: { queries: { type: 'array' } }, required: ['queries'] }
   let dispose!: () => Promise<void>
   const call = vi.fn(async () => '{"status":"completed"}')
+  let refresh = () => {}
   const service: GeaMcpService = {
     version: 2,
     authenticated: () => true,
-    watch: () => () => {},
+    watch: listener => {
+      refresh = listener
+      return () => {}
+    },
     allows: id => ['sales-session', 'dealer-session'].includes(id),
     listTools: async () => [
       { name: 'inspect_cube_model', description: 'inspect', inputSchema: { type: 'object' } },
@@ -87,6 +91,11 @@ it('registers only the two original schemas and executes with the calling Core S
   }
   await expect(query.execute(args, { signal })).rejects.toThrow('GEA_BUSINESS_PROFILE_REQUIRED')
   expect(call).toHaveBeenCalledTimes(2)
+  const requestSignal = call.mock.calls.at(-1)?.[3]
+  expect(requestSignal).toBe(signal)
+  refresh()
+  expect(requestSignal?.aborted).toBe(false)
+  await vi.waitFor(() => expect(definitions.size).toBe(2))
   await dispose()
   expect(definitions.size).toBe(0)
 })

@@ -77,7 +77,7 @@ export function mountGeaMcp(ctx: Context): void {
       const registry = (host as unknown as ToolHost).tools
       const stopLogin = followGeaLogin(
         service,
-        (tools, generation) => {
+        tools => {
           const offs: Array<() => void> = []
           try {
             for (const tool of tools) {
@@ -91,7 +91,8 @@ export function mountGeaMcp(ctx: Context): void {
                   const id = agent && 'id' in agent && typeof agent.id === 'string' ? agent.id : undefined
                   if (!id || !service.allows(id)) throw Error('GEA_BUSINESS_PROFILE_REQUIRED')
                   if (!args || typeof args !== 'object' || Array.isArray(args)) throw Error('GEA_MCP_ARGUMENTS_INVALID')
-                  return service.call(id, tool.name, args as Record<string, unknown>, AbortSignal.any([generation, exec.signal]))
+                  // Discovery can refresh for another Session; GEA owns this call's identity and resource lifetime.
+                  return service.call(id, tool.name, args as Record<string, unknown>, exec.signal)
                 }
               }
               offs.push(registry.register(definition))
