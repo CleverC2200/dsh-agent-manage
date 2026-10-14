@@ -30,7 +30,7 @@ it.each(salesRoles)('$name keeps its catalog identity and complete standard capa
   const standardPrompt = await f.ctx.systemPrompt.assemble({ scope: baseline, agent: baseline } as never)
   const businessPrompt = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
   expect(businessPrompt.contexts.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.contexts.map(row => row.name)))
-  expect(businessPrompt.sections.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.sections.filter(row => !row.name.startsWith('gea:')).map(row => row.name)))
+  expect(businessPrompt.sections.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.sections.filter(row => row.name !== 'gea:admission').map(row => row.name)))
   const standardDocument = await f.ctx.agentPresets.readDocument('standard')
   expect(final.messages.some(message => message.content.some(block => block.text?.includes('Time sampled while preparing turn')))).toBe(
     standardDocument.content.includes('@deepseek-ai/dsh-time-context')
