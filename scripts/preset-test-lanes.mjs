@@ -17,6 +17,7 @@ export const presetLanes = {
     'tests/inventory-family-client.test.ts': 3
   },
   gea: {
+    'tests/business-admission-gea.test.ts': 4,
     'tests/standard-preset-gea.test.ts': 11,
     'tests/skill-preset-gea.test.ts': 1,
     'tests/sales-preset-gea.test.ts': 11,

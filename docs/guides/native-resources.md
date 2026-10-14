@@ -51,3 +51,9 @@ APS uses the public `aps-compute/*` source and runtime exports. Its original pre
 DMS mock reception resources live only in `business-resources/inventory-dms`. `src/inventory-compute/dms-mock-packets.ts` owns the supplied-input quantity, three-decimal formatting and M/Z packet-key calculation. Workbench owns the page-local simulator and reuses its existing sales workflow projection. No DMS credential, SQL capability or write MCP is included.
 
 Skill resource Sessions use the active official standard preset, retaining general tools and compaction. The existing resource list displays each Skill description; selecting a Skill does not grant a business Consumer.
+
+## Base inventory entry
+
+Loading `inventory-aqkc` in an ordinary or custom-preset Session provides inventory rules, not a `base-safety-stock` business identity. Workbench offers an explicit inventory entry that selects the enabled business resource, creates a fresh Core Session, copies the original question into a draft and associates its inventory page. The user default, original Session and original draft are retained; the user sends the question after the page connects.
+
+The Skill distinguishes rule explanations, bound-page analysis and governed independent queries. Page failures and independent MCP results retain separate sources. Child labels and persona instructions do not change the actual inherited business identity. GEA still validates execution and authorization.
