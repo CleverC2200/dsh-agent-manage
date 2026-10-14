@@ -6,6 +6,7 @@ import type { BusinessResourceDefinition } from '../src/runtime/business-resourc
 import type { Deployment } from 'preset-integration-gea/host/business'
 import type { CapabilityContract } from 'preset-integration-gea/capability/contract'
 import { BusinessResources } from '../src/runtime/business-resources.js'
+import { mountGeaMcp } from '../src/runtime/gea-mcp.js'
 import { agentOn, presetHarness } from './core-preset-harness.js'
 
 export interface BusinessPresetHarnessInput {
@@ -26,6 +27,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   const { Business } = await import('preset-integration-gea/host/business')
   const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
   const { registerGeaTools } = await import('preset-integration-gea/host/agent-tools')
+  const { createCubeMcpService } = await import('preset-integration-gea/host/cube-mcp-service')
   const { createCapabilityRegistry } = await import('preset-integration-gea/capability/registry')
   const { ctx, home } = await presetHarness()
   const root = resolve(import.meta.dirname, '../business-resources/inventory-aqkc')
@@ -103,9 +105,16 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
         result: {
           tools: [
             {
-              name: 'query_business_data',
+              name: 'inspect_cube_model',
+              description: 'Inspect the authorized model.',
               _meta: { sourceType: 'MCP', sourceCode: 'cube' },
-              inputSchema: { type: 'object', properties: { action: { type: 'string' }, queries: { type: 'array' } } }
+              inputSchema: { type: 'object', properties: {} }
+            },
+            {
+              name: 'query_business_data',
+              description: 'Query the authorized model.',
+              _meta: { sourceType: 'MCP', sourceCode: 'cube' },
+              inputSchema: { type: 'object', properties: { queries: { type: 'array' } } }
             }
           ]
         }
@@ -115,9 +124,25 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
       if (hold) await Promise.race([hold, new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true }))])
       init?.signal?.throwIfAborted()
       const text =
-        body.params.arguments.action === 'inspect'
+        body.params.name === 'inspect_cube_model'
           ? JSON.stringify({ semanticModel: [{ name: 'inv', measures: [{ name: 'inv.row_count', type: 'number' }] }] })
-          : JSON.stringify({ datasets: [{ name: 'inv', rows: [{ 'inv.row_count': 42 }] }] })
+          : JSON.stringify({
+              action: 'query',
+              status: 'completed',
+              executedQueryCount: 1,
+              datasets: [
+                {
+                  name: 'inv',
+                  rowCount: 1,
+                  dataStatus: 'ok',
+                  offset: 0,
+                  totalRowCount: 1,
+                  hasMorePages: false,
+                  fields: [{ name: 'inv.row_count', type: 'number' }],
+                  rows: [{ 'inv.row_count': 42 }]
+                }
+              ]
+            })
       return json({ jsonrpc: '2.0', id: body.id, result: { content: [{ type: 'text', text }] } })
     }
     throw Error(`UNEXPECTED_MCP_REQUEST: ${body.method}`)
@@ -137,28 +162,37 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
     analysisModel: 'test',
     analysisAgentCode: 'sales_forecast',
     analysisSource: 'receipt',
+    cubeMcpCodes: { test: 'cube', production: 'cube' },
     inputByteBudget: 200000,
     ...input.businessConfig
   })
   business.setCapabilities(capabilities)
   onTestFinished(() => business.dispose())
-  const authorizations = new Map()
-  registerGeaTools(ctx, business, capabilities, (exec, consumer, snapshot) => authorizations.set(exec.token, { consumer, resources: snapshot }))
-  const releasePrompts = mountBusinessPrompts(ctx, business, capabilities, authorizations)
+  registerGeaTools(ctx, business, capabilities)
+  const service = createCubeMcpService(ctx, business)
+  ctx.provide('geaMcp', service)
+  await ctx.plugin({ apply: mountGeaMcp })
+  const releasePrompts = mountBusinessPrompts(ctx, business, capabilities)
   onTestFinished(releasePrompts)
-  const login = () =>
+  const login = async (prepareTools = true) => {
     business.restorePersistentLogin({
       schema: 1,
       base,
       environment: 'test',
       auth: { token: 'fixture-identity-secret', tenantId: '0', id: 'fixture-user', name: 'Fixture', username: 'fixture' }
     })
+    if (prepareTools) await ctx.systemPrompt.assemble({ scope: agent, agent } as never)
+  }
   const agent = await agentOn(ctx, input.sessionId ?? 'authorized-base', selection.preset, input.seed, input.cwd)
   let call = 0
   const execute = (name: string, arguments_: unknown = {}, subject = agent) =>
     ctx.tools.execute({ callId: `base-${++call}` as never, name, arguments: arguments_, agent: subject, signal: new AbortController().signal })
   const query = (consumerCode?: string, subject = agent) =>
-    execute('gea_cube_query', { ...(consumerCode ? { consumerCode } : {}), queries: [{ name: 'inv', query: { measures: ['inv.row_count'], limit: 3 } }] }, subject)
+    execute(
+      'mcp__gea-gateway__query_business_data',
+      { ...(consumerCode ? { consumerCode } : {}), queries: [{ name: 'inv', query: { measures: ['inv.row_count'], limit: 3 } }] },
+      subject
+    )
   return {
     ctx,
     home,
