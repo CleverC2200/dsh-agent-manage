@@ -43,7 +43,7 @@ it('registers only the two original schemas and executes with the calling Core S
   const signal = new AbortController().signal
   const inputSchema = { type: 'object', properties: { queries: { type: 'array' } }, required: ['queries'] }
   let dispose!: () => Promise<void>
-  const call = vi.fn(async () => '{"status":"completed"}')
+  const call = vi.fn<GeaMcpService['call']>(async () => '{"status":"completed"}')
   let refresh = () => {}
   const service: GeaMcpService = {
     version: 2,
@@ -91,11 +91,21 @@ it('registers only the two original schemas and executes with the calling Core S
   }
   await expect(query.execute(args, { signal })).rejects.toThrow('GEA_BUSINESS_PROFILE_REQUIRED')
   expect(call).toHaveBeenCalledTimes(2)
+  let finish!: (result: string) => void
+  call.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve
+      })
+  )
+  const inFlight = query.execute(args, { signal, agent: { id: 'sales-session' } } as Parameters<ToolDefinition['execute']>[1])
   const requestSignal = call.mock.calls.at(-1)?.[3]
   expect(requestSignal).toBe(signal)
   refresh()
   expect(requestSignal?.aborted).toBe(false)
   await vi.waitFor(() => expect(definitions.size).toBe(2))
+  finish('retained-session-result')
+  expect(await inFlight).toBe('retained-session-result')
   await dispose()
   expect(definitions.size).toBe(0)
 })
