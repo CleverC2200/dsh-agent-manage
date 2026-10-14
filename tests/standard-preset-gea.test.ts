@@ -317,12 +317,45 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
     ]
   })
   const before = f.agent.session.snapshotEvents()
+  const pressure: unknown[] = []
+  f.ctx.on('session/event', (session, event) => {
+    if (session !== f.agent.session) return
+    if (!['step/start', 'tool/result', 'request/context', 'compaction/summary', 'compaction/prune'].includes(event.type)) return
+    const measurement = f.ctx.tokenMeter.measure(session)
+    pressure.push({
+      seq: event.seq,
+      type: event.type,
+      totalTokens: measurement.totalTokens,
+      surfaceTokens: measurement.surfaceTokens,
+      baseline: measurement.baseline,
+      data: event.type === 'request/context' || event.type.startsWith('compaction/') ? event.data : undefined,
+      toolResult:
+        event.type === 'tool/result'
+          ? {
+              callId: event.data.message.source.callId,
+              isError: event.data.message.isError,
+              chars: JSON.stringify(event.data.message.content).length
+            }
+          : undefined
+    })
+  })
   await turn(f.ctx, f.agent, 'Keep the original inventory decision and read-only Consumer scope; read the evidence and continue the same task.')
   const events = f.agent.session.snapshotEvents()
   expect(events.at(-1)).toMatchObject({ type: 'turn/end', data: { reason: { kind: 'completed' } } })
   expect(JSON.stringify(events.filter(event => event.type === 'assistant/message'))).toContain('Continued original task from the checkpoint.')
   const prunes = events.filter(event => event.type === 'compaction/prune')
-  expect(prunes).toHaveLength(1)
+  expect(
+    prunes,
+    JSON.stringify({
+      contextWindow,
+      pressure,
+      requests: requests.map(request => ({
+        messageChars: JSON.stringify(request.messages).length,
+        toolChars: JSON.stringify(request.tools).length,
+        summary: request.messages.at(-1)?.content.some(block => block.text?.includes('acting as a compaction engine'))
+      }))
+    })
+  ).toHaveLength(1)
   const original = events.find(event => event.type === 'tool/result' && event.seq === prunes[0].data.shadowedSeqs[0])!
   expect(original.type).toBe('tool/result')
   const originalText =
@@ -382,6 +415,7 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
   await record('base-gea-tool-result-prune', {
     sessionId: f.agent.id,
     contextWindow,
+    pressure,
     consumer: f.selection.profile!.consumerCode,
     prunes,
     originalSeq: original.seq,
