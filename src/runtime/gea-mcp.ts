@@ -13,6 +13,7 @@ export interface GeaMcpTool {
 export interface GeaMcpService {
   version: 2
   authenticated(): boolean
+  identitySignal(): AbortSignal
   watch(listener: () => void): () => void
   allows(sessionId: string): boolean
   listTools(signal: AbortSignal): Promise<GeaMcpTool[]>
@@ -23,61 +24,110 @@ interface Mount {
   dispose(): void | Promise<void>
 }
 
-/** Retire the old tool generation before publishing the next login's tools. */
-export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool[], signal: AbortSignal) => Mount, warn: () => void): () => Promise<void> {
+/** Runtime publication state shared by login events and first-request admission. */
+export interface GeaLoginRuntime {
+  readonly revision: number
+  ready(signal?: AbortSignal): Promise<void>
+  dispose(): Promise<void>
+}
+
+/** Prepare same-identity refreshes before replacing tools; revoke changed identities first. */
+export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool[], signal: AbortSignal) => Mount, warn: () => void): GeaLoginRuntime {
   let closed = false
   let generation = new AbortController()
-  let current: Mount | undefined
+  let current: { mount: Mount; identity: AbortSignal } | undefined
+  let revision = 0
+  let failure: Error | undefined
   let queue = Promise.resolve()
-  const changed = (): void => {
+  const retire = async (): Promise<void> => {
+    if (current === undefined) return
+    await current.mount.dispose()
+    current = undefined
+    revision++
+  }
+  const changed = (): Promise<void> => {
     generation.abort()
     generation = new AbortController()
-    const signal = generation.signal
+    const identity = service.identitySignal()
+    const signal = AbortSignal.any([generation.signal, identity])
     queue = queue
       .then(async () => {
-        if (current) {
-          await current.dispose()
-          current = undefined
+        if (closed || signal.aborted) return
+        if (current !== undefined && (current.identity !== identity || !service.authenticated())) await retire()
+        if (!service.authenticated()) {
+          failure = undefined
+          return
         }
-        if (closed || signal.aborted || !service.authenticated()) return
         const tools = await service.listTools(signal)
         if (closed || signal.aborted || !service.authenticated()) return
-        current = mount(tools, signal)
+        await retire()
+        current = { mount: mount(tools, identity), identity }
         try {
-          await current.await()
+          await current.mount.await()
+          revision++
+          failure = undefined
         } catch {
-          await current.dispose()
-          current = undefined
+          await retire()
           throw Error('GEA_MCP_MOUNT_FAILED')
         }
       })
-      .catch(() => {
-        if (!closed && !signal.aborted) warn()
+      .catch(error => {
+        if (!closed && !signal.aborted) {
+          failure = error instanceof Error ? error : Error(String(error))
+          warn()
+        }
       })
+    return queue
   }
   const unwatch = service.watch(changed)
-  changed()
-  return async () => {
-    closed = true
-    generation.abort()
-    unwatch()
-    await queue
-    await current?.dispose()
-    current = undefined
+  void changed()
+  return {
+    get revision() {
+      return revision
+    },
+    async ready(signal) {
+      let observed: Promise<void>
+      do {
+        signal?.throwIfAborted()
+        observed = queue
+        if (signal === undefined) await observed
+        else {
+          const aborted = Promise.withResolvers<never>()
+          const abort = () => aborted.reject(signal.reason)
+          signal.addEventListener('abort', abort, { once: true })
+          if (signal.aborted) abort()
+          try {
+            await Promise.race([observed, aborted.promise])
+          } finally {
+            signal.removeEventListener('abort', abort)
+          }
+        }
+      } while (observed !== queue && !closed)
+      signal?.throwIfAborted()
+      if (closed) throw Error('GEA_MCP_DISPOSED')
+      if (failure !== undefined) throw failure
+    },
+    async dispose() {
+      closed = true
+      generation.abort()
+      unwatch()
+      await queue
+      await retire()
+    }
   }
 }
 
 /** Publish server-qualified native MCP methods without another model-facing query wrapper. */
 export function mountGeaMcp(ctx: Context): void {
-  ctx.inject(['geaMcp', 'tools', 'agents', 'agentPresets'], host => {
+  ctx.inject(['geaMcp', 'tools', 'agents', 'agentPresets', 'systemPrompt'], host => {
     const service = (host as unknown as { geaMcp: GeaMcpService }).geaMcp
     if (service.version !== 2) throw Error('Unsupported GEA MCP service version')
     host.effect(() => {
       const stopScope = restrictGeaMcp(host as unknown as GeaScopeHost, agent => typeof agent.id === 'string' && service.allows(agent.id))
       const registry = (host as unknown as ToolHost).tools
-      const stopLogin = followGeaLogin(
+      const login = followGeaLogin(
         service,
-        tools => {
+        (tools, identity) => {
           const offs: Array<() => void> = []
           try {
             for (const tool of tools) {
@@ -89,6 +139,7 @@ export function mountGeaMcp(ctx: Context): void {
                 async execute(args, exec) {
                   const agent = exec.agent
                   const id = agent && 'id' in agent && typeof agent.id === 'string' ? agent.id : undefined
+                  identity.throwIfAborted()
                   if (!id || !service.allows(id)) throw Error('GEA_BUSINESS_PROFILE_REQUIRED')
                   if (!args || typeof args !== 'object' || Array.isArray(args)) throw Error('GEA_MCP_ARGUMENTS_INVALID')
                   // Discovery can refresh for another Session; GEA owns this call's identity and resource lifetime.
@@ -111,8 +162,29 @@ export function mountGeaMcp(ctx: Context): void {
         },
         () => host.logger?.warn('Cube-New MCP discovery failed; check the current login and published tool grants.')
       )
+      // Core collects tool providers before its assembly waterfall. Capture that
+      // publication revision, await discovery, and ask Core to assemble again only
+      // when it collected an older generation. Core still owns scope, PTC and order.
+      const observed = new WeakMap<object, number>()
+      const stopCapture = host.systemPrompt.tools(context => {
+        observed.set(context, login.revision)
+        return { schemas: [] }
+      })
+      const stopAssembly = host.on(
+        'system-prompt/assemble',
+        async (_assembly, context, next) => {
+          const agent = context.agent
+          if (agent === undefined || !service.allows(agent.id)) return next()
+          await login.ready(context.signal)
+          if (observed.get(context) !== login.revision) return host.systemPrompt.assemble(context)
+          return next()
+        },
+        true
+      )
       return async () => {
-        await stopLogin()
+        stopAssembly()
+        stopCapture()
+        await login.dispose()
         stopScope()
       }
     }, 'dsh-agent-manage: Cube-New login lifecycle')

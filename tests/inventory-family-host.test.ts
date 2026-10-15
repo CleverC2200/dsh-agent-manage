@@ -25,8 +25,8 @@ it('materializes the selected inventory preset in its requested workspace and qu
   expect(tools).toContain('workflow')
   expect(tools).not.toContain('gea_sales_plan_read')
   expect(JSON.stringify(await f.query())).toContain('42')
-  const denied = await f.execute('gea_module_mcp', { consumerCode: role.forbiddenConsumer })
-  expect(JSON.stringify(denied)).toContain('GEA_CONSUMER_ROUTE_NOT_REGISTERED')
+  const denied = await f.execute('mcp__gea-gateway__query_business_data', { consumerCode: role.forbiddenConsumer })
+  expect(JSON.stringify(denied)).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
   const compact = await f.ctx.commands.execute(f.agent, '/compact', [], new AbortController().signal)
   expect(compact?.result).toMatchObject({ kind: 'success', text: expect.stringMatching(/^Compacted/) })
   await writeFile(
