@@ -35,7 +35,7 @@ export function mountProjectCommands(ctx: Context, catalog: Catalog, t: HostTran
 export function mountProjectMcp(ctx: Context, catalog: Catalog, dataRoot: string): { refresh(): Promise<void>; dispose(): Promise<void> } {
   return mountProjectSurface(ctx, catalog, 'tools', (scope, agent) => {
     const registry = new McpMountRegistry(scope, dataRoot, agent.session.id ?? randomUUID())
-    registry.setBackendProvider(() => catalog.mcpBackend())
+    registry.setBackendProvider(() => catalog.runtime.mcpBackend())
     return registry
   })
 }

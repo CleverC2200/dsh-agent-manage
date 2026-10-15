@@ -8,7 +8,7 @@ Status: implemented
 
 ## Decision
 
-宿主入口将连续事件合并为一个执行中的协调以及最多一个待执行的后续协调，后续使用新的目录快照。只有 MCP 后端设置实际改变才触发挂载协调。销毁后拒绝新请求，并忽略销毁之后才返回的目录发现结果。
+[运行管理 module](2026-10-15-resource-runtime-management.zh.md) 将连续事件合并为一个执行中的协调以及最多一个待执行的后续协调，后续使用新的目录快照。只有 MCP 后端设置实际改变才触发挂载协调。销毁后拒绝新请求，并忽略销毁之后才返回的目录发现结果。
 
 运行时协调器并行执行独立 surface，并保留各 surface 内部的顺序。销毁时等待该 surface 正在执行的工作，跳过销毁后尚未开始的排队任务，且分别处理失败。因此 MCP 连接延迟不会阻止本地资源注册或它们各自的清理。
 
@@ -26,4 +26,4 @@ Status: implemented
 
 ## Testing
 
-`tests/plugin-apply.test.ts` 验证后端事件合并及销毁后不再协调。`tests/runtime-reconciler.test.ts` 保持 MCP 启动等待并验证本地 surface 已完成，同时覆盖各 surface 的保序、失败隔离与销毁顺序。
+`tests/runtime-management.test.ts` 验证凭据事件合并、后端重挂与销毁后不再协调。`tests/runtime-reconciler.test.ts` 保持 MCP 启动等待并验证本地 surface 已完成，同时覆盖各 surface 的保序、失败隔离与销毁顺序。

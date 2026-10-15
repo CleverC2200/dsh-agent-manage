@@ -27,10 +27,10 @@ export interface RuntimeDiagnostics {
 }
 
 export class RuntimeReconciler {
-  private readonly mcp: McpMountRegistry
+  readonly mcp: McpMountRegistry
   private readonly commands: CommandMountRegistry
   private readonly hooks: HooksMountRegistry
-  private readonly lspRegistry: LspMountRegistry
+  readonly lsp: LspMountRegistry
   private readonly queues = new Map<keyof Omit<RuntimeDiagnostics, 'errors'>, Promise<void>>()
   private disposed = false
 
@@ -39,49 +39,7 @@ export class RuntimeReconciler {
     this.mcp = new McpMountRegistry(ctx, dataRoot)
     this.commands = new CommandMountRegistry(ctx, t)
     this.hooks = new HooksMountRegistry(ctx)
-    this.lspRegistry = new LspMountRegistry(ctx)
-  }
-
-  /** The LSP mount registry, consumed by the LSP status surface. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
-  get lsp(): LspMountRegistry {
-    return this.lspRegistry
-  }
-
-  /** Install the per-suite MCP overrides provider used at mount time. */
-  /** 设置 MCP 覆盖配置来源并转发给 MCP 注册表。 */
-  setMcpOverridesProvider(provider: () => Promise<Map<string, import('./mcp-overrides.js').McpSuiteOverrides>>): void {
-    this.mcp.setOverridesProvider(provider)
-  }
-
-  /** Install the live tool-name provider used for foreign-namespace mount guards. */
-  /** 设置 MCP 工具观察来源，用于冲突和状态判断。 */
-  setMcpToolNamesProvider(provider: () => string[]): void {
-    this.mcp.setToolNamesProvider(provider)
-  }
-
-  /** Install the backend provider deciding which MCP client mounts each server. */
-  /** 设置 MCP 后端选择来源，支持运行时切换。 */
-  setMcpBackendProvider(provider: () => Promise<import('./mcp-backend.js').McpBackend>): void {
-    this.mcp.setBackendProvider(provider)
-  }
-
-  /** Whether the current MCP snapshot uses one credential reference. */
-  /** 查询 MCP 表面是否仍引用指定凭据。 */
-  usesCredential(ref: string): boolean {
-    return this.mcp.usesCredential(ref)
-  }
-
-  /** Flag one MCP mount for an explicit rebuild on the next reconcile. */
-  /** 请求下次对账强制重挂载指定 MCP 服务。 */
-  forceMcpRemount(suiteId: string, serverKey: string): void {
-    this.mcp.forceRemount(suiteId, serverKey)
-  }
-
-  /** The mount key owning one derived serverName; undefined when not mounted here. */
-  /** 反查公开 MCP 名称所属套件和服务键。 */
-  mcpServerOwner(serverName: string): { suiteId: string; serverKey: string } | undefined {
-    return this.mcp.serverOwner(serverName)
+    this.lsp = new LspMountRegistry(ctx)
   }
 
   /** Reconcile all runtime surfaces against one enabled-suite snapshot. */
@@ -110,7 +68,7 @@ export class RuntimeReconciler {
       reconcileSurface('mcp', () => this.mcp.reconcile(suites)),
       reconcileSurface('commands', () => this.commands.reconcile(suites)),
       reconcileSurface('hooks', () => this.hooks.reconcile(suites)),
-      reconcileSurface('lsp', () => this.lspRegistry.reconcile(suites))
+      reconcileSurface('lsp', () => this.lsp.reconcile(suites))
     ])
     return diagnostics
   }
@@ -128,7 +86,7 @@ export class RuntimeReconciler {
       disposeSurface('mcp', () => this.mcp.disposeAll()),
       disposeSurface('commands', () => this.commands.disposeAll()),
       disposeSurface('hooks', () => this.hooks.disposeAll()),
-      disposeSurface('lsp', () => this.lspRegistry.disposeAll())
+      disposeSurface('lsp', () => this.lsp.disposeAll())
     ])
     this.queues.clear()
   }

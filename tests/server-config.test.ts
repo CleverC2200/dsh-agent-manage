@@ -22,13 +22,13 @@ afterEach(async () => {
 describe('service configuration editing', () => {
   it('creates LSP servers independently, rejects duplicates and preserves corrupt existing data', async () => {
     const { root, catalog } = await setup()
-    await catalog.addLspServer('one', { command: 'one', extensionToLanguage: { '.one': 'one' } })
-    await catalog.addLspServer('two', { command: 'two', extensionToLanguage: { '.two': 'two' } })
+    await catalog.runtime.addLspServer('one', { command: 'one', extensionToLanguage: { '.one': 'one' } })
+    await catalog.runtime.addLspServer('two', { command: 'two', extensionToLanguage: { '.two': 'two' } })
     expect(Object.keys((await loadLspServers(root)).servers)).toEqual(['one', 'two'])
-    await expect(catalog.addLspServer('one', { command: 'new', extensionToLanguage: { '.one': 'one' } })).rejects.toThrow('already exists')
+    await expect(catalog.runtime.addLspServer('one', { command: 'new', extensionToLanguage: { '.one': 'one' } })).rejects.toThrow('already exists')
     const path = join(root, 'lsp-servers.json')
     await writeFile(path, 'corrupt')
-    await expect(catalog.addLspServer('three', { command: 'three', extensionToLanguage: { '.three': 'three' } })).rejects.toThrow('lsp-servers.json')
+    await expect(catalog.runtime.addLspServer('three', { command: 'three', extensionToLanguage: { '.three': 'three' } })).rejects.toThrow('lsp-servers.json')
     expect(await readFile(path, 'utf8')).toBe('corrupt')
   })
   it('persists plugin LSP edits outside the checkout and projects them into runtime discovery', async () => {
@@ -41,41 +41,43 @@ describe('service configuration editing', () => {
     const manifest = join(checkout, '.claude-plugin', 'marketplace.json')
     const before = await readFile(manifest, 'utf8')
     const id = 'demo/typescript-lsp/typescript'
-    const detail = await catalog.serverConfig('lsp', id)
-    await catalog.saveServerConfig('lsp', id, { ...detail.config, command: 'replacement' })
-    expect((await catalog.serverConfig('lsp', id)).config.command).toBe('replacement')
+    const detail = await catalog.runtime.serverConfig('lsp', id)
+    await catalog.runtime.saveServerConfig('lsp', id, { ...detail.config, command: 'replacement' })
+    expect((await catalog.runtime.serverConfig('lsp', id)).config.command).toBe('replacement')
     expect((await catalog.enabledUserSuites()).find(suite => suite.id === 'typescript-lsp')!.lsp!.servers.typescript!.command).toBe('replacement')
-    expect((await catalog.lspStatus()).entries.find(entry => entry.id === id)!.command).toBe('replacement')
+    expect((await catalog.runtime.lspStatus()).entries.find(entry => entry.id === id)!.command).toBe('replacement')
     expect(await readFile(manifest, 'utf8')).toBe(before)
   })
 
   it('roundtrips masked MCP secrets and replaces transport with validated configuration', async () => {
     const { root, catalog } = await setup()
-    await catalog.addMcpServer('demo', { type: 'streamable-http', url: 'https://example.test/mcp', headers: { Authorization: 'Bearer private' } })
+    await catalog.runtime.addMcpServer('demo', { type: 'streamable-http', url: 'https://example.test/mcp', headers: { Authorization: 'Bearer private' } })
     const id = 'plugin:@user-mcp/user-mcp/demo'
-    const detail = await catalog.serverConfig('mcp', id)
+    const detail = await catalog.runtime.serverConfig('mcp', id)
     expect(detail.config.headers).toEqual({ Authorization: '[redacted]' })
-    await catalog.saveServerConfig('mcp', id, { ...detail.config, url: 'https://example.test/new' })
+    await catalog.runtime.saveServerConfig('mcp', id, { ...detail.config, url: 'https://example.test/new' })
     const overrides = await loadSuiteOverrides(root, '@user-mcp/user-mcp')
     expect(overrides.demo?.config).toMatchObject({ headers: { Authorization: 'Bearer private' } })
     const path = suiteOverridePath(root, '@user-mcp/user-mcp')
     const before = await readFile(path, 'utf8')
-    await expect(catalog.saveServerConfig('mcp', id, { type: 'stdio', command: 123 })).rejects.toThrow('invalid MCP')
+    await expect(catalog.runtime.saveServerConfig('mcp', id, { type: 'stdio', command: 123 })).rejects.toThrow('invalid MCP')
     expect(await readFile(path, 'utf8')).toBe(before)
-    await catalog.saveServerConfig('mcp', id, { type: 'stdio', command: 'node', args: ['--version'], env: {} })
+    await catalog.runtime.saveServerConfig('mcp', id, { type: 'stdio', command: 'node', args: ['--version'], env: {} })
     const replacement = (await loadSuiteOverrides(root, '@user-mcp/user-mcp')).demo
     expect(applyOverride({ type: 'streamable-http', url: 'https://example.test' }, replacement)).toEqual({ type: 'stdio', command: 'node', args: ['--version'], env: {} })
   })
 
   it('saves complete direct LSP config without parser identity, preserves nested secrets and rejects malformed edits', async () => {
     const { root, catalog } = await setup()
-    await catalog.setLspServers({ lspServers: { demo: { command: 'old', extensionToLanguage: { '.ts': 'typescript' }, configuration: { apiKey: 'secret', deep: [1, true] } } } })
-    const detail = await catalog.serverConfig('lsp', 'direct/demo')
+    await catalog.runtime.setLspServers({
+      lspServers: { demo: { command: 'old', extensionToLanguage: { '.ts': 'typescript' }, configuration: { apiKey: 'secret', deep: [1, true] } } }
+    })
+    const detail = await catalog.runtime.serverConfig('lsp', 'direct/demo')
     expect(detail.config.configuration).toEqual({ apiKey: '[redacted]', deep: [1, true] })
-    await catalog.saveServerConfig('lsp', 'direct/demo', { ...detail.config, command: 'new' })
+    await catalog.runtime.saveServerConfig('lsp', 'direct/demo', { ...detail.config, command: 'new' })
     expect((await loadLspServers(root)).servers.demo).toMatchObject({ command: 'new', configuration: { apiKey: 'secret', deep: [1, true] } })
     const before = await readFile(join(root, 'lsp-servers.json'), 'utf8')
-    await expect(catalog.saveServerConfig('lsp', 'direct/demo', { command: 'broken', extensionToLanguage: {} })).rejects.toThrow('invalid LSP')
+    await expect(catalog.runtime.saveServerConfig('lsp', 'direct/demo', { command: 'broken', extensionToLanguage: {} })).rejects.toThrow('invalid LSP')
     expect(await readFile(join(root, 'lsp-servers.json'), 'utf8')).toBe(before)
   })
 

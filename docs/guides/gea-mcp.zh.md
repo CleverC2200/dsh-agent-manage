@@ -9,3 +9,5 @@ GEA Host 保留登录、凭据和业务授权。Manage 在当前登录代际中�
 服务端授权与模型成员发布均以真实回执为准。`DATA_QUERY_MEMBER_NOT_PUBLISHED` 保留原码并停止本轮查询，不能把它当作参数格式错误反复修改重试。工具可发现、说明可见和真实业务查询成功分别验收。
 
 退出、切账号及切环境时先取消旧调用再释放工具；新的登录代际重新发现。取消、拒权或发现失败不自动重建业务会话。旧 `gea_gateway_catalog`、`gea_cube_query`、`gea_module_mcp` 已退场；历史 Session、草稿和证据保留。
+
+GEA 通过 `geaMcp.identitySignal()` 投影当前身份代际。同身份资源刷新先准备新结果，期间保留现有 Schema。Core 的串行创建事件与公开提示组装 interface 等待 Schema 发布，覆盖业务首轮请求。身份变化先取消旧调用并退役其 Schema，再重新发现；资源刷新不重建业务 Session。

@@ -156,7 +156,7 @@ describe('mergeOverridePatch', () => {
   })
 })
 
-describe('Catalog.setMcpOverride', () => {
+describe('Catalog runtime overrides', () => {
   async function installedCatalog(): Promise<Catalog> {
     const userRoot = await mkdtemp(join(tmpdir(), 'dsh-mcpov-cat-'))
     const manager = new Catalog({ userRoot, dataRoot: join(userRoot, 'data'), onChanged: () => {} })
@@ -172,17 +172,17 @@ describe('Catalog.setMcpOverride', () => {
   it('persists an override and reports it in suite detail', async () => {
     const manager = await installedCatalog()
 
-    await manager.setMcpOverride('demo', 'v1-suite', Object.keys((await manager.suiteDetail('demo', 'v1-suite')).mcpServers)[0] ?? 'none', null).catch(() => {})
+    await manager.runtime.setMcpOverride('demo', 'v1-suite', Object.keys((await manager.suiteDetail('demo', 'v1-suite')).mcpServers)[0] ?? 'none', null).catch(() => {})
     const detailBefore = await manager.suiteDetail('demo', 'v1-suite')
     const serverKey = detailBefore.mcpServers[0]?.key
     if (serverKey === undefined) throw new Error('fixture has no MCP server')
 
-    await manager.setMcpOverride('demo', 'v1-suite', serverKey, { url: 'http://127.0.0.1:9/mcp' })
+    await manager.runtime.setMcpOverride('demo', 'v1-suite', serverKey, { url: 'http://127.0.0.1:9/mcp' })
     const after = await manager.suiteDetail('demo', 'v1-suite')
     expect(after.mcpOverrides?.[serverKey]).toEqual({ enabled: true, url: 'http://127.0.0.1:9/mcp' })
 
     // mcpOverrides query returns the same record.
-    expect(await manager.mcpOverrides('demo', 'v1-suite')).toEqual({ [serverKey]: { enabled: true, url: 'http://127.0.0.1:9/mcp' } })
+    expect(await manager.runtime.mcpOverrides('demo', 'v1-suite')).toEqual({ [serverKey]: { enabled: true, url: 'http://127.0.0.1:9/mcp' } })
   })
 
   it('clears an override with null and rejects unknown servers', async () => {
@@ -191,11 +191,11 @@ describe('Catalog.setMcpOverride', () => {
     const serverKey = detail.mcpServers[0]?.key
     if (serverKey === undefined) throw new Error('fixture has no MCP server')
 
-    await manager.setMcpOverride('demo', 'v1-suite', serverKey, { enabled: false })
-    await manager.setMcpOverride('demo', 'v1-suite', serverKey, null)
-    expect(await manager.mcpOverrides('demo', 'v1-suite')).toEqual({})
+    await manager.runtime.setMcpOverride('demo', 'v1-suite', serverKey, { enabled: false })
+    await manager.runtime.setMcpOverride('demo', 'v1-suite', serverKey, null)
+    expect(await manager.runtime.mcpOverrides('demo', 'v1-suite')).toEqual({})
 
-    await expect(manager.setMcpOverride('demo', 'v1-suite', 'nope', { enabled: false })).rejects.toThrow('is not defined by suite')
-    await expect(manager.setMcpOverride('demo', 'ghost-suite', serverKey, null)).rejects.toThrow('not found in source')
+    await expect(manager.runtime.setMcpOverride('demo', 'v1-suite', 'nope', { enabled: false })).rejects.toThrow('is not defined by suite')
+    await expect(manager.runtime.setMcpOverride('demo', 'ghost-suite', serverKey, null)).rejects.toThrow('not found in source')
   })
 })

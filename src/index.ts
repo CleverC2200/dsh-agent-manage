@@ -28,9 +28,8 @@ import { readJsonRequest, RequestBodyTooLarge } from './runtime/request-body.js'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-settings'
 import { Catalog } from './application/catalog.js'
-import { RuntimeReconciler } from './runtime/reconciler.js'
-import { mcpAuthRecordKey } from './runtime/mcp-client/oauth.js'
 import { inspectToolRegistry } from './runtime/tool-registry-observer.js'
+import { mcpAuthRecordKey } from './runtime/mcp-client/oauth.js'
 import { mountAgentRoleTool } from './runtime/agent-role-router.js'
 import { projectAgentRoles } from './application/project-agent-roles.js'
 import { mountProjectCommands, mountProjectMcp, mountProjectHooks, mountSuiteInstructions } from './runtime/project-runtime.js'
@@ -41,8 +40,6 @@ import { mountSuiteRoutes } from './routes.js'
 import { ManageConfigSchema } from './runtime/mcp-backend.js'
 import { narrowDownloadRegion } from './runtime/regions.js'
 import { SuiteSkillProvider } from './runtime/skills-provider.js'
-import { loadLspServers } from './runtime/lsp-direct-config.js'
-import { loadDisabledLspServers } from './runtime/lsp-server-state.js'
 import { bindHostLocale, loadHostLocale, type HostLocaleKey, type HostTranslate } from './runtime/host-locale.js'
 import { mountFeedbackTool } from './runtime/feedback-tool.js'
 import { createUserPanelStores } from './runtime/user-panels.js'
@@ -111,7 +108,6 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     userPanelControl?.invalidate()
   })
   const hostLocale: { t: HostTranslate } = { t }
-  const runtime = new RuntimeReconciler(ctx, dataRoot, (key, params) => hostLocale.t(key, params))
 
   // User panel stores (skills / commands / agent personas) and their runtime
   // contributions: one extra skill provider plus one command mount registry.
@@ -124,82 +120,6 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   let projectMcp: ReturnType<typeof mountProjectMcp> | undefined
   let projectHooks: ReturnType<typeof mountProjectHooks> | undefined
   let suitePrompts: ReturnType<typeof mountSuiteInstructions> | undefined
-  let reconcileRequested = false
-  let reconciliation: Promise<void> | undefined
-  /** 执行一次完整运行时重协调，并把各能力面的诊断写回 Catalog。 */
-  const reconcileOnce = async (): Promise<void> => {
-    try {
-      const suites = await catalog.enabledUserSuites()
-      if (disposed) return
-      const diagnostics = await runtime.reconcile(suites)
-      catalog.mcpDiagnostics = diagnostics.mcp
-      for (const diagnostic of diagnostics.mcp) {
-        ctx.logger?.warn(`[dsh-agent-plugins-market] suite "${diagnostic.suiteId}" mcp server "${diagnostic.serverKey}": ${diagnostic.reason}`)
-      }
-      for (const diagnostic of diagnostics.lsp) {
-        ctx.logger?.warn(`[dsh-agent-plugins-market] suite "${diagnostic.suiteId}" lsp server "${diagnostic.serverKey}": ${diagnostic.reason}`)
-      }
-      for (const diagnostic of diagnostics.commands) {
-        if (diagnostic.reason !== '') ctx.logger?.warn(`[dsh-agent-plugins-market] suite "${diagnostic.suiteId}" command "${diagnostic.command}": ${diagnostic.reason}`)
-      }
-      for (const diagnostic of diagnostics.hooks) {
-        ctx.logger?.warn(`[dsh-agent-plugins-market] suite "${diagnostic.suiteId}" hooks: ${diagnostic.reason}`)
-      }
-      for (const error of diagnostics.errors) {
-        ctx.logger?.warn(`[dsh-agent-plugins-market] ${error.surface} reconcile failed: ${error.reason}`)
-      }
-    } catch (error) {
-      ctx.logger?.warn(`[dsh-agent-plugins-market] runtime reconcile failed: ${error instanceof Error ? error.message : String(error)}`)
-      throw error
-    }
-  }
-
-  // Settings, credential and catalog events can arrive during a slow MCP
-  // connection. Keep one current pass and one fresh follow-up, not a queue
-  // of stale snapshots that all reconnect the same servers.
-  // 中文：慢连接期间只保留当前执行和一个后续请求，避免过期快照重复重连。
-  /** 合并并串行执行重协调请求，确保新变更不会被慢的旧请求吞掉。 */
-  const reconcileMounts = (): Promise<void> => {
-    if (disposed) return Promise.resolve()
-    reconcileRequested = true
-    reconciliation ??= (async () => {
-      try {
-        do {
-          reconcileRequested = false
-          await reconcileOnce()
-        } while (reconcileRequested && !disposed)
-      } finally {
-        reconciliation = undefined
-      }
-    })()
-    return reconciliation
-  }
-
-  /**
-   * Coalesce credential updates.
-   *
-   * `runtime.usesCredential(ref)` reflects the last completed pass, so an event
-   * arriving while the first reconcile is still running would be filtered out
-   * and the remount lost. Pending refs are therefore kept until the next pass
-   * observes them, and bursts are collapsed into one reconcile.
-   * 中文：凭据事件先暂存引用并合并突发通知，等下一轮重协调统一处理。
-   */
-  const pendingCredentialRefs = new Set<string>()
-  let credentialFlush: ReturnType<typeof setTimeout> | undefined
-  /** 清空待处理凭据引用并触发一次重协调，同时记录本轮引用。 */
-  const flushCredentialUpdates = (): void => {
-    credentialFlush = undefined
-    const refs = [...pendingCredentialRefs]
-    pendingCredentialRefs.clear()
-    // Re-read the catalog first: an unknown ref means the snapshot predates
-    // this change, so reconcile anyway to refresh the known reference set.
-    // 中文：先重新读取目录；未知引用可能来自旧快照，因此仍需完整重协调。
-    void reconcileMounts().catch(() => {})
-    if (refs.length > 0) {
-      ctx.logger?.info?.(`[dsh-agent-plugins-market] reconciling after credential update: ${refs.join(', ')}`)
-    }
-  }
-
   /** 响应 Catalog 变更，刷新各资源挂载并触发运行时重协调。 */
   const onChanged = async (): Promise<void> => {
     if (disposed) return
@@ -212,16 +132,29 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     for (const reason of userCommandDiagnostics) {
       ctx.logger?.warn(`[dsh-agent-plugins-market] user commands: ${reason}`)
     }
-    await reconcileMounts()
   }
 
-  // The credential store powers the MCP re-authorize action (dropping a grant
-  // record forces the next mount through a fresh browser authorization).
-  // Resolved lazily at call time: this plugin's apply may run before the
-  // credentials plugin provisions, and a snapshot taken here would be
-  // permanently undefined even after the service is live.
-  // 中文：凭据服务按调用时惰性解析，避免插件先启动导致永久保存 undefined。
-  const catalog = new Catalog({ userRoot, dataRoot, onChanged, ...(config.git === undefined ? {} : { git: config.git }) })
+  let writeBackend: (backend: import('./runtime/mcp-backend.js').McpBackend) => Promise<void> = async () => {
+    throw new Error('the settings service is not mounted')
+  }
+  const catalog = new Catalog({
+    userRoot,
+    dataRoot,
+    onChanged,
+    ...(config.git === undefined ? {} : { git: config.git }),
+    runtime: {
+      ctx,
+      translate: (key, params) => hostLocale.t(key, params),
+      backend: async () => (config.mcpEnhanced.get() ? 'builtin' : 'host'),
+      writeBackend: backend => writeBackend(backend),
+      tools: () => inspectToolRegistry((ctx as unknown as { get?(name: string): unknown }).get?.('tools')),
+      deleteGrantRecord: async serverName => {
+        const store = (ctx as unknown as { get?: (name: string) => unknown }).get?.('credentials') as { deleteRecord?: (key: string) => Promise<void> } | undefined
+        if (store?.deleteRecord === undefined) throw new Error('credentials service is not mounted')
+        await store.deleteRecord(mcpAuthRecordKey(serverName))
+      }
+    }
+  })
   await catalog.load()
   ctx.inject(['agentPresets', 'connection'], async host => {
     // Selected identities compose the same standard declaration as orchestration.
@@ -305,37 +238,15 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
 
   await catalog.mergeSources(config.sources ?? [])
   const resources = createPanelResources(catalog, panels)
-  catalog.setCredentialsStore({
-    deleteGrantRecord: async serverName => {
-      const store = (ctx as unknown as { get?: (name: string) => unknown }).get?.('credentials') as { deleteRecord?: (key: string) => Promise<void> } | undefined
-      if (store?.deleteRecord === undefined) throw new Error('credentials service is not mounted')
-      await store.deleteRecord(mcpAuthRecordKey(serverName))
-    }
-  })
-  runtime.setMcpOverridesProvider(async () => catalog.allMcpOverrides(await catalog.enabledUserSuites()))
-  // Re-authorize must rebuild the live bridge, not just drop the grant: the
-  // registry flags the mount and the following reconcile tears it down and
-  // remounts, so the server's 401 restarts the browser authorization.
-  // 中文：重新授权不仅删除记录，还必须标记活连接重建，才能让 401 重新触发浏览器授权。
-  catalog.setMcpRemountHook(
-    (suiteId, serverKey) => runtime.forceMcpRemount(suiteId, serverKey),
-    serverName => runtime.mcpServerOwner(serverName)
-  )
-  catalog.setLspStatusSource(runtime.lsp)
-  runtime.lsp.setDirectProvider(async () => (await loadLspServers(dataRoot)).servers)
-  runtime.lsp.setDisabledProvider(() => loadDisabledLspServers(dataRoot))
-  // The Loader owns live configuration. SettingsForms projects these fields
-  // using this entry's id; reads and updates share the same volatile references.
-  catalog.setMcpBackendProvider(async () => (config.mcpEnhanced.get() ? 'builtin' : 'host'))
   catalog.setDownloadRegionProvider(async () => narrowDownloadRegion(config.downloadRegion.get()))
   await catalog.setScanProjectLayouts(config.scanProjectLayouts.get())
   ctx.inject(['settings'], settingsCtx => {
     const entry = ctx.fiber.entry
     if (!entry) throw Error('MANAGE_SETTINGS_ENTRY_REQUIRED')
     settingsCtx.effect(() => settingsCtx.settings.configure({ auto: false }, ctx.fiber))
-    catalog.setMcpBackendWriter(async backend => {
+    writeBackend = async backend => {
       await settingsCtx.settings.update(entry.options.id!, { mcpEnhanced: backend !== 'host' })
-    })
+    }
   })
   ctx.inject(['tools'], toolHost => {
     let feedbackDisposer: (() => void) | undefined
@@ -363,30 +274,10 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
       })
     }
     if (paths.some(([field]) => field === 'mcpEnhanced')) {
-      void Promise.all([reconcileMounts(), projectMcp?.refresh()]).catch(error => {
+      void Promise.all([catalog.runtime.reconcile(), projectMcp?.refresh()]).catch(error => {
         ctx.logger.error(`[dsh-agent-manage] MCP backend reconciliation failed: ${String(error)}`)
       })
     }
-  })
-  runtime.setMcpBackendProvider(() => catalog.mcpBackend())
-  const eventHost = ctx as unknown as { on?: (event: string, listener: (ref: string) => void) => () => void }
-  /** 监听凭据引用变更，合并短时间内的多次事件并安排延迟刷新。 */
-  const disposeCredentialUpdates =
-    eventHost.on?.('credentials/reference-updated', ref => {
-      pendingCredentialRefs.add(ref)
-      if (credentialFlush !== undefined) clearTimeout(credentialFlush)
-      credentialFlush = setTimeout(flushCredentialUpdates, 150)
-      credentialFlush.unref?.()
-    }) ?? (() => {})
-  /** 接入宿主工具注册表，提供 MCP 工具快照和同名工具冲突探测。 */
-  ctx.inject(['tools'], toolsCtx => {
-    const registry = (toolsCtx as unknown as { tools: unknown }).tools
-    catalog.setMcpToolSnapshotProvider(() => inspectToolRegistry(registry))
-    // Foreign-namespace guard: a native host MCP client (or another plugin)
-    // owning `mcp__<serverName>__` names makes the mount registry skip its
-    // own server with a clear diagnostic instead of failing mid-registration.
-    // 中文：若宿主或其他插件已占用同名工具，跳过重复挂载并保留明确诊断。
-    runtime.setMcpToolNamesProvider(() => inspectToolRegistry(registry).map(tool => tool.name))
   })
   void Promise.resolve()
     .then(async () => {
@@ -394,7 +285,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
       for (const reason of userCommandDiagnostics) {
         ctx.logger?.warn(`[dsh-agent-plugins-market] user commands: ${reason}`)
       }
-      await reconcileMounts()
+      await catalog.runtime.reconcile()
     })
     .catch(() => {})
 
@@ -456,14 +347,10 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
 
   ctx.effect(
     // 中文：插件销毁时停止监听、清空待处理事件、卸载用户命令并释放运行时桥接。
-    () => () => {
+    () => async () => {
       disposed = true
-      disposeCredentialUpdates()
-      if (credentialFlush !== undefined) clearTimeout(credentialFlush)
-      credentialFlush = undefined
-      pendingCredentialRefs.clear()
       userCommands.disposeAll()
-      void runtime.dispose()
+      await catalog.runtime.dispose()
     },
     'dsh-agent-plugins-market: lifecycle'
   )
