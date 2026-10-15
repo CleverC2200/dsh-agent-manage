@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import type { AgentSourceBaseline } from '../contracts/agent-sources.js'
 import type { UserAgentConfig, UserAgentView, UserAgentSkillOption } from '../contracts/user-agents.js'
 import type { RuntimeManagement } from '../application/runtime-management.js'
 import type {} from './user-agent-cube.js'
@@ -15,12 +16,50 @@ const fields = {
   prompt: z.string().trim().min(1).max(48_000),
   enabled: z.boolean()
 }
-export const agentSkills = z.array(z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('reference'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), provider: z.string().min(1), path: z.string().optional(), enabled: z.boolean(), content: z.string().trim().min(1).max(96000).optional() }),
-  z.object({ kind: z.literal('personal'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), description: z.string().trim().min(1).max(1000), content: z.string().trim().min(1).max(96000), enabled: z.boolean() })
-])).max(200).refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length, 'DUPLICATE_AGENT_SKILL')
+export const agentSkills = z
+  .array(
+    z.discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('reference'),
+        name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+        provider: z.string().min(1),
+        path: z.string().optional(),
+        enabled: z.boolean(),
+        content: z.string().trim().min(1).max(96000).optional()
+      }),
+      z.object({
+        kind: z.literal('personal'),
+        name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+        description: z.string().trim().min(1).max(1000),
+        content: z.string().trim().min(1).max(96000),
+        enabled: z.boolean()
+      })
+    ])
+  )
+  .max(200)
+  .refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length, 'DUPLICATE_AGENT_SKILL')
+const sourceBaseline = z.object({
+  sourceId: z.string(),
+  suiteId: z.string(),
+  resourceKey: z.string(),
+  url: z.string(),
+  kind: z.enum(['git', 'local', 'archive']),
+  lockCommit: z.string().optional(),
+  version: z.string().optional(),
+  importPending: z.boolean().optional(),
+  mcpReferences: z.array(z.object({ serverKey: z.string(), serverId: z.string(), connectionId: z.uuid() })).optional(),
+  base: z.object({ name: fields.name, description: fields.description, prompt: fields.prompt, skills: agentSkills.default([]) })
+})
 const cubeReference = z.object({ sourceRef: z.string().regex(/^[a-z][a-z0-9-]*$/), enabled: z.boolean() }).strict()
-const savedAgent = z.object({ ...fields, id: z.uuid(), skills: agentSkills.default([]), cube: cubeReference.optional(), revision: z.number().int().positive() })
+const savedAgent = z.object({
+  ...fields,
+  id: z.uuid(),
+  skills: agentSkills.default([]),
+  cube: cubeReference.optional(),
+  revision: z.number().int().positive(),
+  source: sourceBaseline.optional(),
+  deletedAt: z.iso.datetime().optional()
+})
 const saveAgent = z.object({ ...fields, id: z.uuid().optional() })
 const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) })
 
@@ -31,12 +70,12 @@ const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) }
 export class UserAgents {
   private agents: UserAgentConfig[] = []
   private readonly cubeGrants = new Map<string, { generation: string; sourceRef: string; signal: AbortSignal; controller: AbortController }>()
-  private readonly cubeListeners = new Set<() => void>()
   private releases = new Map<string, () => Promise<void>>()
   private published = new Map<string, UserAgentConfig>()
   private errors = new Map<string, string>()
   private pending: Promise<unknown> = Promise.resolve()
   private closed = false
+  private readonly listeners = new Set<() => void>()
 
   readonly mcp?: AgentMcp
 
@@ -44,7 +83,9 @@ export class UserAgents {
     private readonly ctx: Context,
     private readonly file: string,
     runtime?: RuntimeManagement
-  ) { if (runtime) this.mcp = new AgentMcp(ctx, dirname(file), runtime) }
+  ) {
+    if (runtime) this.mcp = new AgentMcp(ctx, dirname(file), runtime)
+  }
 
   async load(): Promise<void> {
     try {
@@ -57,7 +98,15 @@ export class UserAgents {
     await this.mcp?.load(this.agents)
     // During Host activation only register, never await the whole Loader tree.
     // Actual availability is audited by list/select after the Host has settled.
-    for (const agent of this.agents) if (agent.enabled) await this.publish(agent, false)
+    for (const agent of this.agents) if (agent.enabled && !agent.deletedAt) await this.publish(agent, false)
+  }
+
+  /** Observe committed lifecycle/configuration changes; listeners may start async reads.
+   * Notifications are synchronous signals and are never awaited inside the write queue.
+   */
+  watch(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
   }
 
   async list(): Promise<UserAgentView[]> {
@@ -69,7 +118,15 @@ export class UserAgents {
     const value = saveAgent.parse(input)
     return this.write(async () => {
       const previous = value.id ? this.find(value.id) : undefined
-      const agent: UserAgentConfig = { ...value, skills: previous?.skills ?? [], ...(previous?.cube ? { cube: previous.cube } : {}), id: previous?.id ?? randomUUID(), revision: (previous?.revision ?? 0) + 1 }
+      if (previous?.source?.importPending && value.enabled) throw Error('AGENT_SOURCE_IMPORT_INCOMPLETE')
+      const agent: UserAgentConfig = {
+        ...value,
+        skills: previous?.skills ?? [],
+        ...(previous?.cube ? { cube: previous.cube } : {}),
+        id: previous?.id ?? randomUUID(),
+        revision: (previous?.revision ?? 0) + 1,
+        ...(previous?.source ? { source: previous.source } : {})
+      }
       const next = previous ? this.agents.map(row => (row.id === agent.id ? agent : row)) : [...this.agents, agent]
       await this.persist(next)
       this.agents = next
@@ -77,6 +134,46 @@ export class UserAgents {
       await this.mcp?.agentsChanged(this.agents)
       if (agent.enabled) await this.publish(agent, true)
       else await this.withdraw(agent.id)
+      return this.view(agent)
+    })
+  }
+
+  /** Imports only Host-discovered configuration; repeat imports preserve user customization. */
+  importSource(input: unknown, source: AgentSourceBaseline): Promise<UserAgentView> {
+    const value = saveAgent
+      .omit({ id: true })
+      .extend({ skills: agentSkills.default([]) })
+      .parse(input)
+    const provenance = sourceBaseline.parse(source)
+    return this.write(async () => {
+      const existing = this.agents.find(
+        agent => agent.source?.sourceId === source.sourceId && agent.source?.suiteId === source.suiteId && agent.source?.resourceKey === source.resourceKey
+      )
+      if (existing) return this.view(existing)
+      const agent: UserAgentConfig = { ...value, id: randomUUID(), revision: 1, source: provenance }
+      const next = [...this.agents, agent]
+      await this.persist(next)
+      this.agents = next
+      this.syncCubeGrants()
+      await this.mcp?.agentsChanged(this.agents)
+      if (agent.enabled) await this.publish(agent, true)
+      return this.view(agent)
+    })
+  }
+
+  /** Complete a multi-resource import only after its external MCP associations exist. */
+  finishSourceImport(id: string, mcpReferences: NonNullable<AgentSourceBaseline['mcpReferences']>): Promise<UserAgentView> {
+    return this.write(async () => {
+      const previous = this.find(id)
+      if (!previous.source?.importPending) throw Error('AGENT_SOURCE_IMPORT_NOT_PENDING')
+      const source = sourceBaseline.parse({ ...previous.source, importPending: false, mcpReferences })
+      const agent = { ...previous, source, enabled: true }
+      const next = this.agents.map(row => (row.id === id ? agent : row))
+      await this.persist(next)
+      this.agents = next
+      this.syncCubeGrants()
+      await this.mcp?.agentsChanged(this.agents)
+      await this.publish(agent, true)
       return this.view(agent)
     })
   }
@@ -89,31 +186,30 @@ export class UserAgents {
     if (this.closed || !grant || grant.signal.aborted || grant.generation !== declaration.generation || grant.sourceRef !== declaration.sourceRef) return undefined
     return grant
   }
-  watchCube(listener: () => void): () => void {
-    this.cubeListeners.add(listener)
-    return () => { this.cubeListeners.delete(listener) }
-  }
   private syncCubeGrants(): void {
+    let revoked = false
     for (const [id, grant] of this.cubeGrants) {
       const agent = this.agents.find(row => row.id === id)
-      if (!this.closed && agent?.enabled && agent.cube?.enabled && agent.cube.sourceRef === grant.sourceRef) continue
+      if (!this.closed && !agent?.deletedAt && agent?.enabled && agent.cube?.enabled && agent.cube.sourceRef === grant.sourceRef) continue
       grant.controller.abort()
       this.cubeGrants.delete(id)
+      revoked = true
     }
-    for (const agent of this.agents) if (!this.closed && agent.enabled && agent.cube?.enabled && !this.cubeGrants.has(agent.id)) {
-      const controller = new AbortController()
-      this.cubeGrants.set(agent.id, { sourceRef: agent.cube.sourceRef, generation: randomUUID(), controller, signal: controller.signal })
-    }
-    for (const listener of this.cubeListeners) listener()
+    for (const agent of this.agents)
+      if (!this.closed && !agent.deletedAt && agent.enabled && agent.cube?.enabled && !this.cubeGrants.has(agent.id)) {
+        const controller = new AbortController()
+        this.cubeGrants.set(agent.id, { sourceRef: agent.cube.sourceRef, generation: randomUUID(), controller, signal: controller.signal })
+      }
+    // Persisted revocation closes schemas before publication/release can await Core.
+    if (revoked) for (const listener of this.listeners) listener()
   }
   saveCube(id: string, input: unknown): Promise<UserAgentView> {
     const cube = input === null ? undefined : cubeReference.parse(input)
     return this.write(async () => {
       const previous = this.find(id)
       if (cube && !this.ctx.agentResources.cubeCatalog().some(row => row.sourceRef === cube.sourceRef)) throw Error('CUBE_SOURCE_UNAVAILABLE')
-      const { cube: _previousCube, ...base } = previous
-      const agent: UserAgentConfig = { ...base, ...(cube ? { cube } : {}), revision: previous.revision + 1 }
-      const next = this.agents.map(row => row.id === id ? agent : row)
+      const agent: UserAgentConfig = { ...previous, cube, revision: previous.revision + 1 }
+      const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
       this.syncCubeGrants()
@@ -121,16 +217,30 @@ export class UserAgents {
       return this.view(agent)
     })
   }
-  cubeSources() { return this.ctx.agentResources.cubeCatalog() }
-  setPluginCubeEnabled(sourceRef: string, enabled: boolean) { return this.ctx.agentResources.setCubeEnabled(sourceRef, enabled) }
+  cubeSources() {
+    return this.ctx.agentResources.cubeCatalog()
+  }
+  setPluginCubeEnabled(sourceRef: string, enabled: boolean) {
+    return this.ctx.agentResources.setCubeEnabled(sourceRef, enabled)
+  }
   async copyPlugin(sourceRef: string): Promise<UserAgentView> {
     const copy = await this.ctx.agentResources.copyable(sourceRef)
-    const saved = await this.save({ name: copy.name, description: copy.description, prompt: copy.prompt, enabled: true })
-    await this.saveSkills(saved.id, copy.skills)
-    return copy.cube ? this.saveCube(saved.id, copy.cube) : this.view(this.find(saved.id))
+    const value = saveAgent.parse({ name: copy.name, description: copy.description, prompt: copy.prompt, enabled: true })
+    const skills = agentSkills.parse(copy.skills)
+    return this.write(async () => {
+      const agent: UserAgentConfig = { ...value, id: randomUUID(), revision: 1, skills, ...(copy.cube ? { cube: copy.cube } : {}) }
+      const next = [...this.agents, agent]
+      await this.persist(next)
+      this.agents = next
+      this.syncCubeGrants()
+      await this.mcp?.agentsChanged(this.agents)
+      await this.publish(agent, true)
+      return this.view(agent)
+    })
   }
   async skillCatalog(cwd?: string, signal?: AbortSignal): Promise<UserAgentSkillOption[]> {
-    return (await this.ctx.skills.list({ cwd, signal })).filter(skill => skill.invocation.userInvocable || skill.invocation.modelInvocable)
+    return (await this.ctx.skills.list({ cwd, signal }))
+      .filter(skill => skill.invocation.userInvocable || skill.invocation.modelInvocable)
       .map(({ name, description, provider, path }) => ({ name, description, provider, ...(path ? { path } : {}) }))
   }
 
@@ -145,7 +255,7 @@ export class UserAgents {
     return this.write(async () => {
       const previous = this.find(id)
       const agent = { ...previous, skills, revision: previous.revision + 1 }
-      const next = this.agents.map(row => row.id === id ? agent : row)
+      const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
       this.syncCubeGrants()
@@ -158,6 +268,7 @@ export class UserAgents {
   setEnabled(id: string, enabled: boolean): Promise<UserAgentView> {
     return this.write(async () => {
       const agent = { ...this.find(id), enabled }
+      if (enabled && agent.source?.importPending) throw Error('AGENT_SOURCE_IMPORT_INCOMPLETE')
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
@@ -165,6 +276,37 @@ export class UserAgents {
       await this.mcp?.agentsChanged(this.agents)
       if (enabled) await this.publish(agent, true)
       else await this.withdraw(id)
+      return this.view(agent)
+    })
+  }
+
+  /** Retire only the personal configuration. Core owns all Sessions and drafts. */
+  remove(id: string): Promise<UserAgentView> {
+    return this.write(async () => {
+      const previous = this.find(id)
+      const agent = { ...previous, enabled: false, deletedAt: new Date().toISOString() }
+      const next = this.agents.map(row => (row.id === id ? agent : row))
+      await this.persist(next)
+      this.agents = next
+      this.syncCubeGrants()
+      await this.mcp?.agentsChanged(this.agents)
+      await this.withdraw(id)
+      return this.view(agent)
+    })
+  }
+
+  /** Restore configuration only; enabling its capabilities is a separate user action. */
+  restore(id: string): Promise<UserAgentView> {
+    return this.write(async () => {
+      const deleted = this.find(id, true)
+      if (!deleted.deletedAt) throw Error('USER_AGENT_NOT_DELETED')
+      const agent = { ...deleted, enabled: false }
+      delete agent.deletedAt
+      const next = this.agents.map(row => (row.id === id ? agent : row))
+      await this.persist(next)
+      this.agents = next
+      this.syncCubeGrants()
+      await this.mcp?.agentsChanged(this.agents)
       return this.view(agent)
     })
   }
@@ -182,18 +324,23 @@ export class UserAgents {
     await this.pending
     await this.mcp?.dispose()
     for (const id of this.releases.keys()) await this.withdraw(id)
+    this.listeners.clear()
   }
 
-  private find(id: string): UserAgentConfig {
+  private find(id: string, includeDeleted = false): UserAgentConfig {
     const agent = this.agents.find(row => row.id === id)
     if (!agent) throw Error('USER_AGENT_NOT_FOUND')
+    if (agent.deletedAt && !includeDeleted) throw Error('USER_AGENT_DELETED: restore configuration before enabling')
     return agent
   }
 
   private write<T>(action: () => Promise<T>): Promise<T> {
     const result = this.pending.then(() => {
       if (this.closed) throw Error('USER_AGENTS_DISPOSED')
-      return action()
+      return action().then(value => {
+        for (const listener of this.listeners) listener()
+        return value
+      })
     })
     this.pending = result.catch(() => {})
     return result
@@ -221,7 +368,25 @@ export class UserAgents {
           name: agent.name,
           description: agent.description
         },
-        { personaPrefix: agent.prompt, plugins: [{ id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills: agent.skills } }, ...(agent.cube?.enabled && grant ? [{ id: 'user-agent-cube-scope', name: 'cordis:group', group: true as const, isolate: { userAgentCube: true as const }, config: [{ id: 'user-agent-cube', name: 'dsh-agent-manage/user-agent-cube', config: { id: agent.id, sourceRef: agent.cube.sourceRef, generation: grant.generation } }] }] : [])] }
+        {
+          personaPrefix: agent.prompt,
+          plugins: [
+            { id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills: agent.skills } },
+            ...(agent.cube?.enabled && grant
+              ? [
+                  {
+                    id: 'user-agent-cube-scope',
+                    name: 'cordis:group',
+                    group: true as const,
+                    isolate: { userAgentCube: true as const },
+                    config: [
+                      { id: 'user-agent-cube', name: 'dsh-agent-manage/user-agent-cube', config: { id: agent.id, sourceRef: agent.cube.sourceRef, generation: grant.generation } }
+                    ]
+                  }
+                ]
+              : [])
+          ]
+        }
       )
     )
   }
@@ -260,7 +425,7 @@ export class UserAgents {
   }
 
   private async view(agent: UserAgentConfig): Promise<UserAgentView> {
-    let error = this.errors.get(agent.id)
+    let error = agent.source?.importPending ? 'AGENT_SOURCE_IMPORT_INCOMPLETE' : this.errors.get(agent.id)
     if (agent.enabled && !error) {
       try {
         await this.assertReady(agent.id)
@@ -268,6 +433,16 @@ export class UserAgents {
         error = failure instanceof Error ? failure.message : String(failure)
       }
     }
-    return { ...agent, origin: 'user', preset: this.preset(agent.id), publication: !agent.enabled ? 'disabled' : error ? 'failed' : 'ready', ...(error ? { error } : {}) }
+    return {
+      ...agent,
+      customized:
+        (agent.source !== undefined && (['name', 'description', 'prompt'] as const).some(key => agent[key] !== agent.source!.base[key])) ||
+        (agent.source !== undefined && JSON.stringify(agent.skills) !== JSON.stringify(agent.source.base.skills)),
+      origin: 'user',
+      preset: this.preset(agent.id),
+      publication: agent.deletedAt ? 'deleted' : agent.source?.importPending ? 'failed' : !agent.enabled ? 'disabled' : error ? 'failed' : 'ready',
+      defaultUnavailable: this.ctx.agentPresets.defaultId === this.preset(agent.id) && (!agent.enabled || !!error || !!agent.deletedAt),
+      ...(error ? { error } : {})
+    }
   }
 }

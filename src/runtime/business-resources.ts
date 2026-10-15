@@ -180,20 +180,42 @@ export class BusinessResources {
   /** Host-only projection; owner identity and Consumer never cross the UI interface. */
   cubeSource(id: string): { sourceRef: string; consumerCode: string; signal: AbortSignal } | undefined {
     const entry = this.entries.get(id)
-    if (this.closed || !entry?.definition.cube || entry.definition.enabled === false || entry.error || entry.owner.signal.aborted || this.cubeDisabled.has(id) || !this.versions.has(id)) return undefined
+    if (
+      this.closed ||
+      !entry?.definition.cube ||
+      entry.definition.enabled === false ||
+      entry.error ||
+      entry.owner.signal.aborted ||
+      this.cubeDisabled.has(id) ||
+      !this.versions.has(id)
+    )
+      return undefined
     return { sourceRef: id, consumerCode: entry.definition.profile.consumerCode, signal: entry.cube.signal }
   }
   cubeCatalog(): Array<{ sourceRef: string; name: string; enabled: boolean; available: boolean }> {
-    return [...this.entries.values()].filter(entry => entry.definition.cube && !entry.owner.signal.aborted)
-      .map(({ definition }) => ({ sourceRef: definition.id, name: definition.presetName ?? definition.label, enabled: !this.cubeDisabled.has(definition.id), available: !!this.cubeSource(definition.id) }))
+    return [...this.entries.values()]
+      .filter(entry => entry.definition.cube && !entry.owner.signal.aborted)
+      .map(({ definition }) => ({
+        sourceRef: definition.id,
+        name: definition.presetName ?? definition.label,
+        enabled: !this.cubeDisabled.has(definition.id),
+        available: !!this.cubeSource(definition.id)
+      }))
   }
   watch(listener: () => void): () => void {
     this.listeners.add(listener)
-    return () => { this.listeners.delete(listener) }
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+  private fail(entry: Entry, reason: string): void {
+    if (entry.error === reason) return
+    entry.error = reason
+    this.changed()
   }
   private changed(): void {
     for (const [id, entry] of this.entries) {
-      if (entry.owner.signal.aborted || entry.error || entry.definition.enabled === false || this.cubeDisabled.has(id)) entry.cube.abort()
+      if (this.closed || entry.owner.signal.aborted || entry.error || entry.definition.enabled === false || this.cubeDisabled.has(id)) entry.cube.abort()
       else if (entry.cube.signal.aborted) entry.cube = new AbortController()
     }
     for (const listener of this.listeners) listener()
@@ -204,9 +226,12 @@ export class BusinessResources {
       const entry = this.entries.get(id)
       if (!entry?.definition.cube || entry.owner.signal.aborted) throw Error('CUBE_SOURCE_UNAVAILABLE')
       const previous = this.cubeDisabled.has(id)
+      if (previous === !enabled) return
       if (enabled) this.cubeDisabled.delete(id)
       else this.cubeDisabled.add(id)
-      try { await this.persist() } catch (error) {
+      try {
+        await this.persist()
+      } catch (error) {
         if (previous) this.cubeDisabled.add(id)
         else this.cubeDisabled.delete(id)
         throw error
@@ -217,19 +242,30 @@ export class BusinessResources {
     })
   }
   /** Explicit copy contains only original instructions and permitted resource references. */
-  async copyable(id: string): Promise<{ name: string; description: string; prompt: string; skills: Array<{ kind: 'reference'; name: string; provider: string; path?: string; enabled: boolean }>; cube?: { sourceRef: string; enabled: boolean } }> {
+  async copyable(id: string): Promise<{
+    name: string
+    description: string
+    prompt: string
+    skills: Array<{ kind: 'reference'; name: string; provider: string; path?: string; enabled: boolean }>
+    cube?: { sourceRef: string; enabled: boolean }
+  }> {
     const entry = this.entries.get(id)
     if (!entry?.definition.cube) throw Error('CUBE_SOURCE_UNAVAILABLE')
     await this.serialize(() => this.mountPrompt(id, new AbortController().signal))
     const d = entry.definition
     const skills = await this.ctx.skills.list()
-    if (entry.owner.signal.aborted || entry.error) throw Error('CUBE_SOURCE_UNAVAILABLE')
-    return { name: d.presetName ?? d.label, description: promptDescription(d), prompt: entry.instructions!,
+    if (entry.owner.signal.aborted || entry.error || !entry.instructions) throw Error('CUBE_SOURCE_UNAVAILABLE')
+    return {
+      name: d.presetName ?? d.label,
+      description: promptDescription(d),
+      prompt: entry.instructions,
       skills: d.profile.skills.map(name => {
         const skill = skills.find(skill => skill.name === name)
         if (!skill) throw Error(`AGENT_SKILL_SOURCE_MISSING: ${name}`)
         return { kind: 'reference', name, provider: skill.provider, ...(skill.path ? { path: skill.path } : {}), enabled: true }
-      }), cube: { sourceRef: id, enabled: !!this.cubeSource(id) } }
+      }),
+      cube: { sourceRef: id, enabled: !!this.cubeSource(id) }
+    }
   }
   /** Only a selected, validated original profile can contribute extra page interpreters. */
   interpreters(id: string): readonly string[] {
@@ -333,7 +369,11 @@ export class BusinessResources {
   private async persist(): Promise<void> {
     await mkdir(dirname(this.indexFile), { recursive: true })
     const temporary = this.indexFile + '.tmp'
-    await writeFile(temporary, JSON.stringify({ version: 1, selected: [...this.selected].sort(), cubeDisabled: [...this.cubeDisabled].sort() }) + '\n', { mode: 0o600 })
+    await writeFile(
+      temporary,
+      JSON.stringify({ version: 1, selected: [...this.selected].sort(), ...(this.cubeDisabled.size ? { cubeDisabled: [...this.cubeDisabled].sort() } : {}) }) + '\n',
+      { mode: 0o600 }
+    )
     await rename(temporary, this.indexFile)
   }
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
@@ -448,8 +488,7 @@ export class BusinessResources {
       entry.instructions = profile.persona
       this.changed()
     } catch (error) {
-      entry.error = String(error)
-      this.changed()
+      this.fail(entry, String(error))
       await this.unmount(id)
       throw error
     }
@@ -481,8 +520,7 @@ export class BusinessResources {
           })
         } catch (error) {
           options.signal?.throwIfAborted()
-          entry.error = `${name}: ${String(error)}`
-          this.changed()
+          this.fail(entry, `${name}: ${String(error)}`)
           continue
         }
       }
@@ -506,8 +544,7 @@ export class BusinessResources {
       return { ...candidate, content: stripFrontmatter(raw), invocation: parsed.invocation }
     } catch (error) {
       options.signal?.throwIfAborted()
-      entry.error = `${locator.name}: ${String(error)}`
-      this.changed()
+      this.fail(entry, `${locator.name}: ${String(error)}`)
       return undefined
     }
   }
@@ -529,8 +566,8 @@ export class BusinessResources {
   async dispose(): Promise<void> {
     if (!this.closed) {
       this.closed = true
-    for (const entry of this.entries.values()) entry.cube.abort()
-    this.changed()
+      for (const entry of this.entries.values()) entry.cube.abort()
+      this.changed()
       this.lifetime.abort()
       for (const entry of this.entries.values()) entry.owner.abort()
       this.unregisterProvider()

@@ -46,10 +46,27 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 
 完整个人 Agent 由 `UserAgents` 持有，与目录角色、已选择业务身份分别保存。统一配置发布 interface 串行写入 `user-agents.json`，校验外部输入，并通过 standard 组合将启用配置以稳定的 `user-agent-<id>` 身份注册。改名不改身份；持久保存与注册、resolve 分别处理。发布失败保留可编辑配置、诊断以及已有的最后可用声明。Host 启动恢复启用声明，Loader 激活完成后再核可用性。Core 的既有 generation 保留运行中 Session 的 revision。
 
-主入口和设置共用 Agent 页，替换六 Tab 工作区入口。经认证的 Host Fetch 提供列表、保存、启停和选择；显式选择不修改默认或已有 Session。Workbench 的公开 `startAgent` 负责原生工作区和 Session 导航。每 Agent Skill 组合见下节，MCP、导入同步及删除由后续切片完成。
+主入口和设置共用 Agent 页，替换六 Tab 工作区入口。经认证的 Host Fetch 提供列表、保存、启停和选择；显式选择不修改默认或已有 Session。Workbench 的公开 `startAgent` 负责原生工作区和 Session 导航。每 Agent Skill 组合见下节，MCP 和导入同步由后续切片完成。
 
 ## 个人 Agent 的 Skill 作用域
 
 `UserAgents` 随 Agent 配置持久保存 Skill 引用和个人正文。引用保存获胜 provider 与可选源路径；来源缺失或改变时，发布与读取明确拒绝。个人定制保留原引用的资源目录，不写回受管源。`dsh-agent-manage/user-agent-skills` 在官方预设作用域内贡献配置，复用全局 provider 读取，允许选中且启用的引用，并将未选中或停用的全局 Skill 的两种调用策略设为停用。standard 声明及其原生作用域资源保留，Core 为已有 Session 保留旧 revision 作用域。
 
 Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取消只丢弃本地编辑；保存失败保留表单。卸载时取消读取并忽略迟到结果。生产 Core Session 测试覆盖来源选择、作用域目录与工具实际调用，不证明已安装客户端或外部模型验收。
+
+## 个人 Agent 停用、删除与恢复
+
+停用从 Core 选择目录撤下预设，不改变宿主默认、Session 或草稿。删除在同一个人配置中写入 `deletedAt` 和 `enabled: false`，保留稳定 ID、提示词与依赖引用。删除记录在显式恢复前拒绝保存、能力编辑、启用与选择。恢复仅清除删除标记，配置仍停用。配置页直接提供恢复、依赖检查及返回列表另选 Agent 新建对话的入口。不可用的默认值单独提示，不修改宿主设置。
+
+`UserAgents.watch` 在配置及生命周期提交后发出通知。能力消费者读取同一配置并 reconcile，不另建状态权威。写队列不等待监听器，监听器应安排异步读取且不抛错。这是配置生命周期，不拥有 Session 或业务授权。恢复后来源仍缺失时，发布与冷恢复继续拒绝，恢复操作不重建被撤销的授权。
+
+固定官方 Core 能为运行中 Session 保留 revision，但没有独立的可选标记或持久历史 revision 注册。撤下后冷恢复会明确失败，直到用户显式恢复、启用保留配置并补齐依赖。此后恢复组合保留的当前配置，持久空白 Session 复用也核原 preset；不承诺编辑后重建过去的 revision。精确历史修订需要由 Core 提供持久 revision/可用性 interface，Manage 不增加 Session sidecar、不替换为 standard、不修改保护中的 Core。测试覆盖认证配置操作、真实 Core 持久化与重启，以及官方客户端草稿输入；实际客户端装载和外部模型验收分别处理。
+
+
+## 可信 Cube 引用
+
+仅 GEA Host 登记可将已安装的 BusinessResources 来源标记为 Cube 能力。`cubeSource` 直接读取当前可用性、Consumer 与 owner 撤销信号，不扫描 Skill 目录。前台目录只返回来源 ID、名称、启用意图与可用性。插件成员固定，只允许切换 Cube 启停。显式复制仅生成个人提示词正文及获准的 Skill、Cube 引用，不复制业务 profile、跨 Consumer 路由或页面动作。
+
+个人配置最多持久保存一个 `{ sourceRef, enabled }` 引用。原生预设挂载隔离的 `userAgentCube` 声明，Core 公开 `serviceFor(actualAgent, ...)` 读取实际 Session 保留的 revision，子 Agent 继承相同声明。UserAgents 按当前启停、删除和引用状态撤销授权，沿已有生命周期 watch 通知。提示词或 Skill 更新保留旧会话引用；移除或停用立即中止旧授权，重新添加也不会恢复旧授权。
+
+GEA 按当前身份反查来源 owner 与 Consumer。发现和调用在异步步骤前后复核相同归属，身份、关联或 owner 信号撤销在途调用；替换来源即使 Consumer 相同也拒绝旧结果。v2 bridge 保留服务端原始 schema 与首轮 publication 就绪等待；生命周期和来源变化立即刷新 schema mask。个人引用只授予两项 Cube 工具，子 Agent 继续受 Core 工具过滤交集约束，不注册业务 profile。源码及 Core 测试不证明实际客户端或真实业务验收。

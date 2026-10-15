@@ -21,5 +21,7 @@ export const userAgentApi = {
   saveSkills: (id: string, skills: UserAgentSkill[], signal?: AbortSignal) => request<UserAgentView>(USER_AGENT_ROUTES.skills, { id, skills }, signal),
   save: (value: SaveUserAgent) => request<UserAgentView>(USER_AGENT_ROUTES.save, value),
   setEnabled: (id: string, enabled: boolean) => request<UserAgentView>(USER_AGENT_ROUTES.enabled, { id, enabled }),
+  remove: (id: string) => request<UserAgentView>(USER_AGENT_ROUTES.remove, { id }),
+  restore: (id: string) => request<UserAgentView>(USER_AGENT_ROUTES.restore, { id }),
   select: (id: string) => request<{ preset: string }>(USER_AGENT_ROUTES.select, { id })
 }

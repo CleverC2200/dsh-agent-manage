@@ -63,6 +63,7 @@ function normalizeState(record: Record<string, unknown>): SuiteState {
       const entry = value as Record<string, unknown>
       installed[key] = {
         enabled: entry['enabled'] === true,
+        ...(entry['configurationOnly'] === true ? { configurationOnly: true as const } : {}),
         lockCommit: typeof entry['lockCommit'] === 'string' ? entry['lockCommit'] : undefined,
         installedAt: typeof entry['installedAt'] === 'string' ? entry['installedAt'] : new Date(0).toISOString(),
         ...parseSurfaceOverrides(entry['surfaces'])

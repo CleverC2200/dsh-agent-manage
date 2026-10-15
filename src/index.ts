@@ -1,3 +1,5 @@
+import { AgentSources } from './runtime/agent-sources.js'
+import { mountAgentSourceRoutes } from './runtime/agent-source-routes.js'
 /** 文件作用：插件宿主入口，注册技能提供器、运行时协调器、市场 HTTP 路由和项目级资源挂载。 */
 /**
  * dsh-agent-plugins-market host entry: the Agent Plugins Market manager.
@@ -167,6 +169,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     await userAgents.load()
     host.effect(() => () => userAgents.dispose())
     mountUserAgentRoutes(host, userAgents)
+    mountAgentSourceRoutes(host, new AgentSources(catalog, userAgents))
     const businessResources = new BusinessResources(host, resolve(dataRoot, 'selected-resources.json'))
     await businessResources.load()
     const releaseBusinessSkills = await businessResources.register([

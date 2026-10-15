@@ -26,10 +26,17 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
             else if (path === 'skillCatalog' || path === 'skillRead') {
               const query = new URL(request.url).searchParams
               const cwd = query.get('cwd') ?? undefined
-              result = path === 'skillCatalog' ? await agents.skillCatalog(cwd, request.signal)
-                : await agents.readSkill(z.string().min(1).parse(query.get('name')), z.string().min(1).parse(query.get('provider')), cwd, request.signal, query.get('path') ?? undefined)
-            }
-            else {
+              result =
+                path === 'skillCatalog'
+                  ? await agents.skillCatalog(cwd, request.signal)
+                  : await agents.readSkill(
+                      z.string().min(1).parse(query.get('name')),
+                      z.string().min(1).parse(query.get('provider')),
+                      cwd,
+                      request.signal,
+                      query.get('path') ?? undefined
+                    )
+            } else {
               const input = await readJsonRequest(request)
               if (path.startsWith('mcp') && !agents.mcp) throw Error('AGENT_MCP_RUNTIME_UNAVAILABLE')
               if (path === 'mcpAvailable') result = agents.mcp!.available(z.object({ agentId: z.uuid() }).strict().parse(input).agentId)
@@ -42,11 +49,19 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
                 const value = z.object({ id: z.uuid(), cube: z.unknown() }).strict().parse(input)
                 result = await agents.saveCube(value.id, value.cube)
               } else if (path === 'cubeEnabled') {
-                const value = z.object({ sourceRef: z.string().min(1), enabled: z.boolean() }).strict().parse(input)
+                const value = z
+                  .object({ sourceRef: z.string().min(1), enabled: z.boolean() })
+                  .strict()
+                  .parse(input)
                 await agents.setPluginCubeEnabled(value.sourceRef, value.enabled)
                 result = agents.cubeSources()
               } else if (path === 'pluginCopy') {
-                result = await agents.copyPlugin(z.object({ sourceRef: z.string().min(1) }).strict().parse(input).sourceRef)
+                result = await agents.copyPlugin(
+                  z
+                    .object({ sourceRef: z.string().min(1) })
+                    .strict()
+                    .parse(input).sourceRef
+                )
               } else if (path === 'save') result = await agents.save(input)
               else if (path === 'skills') {
                 const value = z.object({ id: z.uuid(), skills: z.unknown() }).parse(input)
@@ -54,7 +69,9 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
               } else if (path === 'enabled') {
                 const { id, enabled } = action.parse(input)
                 result = await agents.setEnabled(id, enabled)
-              } else result = await agents.select(selection.parse(input).id)
+              } else if (path === 'remove') result = await agents.remove(selection.parse(input).id)
+              else if (path === 'restore') result = await agents.restore(selection.parse(input).id)
+              else result = await agents.select(selection.parse(input).id)
             }
             return Response.json(result, { headers: { 'cache-control': 'no-store' } })
           } catch (error) {

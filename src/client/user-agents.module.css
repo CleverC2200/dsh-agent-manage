@@ -31,3 +31,41 @@
 .error { color:var(--workbench-danger,#b42318); white-space:pre-wrap; overflow-wrap:anywhere; }
 .muted { color:var(--workbench-muted,#7e8590); }
 @media(max-width:650px) { .workspace { padding:24px 18px; } .heading { gap:8px; } .row { gap:8px; } .row .icon { display:none; } .row > button { font-size:12px; padding:6px; } }
+
+.source {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--workbench-border, #dfe1e6);
+}
+.source p {
+  margin: 4px 0;
+}
+.sourceAddress {
+  overflow-wrap: anywhere;
+}
+.sourceFields {
+  border: 0;
+  padding: 16px 0 0;
+  margin: 0;
+  min-width: 0;
+}
+.sourceFields legend {
+  padding: 0;
+  font-weight: 600;
+}
+.sourceFields select {
+  display: block;
+  font: inherit;
+  color: inherit;
+  background: var(--workbench-bg, #fff);
+  border: 1px solid var(--workbench-border, #dfe1e6);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+.sourceFields select:focus-visible {
+  outline: 2px solid #4c8dff;
+  outline-offset: 2px;
+}
+
+.pluginRow { flex-wrap: wrap; }
+.pluginRow .title { min-width: 0; flex-basis: 160px; overflow-wrap: anywhere; }
