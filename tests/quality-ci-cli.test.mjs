@@ -389,8 +389,8 @@ test('regional page source selects its Manage resource contract without unrelate
   fixture.change('static/regional/source/index.html')
   const plan = fixture.select()
   assert.deepEqual(plan.reasons['dsh-agent-workbench/static/regional/source/index.html'], ['tests/business-resources.test.ts'])
-  assert.deepEqual(plan.files, ['tests/business-resources.test.ts', 'tests/market-contracts.test.ts', 'tests/routes.test.ts'])
-  assert.deepEqual(plan.required, ['tests/market-contracts.test.ts', 'tests/routes.test.ts'])
+  assert.deepEqual(plan.files, ['tests/agent-mcp.test.ts', 'tests/business-resources.test.ts', 'tests/routes.test.ts'])
+  assert.deepEqual(plan.required, ['tests/agent-mcp.test.ts', 'tests/routes.test.ts'])
 })
 
 test('category page source selects the same Manage resource contract', async t => {
@@ -398,7 +398,7 @@ test('category page source selects the same Manage resource contract', async t =
   fixture.change('static/category/source/app.js')
   const plan = fixture.select()
   assert.deepEqual(plan.reasons['dsh-agent-workbench/static/category/source/app.js'], ['tests/business-resources.test.ts'])
-  assert.deepEqual(plan.files, ['tests/business-resources.test.ts', 'tests/market-contracts.test.ts', 'tests/routes.test.ts'])
+  assert.deepEqual(plan.files, ['tests/agent-mcp.test.ts', 'tests/business-resources.test.ts', 'tests/routes.test.ts'])
 })
 
 test('MPS page source selects its dedicated resource reception contract', async t => {
@@ -406,7 +406,7 @@ test('MPS page source selects its dedicated resource reception contract', async 
   fixture.change('static/mps/source/app.js')
   const plan = fixture.select()
   assert.deepEqual(plan.reasons['dsh-agent-workbench/static/mps/source/app.js'], ['tests/mps-resource-reception.test.ts'])
-  assert.deepEqual(plan.files, ['tests/market-contracts.test.ts', 'tests/mps-resource-reception.test.ts', 'tests/routes.test.ts'])
+  assert.deepEqual(plan.files, ['tests/agent-mcp.test.ts', 'tests/mps-resource-reception.test.ts', 'tests/routes.test.ts'])
 })
 
 test('unregistered source and neighbouring static directories remain unmapped', async t => {
@@ -437,10 +437,10 @@ test('a Manage policy edit runs the static resource consumers in its own source 
   fixture.change('scripts/ci-test-policy.json', fixture.own)
   const plan = fixture.select()
   assert.deepEqual(plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'], [
+    'tests/agent-mcp.test.ts',
     'tests/business-resources.test.ts',
-    'tests/market-contracts.test.ts',
     'tests/mps-resource-reception.test.ts',
     'tests/routes.test.ts'
   ])
-  assert.deepEqual(plan.files, ['tests/business-resources.test.ts', 'tests/market-contracts.test.ts', 'tests/mps-resource-reception.test.ts', 'tests/routes.test.ts'])
+  assert.deepEqual(plan.files, ['tests/agent-mcp.test.ts', 'tests/business-resources.test.ts', 'tests/mps-resource-reception.test.ts', 'tests/routes.test.ts'])
 })
