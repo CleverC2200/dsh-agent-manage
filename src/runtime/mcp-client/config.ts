@@ -9,7 +9,6 @@
  *
  * @module runtime/mcp-client/config
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import type { ReconnectConfig } from './connection.js'
 import type { McpServerPolicy } from '../../model/types.js'
@@ -17,11 +16,9 @@ export type { ReconnectConfig, ResolvedReconnectPolicy } from './connection.js'
 export { RECONNECT_DEFAULTS } from './connection.js'
 
 /** Default timeout for individual MCP tool calls (ms). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const DEFAULT_TOOL_CALL_TIMEOUT_MS = 60_000
 
 /** Valid `serverName`, kept below the public tool-name budget. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/
 
 /**
@@ -29,10 +26,8 @@ export const SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/
  * binds `127.0.0.1`; port `0` (the default) picks an ephemeral port, which
  * RFC 8252 §7.3 loopback redirects permit.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface OAuthStorageConfig {
   /** Fixed loopback port for the authorization redirect; `0` picks one ephemally. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   callbackPort?: number
 }
 
@@ -47,84 +42,60 @@ export interface OAuthStorageConfig {
  * provider only activates on a `401`), so a suite needs no OAuth declaration
  * for the flow to work.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface OAuthConfig {
   /** Enable the OAuth flow (default `true`; set `false` to opt out explicitly). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   enabled?: boolean
   /** Space-separated scope string requested during authorization, when the server needs one. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   scope?: string
   /** Loopback callback tuning; omission uses an ephemeral port and the defaults. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   storage?: OAuthStorageConfig
 }
 
 /** Config for connecting to an MCP server via a spawned child process over stdio. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface StdioConfig extends McpServerPolicy {
   /** Selects child-process stdio transport. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   transport: 'stdio'
   /**
    * Stable local namespace for this server's model-facing tool names
    * (`mcp__<serverName>__<rawName>`). Must match `[A-Za-z0-9_-]{1,32}` and be
    * unique across live bridge instances.
    */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   serverName: string
   /** Executable used to start the server. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   command: string
   /** Arguments passed directly, without shell interpolation. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   args: string[]
   /** Extra env vars merged on top of scrubbed ambient env. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   env: Record<string, string>
   /** Working directory for the child process. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   cwd: string
   /** Per-tool-call timeout in milliseconds. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   reconnect?: ReconnectConfig
 }
 
 /** Config for connecting to an MCP server over Streamable HTTP. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface StreamableHttpConfig extends McpServerPolicy {
   /** In-process transport capability; never read from or persisted to suite configuration. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   fetch?: typeof fetch
   /** Selects Streamable HTTP transport. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   transport: 'streamable-http'
   /** Stable local namespace — see {@link StdioConfig.serverName}. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   serverName: string
   /** MCP endpoint URL. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   url: string
   /** Additional headers attached to MCP requests. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   headers: Record<string, string>
   /** OAuth 2.1 authorization (default enabled — see {@link OAuthConfig}); set `enabled: false` to opt out. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   auth?: OAuthConfig
   /** Per-tool-call timeout in milliseconds. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   reconnect?: ReconnectConfig
 }
 
@@ -133,40 +104,29 @@ export interface StreamableHttpConfig extends McpServerPolicy {
  * (the pre-Streamable-HTTP protocol some older servers still speak). The SDK
  * owns the protocol pairing; OAuth semantics mirror the Streamable HTTP case.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface SseConfig extends McpServerPolicy {
   /** Selects the legacy HTTP+SSE transport. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   transport: 'sse'
   /** Stable local namespace — see {@link StdioConfig.serverName}. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   serverName: string
   /** SSE endpoint URL the server advertises. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   url: string
   /** Additional headers attached to both the SSE stream and endpoint requests. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   headers: Record<string, string>
   /** OAuth 2.1 authorization (default enabled — see {@link OAuthConfig}). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   auth?: OAuthConfig
   /** Per-tool-call timeout in milliseconds. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   reconnect?: ReconnectConfig
 }
 
 /** Configuration for one stdio, Streamable HTTP, or legacy SSE MCP server. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type Config = StdioConfig | StreamableHttpConfig | SseConfig
 
 /** All transports carry these fields; narrows the union without a switch. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface ConfigFields extends McpServerPolicy {
   serverName: string
   toolCallTimeoutMs: number

@@ -1,6 +1,5 @@
 /** 文件作用：把 Codex TOML MCP 表转换为统一传输、凭据和启停策略。 */
 /** Codex TOML MCP tables normalize into the existing transport and credential contracts. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import type { McpServer, McpServerPolicy } from '../model/types.js'
 import { PLUGIN_DATA_VARIABLES, PLUGIN_ROOT_VARIABLES } from '../model/layouts.js'
 

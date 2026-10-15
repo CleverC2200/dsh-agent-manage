@@ -1,6 +1,5 @@
 /** 文件作用：解析套件组件声明，统一得到受根目录约束的 Markdown/JSON 资源。 */
 /** Resolve declared component files once; all consumers use the same contained resource paths. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readFile, readdir, realpath, stat } from 'node:fs/promises'
 import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { SuiteMarkdownResource } from '../model/types.js'
@@ -89,7 +88,6 @@ export async function discoverMarkdownResources(
         } else {
           const metadata = Object.fromEntries(Object.entries(spec).filter(([key]) => !['source', 'content'].includes(key)))
           // JSON is a YAML subset, preserving command metadata without string-built YAML scalars.
-          // 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
           add({ name, file: manifestPath, content: `---\n${JSON.stringify(metadata)}\n---\n${spec.content as string}` })
         }
       }

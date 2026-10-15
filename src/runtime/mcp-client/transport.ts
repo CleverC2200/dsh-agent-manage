@@ -9,7 +9,6 @@
  *
  * @module runtime/mcp-client/transport
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
@@ -31,7 +30,6 @@ function buildChildEnv(extra: Record<string, string>): Record<string, string> {
 }
 
 /** A transport that can complete an OAuth browser leg inside its own generation. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 type AuthCapableTransport = Transport & { finishAuth(code: string): Promise<void> }
 
 /** Whether the headers carry a static `Authorization` (a token flow, not OAuth). */
@@ -98,7 +96,6 @@ export function createTransport(
       // object, so the cast records only that widening. `finishAuth` is
       // public on the SDK class and completes the browser leg's code
       // exchange inside this transport generation.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       const transport = new StreamableHTTPClientTransport(new URL(config.url), {
         ...(config.fetch === undefined ? {} : { fetch: config.fetch }),
         requestInit: { headers: config.headers },
@@ -114,7 +111,6 @@ export function createTransport(
       // every endpoint POST (its `_commonHeaders` merge), so no separate
       // `eventSourceInit` headers wiring is needed — and omitting it keeps
       // the SDK's automatic Authorization injection on 401 retries intact.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       const transport = new SSEClientTransport(new URL(config.url), {
         requestInit: { headers: config.headers },
         ...(oauthProvider === undefined ? {} : { authProvider: oauthProvider })

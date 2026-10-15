@@ -1,6 +1,5 @@
 /** 文件作用：把可用子 Agent 目录发布到会话前置步骤，并避免重复发布。 */
 /** Durable role catalogs follow DSH tool-skill's pre-step publication and session-surface recovery. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm'
@@ -8,7 +7,6 @@ import type { HostTranslate } from './host-locale.js'
 
 export interface SubagentCatalogEntry {
   /** Exact execution identity, independent of the human-readable title. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   name: string
   title: string
   description: string
@@ -31,7 +29,6 @@ declare module '@deepseek-ai/dsh-llm' {
 }
 
 /** Structural host contract avoids a second installation of the agent/session runtimes. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface CatalogAgent {
   session: {
     seq: number

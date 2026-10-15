@@ -11,7 +11,6 @@
  * broken command file or an unavailable `ctx.commands` is contained per
  * command and reported as a diagnostic.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import type { Context } from '@deepseek-ai/cordis'
 import { parse as parseYaml } from 'yaml'
 import { stripFrontmatter } from '../catalog/skills-parse.js'
@@ -71,7 +70,6 @@ export class CommandMountRegistry {
       for (const spec of specs) {
         // The registry key is source-qualified: bare suite ids are unique per
         // source only, so two sources' same-named suites would collide.
-        // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         const suiteKey = qualifiedSuiteId(suite.sourceId, suite.id)
         const key = `${suiteKey}/${spec.name}`
         if (wanted.has(key)) {

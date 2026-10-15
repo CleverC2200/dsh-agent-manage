@@ -10,15 +10,12 @@
  * fail-closed per suite: a broken server spec degrades to a diagnostic, never
  * a thrown discovery.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import type { LspServerSpec } from '../model/types.js'
 
 /** Claude Code-specific keys this integration intentionally ignores. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const CC_ONLY_KEYS = new Set(['startupTimeout'])
 
 /** Keys accepted by the normalized spec; anything else is reported as ignored. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const KNOWN_KEYS = new Set(['command', 'args', 'extensionToLanguage', 'env', 'initializationOptions', 'configuration', ...CC_ONLY_KEYS])
 
 /** Parse one inline `lspServers` table into normalized specs plus diagnostics. */
@@ -95,7 +92,6 @@ function parseExtensionToLanguage(key: string, raw: unknown, errors: string[]): 
     }
     // Case-variant spellings of one extension (clangd's `.c`/`.C`) collapse
     // silently: normalization makes them the same key, and the first id wins.
-    // 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
     if (mapping[normalized] !== undefined) continue
     mapping[normalized] = languageId
   }

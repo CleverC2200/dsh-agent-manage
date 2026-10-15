@@ -13,52 +13,41 @@
  * optional `whenToUse`, `tools`, `model`, `disabled`).
  * @module runtime/user-panels
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import { join } from 'node:path'
 import type { SkillCandidate, SkillDefinition, SkillLookupOptions, SkillProvider, SkillSource } from '@deepseek-ai/dsh-skill'
 import { deleteEntryFile, entryExists, listEntryFiles, readEntryFile, USER_ENTRY_NAME, userEntryDir, writeEntryFile, type UserEntryFile } from './user-store.js'
 import type { HostTranslate } from './host-locale.js'
 /** The skill-source label user-panel entries carry into the skill registry. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const USER_PANEL_SKILL_SOURCE = 'user-panel' satisfies SkillSource
 
 /** Ranks sit behind every shipped root so real files always win a name clash. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const USER_PANEL_RANK = 600
 
 /** A user panel entry as the HTTP layer serializes it. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface UserPanelEntry {
   /** Entry identity: the file's base name. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   name: string
   description: string
   /** True when the entry is disabled through its `disabled` frontmatter key. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   disabled: boolean
   /** The parsed frontmatter record (name, description, hint, tools, model, …). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   metadata: Record<string, unknown>
   /** Absolute file path. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   path: string
   /** The body after frontmatter removal. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   content: string
   rawText: string
   origin: 'user'
 }
 
 /** Throwing CRUD over one panel directory, shared by the three panels. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export class UserPanelStore {
   /** 绑定数据根、面板类型和翻译器，形成一个面板独立存储边界。 */
   constructor(
     private readonly dataRoot: string,
     private readonly kind: 'skills' | 'commands' | 'agents',
     /** Extra name grammar for this panel (runs after USER_ENTRY_NAME). */
-    /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
     private readonly extraNameCheck: (name: string) => boolean = () => true
   ) {}
 
@@ -178,7 +167,6 @@ interface UserSkillLocator {
  * Skill provider over user skills only. Agent definitions belong to the
  * subagent catalog and never become skill candidates or slash entries.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export class UserPanelSkillProvider implements SkillProvider {
   readonly name = 'user-panel'
 

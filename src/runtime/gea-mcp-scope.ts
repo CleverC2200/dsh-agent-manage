@@ -1,13 +1,11 @@
 /** 文件作用：按 Agent 预设限制 GEA MCP 工具的可见性和调用范围。 */
 /** Agent-preset boundary for the login-owned gateway; never trusts prompt text. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface GeaScopeAgent {
   id?: string
   ctx: { tools: { restrict(filter: { deny: string[] }): () => void } }
 }
 
 /** Minimal host capability needed to mask schemas and deny stale tool calls. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface GeaScopeHost {
   agents: { list(): GeaScopeAgent[] }
   agentPresets: { composedPreset(ctx: GeaScopeAgent['ctx']): string | undefined }
@@ -61,7 +59,6 @@ export function restrictGeaMcp(host: GeaScopeHost, permits: (agent: GeaScopeAgen
         const old = masks.get(agent)
         if (old?.key === key) continue
         // Install replacement first, so a tool generation never opens a visibility gap.
-        // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         const dispose = deny.length > 0 ? agent.ctx.tools.restrict({ deny }) : () => {}
         masks.set(agent, { key, dispose })
         old?.dispose()

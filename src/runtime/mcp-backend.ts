@@ -17,36 +17,28 @@ import { createRequire } from 'node:module'
 import z from '@deepseek-ai/schemastery'
 
 /** The MCP mount backend the market uses for suite servers. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type McpBackend = 'builtin' | 'host'
 
 export const MCP_BACKENDS: readonly McpBackend[] = ['builtin', 'host']
 
 /** Shipped Loader entry id used by the native plugin-config card. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const MCP_SETTINGS_NAMESPACE = 'dsh-agent-manage'
 
 /** Schema of the market settings namespace: the MCP enhancement switch, the download region, and the feedback tool switch. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const MarketSettingsFields = {
   /** ON (default) = the built-in bridge with OAuth and SSE; OFF = host client compat mode. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   mcpEnhanced: z.boolean().default(true),
   /** Read native Agent layouts under the project root; default preserves existing discovery. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   scanProjectLayouts: z.boolean().default(true),
   /** Download region for GitHub acquisition; `auto` follows the interface language. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   downloadRegion: z.union([z.const('auto'), z.const('global'), z.const('china')]).default('auto'),
   /** ON (default) = the `report_market_issue` model tool is registered; OFF = unregistered. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   feedbackEnabled: z.boolean().default(true)
 }
 
 export const MarketSettingsSchema = z.object(MarketSettingsFields)
 
 /** What the host client probe reports: resolvability plus its version. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface HostMcpClientProbe {
   available: boolean
   version?: string

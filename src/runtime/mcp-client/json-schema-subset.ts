@@ -15,14 +15,11 @@
  *
  * @module runtime/mcp-client/json-schema-subset
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 /** Scalar JSON values supported by `enum` and `const`. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type JsonSchemaScalar = string | number | boolean | null
 
 /** Single-type keywords accepted by the enforced subset. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type JsonSchemaType = 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null'
 
 /**
@@ -30,51 +27,36 @@ export type JsonSchemaType = 'object' | 'array' | 'string' | 'number' | 'integer
  * the external wire schema; {@link assertSupportedJsonSchema} rejects invalid
  * combinations before a caller treats the node as trusted.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface JsonSchemaNode {
   /** Omit with no constraints for any JSON value, or use `oneOf`. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   type?: JsonSchemaType
   /** Exactly one branch must validate; at least two branches are required. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   oneOf?: JsonSchemaNode[]
   /** Nested property schemas (`type: 'object'` only). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   properties?: Record<string, JsonSchemaNode>
   /** Required property names; each must appear in `properties`. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   required?: string[]
   /** `false` rejects undeclared keys; absent/`true` follows JSON Schema's open default. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   additionalProperties?: boolean
   /** Item schema (`type: 'array'` only); absent accepts any JSON item. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   items?: JsonSchemaNode
   /** Allowed values for a scalar node. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   enum?: JsonSchemaScalar[]
   /** The single allowed value for a scalar node. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   const?: JsonSchemaScalar
   /** Annotation, ignored for validation. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   description?: string
   /** Annotation, ignored for validation. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   title?: string
   /** Annotation, ignored for validation but required to be lossless JSON. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   default?: JsonSchemaScalar | Record<string, unknown> | unknown[]
   /** Annotation, ignored for validation but required to be lossless JSON. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   examples?: JsonSchemaScalar | Record<string, unknown> | unknown[]
 }
 
 /** Constraint keywords the subset enforces; anything else rejects. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const CONSTRAINT_KEYWORDS = new Set(['type', 'oneOf', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const'])
 /** Annotation keywords accepted but never enforced. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const ANNOTATION_KEYWORDS = new Set(['description', 'title', 'default', 'examples'])
 const SCHEMA_TYPES: readonly JsonSchemaType[] = ['object', 'array', 'string', 'number', 'integer', 'boolean', 'null']
 
@@ -117,7 +99,6 @@ function scalarMatches(schemaType: JsonSchemaType | undefined, value: JsonSchema
     case 'null':
       return value === null
     /* v8 ignore next -- scalar values never satisfy the container types */
-    /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
     case 'object':
     case 'array':
       return false

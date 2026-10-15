@@ -15,7 +15,6 @@
  * on the next reconcile pass.
  * @module runtime/feedback-tool
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -24,20 +23,16 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView } from '@deepseek-ai/dsh-tools'
 
 /** The GitHub repository experience feedback files issues against. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const FEEDBACK_REPO_OWNER = 'CleverC2200'
 export const FEEDBACK_REPO_NAME = 'dsh-agent-manage'
 
 /** Label applied to every tool-filed issue so they are filterable. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const FEEDBACK_LABEL = 'agent-feedback'
 
 /** Minimum milliseconds between two accepted submissions (burst guard). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const SUBMIT_COOLDOWN_MS = 60_000
 
 /** Host surface this plugin needs for the feedback tool. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface ToolsHost {
   tools?: {
     register(definition: unknown): () => void
@@ -45,25 +40,20 @@ interface ToolsHost {
 }
 
 /** One accepted or rejected submission outcome, mirrored to the model. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface FeedbackOutcome {
   ok: boolean
   /** Where the report went: the issue URL, or the local fallback path label. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   location?: string
   reason?: string
 }
 
 /** A structured experience report the model composes. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface FeedbackReport {
   title: string
   description: string
   /** What the user was trying to do, when the model can tell. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   expected?: string
   /** What actually happened (errors, wrong state, broken flow). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   actual?: string
 }
 
@@ -90,7 +80,6 @@ export async function submitFeedback(dataRoot: string, report: FeedbackReport, n
     } catch (error) {
       // Network or auth failure: fall through to the local spool so the
       // report is never lost, and say so in the outcome.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       const local = await spoolLocally(dataRoot, title, body)
       await stampSubmitAt(dataRoot, now)
       return {
@@ -168,7 +157,6 @@ async function stampSubmitAt(dataRoot: string, now: number): Promise<void> {
   await mkdir(dir, { recursive: true })
   // Overwrite, not append: an appending stamp concatenates timestamps and
   // parseInt on the merged digits disables the cooldown permanently.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   await writeFile(join(dir, 'last-submit-at'), String(now), 'utf8')
 }
 
@@ -201,7 +189,6 @@ export function mountFeedbackTool(hostCtx: Context, dataRoot: string, t: (key: s
         // The dsh-tools value-schema DSL rejects root-level `required`
         // (verified against dsh-tools@0.1.2-rc.1); required-ness is declared
         // per property instead.
-        // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         schema: {
           type: 'object',
           additionalProperties: false,
