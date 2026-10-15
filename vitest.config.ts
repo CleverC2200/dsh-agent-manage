@@ -11,7 +11,6 @@ export default defineConfig({
     testTimeout: 30_000,
     // Serial execution: several tests share fixture directories and global
     // React/Vitest state; parallel file runs cause intermittent failures.
-    // The full suite finishes in ~2.5s serially, so the cost is negligible.
     fileParallelism: false,
     server: {
       deps: {

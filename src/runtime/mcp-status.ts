@@ -36,7 +36,6 @@ export function buildMcpStatus(
     for (const [serverKey, server] of Object.entries(suite.mcp.servers)) {
       // Server names and every status key are source-qualified: two sources
       // may ship the same suite id, and the inventory must not conflate them.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       const serverName = deriveServerName(suite.id, serverKey)
       knownServerNames.add(serverName)
       knownDefinitions.set(serverName, { suite, serverKey, server })
@@ -48,7 +47,6 @@ export function buildMcpStatus(
   for (const suite of suites) {
     // This is an operational inventory, not a configuration audit: suite MCP
     // definitions only appear after their suite is both installed and enabled.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     if (suite.mcp === undefined || suite.installedAt === undefined || !suite.enabled) continue
     const suiteKey = qualifiedSuiteId(suite.sourceId, suite.id)
     const suiteOverrides = overrides.get(suiteKey)
@@ -65,7 +63,6 @@ export function buildMcpStatus(
       // A duplicate copy shares the live serverName, so observed tools land
       // on it too — that does not make it connected: its own diagnostic says
       // another source's mount is the one serving.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       const servedElsewhere = diagnostic?.code === 'duplicate-mount'
       const state: McpStatusState = orphaned
         ? 'orphaned'
@@ -159,7 +156,6 @@ function groupObservedTools(observed: readonly McpToolSnapshot[], knownServerNam
     let rawName: string | undefined
     // Plugin server names contain `__` themselves (`suite__server`), so use
     // known names first and choose the longest matching namespace.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     for (const candidate of knownServerNames) {
       const prefix = `mcp__${candidate}__`
       if (tool.name.startsWith(prefix) && (serverName === undefined || candidate.length > serverName.length)) {

@@ -9,7 +9,6 @@
  * semantic pass then enforces §4 path containment, `$schema` recognition, and
  * the `${PLUGIN_ROOT}` / `${PLUGIN_DATA}` expansion the spec makes mandatory.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readFile, realpath } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,7 +22,6 @@ import { PLUGIN_ROOT_VARIABLES, PLUGIN_DATA_VARIABLES } from '../model/layouts.j
 const SCHEMAS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'schemas', '1.0.0')
 
 /** Structural slice of the Ajv 2020 instance this module uses. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 interface Ajv2020Like {
   /** 中文：注册 JSON Schema，供后续插件清单校验使用。 */
   addSchema(schema: unknown): unknown
@@ -118,17 +116,14 @@ export async function validatePluginManifest(raw: unknown): Promise<string[]> {
  *   or schema body drops the whole file, while per-server path problems
  *   invalidate only their server.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const KNOWN_MCP_TRANSPORTS = new Set(['stdio', 'streamable-http', 'sse'])
 
 export interface McpValidateOptions {
   /** Project-owned config may name external executables and working directories. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   pathMode?: 'plugin' | 'project'
   /** Strict portable mode (`mcp.json`): `$schema` required and schema-validated.
    *  Lenient mode (`.mcp.json`, native client file): no `$schema` requirement,
    *  unknown transports skipped per server, known transports still validated. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   strict?: boolean
 }
 

@@ -28,7 +28,6 @@
  *
  * @module runtime/mcp-client/oauth
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js'
@@ -37,17 +36,13 @@ import { credentialKey, scrubbedParentEnv, type CredentialKey, type CredentialRe
 import type { OAuthStorageConfig } from './config.js'
 
 /** OAuth client identity presented during dynamic registration. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const CLIENT_NAME = 'DeepSeek Harness (dsh-agent-plugins-market)'
 /** Software id/version advertised in RFC 7591 registration metadata. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const CLIENT_SOFTWARE_ID = 'dsh-agent-plugins-market'
 const CLIENT_SOFTWARE_VERSION = '0.1.0'
 /** Credential-record scope for MCP OAuth state; per-server ids follow it. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const MCP_AUTH_RECORD_SCOPE = 'mcp-auth'
 /** Loopback callback budget: the browser must land within five minutes. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const CALLBACK_TIMEOUT_MS = 5 * 60_000
 
 /**
@@ -66,7 +61,6 @@ export function mcpAuthRecordKey(serverName: string): CredentialKey {
 }
 
 /** Credential record this module persists, when the store is available. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface McpAuthRecord {
   kind: 'grant'
   payload: {
@@ -76,12 +70,10 @@ interface McpAuthRecord {
 }
 
 /** Full provider state: the durable payload plus the process-local PKCE verifier. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface ProviderState {
   clientInformation?: OAuthClientInformation
   tokens?: OAuthTokens
   /** PKCE verifier saved between the redirect and the callback; never persisted. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   codeVerifier?: string
 }
 
@@ -104,7 +96,6 @@ function asMcpAuthRecord(record: unknown): McpAuthRecord['payload'] | undefined 
  * The transport surfaces it from `connect`; the supervisor's reconnect loop
  * re-enters the flow — which reopens the browser — on a later attempt.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export class AuthorizationAbortedError extends Error {
   /** 创建可识别的用户授权中止错误，供连接监督器保持/结束当前代际。 */
   constructor(message: string, options?: ErrorOptions) {
@@ -114,11 +105,9 @@ export class AuthorizationAbortedError extends Error {
 }
 
 /** Opens the platform browser; injected in tests to record the URL instead. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type BrowserOpener = (authorizationUrl: URL, serverName: string, log: (message: string) => void) => Promise<void>
 
 /** The real opener: platform browser or default URL handler. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const platformBrowserOpener: BrowserOpener = async (authorizationUrl, serverName, log) => {
   const platform = process.platform
   const command = platform === 'darwin' ? 'open' : platform === 'win32' ? 'cmd' : 'xdg-open'
@@ -142,26 +131,20 @@ export const platformBrowserOpener: BrowserOpener = async (authorizationUrl, ser
  * memory when the seam is absent), with a loopback redirect that opens the
  * system browser.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export class LoopbackOAuthClientProvider implements OAuthClientProvider {
   private readonly recordKey: CredentialKey
   /** Credential store mounted in this composition; absence means memory-only. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private readonly store: CredentialRecordStore | undefined
   /** In-memory fallback and cache over the store's durable state. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private providerState: ProviderState = {}
   /** The transport generation whose `finishAuth` completes the browser leg. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private activeTransport: { finishAuth(code: string): Promise<void> } | undefined
   /** Resolves `true` when the leg saved tokens, `false` when it failed; undefined while no leg is open. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private browserLegSettled: PromiseWithResolvers<boolean> | undefined
   private callbackServer: Server | undefined
   private callbackTimer: NodeJS.Timeout | undefined
   private boundPort: number | undefined
   /** Serializes store writes so a rapid refresh cannot interleave read-modify-writes. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private writeChain: Promise<void> = Promise.resolve()
 
   /** 绑定服务名、凭据服务和日志回调，初始化本地 OAuth 状态容器。 */
@@ -182,7 +165,6 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     // RFC 8252 §7.3: loopback redirects may vary the port per request, so the
     // bound port is filled in when the listener starts and registration
     // metadata always reflects the current attempt's URL.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     return `http://127.0.0.1:${this.boundPort ?? this.storage.callbackPort ?? 0}/callback`
   }
 
@@ -194,7 +176,6 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
       // Public client: PKCE carries the proof; no client secret exists.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       token_endpoint_auth_method: 'none',
       ...(this.scope === undefined ? {} : { scope: this.scope }),
       software_id: CLIENT_SOFTWARE_ID,
@@ -226,7 +207,6 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     await this.mutate(state => {
       state.tokens = tokens
       // The verifier is single-use by spec; the exchange consumed it.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       delete state.codeVerifier
     })
   }
@@ -301,7 +281,6 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
   saveCodeVerifier(codeVerifier: string): Promise<void> {
     // The verifier only needs to survive the browser leg; keeping it out of
     // the durable record removes a secret that has no value after the exchange.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     this.providerState.codeVerifier = codeVerifier
     return Promise.resolve()
   }
@@ -319,7 +298,6 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
   async invalidateCredentials(scope: 'all' | 'client' | 'tokens' | 'verifier' | 'discovery'): Promise<void> {
     // The SDK invalidates selectively on refresh failures; dropping the whole
     // record is always safe because discovery and registration re-run cheaply.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     if (scope === 'tokens') {
       await this.mutate(state => {
         delete state.tokens
@@ -337,12 +315,10 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
         delete state.clientInformation
       }
       // `discovery` is not persisted by this provider; nothing to drop.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     })
   }
 
   // ---- Durable state through the credentials seam ----
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
 
   /** 从凭据服务加载并规范化当前 Provider 状态。 */
   private async load(): Promise<ProviderState> {
@@ -350,7 +326,6 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     // `describeRecord` reads the store; the record payload itself comes from
     // the same store's read path, re-narrowed on every access so an external
     // edit (or a second process's refresh) is picked up immediately.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const described = await this.store.describeRecord(this.recordKey)
     if (!described.configured) return this.providerState
     const record = await this.store.readRecord(this.recordKey)
@@ -358,14 +333,12 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     if (payload === undefined) {
       // The record exists but is not ours anymore (a foreign overwrite): the
       // durable fields drop from the view rather than reading stale.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       this.providerState = { ...(this.providerState.codeVerifier === undefined ? {} : { codeVerifier: this.providerState.codeVerifier }) }
       return this.providerState
     }
     // The durable record is authoritative: the view is rebuilt from it, so an
     // external edit that replaced or dropped a field drops it from the view
     // too; the process-local PKCE verifier is the only non-durable field.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const verifier = this.providerState.codeVerifier
     this.providerState = {
       ...payload,
@@ -391,13 +364,11 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     })
     // A failed write must not poison the chain; the caller's rejection is the
     // signal, and the next write re-reads whatever is durable now.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     this.writeChain = run.catch(() => {})
     return run
   }
 
   // ---- Loopback callback leg ----
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
 
   /**
    * Bind a loopback listener, open the browser at `authorizationUrl` (its
@@ -447,7 +418,6 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     /** 消费回调请求并返回可关闭的纯文本页面，同时关闭 loopback 服务。 */
     const respond = (status: number, message: string): void => {
       // Drain the request, then answer with a plain page the user can close.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       request.resume()
       request.socket.end(
         `HTTP/1.1 ${status} ${status === 200 ? 'OK' : 'Bad Request'}\r\n` + 'content-type: text/plain; charset=utf-8\r\nconnection: close\r\n\r\n' + `${message}\n`

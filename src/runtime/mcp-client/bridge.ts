@@ -20,7 +20,6 @@
  *
  * @module runtime/mcp-client/bridge
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import type { Context } from '@deepseek-ai/cordis'
 import { resolveReconnectPolicy, startConnection } from './connection.js'
@@ -29,11 +28,9 @@ import type { Config } from './config.js'
 import type { ToolHost } from './tools.js'
 
 /** Cordis plugin name used by loader diagnostics. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const name = 'market-mcp-client'
 
 /** Services required by this plugin. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const inject = ['tools']
 
 /**
@@ -43,7 +40,6 @@ export const inject = ['tools']
  * shadowing. The mount registry deduplicates too; this is the last line of
  * defense for direct programmatic loads.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const activeServerNames = new WeakMap<Context, Set<string>>()
 
 /** Tolerantly read an optional service from the cordis context. */
@@ -54,7 +50,6 @@ function optionalService(ctx: Context, serviceName: 'credentials' | 'attachments
     const service = reader.get?.(serviceName)
     // A missing service either reads as undefined or throws (cordis strict
     // mode); both mean "not mounted".
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     return service === null ? undefined : service
   } catch {
     return undefined
@@ -132,7 +127,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // Optional service: the credential store receives OAuth tokens when
   // mounted; absence (no credentials plugin) is the supported
   // no-persistence configuration.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   const host = toToolHost(ctx)
   const credentials = optionalService(ctx, 'credentials')
   const connection = startConnection(host, config, reconnect, credentials)
@@ -146,7 +140,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // When failOnStartupError is true, a failed initial attempt rejects the
   // fiber (Cordis rolls it back); otherwise the error is logged and the
   // supervisor enters its reconnect loop.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   const outcome = await connection.ready
   if (outcome.error !== undefined && config.failOnStartupError) {
     throw new Error(`mcp-client(${config.serverName}): initial connection or tool synchronization failed`, { cause: outcome.error })

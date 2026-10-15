@@ -1,6 +1,5 @@
 /** 文件作用：在状态、日志和编辑回显边界脱敏 MCP 敏感配置。 */
 /** Redact secret-shaped MCP configuration before it crosses a status/detail boundary. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 /**
  * Secret-shaped key matcher. This is a heuristic, not a security boundary: it
@@ -8,7 +7,6 @@
  * log line. Placeholder-bearing values (`${NAME}`) are always preserved because
  * they name a credential reference rather than carry one.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const SENSITIVE_KEY =
   /(authorization|auth|bearer|token|secret|password|passwd|credential|api[-_]?key|access[-_]?key|private[-_]?key|session|cookie|signature|sig\b|^key$|[-_]key$)/i
 
@@ -18,7 +16,6 @@ const SENSITIVE_KEY =
  * block would erase the OAuth opt-in flag before it reaches the mount, so the
  * walk descends into it and the per-value checks apply instead.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const STRUCTURE_KEY = /^auth$/i
 
 const PLACEHOLDER = /\$\{[^}]+\}/g

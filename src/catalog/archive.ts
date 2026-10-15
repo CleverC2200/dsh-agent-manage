@@ -14,7 +14,6 @@
  * `application/catalog.ts`, which is why extraction and layout normalization
  * live here instead of inline in the manager.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { mkdir, open, readdir, readFile, readlink, rename, rm, stat } from 'node:fs/promises'
@@ -25,57 +24,44 @@ import { Unzip, UnzipInflate, type FlateError } from 'fflate'
 const run = promisify(execFile)
 
 /** Hard cap on archive download size (mirrors Claude Code's archive limit). */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const ARCHIVE_MAX_BYTES = 256 * 1024 * 1024
 
 /** Hard cap on the total decompressed bytes one archive may write. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const ARCHIVE_MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
 
 /** Hard cap on the number of files one archive may write. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const ARCHIVE_MAX_ENTRIES = 20_000
 
 /** Hard cap on the decompressed size of a single archive entry. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const ARCHIVE_MAX_ENTRY_BYTES = 128 * 1024 * 1024
 
 export const DEFAULT_ARCHIVE_TIMEOUT_MS = 180_000
 
 /** Options for one archive acquisition. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ArchiveOptions {
   /** Caller-owned GitHub API credential; never persisted or sent to redirects. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   githubToken?: string
   /** Required SHA-256 hex digest of the payload; mismatch rejects the install. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   sha256?: string
   /** Download timeout; defaults to 180s. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   timeoutMs?: number
   /** Allow plain `http://` (intranet mirrors); defaults to HTTPS-only. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   allowHttp?: boolean
   /**
    * Explicit format for URLs whose extension does not reveal the payload
    * (e.g. a codeload tarball ending in a branch path). Overrides
    * {@link archiveFormatOf}; the caller owns the correctness of the hint.
    */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   format?: ArchiveFormat
 }
 
 /** Result of one successful archive install. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ArchiveInstallResult {
   /** SHA-256 hex digest of the downloaded payload (usable as a lock value). */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   sha256: string
 }
 
 /** Recognized archive payload kinds. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export type ArchiveFormat = 'zip' | 'tar' | 'targz'
 
 /** Classify an archive URL by extension; undefined when unsupported. */
@@ -375,7 +361,6 @@ async function assertNoEscapingSymlinks(root: string): Promise<void> {
 }
 
 /** Test seam: run the symlink-containment walk against a prepared tree. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const assertNoEscapingSymlinksForTest = assertNoEscapingSymlinks
 
 /** If the extraction produced exactly one top-level directory and nothing else, use it as the root. */

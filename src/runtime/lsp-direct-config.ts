@@ -9,7 +9,6 @@
  * fail-closed `lsp-spec` rules as suite declarations; a broken file degrades
  * to no direct servers plus a diagnostic, never a thrown discovery.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { parseLspServers } from '../catalog/lsp-spec.js'

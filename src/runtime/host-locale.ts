@@ -8,13 +8,11 @@
  * process has no such service, so this module reads `$DSH_HOME/settings.yaml`
  * (the same file the GUI preference editor writes) and falls back to zh.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolveDshHome } from '../catalog/paths.js'
 
 /** Host runtime dictionary keys (mirrored for zh and en). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type HostLocaleKey =
   | 'subagentCatalogIntro'
   | 'subagentCatalogUpdated'

@@ -10,7 +10,6 @@
  * fail-closed: broken files produce a diagnostic and are skipped, never a
  * thrown discovery.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readSkillHeader } from './skill-files.js'
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -105,7 +104,6 @@ export async function discoverSkills(root: string, errors: string[], declared?: 
  * scan's `errors` on hit. Bounded: over the cap the cache resets wholesale
  * (a marketplace-scale tree holds thousands of entries, not millions).
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const SKILL_PARSE_CACHE_CAP = 20_000
 const skillParseCache = new Map<string, { mtimeMs: number; size: number; verdict: SuiteSkill | string }>()
 

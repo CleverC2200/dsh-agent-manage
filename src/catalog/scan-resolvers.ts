@@ -19,7 +19,6 @@
  * 3. `FlatCollectionsStrategy` — the terminal fallback: manifest-less
  *    `<root>/<name>/SKILL.md` collections.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readdir, realpath, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { isDirectory, sanitizeId } from './paths.js'
@@ -44,7 +43,6 @@ export interface SuiteHint extends SuiteComponents {
   version?: string
   description?: string
   /** Inline `lspServers` declared on the marketplace entry itself (Claude Code). */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   lspServers?: unknown
 }
 
@@ -57,10 +55,8 @@ interface SuiteRoot {
 // ---------------------------------------------------------------------------
 // Marketplace entry resolution: a handler chain over entry `source` shapes.
 // ---------------------------------------------------------------------------
-// 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
 
 /** Normalized resolution of one marketplace entry inside its checkout. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export type EntryResolution = { kind: 'local'; dir: string } | { kind: 'remote'; url: string } | { kind: 'unclaimed'; reason: string } | { kind: 'rejected'; reason: string }
 
 interface EntryContext {
@@ -74,7 +70,6 @@ interface EntryChain {
 }
 
 /** One handler in the marketplace-entry chain. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface EntryHandler {
   name: string
   /** 中文：尝试解析一个条目；无法处理时通过 chain 继续委托。 */
@@ -133,7 +128,6 @@ async function claimLocal(checkout: string, declaredPath: string): Promise<Entry
     // `rejected`: the handler positively identified a local path, but the
     // path escapes the checkout. Its verdict is authoritative — later
     // handlers must not reinterpret it as something else.
-    // 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
     return { kind: 'rejected', reason: `path "${declaredPath}" escapes the checkout` }
   }
   try {
@@ -153,7 +147,6 @@ function unclaimed(reason: string): EntryResolution {
 }
 
 /** String source: a checkout-relative path (Claude Code `"./skills/x"` form). */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const STRING_PATH_HANDLER: EntryHandler = {
   name: 'local-string-path',
   /** 本地路径处理器：仅认领存在且未越界的目录。 */
@@ -165,7 +158,6 @@ const STRING_PATH_HANDLER: EntryHandler = {
 }
 
 /** Object source with `path`: Codex `{ source: 'local', path }` and Claude `{ path }`. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const OBJECT_PATH_HANDLER: EntryHandler = {
   name: 'local-object-path',
   /** self-reference 处理器：把指向当前 source 的条目映射到 checkout 根。 */
@@ -180,7 +172,6 @@ const OBJECT_PATH_HANDLER: EntryHandler = {
 }
 
 /** Remote entries: `{ url }` (Claude/Codex) and `{ source: 'github', repo }` shorthand. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const REMOTE_URL_HANDLER: EntryHandler = {
   name: 'remote-url',
   /** 远程处理器：输出待下载/克隆的远程解析结果。 */
@@ -219,10 +210,8 @@ export async function resolveMarketplaceEntry(checkout: string, entry: Marketpla
 // ---------------------------------------------------------------------------
 // Marketplace strategy
 // ---------------------------------------------------------------------------
-// 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
 
 /** Read one checkout through marketplace manifests, dialect by dialect. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export class MarketplaceStrategy implements ScanFilter {
   readonly name = 'marketplace'
 
@@ -306,10 +295,8 @@ export class MarketplaceStrategy implements ScanFilter {
 // ---------------------------------------------------------------------------
 // Rooted and flat-collection strategies
 // ---------------------------------------------------------------------------
-// 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
 
 /** Read nested plugin roots up to four levels deep. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export class RootedStrategy implements ScanFilter {
   readonly name = 'rooted'
 
@@ -332,7 +319,6 @@ export class RootedStrategy implements ScanFilter {
 }
 
 /** Terminal fallback: manifest-less flat `<child>/SKILL.md` collections. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export class FlatCollectionsStrategy implements ScanFilter {
   readonly name = 'flat-collections'
 
@@ -368,7 +354,6 @@ export function defaultScanFilters(): readonly ScanFilter[] {
 // ---------------------------------------------------------------------------
 // Public entry points
 // ---------------------------------------------------------------------------
-// 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
 
 /** Discover every suite under one source checkout. */
 /** 扫描来源 checkout 并返回规范化套件列表，诊断随结果保留。 */
@@ -386,7 +371,6 @@ export async function scanSource(checkoutDir: string, sourceId: string, dimensio
 // ---------------------------------------------------------------------------
 // Shared root/manifest plumbing
 // ---------------------------------------------------------------------------
-// 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
 
 /**
  * Collect nested plugin roots up to four levels deep. Sibling subtrees are
@@ -452,7 +436,6 @@ export async function readSuite(root: string, sourceId: string, dimension: Suite
   }
   // A declaration-only suite (official CC lsp plugins ship just a README):
   // the marketplace entry's inline lspServers are its manifest.
-  // 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
   if (manifest === undefined && hint !== undefined && Object.keys(componentDeclarations(hint)).length > 0) {
     const name = hint.name ?? syntheticManifestName(root)
     manifest = {
@@ -477,7 +460,6 @@ export async function readSuite(root: string, sourceId: string, dimension: Suite
   }
   const mcp = await discoverMcp(root, errors, manifest)
   // Effective component declarations include marketplace fallbacks and manifest overrides.
-  // 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
   const lsp = await discoverSuiteLsp(root, manifest, errors)
   const hooks = await discoverSuiteHooks(root, manifest, errors)
   const resources = {

@@ -14,18 +14,14 @@
  *
  * @module runtime/regions
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 /** The persisted setting: `auto` follows the interface language. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type DownloadRegionSetting = 'auto' | 'global' | 'china'
 
 /** The route downloads actually take. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type EffectiveRegion = 'global' | 'china'
 
 /** The China-route GitHub prefix proxy, no trailing slash. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const DEFAULT_GITHUB_PROXY = 'https://gh-proxy.com'
 
 /** Narrow an untrusted stored value to a setting; anything else reads as auto. */

@@ -13,7 +13,6 @@
  * resource base points at the skill directory, so CC-authored skills work
  * verbatim under the harness.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { componentPath } from '../catalog/component-files.js'
 import { readSkillHeader } from '../catalog/skill-files.js'
 import { readFile } from 'node:fs/promises'
@@ -58,7 +57,6 @@ export class SuiteSkillProvider implements SkillProvider {
     // Dedupe by skill name across dimensions: the sort above puts project
     // suites (250) ahead of user suites (450), so a project's own skill
     // always wins over an installed suite shipping a skill of the same name.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const seen = new Set<string>()
     const unique: LocatedSkill[] = []
     for (const entry of located) {

@@ -21,7 +21,6 @@
  *
  * @module runtime/mcp-client/connection
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js'
@@ -32,24 +31,18 @@ import type { ToolBridgeOptions, ToolDisposers, ToolHost } from './tools.js'
 import type { Config } from './config.js'
 
 /** Automatic reconnect policy for one MCP server connection. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface ReconnectConfig {
   /** Reconnect automatically after a lost connection (default true). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   enabled?: boolean
   /** First reconnect delay in milliseconds; doubles per consecutive failed attempt (default 500). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   initialDelayMs?: number
   /** Backoff ceiling in milliseconds; also the uptime after which the attempt budget resets (default 30000). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   maxDelayMs?: number
   /** Consecutive failed attempts per outage before giving up for good (default 10). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   maxAttempts?: number
 }
 
 /** Defaults shared by the config and {@link resolveReconnectPolicy}. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const RECONNECT_DEFAULTS: Required<ReconnectConfig> = Object.freeze({
   enabled: true,
   initialDelayMs: 500,
@@ -60,11 +53,9 @@ export const RECONNECT_DEFAULTS: Required<ReconnectConfig> = Object.freeze({
 // The SDK's stdio transport owns two two-second termination grace periods.
 // Keep one additional second for the process-close event that proves the old
 // generation is gone; timing out fails closed instead of overlapping children.
-// 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
 const GENERATION_CLOSE_TIMEOUT_MS = 5_000
 
 /** Fully resolved reconnect policy captured at plugin load. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type ResolvedReconnectPolicy = Readonly<Required<ReconnectConfig>>
 
 /**
@@ -104,29 +95,24 @@ export function resolveReconnectPolicy(config: ReconnectConfig | undefined, path
 }
 
 /** Result from the initial connection attempt, for startup-await semantics. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface ConnectionOutcome {
   /** If the initial connection or tool sync failed, the error; otherwise absent. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   error?: unknown
 }
 
 /** Handle for one bridge instance's supervised connection. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface ConnectionHandle {
   /**
    * Settles when the first connection attempt completes (success or failure).
    * The supervisor enters its reconnect loop regardless; the caller decides
    * whether a failed startup is fatal via `failOnStartupError`.
    */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   ready: Promise<ConnectionOutcome>
   /**
    * Stop reconnection, close the live client, wait for the in-flight attempt
    * and queued tool syncs to quiesce, then unregister every tool this server
    * still owns.
    */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   dispose(): Promise<void>
 }
 
@@ -155,32 +141,24 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
   // The initial sync uses 'throw' when failOnStartupError is configured, so
   // a registration conflict propagates to the startup-await path. Re-syncs
   // and reconnect syncs always contain conflicts.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   const startupOpts: ToolBridgeOptions = config.failOnStartupError ? { ...opts, registrationFailure: 'throw' } : opts
 
   let disposed = false
   /** Current generation: the connecting or connected client; undefined during backoff waits and after final failure. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   let client: Client | undefined
   /** Close signal paired with {@link client}; captured by dispose before current ownership is cleared. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   let clientClosed: Promise<void> | undefined
   /** Live tool registrations owned by this server; only {@link enqueueSync} and dispose swap it. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   let disposers: ToolDisposers = new Map()
   let reconnectTimer: NodeJS.Timeout | undefined
   /** Consecutive failed connection attempts within the current outage. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   let failedAttempts = 0
   /** When the current generation finished connect + initial sync; undefined while down. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   let connectedAt: number | undefined
   /** The real error from the first connection attempt, for startup-await diagnostics. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   let firstAttemptError: unknown
 
   /** A generation may act only while it is the current one on a live bridge. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   const isCurrent = (generation: Client): boolean => !disposed && client === generation
 
   /**
@@ -189,7 +167,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
    * dispose-previous/register-next swap (which would double-dispose one
    * generation and leak another).
    */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   let syncChain: Promise<void> = Promise.resolve()
   /** 将工具同步串入当前连接代际，避免并发 listTools 覆盖注册表。 */
   function enqueueSync(generation: Client, syncOpts: ToolBridgeOptions = opts): Promise<void> {
@@ -198,7 +175,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       disposers = await syncTools(generation, host, syncOpts, disposers)
     })
     // The chain tail must survive a failed sync; the enqueuing caller owns reporting.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     syncChain = run.catch(() => {})
     return run
   }
@@ -239,14 +215,12 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
     }
     // A connection that stayed up past the stability window (= maxDelayMs, the
     // longest backoff spacing) ended the previous outage: start a fresh budget.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     if (connectedAt !== undefined && Date.now() - connectedAt >= policy.maxDelayMs) failedAttempts = 0
     connectedAt = undefined
     failedAttempts += 1
     if (failedAttempts > policy.maxAttempts) {
       // Enqueue the give-up disposal so it cannot race an in-flight sync's
       // phase-2 swap (which checks isCurrent inside the queue).
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       syncChain = syncChain.then(() => {
         for (const dispose of disposers.values()) dispose()
         disposers = new Map()
@@ -264,7 +238,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       settling = connectGeneration(false)
     }, delayMs)
     // An armed reconnect timer must never hold the process open on its own.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     reconnectTimer.unref()
   }
 
@@ -293,12 +266,10 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       closed.resolve()
       // A failed connect owns its close barrier in the catch path below. An
       // established generation can transition down directly from this signal.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       if (attemptSettled) generationDown(generation)
     }
     // Registered before connect so a list change during the initial sync is
     // queued behind it rather than dropped.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     generation.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
       if (!isCurrent(generation)) return
       host.logger.info(`${label}: tool list changed, re-syncing`)
@@ -307,7 +278,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       } catch (error) {
         // Fetch-phase failure: the previous generation is still registered
         // and `disposers` still owns it — keep serving the last good list.
-        // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         if (!disposed) host.logger.error(`${label}: tool re-sync failed: ${String(error)}`)
       }
     })
@@ -327,13 +297,11 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       if (firstAttemptError === undefined) firstAttemptError = error
       // Disposal clears current ownership before it closes the generation, so
       // only a live supervisor reports an attempt failure.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       if (isCurrent(generation)) host.logger.warn(`${label}: connection attempt failed: ${String(error)}`)
       // A pending browser leg outlives the initialize timeout: the human is
       // mid-approval. Hold this generation open — transport and loopback
       // listener stay alive — until the leg settles; abandoning it would
       // discard the very authorization the user is completing.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       const leg = oauthProvider?.browserLeg
       if (leg !== undefined) {
         host.logger.warn(`${label}: waiting for browser authorization (up to 5 minutes) — approve access in the page that opened`)
@@ -350,7 +318,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
         }
         // The exchange succeeded inside this generation: finish establishing
         // it (tool sync + connected bookkeeping) instead of respawning.
-        // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         try {
           await enqueueSync(generation, startup ? startupOpts : opts)
         } catch (syncError) {
@@ -359,7 +326,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
             await generation.close()
           } catch {
             /* transport already gone */
-            /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
           }
           const quiescedSync = hasClosed() || (await waitForClose(closed.promise))
           if (!quiescedSync) {
@@ -384,7 +350,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
         await generation.close()
       } catch {
         /* transport already gone */
-        /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
       }
       const quiesced = hasClosed() || (await waitForClose(closed.promise))
       attemptSettled = true
@@ -411,13 +376,11 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
   }
 
   /** The in-flight (or last settled) connection attempt; dispose awaits it for quiescence. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   let settling = connectGeneration(true)
 
   // The ready promise settles when the first attempt finishes (regardless of
   // success). If the first attempt fails and reconnect is enabled, the
   // supervisor is already scheduling a retry — ready just reports the outcome.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   const ready: Promise<ConnectionOutcome> = settling.then(() => {
     // After settling: if client is set the initial connect+sync succeeded.
     // If not, the supervisor either scheduled a retry (error logged) or gave
@@ -425,10 +388,8 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
     // Note: settling.then() is a microtask; stdio onclose is a macrotask — so
     // a server that crashes AFTER a successful initial sync cannot flip client
     // to undefined before this continuation runs.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     if (client !== undefined) return {}
     /* v8 ignore next -- defensive: firstAttemptError is always set when connect/sync fails */
-    /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
     return { error: firstAttemptError ?? new Error(`${label}: initial connection failed`) }
   })
 
@@ -450,7 +411,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
           await current.close()
         } catch {
           /* transport already gone */
-          /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
         }
         if (currentClosed !== undefined && !(await waitForClose(currentClosed))) {
           host.logger.error(`${label}: generation did not close within ${GENERATION_CLOSE_TIMEOUT_MS}ms during disposal — server shutdown may be incomplete`)
@@ -458,7 +418,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       }
       // Quiesce, don't just request it: the in-flight attempt enqueues its
       // sync before settling, so awaiting both leaves `disposers` final.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       await settling
       await syncChain
       for (const dispose of disposers.values()) dispose()

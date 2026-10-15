@@ -7,7 +7,6 @@
  * and failure semantics differ; this module owns ordering, containment, and
  * disposal only.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import type { Context } from '@deepseek-ai/cordis'
 import { CommandMountRegistry, type CommandMountDiagnostic } from './commands-mounts.js'
 import { HooksMountRegistry, type HooksMountDiagnostic } from './hooks-mounts.js'
@@ -17,7 +16,6 @@ import type { Suite } from '../model/types.js'
 import { bindHostLocale, type HostTranslate } from './host-locale.js'
 
 /** Diagnostics returned by one runtime reconciliation pass. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface RuntimeDiagnostics {
   mcp: McpMountDiagnostic[]
   commands: CommandMountDiagnostic[]

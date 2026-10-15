@@ -17,7 +17,6 @@
  * claim the same extension the later mount fails with `seam-conflict` and the
  * user resolves it through per-suite surface toggles.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import type { Context } from '@deepseek-ai/cordis'
 import { DIRECT_LSP_SUITE_ID } from './lsp-status.js'
 import { qualifiedSuiteId } from '../catalog/paths.js'
@@ -42,12 +41,10 @@ interface LiveMount {
  * mounts: a permanently broken server must stop consuming attempt budget,
  * and the schedule resets with every reconcile pass.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const RETRY_SCHEDULE_MS = [1_500, 5_000, 15_000, 45_000, 120_000]
 const MAX_RETRY_ATTEMPTS = RETRY_SCHEDULE_MS.length
 
 /** One dsh-lsp-stdio server configuration row (its Config.servers entry). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface LspStdioServerConfig {
   command: string
   args: string[]
@@ -85,43 +82,33 @@ interface MountPluginHandle {
 }
 
 /** Structural `ctx.plugin` surface for mounting one plugin instance. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface PluginMountContext {
   plugin(plugin: unknown, config: unknown): MountPluginHandle
 }
 
 /** Minimal structural shape of the dynamically imported `dsh-lsp-stdio` module. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface LspStdioModule {
   default?: unknown
 }
 
 /** Import spec kept as a string literal so the optional dependency stays dynamic. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const LSP_STDIO_IMPORT = '@deepseek-ai/dsh-lsp-stdio'
 
 export class LspMountRegistry {
   private readonly live = new Map<string, LiveMount>()
   /** Serialize mount and unmount passes so a disable cannot race an in-flight spawn. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private reconcileQueue: Promise<void> = Promise.resolve()
   /** Pending retry timers keyed by mount key, so a teardown can cancel them. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private readonly retries = new Map<string, ReturnType<typeof setTimeout>>()
   /** Attempt count per mount key; reset whenever a retry succeeds. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private readonly attempts = new Map<string, number>()
   /** Snapshot of the last reconciled suite set, replayed by retry passes. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private lastEnabled: Suite[] = []
   /** Host module loader; overridable for tests. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private loadHost: () => Promise<LspStdioModule | undefined>
   /** Latest diagnostic per suite id; cleared when its suite mounts or leaves the wanted set. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private readonly lastDiagnostics = new Map<string, LspMountDiagnostic>()
   /** Direct (user-configured) server provider; defaults to none. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private directProvider: () => Promise<Record<string, import('../model/types.js').LspServerSpec>> = async () => ({})
   private disabledProvider: () => Promise<Set<string>> = async () => new Set()
   private disabledSnapshot = new Set<string>()
@@ -168,7 +155,6 @@ export class LspMountRegistry {
       // The wanted key is the qualified suite id: bare suite ids are unique
       // per source only, so two sources shipping the same suite name would
       // otherwise shadow each other's mount and diagnostics.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       const key = qualifiedSuiteId(suite.sourceId, suite.id)
       const config: Record<string, LspStdioServerConfig> = {}
       for (const spec of servers) if (!disabled.has(`${key}/${spec.key}`)) config[`${key}/${spec.key}`] = toLspServerConfig(spec)
@@ -177,7 +163,6 @@ export class LspMountRegistry {
     // Direct user-configured servers ride the same mount path under the
     // sentinel suite id, so their lifecycle (retries, diagnostics, disposal)
     // is identical to a suite's.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const direct = await this.directProvider()
     const directKeys = Object.keys(direct)
     if (directKeys.length > 0) {
@@ -269,13 +254,11 @@ export class LspMountRegistry {
     } catch (error) {
       // A failed startup can leave a half-mounted handle behind; drop it so
       // no orphan child process survives, then report the real signal.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       if (handle !== undefined) {
         try {
           await handle.dispose()
         } catch {
           // Ignore teardown errors: the startup failure is the real signal.
-          // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         }
       }
       const message = error instanceof Error ? error.message : String(error)
@@ -329,7 +312,6 @@ export class LspMountRegistry {
       this.retries.delete(key)
       // Re-run against the last known suite set: a retry must not resurrect
       // servers of a suite that has since been disabled or uninstalled.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       void this.reconcile(this.lastEnabled).catch(() => {})
     }, delay)
     timer.unref?.()

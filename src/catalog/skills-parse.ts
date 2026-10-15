@@ -8,7 +8,6 @@
  * (`disable-model-invocation`, `user-invocable`) with the same boolean forms
  * and fail-closed behavior as the shipped filesystem provider.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { parse as parseYaml } from 'yaml'
 import type { SkillInvocationPolicy } from '@deepseek-ai/dsh-skill'
 

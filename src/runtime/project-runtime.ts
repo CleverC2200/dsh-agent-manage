@@ -1,6 +1,5 @@
 /** 文件作用：把项目级命令、MCP、hooks 和说明挂载到现有及新建 Agent。 */
 /** Native project effects are owned by the receiving agent's scoped host context. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Catalog } from '../application/catalog.js'
 import { CommandMountRegistry } from './commands-mounts.js'

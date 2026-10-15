@@ -12,18 +12,15 @@
  * Direct user-configured rows follow the same model under the sentinel suite
  * id `direct` (mirroring mcp-status's `plugin`/`direct` split).
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import type { LspStatusEntry, LspStatusPayload, LspStatusState } from '../contracts/lsp-status.js'
 import type { LspMountDiagnostic } from './lsp-mounts.js'
 import { qualifiedSuiteId } from '../catalog/paths.js'
 import type { LspServerSpec, Suite } from '../model/types.js'
 
 /** Sentinel suite id for user-configured (non-suite) LSP servers. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const DIRECT_LSP_SUITE_ID = 'direct'
 
 /** The subset of LspMountRegistry the aggregator consumes (structural, for tests). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface LspMountStatusSource {
   diagnosticsSnapshot(): Map<string, LspMountDiagnostic>
   hasLiveMounts(): boolean
@@ -31,7 +28,6 @@ export interface LspMountStatusSource {
 }
 
 /** The direct servers table the aggregator merges in (structural, for tests). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface LspDirectServersSource {
   servers: Record<string, LspServerSpec>
   errors: string[]
@@ -56,7 +52,6 @@ function deriveState(disabled: boolean, diagnostic: LspMountDiagnostic | undefin
   // panel reads during startup land here. Report `starting` — the panel
   // polls while any row is starting — instead of the misleading
   // host-missing verdict, which is reserved for an actual import failure.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   return { state: 'starting' }
 }
 
@@ -72,7 +67,6 @@ export function buildLspStatus(suites: readonly Suite[], registry: LspMountStatu
     // Operational inventory, mirroring mcp-status: only installed+enabled
     // suites' declarations appear. The diagnostic key is the qualified suite
     // id, matching the mount registry's wanted key exactly.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     if (suite.lsp === undefined || suite.installedAt === undefined || !suite.enabled) continue
     const suiteKey = qualifiedSuiteId(suite.sourceId, suite.id)
     const disabled = suite.activeSurfaces?.lsp === false
@@ -98,7 +92,6 @@ export function buildLspStatus(suites: readonly Suite[], registry: LspMountStatu
   }
   // Direct user-configured rows: no install state or surface toggle of their
   // own — configured means on; the mount diagnostic decides the state.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   const directDiagnostic = diagnostics.get(DIRECT_LSP_SUITE_ID)
   const { state: directState, reason: directReason, retryable: directRetryable } = deriveState(false, directDiagnostic, anyLive)
   if (directState === 'mounted') mountedSuiteIds.add(DIRECT_LSP_SUITE_ID)

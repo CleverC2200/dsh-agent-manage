@@ -12,44 +12,33 @@
  * resolved by the Host credentials service (or launch-environment fallback)
  * so keys never persist in plain text.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { isSensitiveKey } from './mcp-redaction.js'
 import type { McpServerSse, McpServerStreamableHttp, McpServerStdio } from '../model/types.js'
 
 /** HTTP-shaped server sources (url + headers carriers) overrides can edit. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 type McpServerHttp = McpServerStreamableHttp | McpServerSse
 
 /** Per-server override record; absent fields pass through from the source. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type McpServerOverride = {
   /** Validated complete user configuration, retaining source-owned identity. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   config?: McpServerStdio | McpServerHttp
   /** Disabled servers are not mounted at all (default enabled). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   enabled?: boolean
   /** Replaces the source URL (streamable-http only). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   url?: string
   /** Replaces the whole header map (streamable-http only). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   headers?: Record<string, string>
   /** Replaces the whole env map (stdio). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   env?: Record<string, string>
   /** Replaces the whole args list (stdio). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   args?: string[]
   /** Replaces the OAuth block (streamable-http only); `enabled: false` disables a source-declared flow. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   auth?: { enabled: boolean; scope?: string }
 }
 
 /** Overrides for one suite, keyed by mcp.json server key. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type McpSuiteOverrides = Record<string, McpServerOverride>
 
 /** The overrides directory under the plugin data root. */
