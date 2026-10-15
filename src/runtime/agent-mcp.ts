@@ -74,7 +74,7 @@ export class AgentMcp {
               ...row,
               retired:
                 !agents.find(agent => agent.id === row.agentId)?.source?.importPending &&
-                !agents.find(agent => agent.id === row.agentId)?.source?.mcpReferences?.some(reference => reference.connectionId === row.connectionId)
+                !agents.find(agent => agent.id === row.agentId)?.source?.mcpReferences?.some(reference => reference.connectionId === row.connectionId && !reference.removed)
             }
           : row
       )
@@ -106,7 +106,7 @@ export class AgentMcp {
       .map(row => {
         const connection = this.find(row.connectionId)
         const entry = status.entries.find(item => item.id === this.runtimeId(connection))
-        const enabled = row.enabled && agent.enabled
+        const enabled = row.enabled && agent.enabled && (!agent.source || this.sourceAvailable(agent.source))
         let state: AgentMcpView['state']
         if (!enabled) state = 'disabled'
         else if (entry?.connectionState) state = entry.connectionState

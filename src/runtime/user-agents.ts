@@ -46,7 +46,9 @@ const sourceBaseline = z.object({
   lockCommit: z.string().optional(),
   version: z.string().optional(),
   importPending: z.boolean().optional(),
-  mcpReferences: z.array(z.object({ serverKey: z.string(), serverId: z.string(), connectionId: z.uuid() })).optional(),
+  mcpReferences: z
+    .array(z.object({ serverKey: z.string(), serverId: z.string(), connectionId: z.uuid(), removed: z.boolean().optional(), baseMissing: z.boolean().optional() }))
+    .optional(),
   base: z.object({ name: fields.name, description: fields.description, prompt: fields.prompt, skills: agentSkills.default([]) })
 })
 const savedAgent = z.object({
@@ -361,7 +363,7 @@ export class UserAgents {
             {
               id: 'user-agent-skills',
               name: 'dsh-agent-manage/user-agent-skills',
-              config: { skills: agent.skills, sourceMcpConnections: agent.source?.mcpReferences?.map(row => row.connectionId) ?? [] }
+              config: { skills: agent.skills, sourceMcpConnections: agent.source?.mcpReferences?.filter(row => !row.removed).map(row => row.connectionId) ?? [] }
             }
           ]
         }

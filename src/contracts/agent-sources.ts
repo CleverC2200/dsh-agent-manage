@@ -8,7 +8,7 @@ export interface AgentSourceBaseline {
   url: string
   kind: 'git' | 'local' | 'archive'
   importPending?: boolean
-  mcpReferences?: Array<{ serverKey: string; serverId: string; connectionId: string }>
+  mcpReferences?: Array<{ serverKey: string; serverId: string; connectionId: string; removed?: boolean; baseMissing?: boolean }>
   lockCommit?: string
   version?: string
   base: Pick<UserAgentConfig, 'name' | 'description' | 'prompt' | 'skills'>

@@ -153,6 +153,17 @@ it('merges source Skill and MCP conflicts without exposing secrets and retains o
     expect(ctx.tools.schemas(old).some(row => row.name.endsWith('__echo_local'))).toBe(true)
     expect(ctx.tools.schemas(old).some(row => row.name.endsWith('__echo_new'))).toBe(false)
     expect(await agents.mcp!.list(agent.id)).toHaveLength(1)
+    const currentConnection = (await agents.mcp!.list(agent.id))[0]
+    await agents.mcp!.remove({ agentId: agent.id, connectionId: currentConnection.connectionId })
+    await saveSource('later')
+    const deletedMember = await sources.preview({ id: agent.id })
+    expect(deletedMember.conflicts.map(row => row.key)).toContain('mcp:service')
+    await sources.commit({ token: deletedMember.token, resolutions: { 'mcp:service': { choice: 'local' }, 'skill:source-skill': { choice: 'local' } } })
+    expect(await agents.mcp!.list(agent.id)).toHaveLength(0)
+    const checkedAgain = await sources.preview({ id: agent.id })
+    expect(checkedAgain).toMatchObject({ changed: false, conflicts: [] })
+    expect(await agents.mcp!.list(agent.id)).toHaveLength(0)
+
     await agents.setEnabled(agent.id, false)
     expect(ctx.tools.schemas(old).some(row => row.name.endsWith('__echo_local'))).toBe(false)
     expect(JSON.stringify(await agents.list())).not.toContain('UPSTREAM_SECRET')

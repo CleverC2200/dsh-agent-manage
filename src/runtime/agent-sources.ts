@@ -179,7 +179,10 @@ export class AgentSources {
       for (const reference of agent.source.mcpReferences ?? []) {
         const current = associations.find(row => row.connectionId === reference.connectionId)
         const config = await this.agents.mcp!.sourceConfig(reference.connectionId)
-        mcp.set(reference.serverKey, { base: { config: config.base, enabled: true }, local: current ? { config: config.local, enabled: current.enabled } : null })
+        mcp.set(reference.serverKey, {
+          base: reference.baseMissing ? null : { name: reference.serverKey.slice(0, 160), config: config.base, enabled: true },
+          local: current ? { name: current.name, config: config.local, enabled: current.enabled } : null
+        })
       }
       await this.catalog.refreshSource(agent.source.sourceId)
       signal?.throwIfAborted()
@@ -204,7 +207,7 @@ export class AgentSources {
       for (const key of new Set([...mcp.keys(), ...Object.keys(suite.mcp?.servers ?? {})])) {
         const old = mcp.get(key)
         const upstream = suite.mcp?.servers[key]
-        entries.push(entry(`mcp:${key}`, old?.base ?? null, old?.local ?? null, upstream ? { config: upstream, enabled: true } : null))
+        entries.push(entry(`mcp:${key}`, old?.base ?? null, old?.local ?? null, upstream ? { name: key.slice(0, 160), config: upstream, enabled: true } : null))
       }
       const provenance: AgentSourceBaseline = { ...agent.source, base, lockCommit: source.lockCommit, version: suite.manifest.version }
       const token = randomUUID()
@@ -247,7 +250,7 @@ export class AgentSources {
       for (const reference of current.source?.mcpReferences ?? []) {
         const row = plan.entries.find(row => row.key === `mcp:${reference.serverKey}`)
         const association = currentAssociations.find(row => row.connectionId === reference.connectionId)
-        const local = association ? { config: (await this.agents.mcp!.sourceConfig(reference.connectionId)).local, enabled: association.enabled } : null
+        const local = association ? { name: association.name, config: (await this.agents.mcp!.sourceConfig(reference.connectionId)).local, enabled: association.enabled } : null
         if (!same(row?.local, local)) throw Error('AGENT_SOURCE_PREVIEW_STALE')
       }
       const source = (await this.catalog.readUserCatalog()).suites.find(row => row.sourceId === plan.source.sourceId && row.id === plan.source.suiteId)
@@ -275,17 +278,21 @@ export class AgentSources {
       const skills = agentSkills.parse([...resolved].filter(([key, value]) => key.startsWith('skill:') && value !== null).map(([, value]) => value))
       const references: NonNullable<AgentSourceBaseline['mcpReferences']> = []
       const oldReferences = current.source?.mcpReferences ?? []
-      const oldIds = oldReferences.map(row => row.connectionId)
+      const oldIds = oldReferences.filter(row => !row.removed).map(row => row.connectionId)
       try {
         for (const row of plan.entries.filter(row => row.key.startsWith('mcp:'))) {
           signal?.throwIfAborted()
           const serverKey = row.key.slice(4)
           const value = resolved.get(row.key)
-          if (value === null) continue
-          const selected = z.object({ config: z.unknown(), enabled: z.boolean() }).strict().parse(value)
+          const removed = value === null
+          if (removed && row.upstream === null) continue
+          const selected = z
+            .object({ name: z.string().trim().min(1).max(160), config: z.unknown(), enabled: z.boolean() })
+            .strict()
+            .parse(removed ? row.upstream : value)
           const previous = oldReferences.find(row => row.serverKey === serverKey)
           if (previous && same(value, row.local) && same(row.upstream, row.base)) {
-            references.push(previous)
+            references.push({ ...previous, removed, baseMissing: row.upstream === null })
             continue
           }
           if (!this.agents.mcp) throw Error('AGENT_SOURCE_MCP_UNAVAILABLE')
@@ -299,23 +306,23 @@ export class AgentSources {
             const imported = await this.agents.mcp.importSource({
               agentId: current.id,
               serverId,
-              name: serverKey.slice(0, 160),
+              name: selected.name,
               config: upstream.config,
               source: { sourceId: plan.source.sourceId, suiteId: plan.source.suiteId, serverKey, root: plan.root }
             })
             connection = { connectionId: imported.connectionId, serverId }
-            if (!same(selected.config, upstream.config)) await this.agents.mcp.save({ agentId: current.id, ...connection, name: serverKey.slice(0, 160), config: selected.config })
+            if (!same(selected.config, upstream.config)) await this.agents.mcp.save({ agentId: current.id, ...connection, name: selected.name, config: selected.config })
             if (!selected.enabled) await this.agents.mcp.setEnabled({ agentId: current.id, connectionId: connection.connectionId, enabled: false })
             plan.staged.set(stagedKey, connection)
           }
-          references.push({ serverKey, ...connection })
+          references.push({ serverKey, ...connection, ...(removed ? { removed: true } : {}), ...(row.upstream === null ? { baseMissing: true } : {}) })
         }
         signal?.throwIfAborted()
         // Persist membership first; revision-specific declarations keep old live
         // Sessions on their old connections while candidate publication settles.
         await this.agents.mcp?.sourceRevision(
           current.id,
-          references.map(row => row.connectionId)
+          references.filter(row => !row.removed).map(row => row.connectionId)
         )
         const agent = await this.agents.syncSource(
           current.id,
