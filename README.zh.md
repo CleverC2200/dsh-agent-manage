@@ -6,6 +6,8 @@
 
 个人 Agent 在配置页的 MCP Tab 管理外部连接。显示名称与稳定服务标识分开，每个 Agent 可选择、停用或移除自己的关联。共享定义、凭据和连接仍由 Catalog.runtime 管理，移除关联不影响其他 Agent。
 
+同一 MCP 编辑器支持 Streamable HTTP、SSE 和 stdio。本地进程的可执行文件、参数、工作目录和环境变量分别保存；个人定义允许绝对路径并保留未知扩展字段。OAuth 沿用宿主凭据记录和浏览器授权流程。保存可在等待授权时返回，取消和失败状态保留到重新授权。取消或替换连接会关闭待定回调并拒绝迟到的令牌写入。
+
 **[DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness)的插件市场与 Agent 能力管理工作区。**
 
 复用 Claude Code、Codex、Cursor、Kimi 等已识别布局中支持的内容及社区兼容布局，在 DSH Web 界面管理自己的技能、命令、代理角色、MCP 服务和 LSP 服务。支持的布局原地读取，无需转换清单或手动将文件复制到 DSH。各格式的具体限制见能力矩阵。

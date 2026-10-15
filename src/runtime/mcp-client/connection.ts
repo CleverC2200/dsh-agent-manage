@@ -22,6 +22,8 @@
  * @module runtime/mcp-client/connection
  */
 
+import type { McpConnectionState } from '../../contracts/mcp-status.js'
+import type { LoopbackOAuthClientProvider, AuthorizationState } from './oauth.js'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js'
 import { MAX_TIMER_DELAY_MS } from './host-seams.js'
@@ -103,12 +105,14 @@ export interface ConnectionOutcome {
 /** Handle for one bridge instance's supervised connection. */
 export interface ConnectionHandle {
   /**
-   * Settles when the first connection attempt completes (success or failure).
+   * Settles when the first attempt completes or waits for browser approval.
+   * Read state() to distinguish pending approval from connection success.
    * The supervisor enters its reconnect loop regardless; the caller decides
    * whether a failed startup is fatal via `failOnStartupError`.
    */
   ready: Promise<ConnectionOutcome>
-  state(): 'connecting' | 'connected' | 'failed'
+  state(): McpConnectionState
+  cancelAuthorization(): void
   /**
    * Stop reconnection, close the live client, wait for the in-flight attempt
    * and queued tool syncs to quiesce, then unregister every tool this server
@@ -145,6 +149,9 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
   const startupOpts: ToolBridgeOptions = config.failOnStartupError ? { ...opts, registrationFailure: 'throw' } : opts
 
   let disposed = false
+  let authorizationState: AuthorizationState = 'idle'
+  let authorizing: LoopbackOAuthClientProvider | undefined
+  const authorizationStarted = Promise.withResolvers<ConnectionOutcome>()
   /** Current generation: the connecting or connected client; undefined during backoff waits and after final failure. */
   let client: Client | undefined
   /** Close signal paired with {@link client}; captured by dispose before current ownership is cleared. */
@@ -206,6 +213,7 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
 
   /** 按共享失败预算计算下一次重连时间，耗尽后进入终止状态。 */
   function scheduleReconnect(): void {
+    if (authorizationState === 'authorization-cancelled' || authorizationState === 'authorization-failed') return
     const lostEstablishedConnection = connectedAt !== undefined
     if (!policy.enabled) {
       const message = lostEstablishedConnection
@@ -282,9 +290,12 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
         if (!disposed) host.logger.error(`${label}: tool re-sync failed: ${String(error)}`)
       }
     })
-    const { transport, oauthProvider } = createTransport(config, credentials, (message: string) => {
-      host.logger.info(message)
+    const { transport, oauthProvider } = createTransport(config, credentials, message => host.logger.info(message), state => {
+      if (!isCurrent(generation)) return
+      authorizationState = state
+      if (state === 'awaiting-authorization') authorizationStarted.resolve({})
     })
+    authorizing = oauthProvider
     try {
       if (config.startupTimeoutMs === undefined) await generation.connect(transport)
       else await generation.connect(transport, { timeout: config.startupTimeoutMs })
@@ -379,10 +390,10 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
   /** The in-flight (or last settled) connection attempt; dispose awaits it for quiescence. */
   let settling = connectGeneration(true)
 
-  // The ready promise settles when the first attempt finishes (regardless of
-  // success). If the first attempt fails and reconnect is enabled, the
+  // Pending browser approval releases startup so configuration can return and
+  // expose cancellation. Otherwise readiness follows the first attempt. If the first attempt fails and reconnect is enabled, the
   // supervisor is already scheduling a retry — ready just reports the outcome.
-  const ready: Promise<ConnectionOutcome> = settling.then(() => {
+  const ready: Promise<ConnectionOutcome> = Promise.race([authorizationStarted.promise, settling.then(() => {
     // After settling: if client is set the initial connect+sync succeeded.
     // If not, the supervisor either scheduled a retry (error logged) or gave
     // up (error logged). Either way the outcome is reported with the real error.
@@ -392,14 +403,16 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
     if (client !== undefined) return {}
     /* v8 ignore next -- defensive: firstAttemptError is always set when connect/sync fails */
     return { error: firstAttemptError ?? new Error(`${label}: initial connection failed`) }
-  })
+  })])
 
   return {
     ready,
-    state: () => connectedAt !== undefined && client !== undefined ? 'connected' : client !== undefined || reconnectTimer !== undefined ? 'connecting' : 'failed',
+    cancelAuthorization: () => authorizing?.resetCallback(),
+    state: () => authorizationState !== 'idle' ? authorizationState : connectedAt !== undefined && client !== undefined ? 'connected' : client !== undefined || reconnectTimer !== undefined ? 'connecting' : 'failed',
     /** 取消重连计时器并关闭当前连接，释放所有工具注册。 */
     async dispose(): Promise<void> {
       disposed = true
+      authorizing?.resetCallback()
       if (reconnectTimer !== undefined) {
         clearTimeout(reconnectTimer)
         reconnectTimer = undefined

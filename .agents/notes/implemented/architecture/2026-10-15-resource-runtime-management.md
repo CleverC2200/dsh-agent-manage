@@ -22,6 +22,8 @@ Personal Agent MCP configuration adds an `AgentMcp` membership module beside `Us
 
 The ordinary authenticated Agent routes expose inline configuration and association operations. A Core `composedPreset` check and current membership control both schema restrictions and dispatch guards, including already-running Sessions. Unknown personal MCP namespaces fail closed. Removing an association keeps the shared definition. Plugin MCP configuration rejects direct edits, while its enabled override remains supported. Bridge state is read from the existing supervisor, so successful zero-tool discovery still reports connected. Controlled local HTTP tests exercise real initialization, discovery, cancellation, Session scope and restart; installed-client and business acceptance remain separate.
 
+Personal MCP configuration derives its schema from the bundled validator, retaining known-field checks while allowing extension fields and external command/cwd paths. Portable plugin declarations keep their strict schema and containment rules. The supervisor reports pending, cancelled and failed browser authorization separately from connection success. Pending authorization releases startup readiness so Agent configuration can return; cancelling closes the loopback leg, and abandoned providers reject late credential writes. Reauthorization still deletes the existing host grant record and remounts that same owned connection.
+
 ## Alternatives considered
 
 **Keep Catalog operation delegates and setter callbacks.** This would preserve the extra interface and require the entry to assemble the same ordering rules again. All current callers instead move to `Catalog.runtime` in this change.

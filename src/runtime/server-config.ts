@@ -1,7 +1,7 @@
 /** 文件作用：校验、保存和合并单个 MCP/LSP 服务的用户覆盖配置。 */
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { MCP_SCHEMA_ID, validateAgainstSchema, validateMcpJson } from '../catalog/validate.js'
+import { MCP_SCHEMA_ID, USER_MCP_SCHEMA_ID, validateAgainstSchema, validateMcpJson } from '../catalog/validate.js'
 import { parseLspServers } from '../catalog/lsp-spec.js'
 import { qualifiedSuiteId } from '../catalog/paths.js'
 import { redactMcpConfig } from './mcp-redaction.js'
@@ -27,9 +27,9 @@ export function restoreRedactedConfig(input: unknown, original: unknown, redacte
 /** 用统一 Schema 和运行时解析器校验单个 MCP 服务，返回可挂载的规范配置。 */
 export async function validateServerMcp(root: string, key: string, config: unknown) {
   const document = { $schema: MCP_SCHEMA_ID, mcpServers: { [key]: config } }
-  const errors = await validateAgainstSchema(MCP_SCHEMA_ID, document)
+  const errors = await validateAgainstSchema(USER_MCP_SCHEMA_ID, document)
   if (errors.length > 0) throw new Error(`invalid MCP configuration: ${errors.join('; ')}`)
-  const result = await validateMcpJson(root, document)
+  const result = await validateMcpJson(root, document, { strict: false, pathMode: 'project' })
   const server = result.config?.servers[key]
   if (server === undefined || result.errors.length > 0) throw new Error(`invalid MCP configuration: ${result.errors.join('; ')}`)
   if (server.type !== 'stdio' && !server.url.includes('${')) {

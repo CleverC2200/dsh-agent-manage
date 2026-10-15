@@ -46,6 +46,11 @@ export function connectionState(root: Context, serverName: string) {
   return connections.get(root)?.get(serverName)?.state()
 }
 
+/** Cancel only the current generation; no credential record is removed. */
+export function cancelAuthorization(root: Context, serverName: string): void {
+  connections.get(root)?.get(serverName)?.cancelAuthorization()
+}
+
 const activeServerNames = new WeakMap<Context, Set<string>>()
 
 /** Tolerantly read an optional service from the cordis context. */

@@ -17,6 +17,8 @@ export type McpStatusKind = 'plugin' | 'direct'
 /** 中文：定义 MCP 行展示的运行状态；foreign 表示其他 MCP 客户端挂载，仅供提示。 */
 export type McpStatusState = 'connected' | 'degraded' | 'failed' | 'needs-credentials' | 'orphaned' | 'disabled' | 'foreign'
 
+export type McpConnectionState = 'connecting' | 'connected' | 'failed' | 'awaiting-authorization' | 'authorization-cancelled' | 'authorization-failed'
+
 /** One MCP service row for the status surface. */
 /** 中文：状态面板中的一条 MCP 服务记录。 */
 export interface McpStatusEntry {
@@ -30,7 +32,7 @@ export interface McpStatusEntry {
   /** 中文：当前后端和凭据服务支持重置该服务器的 OAuth 授权。 */
   canReauthorize?: boolean
   /** Current supervised connection; zero advertised tools can still be connected. */
-  connectionState?: 'connecting' | 'connected' | 'failed'
+  connectionState?: McpConnectionState
   state: McpStatusState
   source?: string
   suiteId?: string
