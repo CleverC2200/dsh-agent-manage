@@ -9,6 +9,7 @@ export type Dictionary = Record<string, string>
 export const zh = {
   agentSourcePreviewStale: '配置或预览已变化。请取消本次预览，再重新检查并同步。',
   agentSourceCurrent: '配置来源没有新变化。',
+  agentUpdate: '更新',
   agentSourceSync: '检查并同步',
   agentSourceUpdated: '配置已更新，后续新会话将使用新版本。',
   agentSourceConflicts: '处理配置冲突',
@@ -89,6 +90,10 @@ export const zh = {
   'agentMcpState_authorization-failed': '授权失败，请重新授权',
   agentMcpCancelAuthorization: '取消授权',
 
+  agentMore: '更多操作',
+  agentMcpExternal: '外部 MCP',
+  agentStateEnabled: '已启用',
+  agentStateDisabled: '已停用',
   agentConfiguration: 'Agent 配置',
   agentAdd: '＋ 添加 Agent',
   agentCurrent: '当前 Agent',
@@ -180,6 +185,7 @@ export type LocaleKey = keyof typeof zh
 export const en: Record<LocaleKey, string> = {
   agentSourcePreviewStale: 'The configuration or preview changed. Cancel this preview, then check and sync again.',
   agentSourceCurrent: 'The configuration source has no new changes.',
+  agentUpdate: 'Update',
   agentSourceSync: 'Check and sync',
   agentSourceUpdated: 'Configuration updated. New sessions will use the new revision.',
   agentSourceConflicts: 'Resolve configuration conflicts',
@@ -260,6 +266,10 @@ export const en: Record<LocaleKey, string> = {
   'agentMcpState_authorization-failed': 'Authorization failed; re-authorize to continue',
   agentMcpCancelAuthorization: 'Cancel authorization',
 
+  agentMore: 'More actions',
+  agentMcpExternal: 'External MCP',
+  agentStateEnabled: 'Enabled',
+  agentStateDisabled: 'Disabled',
   agentConfiguration: 'Agent configuration',
   agentAdd: '+ Add Agent',
   agentCurrent: 'Current Agents',

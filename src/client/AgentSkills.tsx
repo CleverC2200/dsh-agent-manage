@@ -65,10 +65,10 @@ export function AgentSkills({ agent, t, onSaved }: { agent: UserAgentView; t: Tr
     void save(editing ? skills.map(row => row.name === editing.name ? skill : row) : [...skills, skill])
   }
   return <section>
-    <header className={css.heading}><h3 className={css.title}>{t('agentSkill')}</h3><button type="button" disabled={busy} onClick={() => { cancel(); setMode('existing'); setChoice(''); setName(''); setDescription(''); setContent('') }}>{t('agentSkillAdd')}</button></header>
-    {skills.map(skill => <article className={css.row} key={skill.name}>
+    <header className={css.panelHeading}><h3 className={css.title}>{t('agentSkill')}</h3><button type="button" disabled={busy} onClick={() => { cancel(); setMode('existing'); setChoice(''); setName(''); setDescription(''); setContent('') }}>{t('agentSkillAdd')}</button></header>
+    {skills.map(skill => <article className={css.mcpRow} key={skill.name}>
       <div className={css.title}><strong>{skill.name}</strong><span className={css.description}>{skill.kind === 'personal' ? t('agentPersonal') : skill.provider}</span></div>
-      <button type="button" disabled={busy} onClick={() => void edit(skill)}>{t('agentSkillEdit')}</button>
+      <button type="button" className={css.textButton} disabled={busy} onClick={() => void edit(skill)}>{t('agentSkillEdit')}</button>
       <button type="button" role="switch" aria-label={t('agentEnabled', { name: skill.name })} aria-checked={skill.enabled} className={skill.enabled ? css.switchOn : css.switchOff} disabled={busy} onClick={() => void save(skills.map(row => row.name === skill.name ? { ...row, enabled: !row.enabled } : row))}><span /></button>
     </article>)}
     {!skills.length && !mode && <p className={css.muted}>{t('agentSkillEmpty')}</p>}

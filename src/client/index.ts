@@ -177,6 +177,7 @@ export function apply(ctx: SuiteClientContext): void {
     }, () => h(PluginWorkspace, {
       t,
       startAgent,
+      surface: 'settings',
     }))
     return () => {
       if (typeof workspaceDispose === 'function') workspaceDispose()

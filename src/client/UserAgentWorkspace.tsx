@@ -3,21 +3,23 @@ import type { Translate } from './index.js'
 import { userAgentApi, type SaveUserAgent, type UserAgentView } from './user-agent-api.js'
 import { AgentSources } from './AgentSources.js'
 import { AgentSkills } from './AgentSkills.js'
-import { TrustedCubePanel, TrustedPluginAgents, PluginMcpPanel } from './TrustedCubePanel.js'
+import { TrustedPluginAgents, PluginMcpPanel } from './TrustedCubePanel.js'
 import { AgentRecovery } from './AgentRecovery.js'
 import { AgentMcpPanel } from './AgentMcpPanel.js'
+import { agentIcon } from './ui/agent-icon.js'
 import css from './user-agents.module.css'
 
 export interface UserAgentWorkspaceProps {
   t: Translate
   startAgent?: (preset: string) => Promise<void>
+  surface?: 'main' | 'settings'
 }
-const agentIcon = <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="15" y="3" width="6" height="6" rx="1.5"/><rect x="9" y="15" width="6" height="6" rx="1.5"/><path d="M6 9v3h12V9M12 12v3"/></svg>
+
 const blank = (): SaveUserAgent => ({ name: '', description: '', prompt: '', enabled: true })
 type Tab = 'prompt' | 'skill' | 'mcp'
 
 /** One shared list/editor for the public main and settings seats. */
-export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
+export function UserAgentWorkspace({ t, startAgent, surface = 'main' }: UserAgentWorkspaceProps) {
   const [showSources, setShowSources] = useState(false)
   const [sourceRequest, setSourceRequest] = useState<{ id: string; request: number }>()
   const [agents, setAgents] = useState<UserAgentView[]>([])
@@ -60,35 +62,36 @@ export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
   })
   const start = (agent: UserAgentView) => void run(async () => {
     if (!startAgent) throw Error(t('agentHostUnavailable'))
-    const { preset } = await userAgentApi.select(agent.id)
+    const { preset } = agent.origin === 'plugin' ? agent : await userAgentApi.select(agent.id)
     await startAgent(preset)
   })
+  const leaveEditor = () => { setSelected(undefined); setDraft(blank()); setError(''); setMessage('') }
   const fields = <>
     <label>{t('agentName')}<input disabled={busy || selected?.origin === 'plugin'} required maxLength={160} value={draft.name} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))} /></label>
     <label>{t('agentDescription')}<input disabled={busy || selected?.origin === 'plugin'} maxLength={1000} value={draft.description} onChange={event => setDraft(value => ({ ...value, description: event.target.value }))} /></label>
     <label>{t('agentPrompt')}<textarea disabled={busy} required rows={12} maxLength={48000} value={draft.prompt} onChange={event => setDraft(value => ({ ...value, prompt: event.target.value }))} /></label>
   </>
   const enable = (agent: UserAgentView) => <button type="button" role="switch" aria-label={t('agentEnabled', { name: agent.name })} aria-checked={agent.enabled} className={agent.enabled ? css.switchOn : css.switchOff} disabled={busy} onClick={() => toggle(agent)}><span /></button>
-  return <section className={css.workspace}>
+  return <section className={`${css.workspace} ${surface === 'settings' ? css.settingsWorkspace : ''}`}>
     {selected ? <>
-      <button type="button" className={css.back} disabled={busy} onClick={() => { setSelected(undefined); setError(''); setMessage('') }}>{t('agentBack')}</button>
-      <header className={css.heading}><div className={css.icon}>{agentIcon}</div><div className={css.title}><h2>{selected.name}</h2><p>{selected.source ? `${selected.source.suiteId} · ${t(selected.customized ? 'agentSourceCustomized' : 'agentSourceUnmodified')}` : selected.origin === 'plugin' ? `${selected.pluginSource?.sourceRef} · ${t(selected.customized ? 'agentSourceCustomized' : 'agentSourceUnmodified')}` : t('agentPersonal')}</p></div>{!selected.deletedAt && enable(selected)}</header>
+      <button type="button" className={css.back} disabled={busy} onClick={leaveEditor}>{t('agentBack')}</button>
+      <header className={css.heading}><div className={css.icon}>{agentIcon}</div><div className={css.title}><h2>{selected.name}</h2><p>{selected.description || t(selected.origin === 'plugin' ? 'agentMcpPlugin' : 'agentPersonal')}</p></div><details className={css.menu}><summary aria-label={t('agentMore')}>⋯</summary><div className={css.menuItems}><button type="button" disabled={busy || selected.publication !== 'ready'} onClick={() => start(selected)}>{t('agentStart')}</button>{selected.origin === 'plugin' && <button type="button" disabled={busy} onClick={() => void run(async () => { const copied = await userAgentApi.copyPlugin(selected.id); await refresh(); edit(copied) })}>{t('agentCopyPersonal')}</button>}{selected.origin === 'user' && <AgentRecovery key={selected.id} agent={selected} t={t} onChanged={agent => { setSelected(agent); setDraft(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} onChooseAnother={leaveEditor} />}</div></details>{!selected.deletedAt && enable(selected)}</header>
       {selected.error && <p role="alert" className={css.error}>{selected.error === 'AGENT_SOURCE_IMPORT_INCOMPLETE' ? t('agentSourceIncomplete') : selected.error}</p>}
-      {selected.origin === 'user' && <AgentRecovery key={selected.id} agent={selected} t={t} onChanged={agent => { setSelected(agent); setDraft(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} onChooseAnother={() => setSelected(undefined)} />}
+
       {!selected.deletedAt && <><nav className={css.tabs} aria-label={t('agentConfiguration')}>
         {(['prompt', 'skill', 'mcp'] as const).map(value => <button type="button" key={value} disabled={busy} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{t(value === 'prompt' ? 'agentPrompt' : value === 'skill' ? 'agentSkill' : 'agentMcp')}</button>)}
       </nav>
-      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => edit(selected)}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : selected.origin === 'plugin' ? <PluginMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => setSelected(agent)} /> : <><TrustedCubePanel key={`${selected.id}-cube`} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /><AgentMcpPanel key={selected.id} agentId={selected.id} t={t} /></>}</>}
+      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={leaveEditor}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : selected.origin === 'plugin' ? <PluginMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => setSelected(agent)} /> : <AgentMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} />}</>}
     </> : <>
-      <header className={css.heading}><div className={css.title}><h2>{t('agentConfiguration')}</h2></div><button type="button" disabled={busy} aria-label={t('refresh')} onClick={() => void run(refresh)}>↻</button><button type="button" aria-expanded={showSources} onClick={() => { setSourceRequest(undefined); setShowSources(value => !value) }}>{t('agentSources')}</button><button className={css.primary} type="button" disabled={busy} onClick={() => { setDraft(blank()); setAdding(true); setMessage('') }}>{t('agentAdd')}</button></header>
+      <header className={css.heading}><div className={css.title}><h2>{t('agentConfiguration')}</h2></div><button type="button" disabled={busy} aria-label={t('refresh')} className={css.iconButton} onClick={() => void run(refresh)}>↻</button><button type="button" aria-expanded={showSources} onClick={() => { setSourceRequest(undefined); setShowSources(value => !value) }}>{t('agentSources')}</button><button className={css.primary} type="button" disabled={busy} onClick={() => { setDraft(blank()); setAdding(true); setMessage('') }}>{t('agentAdd')}</button></header>
       {showSources && <AgentSources key={sourceRequest?.request ?? 0} t={t} agents={agents} initialSyncId={sourceRequest?.id} onImported={refresh} />}
       <p className={css.sectionTitle}>{t('agentCurrent')} <span>{agents.filter(agent => !agent.deletedAt).length}</span></p>
       {agents.map(agent => <article className={css.row} key={agent.id}>
-        <button className={css.identity} type="button" disabled={busy} onClick={() => edit(agent)}><span className={css.icon}>{agentIcon}</span><span><strong>{agent.name}</strong><span className={css.description}>{agent.source ? `${agent.source.suiteId} · ${t(agent.customized ? 'agentSourceCustomized' : 'agentSourceUnmodified')}` : agent.description || t('agentPersonal')}{agent.publication === 'deleted' ? ` · ${t('agentDeleted')}` : agent.publication === 'failed' ? ` · ${t('agentUnavailable')}` : ''}</span></span></button>
-        {agent.source && !agent.deletedAt && !agent.source.importPending && <button type="button" disabled={busy} onClick={() => { setShowSources(true); setSourceRequest(previous => ({ id: agent.id, request: (previous?.request ?? 0) + 1 })) }}>{t('agentSourceSync')}</button>}
-        <button type="button" disabled={busy || agent.publication !== 'ready'} onClick={() => start(agent)}>{t('agentStart')}</button>{!agent.deletedAt && enable(agent)}
+        <button className={css.identity} type="button" disabled={busy} onClick={() => edit(agent)}><span className={css.icon}>{agentIcon}</span><span><strong>{agent.name}</strong><span className={css.description}>{agent.description || t('agentPersonal')}{agent.customized ? ` · ${t('agentSourceCustomized')}` : ''}{agent.publication === 'deleted' ? ` · ${t('agentDeleted')}` : agent.publication === 'failed' ? ` · ${t('agentUnavailable')}` : ''}</span></span></button>
+        {agent.source && !agent.deletedAt && !agent.source.importPending && <button type="button" className={css.textButton} aria-label={t('agentSourceSync')} disabled={busy} onClick={() => { setShowSources(true); setSourceRequest(previous => ({ id: agent.id, request: (previous?.request ?? 0) + 1 })) }}>{t('agentUpdate')}</button>}
+        {!agent.deletedAt && enable(agent)}
       </article>)}
-      <TrustedPluginAgents onEdit={edit} t={t} startAgent={startAgent} onCopied={agent => { setAgents(rows => [...rows, agent]); edit(agent) }} />
+      <TrustedPluginAgents onEdit={edit} t={t} />
       {!agents.length && !adding && <p className={css.muted}>{t('agentEmpty')}</p>}
       {adding && <form className={css.inline} onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => setAdding(false)}>{t('cancel')}</button><button className={css.primary} type="submit" disabled={busy}>{t('save')}</button></footer></form>}
     </>}

@@ -29,6 +29,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
       root: home,
       prompt: 'browser-plugin.json',
       publishPreset: true,
+      cube: true,
       profile: { label: 'Plugin', consumerCode: 'controlled-reader', skills: [] }
     }
   ])
@@ -161,6 +162,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   onTestFinished(async () => {
     if (process.env.PRESET_EVIDENCE_DIR && !page.isClosed())
       await writeFile(join(process.env.PRESET_EVIDENCE_DIR, 'browser-last-state.txt'), (await page.locator('body').innerText()) + '\n' + JSON.stringify(failures))
+    if (!page.isClosed()) await page.evaluate(() => Reflect.get(window, 'journeyDispose')?.())
     await page.context().close()
     await browser.close()
     await record('browser-journey-cleanup', { browserConnected: browser.isConnected() })
@@ -188,7 +190,9 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   await browserExpect(page.getByRole('navigation', { name: 'Agent 配置', exact: true })).toHaveText('提示词SkillMCP')
   await page.getByRole('button', { name: '‹ 返回 Agent 列表', exact: true }).click()
   const personalRow = page.locator('article').filter({ has: page.getByText('浏览器个人助手', { exact: true }) })
-  const personalStart = personalRow.getByRole('button', { name: '开始使用', exact: true })
+  await personalRow.getByRole('button', { name: /浏览器个人助手/ }).click()
+  await page.locator('summary').click()
+  const personalStart = page.getByRole('button', { name: '开始使用', exact: true })
   await browserExpect(personalStart).toBeEnabled()
   const toggle = page.getByRole('switch', { name: '启用 浏览器个人助手', exact: true })
   await toggle.click()
@@ -226,6 +230,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   expect(JSON.stringify(await ctx.systemPrompt.assemble({ scope: session, agent: session } as never))).toContain('BROWSER_PERSONAL_AGENT_INSTRUCTIONS')
   expect(ctx.agentPresets.defaultId).toBe(originalDefault)
   expect(JSON.stringify(original.session.snapshotEvents())).toBe(existingEvents)
+  await page.getByRole('button', { name: '‹ 返回 Agent 列表', exact: true }).click()
   await page.getByRole('button', { name: /浏览器插件助手/ }).click()
   await page.getByRole('textbox', { name: '提示词', exact: true }).fill('BROWSER_PLUGIN_CUSTOMIZED')
   await page.getByRole('button', { name: '保存', exact: true }).click()
@@ -234,11 +239,23 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   expect(plugin).toMatchObject({ preset: 'browser-plugin', origin: 'plugin', prompt: 'BROWSER_PLUGIN_CUSTOMIZED', customized: true })
   expect(await readFile(join(home, 'browser-plugin.json'), 'utf8')).toBe(pluginPrompt)
   await page.getByRole('button', { name: 'MCP', exact: true }).click()
-  await browserExpect(page.getByText('MCP 成员由插件提供，只能启停。需要增删时请复制为个人 Agent。', { exact: true })).toBeVisible()
+  await browserExpect(page.getByRole('heading', { name: '使用的 MCP', exact: true })).toBeVisible()
   expect(await page.getByRole('button', { name: '添加 MCP', exact: true }).count()).toBe(0)
+  const cubeSwitch = page.getByRole('switch', { name: '启用 浏览器插件助手 的 Cube', exact: true })
+  await browserExpect(cubeSwitch).toHaveAttribute('aria-checked', 'true')
+  expect((await cubeSwitch.boundingBox())?.width).toBe(36)
+  if (process.env.PRESET_EVIDENCE_DIR) await page.screenshot({ path: join(process.env.PRESET_EVIDENCE_DIR, 'plugin-cube.png') })
+  await page.getByRole('button', { name: '提示词', exact: true }).click()
+  await page.getByRole('textbox', { name: '提示词', exact: true }).fill('MUST_NOT_SAVE_CANCELLED_PROMPT')
+  await page.getByRole('button', { name: '取消', exact: true }).click()
+  await browserExpect(page.getByRole('heading', { name: 'Agent 配置', exact: true })).toBeVisible()
+  expect((await resources.pluginAgent('browser-plugin')).prompt).toBe('BROWSER_PLUGIN_CUSTOMIZED')
+  await page.getByRole('button', { name: /浏览器插件助手/ }).click()
   await page.getByRole('button', { name: '‹ 返回 Agent 列表', exact: true }).click()
   const pluginRow = page.locator('article').filter({ has: page.getByText('浏览器插件助手', { exact: true }) })
-  await pluginRow.getByRole('button', { name: '开始使用', exact: true }).click()
+  await pluginRow.getByRole('button', { name: /浏览器插件助手/ }).click()
+  await page.locator('summary').click()
+  await page.getByRole('button', { name: '开始使用', exact: true }).click()
   await browserExpect.poll(() => started.length).toBe(2)
   expect(ctx.agentPresets.composedPreset(started[1].ctx)).toBe('browser-plugin')
   expect(ctx.agentPresets.defaultId).toBe(originalDefault)

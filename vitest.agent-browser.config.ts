@@ -4,5 +4,5 @@ import base from './vitest.config.js'
 
 export default defineConfig({
   ...base,
-  test: { ...base.test, include: ['tests/user-agent-journey.browser.ts'], exclude: [] }
+  test: { ...base.test, hookTimeout: 30_000, include: ['tests/user-agent-journey.browser.ts'], exclude: [] }
 })
