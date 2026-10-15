@@ -317,3 +317,39 @@ describe('LoopbackOAuthClientProvider callback leg', () => {
     expect(finished).toEqual(['late'])
   }, 15_000)
 })
+
+
+it('cancels a pending browser authorization and rejects a callback from the abandoned generation', async () => {
+  const opened = Promise.withResolvers<URL>()
+  const provider = new LoopbackOAuthClientProvider('cancelled', {}, undefined, () => {}, undefined, async url => { opened.resolve(url) })
+  let exchanged = false
+  provider.bindTransport({ finishAuth: async () => { exchanged = true } })
+  const pending = provider.redirectToAuthorization(new URL('https://auth.example/authorize'))
+  const rejected = expect(pending).rejects.toThrow(/cancel/i)
+  const url = await opened.promise
+  expect(provider.authorizationState).toBe('awaiting-authorization')
+  provider.resetCallback()
+  await rejected
+  expect(provider.authorizationState).toBe('authorization-cancelled')
+  expect(provider.awaitingBrowser).toBe(false)
+  await expect(fetch(`${url.searchParams.get('redirect_uri')}?code=late`)).rejects.toThrow()
+  expect(exchanged).toBe(false)
+})
+
+it('does not persist tokens returned after the authorization generation was cancelled', async () => {
+  const opened = Promise.withResolvers<URL>()
+  const exchangeStarted = Promise.withResolvers<void>()
+  const response = Promise.withResolvers<void>()
+  const store = createRecordStore()
+  const provider = new LoopbackOAuthClientProvider('late', {}, undefined, () => {}, store, async url => { opened.resolve(url) })
+  provider.bindTransport({ finishAuth: async () => { exchangeStarted.resolve(); await response.promise; await provider.saveTokens(TOKENS) } })
+  const pending = provider.redirectToAuthorization(new URL('https://auth.example/authorize'))
+  const outcome = pending.then(() => 'authorized', () => 'cancelled')
+  const url = await opened.promise
+  await fetch(`${url.searchParams.get('redirect_uri')}?code=late`)
+  await exchangeStarted.promise
+  provider.resetCallback()
+  response.resolve()
+  expect(await outcome).toBe('cancelled')
+  await expect(new LoopbackOAuthClientProvider('late', {}, undefined, () => {}, store, openerStub).tokens()).resolves.toBeUndefined()
+})

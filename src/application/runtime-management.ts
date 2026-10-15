@@ -4,7 +4,7 @@ import type { Suite } from '../model/types.js'
 import { qualifiedSuiteId } from '../catalog/paths.js'
 import { RuntimeReconciler } from '../runtime/reconciler.js'
 import type { HostTranslate } from '../runtime/host-locale.js'
-import { connectionState } from '../runtime/mcp-client/bridge.js'
+import { cancelAuthorization, connectionState } from '../runtime/mcp-client/bridge.js'
 import { buildMcpStatus, type McpToolSnapshot } from '../runtime/mcp-status.js'
 import { addUserMcpServer, loadUserMcpSuite, USER_MCP_SOURCE, USER_MCP_SUITE } from '../runtime/mcp-direct-config.js'
 import type { McpMountDiagnostic } from '../runtime/mcp-mounts.js'
@@ -142,6 +142,11 @@ export class RuntimeManagement {
       const key = this.reconciler?.mcp.serverOwner(serverName)
       if (key !== undefined) this.reconciler?.mcp.forceRemount(key.suiteId, key.serverKey)
     })
+  }
+
+  /** Cancel the pending OAuth loopback leg without altering the saved configuration. */
+  cancelMcpAuthorization(serverName: string): void {
+    if (this.host) cancelAuthorization(this.host.ctx.root, serverName)
   }
 
   /** Whether the re-authorize action can run in this composition. */

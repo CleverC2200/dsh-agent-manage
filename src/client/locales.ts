@@ -73,6 +73,10 @@ export const zh = {
   'agentMcpState_failed': '连接失败',
   'agentMcpState_disabled': '已停用',
   'agentMcpState_needs-credentials': '需要凭据',
+  'agentMcpState_awaiting-authorization': '等待浏览器授权',
+  'agentMcpState_authorization-cancelled': '授权已取消，可重新授权',
+  'agentMcpState_authorization-failed': '授权失败，请重新授权',
+  agentMcpCancelAuthorization: '取消授权',
 
   agentConfiguration: 'Agent 配置',
   agentAdd: '＋ 添加 Agent',
@@ -502,6 +506,10 @@ export const en: Record<LocaleKey, string> = {
   'agentMcpState_failed': 'Connection failed',
   'agentMcpState_disabled': 'Disabled',
   'agentMcpState_needs-credentials': 'Credentials required',
+  'agentMcpState_awaiting-authorization': 'Waiting for browser authorization',
+  'agentMcpState_authorization-cancelled': 'Authorization cancelled; re-authorize to continue',
+  'agentMcpState_authorization-failed': 'Authorization failed; re-authorize to continue',
+  agentMcpCancelAuthorization: 'Cancel authorization',
 
   agentConfiguration: 'Agent configuration',
   agentAdd: '+ Add Agent',

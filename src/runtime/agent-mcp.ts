@@ -32,7 +32,6 @@ export class AgentMcp {
   private associations: Association[] = []
   private agents: readonly UserAgentConfig[] = []
   private sourceAvailable: (source: AgentSourceBaseline) => boolean = () => true
-  private connecting = false
   private closed = false
   private queue: Promise<unknown> = Promise.resolve()
   private masks = new Map<ReturnType<Context['agents']['list']>[number], () => void>()
@@ -108,17 +107,13 @@ export class AgentMcp {
         const connection = this.find(row.connectionId)
         const entry = status.entries.find(item => item.id === this.runtimeId(connection))
         const enabled = row.enabled && agent.enabled
-        const state = !enabled
-          ? 'disabled'
-          : this.connecting || entry?.connectionState === 'connecting'
-            ? 'connecting'
-            : entry?.state === 'connected'
-              ? 'connected'
-              : entry?.state === 'needs-credentials'
-                ? 'needs-credentials'
-                : !entry || entry.state === 'disabled'
-                  ? 'saved'
-                  : 'failed'
+        let state: AgentMcpView['state']
+        if (!enabled) state = 'disabled'
+        else if (entry?.connectionState) state = entry.connectionState
+        else if (entry?.state === 'connected') state = 'connected'
+        else if (entry?.state === 'needs-credentials') state = 'needs-credentials'
+        else if (!entry || entry.state === 'disabled') state = 'saved'
+        else state = 'failed'
         return {
           connectionId: connection.connectionId,
           serverId: connection.serverId,
@@ -128,6 +123,7 @@ export class AgentMcp {
           enabled: row.enabled,
           config: entry?.config ?? {},
           state,
+          canReauthorize: enabled && state !== 'needs-credentials' && entry?.canReauthorize === true,
           ...(entry?.reason ? { reason: entry.reason } : {})
         }
       })
@@ -178,7 +174,6 @@ export class AgentMcp {
       // Reserve the namespace fail-closed before runtime can register its first tool.
       this.definitions = definitions
       this.associations = associations
-      this.connecting = true
       try {
         await this.persist(definitions, associations)
         if (previous) await this.runtime.saveServerConfig('mcp', this.runtimeId(previous), config)
@@ -189,7 +184,6 @@ export class AgentMcp {
         await this.persist(previousDefinitions, previousAssociations)
         throw error
       } finally {
-        this.connecting = false
         this.syncMasks()
       }
       return (await this.list(value.agentId)).find(row => row.connectionId === connection.connectionId)!
@@ -243,6 +237,24 @@ export class AgentMcp {
       this.syncMasks()
       return this.list(value.agentId)
     })
+  }
+
+  reauthorize(input: unknown): Promise<AgentMcpView[]> {
+    const value = target.parse(input)
+    return this.write(async () => {
+      const connection = this.associated(value.agentId, value.connectionId)
+      const entry = (await this.list(value.agentId)).find(row => row.connectionId === connection.connectionId)
+      if (!entry?.canReauthorize) throw Error('MCP_REAUTHORIZE_UNAVAILABLE')
+      await this.runtime.reauthorizeMcpServer(deriveServerName(suiteId, connection.serverId))
+      return this.list(value.agentId)
+    })
+  }
+
+  async cancelAuthorization(input: unknown): Promise<AgentMcpView[]> {
+    const value = target.parse(input)
+    const connection = this.associated(value.agentId, value.connectionId)
+    this.runtime.cancelMcpAuthorization(deriveServerName(suiteId, connection.serverId))
+    return this.list(value.agentId)
   }
 
   async dispose(): Promise<void> {
