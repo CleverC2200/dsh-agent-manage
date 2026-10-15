@@ -65,3 +65,7 @@ Agent 页的“配置来源”面板沿用 Catalog 的 Git、本地目录和压�
 `AgentSources` 持有获取与导入编排，`UserAgents` 在 `user-agents.json` 中分别保存导入基线和可编辑字段。提示词或 Skill 定制不写源 checkout；重复导入保留原 Agent 和个人修改。Skill 引用保留实际 provider、源路径及其参考目录。首次安装来源依赖时，同一次 Catalog 变更只开启 Skill surface；已安装但停用的 Skill 依赖需用户明确决定后恢复。
 
 来源外部 MCP 与手工配置共用个人连接定义和关联链；根目录由 Host 发现结果提供，凭据沿用既有 MCP 解析规则。部分导入保持停用并提供诊断，重试继续同一 Agent。配置保存、预设可用与 MCP 连通分别反馈。来源同步和三方冲突解决走独立更新流程，导入不覆盖已定制 Agent。
+
+“检查并同步”读取新来源，无冲突时直接应用。有冲突时，对提示词字段、Skill 或 MCP 服务分别选择保留本地、采用上游或手动合并，再应用。取消保留当前 Agent。校验或发布失败保留原可用 revision，当前预览可继续重试；预览过期需重新检查。Host 重启丢弃预览，只恢复已提交配置。
+
+成功提交后，新 Session 使用新 revision；已有 live Session 保留原提示词、选中 Skill 正文和来源 MCP 连接身份。参考资产仍跟随来源目录，缺依赖仍明确诊断。停用、删除 Agent 或移除来源也会撤销旧来源 MCP 能力。同步不改宿主默认和 Session 草稿，不承诺重启后精确重建历史 revision。

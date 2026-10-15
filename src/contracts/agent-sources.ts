@@ -42,5 +42,29 @@ export interface ImportSourceAgent {
 export const AGENT_SOURCE_ROUTES = {
   list: '/api/agent-manage/agent-sources',
   acquire: '/api/agent-manage/agent-sources/acquire',
-  import: '/api/agent-manage/agent-sources/import'
+  import: '/api/agent-manage/agent-sources/import',
+  preview: '/api/agent-manage/agent-sources/preview',
+  commit: '/api/agent-manage/agent-sources/commit',
+  cancel: '/api/agent-manage/agent-sources/cancel'
 } as const
+
+/** A preview contains editable data only. MCP secrets remain in the Host. */
+export interface AgentSourceConflict {
+  key: string
+  base: unknown
+  local: unknown
+  upstream: unknown
+}
+export interface AgentSourcePreview {
+  token: string
+  agentId: string
+  conflicts: AgentSourceConflict[]
+  changed?: boolean
+  version?: string
+  lockCommit?: string
+}
+export type AgentSourceResolution = { choice: 'local' | 'upstream' } | { choice: 'manual'; value: unknown }
+export interface CommitAgentSource {
+  token: string
+  resolutions: Record<string, AgentSourceResolution>
+}

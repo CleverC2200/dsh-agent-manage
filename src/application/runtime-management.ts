@@ -173,7 +173,8 @@ export class RuntimeManagement {
         auth?.enabled !== false &&
         !['disabled', 'foreign', 'orphaned'].includes(entry.state)
     }
-    for (const key of ['connected', 'degraded', 'failed', 'orphaned', 'disabled', 'foreign'] as const) payload.totals[key] = payload.entries.filter(entry => entry.state === key).length
+    for (const key of ['connected', 'degraded', 'failed', 'orphaned', 'disabled', 'foreign'] as const)
+      payload.totals[key] = payload.entries.filter(entry => entry.state === key).length
     return payload
   }
 
@@ -190,6 +191,15 @@ export class RuntimeManagement {
   async serverConfig(kind: 'mcp' | 'lsp', id: string): Promise<ServerConfigPayload> {
     const config = await this.resolveServerConfig(kind, id)
     return { kind, id, editable: kind !== 'mcp' || config.suiteKey === `${USER_MCP_SOURCE}/${USER_MCP_SUITE}`, config: redactMcpConfig(config.value) as Record<string, unknown> }
+  }
+
+  /** Host-only sync comparison. Never send these credential-bearing values to a client. */
+  async sourceSyncConfig(id: string): Promise<{ base: unknown; local: unknown }> {
+    const current = await this.resolveServerConfig('mcp', id)
+    const suite = await loadUserMcpSuite(this.dataRoot)
+    const base = suite.mcp?.servers[current.key]
+    if (!base) throw Error('AGENT_SOURCE_MCP_BASE_MISSING')
+    return { base, local: current.value }
   }
 
   /** 按客户端服务 ID 定位套件或直配服务，并返回可编辑配置上下文。 */
@@ -313,7 +323,8 @@ export class RuntimeManagement {
   async setMcpOverride(sourceId: string, suiteId: string, serverKey: string, override: McpServerOverride | null): Promise<void> {
     return this.catalog.change(async () => {
       const suiteKey = qualifiedSuiteId(sourceId, suiteId)
-      if ((sourceId !== USER_MCP_SOURCE || suiteId !== USER_MCP_SUITE) && (override === null || Object.keys(override).some(key => key !== 'enabled'))) throw Error('PLUGIN_MCP_EDIT_FORBIDDEN')
+      if ((sourceId !== USER_MCP_SOURCE || suiteId !== USER_MCP_SUITE) && (override === null || Object.keys(override).some(key => key !== 'enabled')))
+        throw Error('PLUGIN_MCP_EDIT_FORBIDDEN')
       const suite = sourceId === USER_MCP_SOURCE && suiteId === USER_MCP_SUITE ? await loadUserMcpSuite(this.dataRoot) : await this.catalog.resolveSuite(sourceId, suiteId)
       if (suite.mcp?.servers[serverKey] === undefined) throw new Error(`server "${serverKey}" is not defined by suite "${suiteId}"`)
       // Override files are keyed by the qualified id so two sources' same-named

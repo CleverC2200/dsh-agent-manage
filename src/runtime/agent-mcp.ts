@@ -1,8 +1,10 @@
+import { standingMountFor } from '@deepseek-ai/dsh-agent-preset-registry'
 import type { Context } from '@deepseek-ai/cordis'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
+import type { AgentSourceBaseline } from '../contracts/agent-sources.js'
 import type { AgentMcpView } from '../contracts/agent-mcp.js'
 import type { UserAgentConfig } from '../contracts/user-agents.js'
 import type { RuntimeManagement } from '../application/runtime-management.js'
@@ -10,10 +12,12 @@ import { USER_MCP_SOURCE, USER_MCP_SUITE } from './mcp-direct-config.js'
 import { deriveServerName } from './mcp-config.js'
 import { validateServerMcp } from './server-config.js'
 
-const definition = z.object({ connectionId: z.uuid(), serverId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/), name: z.string().trim().min(1).max(160) }).strict()
-const association = z.object({ agentId: z.uuid(), connectionId: z.uuid(), enabled: z.boolean() }).strict()
+const definition = z
+  .object({ connectionId: z.uuid(), serverId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/), name: z.string().trim().min(1).max(160), sourceAgentId: z.uuid().optional() })
+  .strict()
+const association = z.object({ agentId: z.uuid(), connectionId: z.uuid(), enabled: z.boolean(), retired: z.boolean().optional() }).strict()
 const stored = z.object({ version: z.literal(1), definitions: z.array(definition), associations: z.array(association) }).strict()
-const save = definition.omit({ connectionId: true }).extend({ agentId: z.uuid(), connectionId: z.uuid().optional(), config: z.unknown() }).strict()
+const save = definition.omit({ connectionId: true, sourceAgentId: true }).extend({ agentId: z.uuid(), connectionId: z.uuid().optional(), config: z.unknown() }).strict()
 const target = association.omit({ enabled: true }).strict()
 const suiteId = USER_MCP_SUITE
 type Definition = z.infer<typeof definition>
@@ -27,6 +31,7 @@ export class AgentMcp {
   private definitions: Definition[] = []
   private associations: Association[] = []
   private agents: readonly UserAgentConfig[] = []
+  private sourceAvailable: (source: AgentSourceBaseline) => boolean = () => true
   private connecting = false
   private closed = false
   private queue: Promise<unknown> = Promise.resolve()
@@ -64,10 +69,28 @@ export class AgentMcp {
       )
         throw Error('DUPLICATE_MCP_CONNECTION')
       if (value.associations.some(row => !this.definitions.some(connection => connection.connectionId === row.connectionId))) throw Error('MCP_CONNECTION_NOT_FOUND')
-      this.associations = value.associations
+      this.associations = value.associations.map(row =>
+        this.definitions.find(connection => connection.connectionId === row.connectionId)?.sourceAgentId === row.agentId
+          ? {
+              ...row,
+              retired:
+                !agents.find(agent => agent.id === row.agentId)?.source?.importPending &&
+                !agents.find(agent => agent.id === row.agentId)?.source?.mcpReferences?.some(reference => reference.connectionId === row.connectionId)
+            }
+          : row
+      )
     } catch (error) {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     }
+    this.syncMasks()
+  }
+
+  /** Catalog owns availability. Re-evaluate it on source changes and every dispatch. */
+  setSourceAvailability(read: (source: AgentSourceBaseline) => boolean): void {
+    this.sourceAvailable = read
+    this.sourceAvailabilityChanged()
+  }
+  sourceAvailabilityChanged(): void {
     this.syncMasks()
   }
 
@@ -80,7 +103,7 @@ export class AgentMcp {
     const agent = this.requireAgent(agentId)
     const status = await this.runtime.mcpStatus()
     return this.associations
-      .filter(row => row.agentId === agentId)
+      .filter(row => row.agentId === agentId && !row.retired)
       .map(row => {
         const connection = this.find(row.connectionId)
         const entry = status.entries.find(item => item.id === this.runtimeId(connection))
@@ -131,10 +154,10 @@ export class AgentMcp {
     source: { sourceId: string; suiteId: string; serverKey: string; root: string }
   }): Promise<AgentMcpView> {
     const { source, ...value } = input
-    return this.saveDefinition(save.parse(value), source.root)
+    return this.saveDefinition(save.parse(value), source.root, input.agentId)
   }
 
-  private saveDefinition(value: z.infer<typeof save>, sourceRoot?: string): Promise<AgentMcpView> {
+  private saveDefinition(value: z.infer<typeof save>, sourceRoot?: string, sourceAgentId?: string): Promise<AgentMcpView> {
     return this.write(async () => {
       this.requireAgent(value.agentId)
       const previous = value.connectionId ? this.associated(value.agentId, value.connectionId) : undefined
@@ -142,7 +165,12 @@ export class AgentMcp {
       if (this.definitions.some(row => row.serverId === value.serverId && row.connectionId !== previous?.connectionId)) throw Error('MCP_SERVER_ID_EXISTS')
       // Validate creates before exposing membership. Edits use runtime's redacted merge.
       const config = previous ? value.config : await validateServerMcp(sourceRoot ?? this.dataRoot, value.serverId, value.config)
-      const connection: Definition = { connectionId: previous?.connectionId ?? randomUUID(), serverId: value.serverId, name: value.name }
+      const connection: Definition = {
+        connectionId: previous?.connectionId ?? randomUUID(),
+        serverId: value.serverId,
+        name: value.name,
+        ...(sourceAgentId ? { sourceAgentId } : previous?.sourceAgentId ? { sourceAgentId: previous.sourceAgentId } : {})
+      }
       const definitions = previous ? this.definitions.map(row => (row.connectionId === connection.connectionId ? connection : row)) : [...this.definitions, connection]
       const associations = previous ? this.associations : [...this.associations, { agentId: value.agentId, connectionId: connection.connectionId, enabled: true }]
       const previousDefinitions = this.definitions
@@ -165,6 +193,24 @@ export class AgentMcp {
         this.syncMasks()
       }
       return (await this.list(value.agentId)).find(row => row.connectionId === connection.connectionId)!
+    })
+  }
+
+  /** Raw comparison stays Host-side; the original direct definition is the upstream baseline. */
+  async sourceConfig(connectionId: string) {
+    await this.queue
+    return this.runtime.sourceSyncConfig(this.runtimeId(this.find(connectionId)))
+  }
+
+  /** Retired source definitions remain mounted for the Core revisions that still retain them. */
+  sourceRevision(agentId: string, connectionIds: string[]): Promise<void> {
+    return this.write(async () => {
+      const associations = this.associations.map(row =>
+        row.agentId === agentId && this.find(row.connectionId).sourceAgentId === agentId ? { ...row, retired: !connectionIds.includes(row.connectionId) } : row
+      )
+      await this.persist(this.definitions, associations)
+      this.associations = associations
+      this.syncMasks()
     })
   }
 
@@ -232,12 +278,18 @@ export class AgentMcp {
   }
   private permits(agent: ReturnType<Context['agents']['list']>[number], connectionId: string): boolean {
     const preset = this.ctx.agentPresets.composedPreset(agent.ctx)
-    return (
-      !this.closed &&
-      this.agents.some(
-        row => row.enabled && preset === `user-agent-${row.id}` && this.associations.some(link => link.agentId === row.id && link.connectionId === connectionId && link.enabled)
-      )
-    )
+    const connection = this.find(connectionId)
+    const selected = this.agents.find(row => row.enabled && !row.deletedAt && preset === `user-agent-${row.id}`)
+    if (this.closed || !selected || (selected.source && !this.sourceAvailable(selected.source))) return false
+    const link = this.associations.find(row => row.agentId === selected.id && row.connectionId === connectionId)
+    if (!link?.enabled) return false
+    if (connection.sourceAgentId === selected.id) {
+      const mount = standingMountFor(agent.ctx)
+      const declaration = mount && [...mount.tree.entries()].find(row => row.options.name === 'dsh-agent-manage/user-agent-skills')
+      const references = declaration?.options.config?.sourceMcpConnections
+      return Array.isArray(references) && references.includes(connectionId)
+    }
+    return !link.retired
   }
   private syncing = false
   private syncMasks(): void {

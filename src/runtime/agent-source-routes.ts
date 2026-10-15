@@ -21,7 +21,13 @@ export function mountAgentSourceRoutes(host: Pick<Context, 'connection' | 'effec
                 ? await sources.list()
                 : action === 'acquire'
                   ? await sources.acquire(await readJsonRequest(request), request.signal)
-                  : await sources.import(await readJsonRequest(request), request.signal)
+                  : action === 'preview'
+                    ? await sources.preview(await readJsonRequest(request), request.signal)
+                    : action === 'commit'
+                      ? await sources.commit(await readJsonRequest(request), request.signal)
+                      : action === 'cancel'
+                        ? await sources.cancel(await readJsonRequest(request))
+                        : await sources.import(await readJsonRequest(request), request.signal)
             return Response.json(result, { headers: { 'cache-control': 'no-store' } })
           } catch (error) {
             return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: error instanceof RequestBodyTooLarge ? 413 : 400 })

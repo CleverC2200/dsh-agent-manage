@@ -7,6 +7,23 @@ export type Dictionary = Record<string, string>
 /** Chinese is the source-of-truth key set; English is checked against it below. */
 /** 中文字典是键集合的事实来源，英文集合在文件末尾做一致性校验。 */
 export const zh = {
+  agentSourceCurrent: '配置来源没有新变化。',
+  agentSourceSync: '检查并同步',
+  agentSourceUpdated: '配置已更新，后续新会话将使用新版本。',
+  agentSourceConflicts: '处理配置冲突',
+  agentSourceConflictHelp: '来源与个人配置均有修改。选择每项的结果后应用；取消保留原配置。MCP 凭据仅显示脱敏值。',
+  agentSourceResolveAll: '请处理每项冲突。',
+  agentSourceBase: '导入基线',
+  agentSourceLocal: '个人配置',
+  agentSourceUpstream: '来源更新',
+  agentSourceResolution: '处理方式',
+  agentSourceChoose: '请选择',
+  agentSourceKeepLocal: '保留本地',
+  agentSourceUseUpstream: '采用上游',
+  agentSourceManual: '手动合并',
+  agentSourceMerged: '合并结果（Skill 与 MCP 使用 JSON）',
+  agentSourceApply: '应用更新',
+
   agentSourceIncomplete: '导入尚未完成，请在配置来源中重新导入以继续。',
   agentSourceSkillDisabled: '来源 Skill 已停用，请先恢复该依赖，再重新导入。',
   agentSourceUnsupported: '此来源还包含命令、Hook 或 LSP，不能作为完整 Agent 导入。',
@@ -419,6 +436,23 @@ export const zh = {
 export type LocaleKey = keyof typeof zh
 
 export const en: Record<LocaleKey, string> = {
+  agentSourceCurrent: 'The configuration source has no new changes.',
+  agentSourceSync: 'Check and sync',
+  agentSourceUpdated: 'Configuration updated. New sessions will use the new revision.',
+  agentSourceConflicts: 'Resolve configuration conflicts',
+  agentSourceConflictHelp: 'Both the source and your configuration changed. Resolve each item, then apply. Cancel keeps your current configuration. MCP credentials are redacted.',
+  agentSourceResolveAll: 'Resolve every conflict.',
+  agentSourceBase: 'Imported baseline',
+  agentSourceLocal: 'Your configuration',
+  agentSourceUpstream: 'Source update',
+  agentSourceResolution: 'Resolution',
+  agentSourceChoose: 'Choose a resolution',
+  agentSourceKeepLocal: 'Keep local',
+  agentSourceUseUpstream: 'Use upstream',
+  agentSourceManual: 'Merge manually',
+  agentSourceMerged: 'Merged result (JSON for Skill and MCP)',
+  agentSourceApply: 'Apply update',
+
   agentSourceIncomplete: 'Import is incomplete. Import it again from Configuration sources to continue.',
   agentSourceSkillDisabled: 'Source Skills are disabled. Restore that dependency before importing again.',
   agentSourceUnsupported: 'This source also contains commands, hooks or LSP and cannot be imported as a complete Agent.',

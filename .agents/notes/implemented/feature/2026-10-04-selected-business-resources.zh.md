@@ -61,3 +61,11 @@ Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取�
 `UserAgents.watch` 在配置及生命周期提交后发出通知。能力消费者读取同一配置并 reconcile，不另建状态权威。写队列不等待监听器，监听器应安排异步读取且不抛错。这是配置生命周期，不拥有 Session 或业务授权。恢复后来源仍缺失时，发布与冷恢复继续拒绝，恢复操作不重建被撤销的授权。
 
 固定官方 Core 能为运行中 Session 保留 revision，但没有独立的可选标记或持久历史 revision 注册。撤下后冷恢复会明确失败，直到用户显式恢复、启用保留配置并补齐依赖。此后恢复组合保留的当前配置，持久空白 Session 复用也核原 preset；不承诺编辑后重建过去的 revision。精确历史修订需要由 Core 提供持久 revision/可用性 interface，Manage 不增加 Session sidecar、不替换为 standard、不修改保护中的 Core。测试覆盖认证配置操作、真实 Core 持久化与重启，以及官方客户端草稿输入；实际客户端装载和外部模型验收分别处理。
+
+## 导入 Agent 同步
+
+`AgentSources` 在 Catalog 刷新受管 checkout 前读取旧上游 MCP 定义及用户生效覆盖，按提示词字段、Skill 名称和 MCP 服务键比较基线、个人配置与新来源。冲突支持保留本地、采用上游和经校验的手动结果；预览及取消不改变已提交 Agent。预览令牌只在 Host 内存中保留，重启或替换预览后失效；Agent revision 或 MCP 关联变化时拒绝迟到提交。来源无变化不新增 revision。
+
+导入 Skill 引用持久保存选中正文，用户覆盖与旧 live preset 作用域不随 checkout 刷新而改正文。资源目录和参考资产仍是动态依赖，不快照整个来源树。来源 MCP 变更使用独立连接身份，原始 config 继续作为 Host 基线，个人修改沿既有 runtime override 保存。Agent 列表及来源元数据只保存引用，MCP 冲突预览经过脱敏。
+
+`UserAgents.syncSource` 先校验并审计候选声明，再替换稳定的可选身份并持久保存。发布或持久写失败恢复旧声明和原持久配置。候选释放失败保留句柄，下次同步或卸载继续清理。旧 live Core revision 保留原来源连接；停用、删除 Agent 或明确移除来源仍撤销 schema 和 dispatch。默认选择、Session 和草稿继续归 Core。重启发布已提交的当前配置；精确历史 revision 冷恢复仍受上一节的 Core 合同限制。

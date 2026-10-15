@@ -119,6 +119,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   const panels = createUserPanelStores(userRoot)
   const userCommands = new UserCommandMountRegistry(ctx, panels.commands, (key, params) => hostLocale.t(key, params))
 
+  let agentSources: AgentSources | undefined
   let disposed = false
   let projectCommands: ReturnType<typeof mountProjectCommands> | undefined
   let projectMcp: ReturnType<typeof mountProjectMcp> | undefined
@@ -127,6 +128,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   /** 响应 Catalog 变更，刷新各资源挂载并触发运行时重协调。 */
   const onChanged = async (): Promise<void> => {
     if (disposed) return
+    agentSources?.changed()
     providerControl?.invalidate()
     userPanelControl?.invalidate()
     await projectCommands?.refresh()
@@ -168,7 +170,8 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     await userAgents.load()
     host.effect(() => () => userAgents.dispose())
     mountUserAgentRoutes(host, userAgents)
-    mountAgentSourceRoutes(host, new AgentSources(catalog, userAgents))
+    agentSources = new AgentSources(catalog, userAgents)
+    mountAgentSourceRoutes(host, agentSources)
     const businessResources = new BusinessResources(host, resolve(dataRoot, 'selected-resources.json'))
     await businessResources.load()
     const releaseBusinessSkills = await businessResources.register([

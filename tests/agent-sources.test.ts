@@ -168,7 +168,7 @@ it('imports complete source Skills with reference assets and keeps personal Skil
   const source = await sources.acquire({ url: root, kind: 'local' })
   const imported = await sources.import({ sourceId: source.id, suiteId: 'source-suite', resourceKey: 'suite' })
   expect(imported.publication).toBe('ready')
-  expect(imported.skills).toEqual([{ kind: 'reference', name: 'source-skill', provider: 'agent-plugin', path: join(skillRoot, 'SKILL.md'), enabled: true }])
+  expect(imported.skills).toEqual([{ kind: 'reference', name: 'source-skill', provider: 'agent-plugin', path: join(skillRoot, 'SKILL.md'), enabled: true, content: 'Read [source details](references/details.md).' }])
   const session = await agentOn(ctx, 'imported-skill', imported.preset, undefined, home)
   const loaded = await ctx.skills.get('source-skill', { scope: session, cwd: home })
   expect(loaded?.resourceBase).toEqual({ kind: 'directory', path: skillRoot })

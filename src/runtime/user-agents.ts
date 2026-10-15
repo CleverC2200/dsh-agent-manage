@@ -49,7 +49,14 @@ const sourceBaseline = z.object({
   mcpReferences: z.array(z.object({ serverKey: z.string(), serverId: z.string(), connectionId: z.uuid() })).optional(),
   base: z.object({ name: fields.name, description: fields.description, prompt: fields.prompt, skills: agentSkills.default([]) })
 })
-const savedAgent = z.object({ ...fields, id: z.uuid(), skills: agentSkills.default([]), revision: z.number().int().positive(), source: sourceBaseline.optional(), deletedAt: z.iso.datetime().optional() })
+const savedAgent = z.object({
+  ...fields,
+  id: z.uuid(),
+  skills: agentSkills.default([]),
+  revision: z.number().int().positive(),
+  source: sourceBaseline.optional(),
+  deletedAt: z.iso.datetime().optional()
+})
 const saveAgent = z.object({ ...fields, id: z.uuid().optional() })
 const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) })
 
@@ -60,6 +67,7 @@ const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) }
 export class UserAgents {
   private agents: UserAgentConfig[] = []
   private releases = new Map<string, () => Promise<void>>()
+  private retiredReleases = new Set<() => Promise<void>>()
   private published = new Map<string, UserAgentConfig>()
   private errors = new Map<string, string>()
   private pending: Promise<unknown> = Promise.resolve()
@@ -162,6 +170,63 @@ export class UserAgents {
     })
   }
 
+  /** Commit an already resolved source candidate. Unlike ordinary edits, a failed sync
+   * keeps the previous durable configuration and its usable declaration. */
+  syncSource(id: string, expectedRevision: number, input: unknown, source: AgentSourceBaseline, signal?: AbortSignal): Promise<UserAgentView> {
+    const value = savedAgent.parse(input)
+    return this.write(async () => {
+      const previous = this.find(id)
+      if (previous.revision !== expectedRevision) throw Error('AGENT_SOURCE_PREVIEW_STALE')
+      const agent = { ...value, id, revision: previous.revision + 1, enabled: previous.enabled, source: sourceBaseline.parse(source) }
+      const next = this.agents.map(row => (row.id === id ? agent : row))
+      let swapped = false
+      try {
+        signal?.throwIfAborted()
+        for (const release of this.retiredReleases) {
+          await release()
+          this.retiredReleases.delete(release)
+        }
+        // The registry rejects duplicate ids. Audit the complete candidate under a
+        // temporary identity before replacing the selectable stable identity.
+        if (agent.enabled) {
+          const candidateId = `${this.preset(id)}-candidate`
+          const release = await this.register(agent, candidateId)
+          this.retiredReleases.add(release)
+          try {
+            const candidate = await this.ctx.agentPresets.resolve(candidateId)
+            if (candidate.broken) throw Error(candidate.broken)
+          } finally {
+            await release()
+            this.retiredReleases.delete(release)
+          }
+        } else for (const skill of agent.skills) if (skill.kind === 'reference' && skill.enabled) await this.readSkill(skill.name, skill.provider, undefined, signal, skill.path)
+        signal?.throwIfAborted()
+        if (agent.enabled) {
+          swapped = true
+          await this.withdraw(id)
+          this.releases.set(id, await this.register(agent))
+          const candidate = await this.ctx.agentPresets.resolve(this.preset(id))
+          if (candidate.broken) throw Error(candidate.broken)
+        }
+        signal?.throwIfAborted()
+        await this.persist(next)
+        this.agents = next
+        if (agent.enabled) this.published.set(id, agent)
+        this.errors.delete(id)
+        await this.mcp?.agentsChanged(next)
+        return this.view(agent)
+      } catch (error) {
+        if (swapped) {
+          await this.withdraw(id)
+          this.releases.set(id, await this.register(previous))
+          this.published.set(id, previous)
+        }
+        // The failed candidate is not saved. The caller retains the preview for retry.
+        throw error
+      }
+    })
+  }
+
   async skillCatalog(cwd?: string, signal?: AbortSignal): Promise<UserAgentSkillOption[]> {
     return (await this.ctx.skills.list({ cwd, signal }))
       .filter(skill => skill.invocation.userInvocable || skill.invocation.modelInvocable)
@@ -207,7 +272,7 @@ export class UserAgents {
     return this.write(async () => {
       const previous = this.find(id)
       const agent = { ...previous, enabled: false, deletedAt: new Date().toISOString() }
-      const next = this.agents.map(row => row.id === id ? agent : row)
+      const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
       await this.mcp?.agentsChanged(this.agents)
@@ -223,7 +288,7 @@ export class UserAgents {
       if (!deleted.deletedAt) throw Error('USER_AGENT_NOT_DELETED')
       const agent = { ...deleted, enabled: false }
       delete agent.deletedAt
-      const next = this.agents.map(row => row.id === id ? agent : row)
+      const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
       await this.mcp?.agentsChanged(this.agents)
@@ -243,6 +308,10 @@ export class UserAgents {
     await this.pending
     await this.mcp?.dispose()
     for (const id of this.releases.keys()) await this.withdraw(id)
+    for (const release of this.retiredReleases) {
+      await release()
+      this.retiredReleases.delete(release)
+    }
     this.listeners.clear()
   }
 
@@ -276,17 +345,26 @@ export class UserAgents {
     return `user-agent-${id}`
   }
 
-  private async register(agent: UserAgentConfig): Promise<() => Promise<void>> {
+  private async register(agent: UserAgentConfig, presetId = this.preset(agent.id)): Promise<() => Promise<void>> {
     for (const skill of agent.skills) if (skill.kind === 'reference' && skill.enabled) await this.readSkill(skill.name, skill.provider, undefined, undefined, skill.path)
     return this.ctx.agentPresets.register(
       await composeStandardPreset(
         this.ctx.agentPresets,
         {
-          id: this.preset(agent.id),
+          id: presetId,
           name: agent.name,
           description: agent.description
         },
-        { personaPrefix: agent.prompt, plugins: [{ id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills: agent.skills } }] }
+        {
+          personaPrefix: agent.prompt,
+          plugins: [
+            {
+              id: 'user-agent-skills',
+              name: 'dsh-agent-manage/user-agent-skills',
+              config: { skills: agent.skills, sourceMcpConnections: agent.source?.mcpReferences?.map(row => row.connectionId) ?? [] }
+            }
+          ]
+        }
       )
     )
   }
