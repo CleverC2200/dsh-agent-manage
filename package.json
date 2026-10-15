@@ -136,14 +136,14 @@
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.4 || 4.0.5-alpha.1",
+    "@deepseek-ai/cordis-plugin-include": "1.0.9 || 1.0.10-alpha.1",
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-hooks-claude-code": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-llm": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-mcp-client": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-skill": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-alpha.1",
-    "@deepseek-ai/schemastery": "3.18.4 || 3.18.5-alpha.1",
-    "@deepseek-ai/cordis-plugin-include": "1.0.9 || 1.0.10-alpha.1",
-    "@deepseek-ai/dsh-agent-preset-registry": "0.2.0-rc.2 || 0.2.1-alpha.1"
+    "@deepseek-ai/schemastery": "3.18.4 || 3.18.5-alpha.1"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-mcp-client": {
@@ -159,28 +159,34 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.31.0",
     "ajv": "^8.17.1",
+    "decimal.js": "10.6.0",
     "fflate": "^0.8.3",
+    "js-yaml": "4.3.2",
     "smol-toml": "^1.8.0",
     "yaml": "^2.7.0",
-    "zod": "^4.4.3",
-    "decimal.js": "10.6.0",
-    "js-yaml": "4.3.2"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "link:../../official-latest-standard/vendor/cordis",
+    "@deepseek-ai/cordis-plugin-include": "link:../../official-latest-standard/vendor/include",
+    "@deepseek-ai/dsh-agent-preset-registry": "link:../../official-latest-standard/packages/preset/agent-preset-registry",
     "@deepseek-ai/dsh-client-ui-primitives": "link:../../official-latest-standard/packages/client/ui-primitives",
     "@deepseek-ai/dsh-hooks-claude-code": "link:../../official-latest-standard/packages/hooks/hooks-claude-code",
     "@deepseek-ai/dsh-llm": "link:../../official-latest-standard/packages/llm/llm",
     "@deepseek-ai/dsh-mcp-client": "link:../../official-latest-standard/packages/mcp/mcp-client",
     "@deepseek-ai/dsh-skill": "link:../../official-latest-standard/packages/skill/skill",
     "@deepseek-ai/dsh-tools": "link:../../official-latest-standard/packages/core/tools",
+    "@deepseek-ai/schemastery": "link:../../official-latest-standard/vendor/schemastery",
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "1.58.2",
     "@tsdown/css": "^0.22.14",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.15.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "^19.2.4",
     "@vitest/coverage-v8": "^4.1.11",
     "dependency-cruiser": "^18.2.0",
+    "esbuild": "0.25.9",
     "eslint": "^10.9.1",
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
@@ -189,11 +195,7 @@
     "tsdown": "^0.22.14",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.67.0",
-    "vitest": "^4.1.10",
-    "@deepseek-ai/schemastery": "link:../../official-latest-standard/vendor/schemastery",
-    "@types/js-yaml": "^4.0.9",
-    "@deepseek-ai/cordis-plugin-include": "link:../../official-latest-standard/vendor/include",
-    "@deepseek-ai/dsh-agent-preset-registry": "link:../../official-latest-standard/packages/preset/agent-preset-registry"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
