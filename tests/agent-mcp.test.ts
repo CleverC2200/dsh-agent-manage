@@ -179,9 +179,15 @@ it('connects an HTTP MCP through authenticated Agent configuration and scopes sc
   expect(failed.reason).toContain('mount failed')
 })
 
-it.each(['association', 'source'])('cancels a revoked %s in flight without disconnecting its shared MCP', async mode => {
+it.each([
+  ['association', 'tool'],
+  ['source', 'tool'],
+  ['association', 'resource'],
+  ['source', 'resource']
+])('cancels a revoked %s %s in flight without disconnecting its shared MCP', async (mode, kind) => {
   const waiting = Promise.withResolvers<void>()
   const release = Promise.withResolvers<void>()
+  const requests: string[] = []
   const server = createServer(async (request, response) => {
     if (request.method !== 'POST') {
       response.writeHead(405).end()
@@ -194,16 +200,19 @@ it.each(['association', 'source'])('cancels a revoked %s in flight without disco
       response.writeHead(202).end()
       return
     }
-    if (body.method === 'tools/call' && body.params.arguments.slow) {
+    if (body.method === 'tools/call' || body.method === 'resources/read') requests.push(body.method)
+    if ((body.method === 'tools/call' && body.params.arguments.slow) || (body.method === 'resources/read' && body.params.uri.endsWith('/slow'))) {
       waiting.resolve()
       await release.promise
     }
     const result =
       body.method === 'initialize'
-        ? { protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'revocation', version: '1' } }
+        ? { protocolVersion: '2025-03-26', capabilities: { tools: {}, resources: {} }, serverInfo: { name: 'revocation', version: '1' } }
         : body.method === 'tools/list'
           ? { tools: [{ name: 'echo', inputSchema: { type: 'object' } }] }
-          : { content: [{ type: 'text', text: 'LATE_SHARED_RESPONSE' }] }
+          : body.method === 'resources/read'
+            ? { contents: [{ uri: body.params.uri, mimeType: 'text/plain', text: 'LATE_SHARED_RESPONSE' }] }
+            : { content: [{ type: 'text', text: 'LATE_SHARED_RESPONSE' }] }
     response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: body.id, result }))
   })
   await new Promise<void>(ready => server.listen(0, '127.0.0.1', ready))
@@ -252,10 +261,16 @@ it.each(['association', 'source'])('cancels a revoked %s in flight without disco
   await agents.mcp!.associate({ agentId: b.id, connectionId: saved.connectionId, enabled: true })
   const first = await agentOn(ctx, 'revoke-a', a.preset)
   const other = await agentOn(ctx, 'keep-b', b.preset)
-  const name = ctx.tools.schemas(first).find(tool => tool.name.endsWith('__echo'))!.name
+  const name = ctx.tools.schemas(first).find(tool => tool.name.endsWith(kind === 'resource' ? '__dsh_read_resource' : '__echo'))!.name
   let settled = false
   const pending = ctx.tools
-    .execute({ callId: 'slow-before-revocation' as never, name, arguments: { slow: true }, agent: first, signal: new AbortController().signal })
+    .execute({
+      callId: 'slow-before-revocation' as never,
+      name,
+      arguments: kind === 'resource' ? { uri: 'controlled://resource/slow' } : { slow: true },
+      agent: first,
+      signal: new AbortController().signal
+    })
     .then(result => {
       settled = true
       return result
@@ -269,8 +284,23 @@ it.each(['association', 'source'])('cancels a revoked %s in flight without disco
     await expect.poll(() => settled, { timeout: 1000 }).toBe(true)
     release.resolve()
     expect(JSON.stringify(await pending)).not.toContain('LATE_SHARED_RESPONSE')
-    const kept = await ctx.tools.execute({ callId: 'other-agent-kept' as never, name, arguments: {}, agent: other, signal: new AbortController().signal })
+    const kept = await ctx.tools.execute({
+      callId: 'other-agent-kept' as never,
+      name,
+      arguments: kind === 'resource' ? { uri: 'controlled://resource/fast' } : {},
+      agent: other,
+      signal: new AbortController().signal
+    })
     expect(JSON.stringify(kept)).toContain('LATE_SHARED_RESPONSE')
+    const denied = await ctx.tools.execute({
+      callId: 'known-revoked-tool' as never,
+      name,
+      arguments: kind === 'resource' ? { uri: 'controlled://resource/fast' } : {},
+      agent: first,
+      signal: new AbortController().signal
+    })
+    expect(JSON.stringify(denied)).toContain('AGENT_MCP_NOT_SELECTED')
+    expect(requests).toHaveLength(2)
   } finally {
     release.resolve()
     await pending

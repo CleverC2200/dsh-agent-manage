@@ -98,6 +98,18 @@ export interface ToolBridgeOptions {
   toolCallTimeoutMs: number
 }
 
+/** One authority/cancellation decision shared by tool calls and resource reads. */
+function scopedExecution(host: ToolHost, exec: ToolExecution, serverName: string) {
+  const scope = host.executionScope?.(exec.agent, serverName)
+  const signal = scope ? AbortSignal.any([exec.signal, scope.signal]) : exec.signal
+  const validate = () => {
+    signal.throwIfAborted()
+    scope?.validate()
+  }
+  validate()
+  return { signal, validate }
+}
+
 /** State for one sync generation: the current set of disposers keyed by public name. */
 export type ToolDisposers = Map<string, () => void>
 
@@ -230,10 +242,12 @@ export async function syncTools(client: Client, host: ToolHost, opts: ToolBridge
       /** 资源工具回调：读取 MCP URI 并把资源块交给宿主渲染。 */
       async execute(args, exec) {
         if (!args || typeof args !== 'object' || !('uri' in args) || typeof args.uri !== 'string' || !args.uri) throw new Error('MCP_RESOURCE_URI_REQUIRED')
+        const scope = scopedExecution(host, exec, opts.serverName)
         const response = await client.request({ method: 'resources/read', params: { uri: args.uri } }, ReadResourceResultSchema, {
-          signal: exec.signal,
+          signal: scope.signal,
           timeout: opts.toolCallTimeoutMs
         })
+        scope.validate()
         return { content: response.contents.map(resource => ({ type: 'resource', resource })) }
       }
     })
@@ -391,11 +405,10 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const scope = host.executionScope?.(exec.agent, opts.serverName)
-    const invocation = scope ? { ...exec, signal: AbortSignal.any([exec.signal, scope.signal]) } : exec
+    const scope = scopedExecution(host, exec, opts.serverName)
+    const invocation = { ...exec, signal: scope.signal }
     const result = await callToolUncached(client, rawName, argsObj, invocation, opts)
-    invocation.signal.throwIfAborted()
-    scope?.validate()
+    scope.validate()
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {
@@ -426,8 +439,7 @@ function createExecutor(
     if (containsImage(content)) {
       const fallback: ContentBlock[] = [{ type: 'text', text: extractText(content, rawName) }]
       const projected = await prepareImageProjection(host, invocation, content, rawName)
-      invocation.signal.throwIfAborted()
-      scope?.validate()
+      scope.validate()
       projections.set(exec, { value, fallback, content: projected })
     }
     return value
