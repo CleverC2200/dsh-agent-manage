@@ -16,6 +16,10 @@
 
 ![当前六页签 Agent Plugins 工作区](docs/screenshot-workspace.png)
 
+## 个人 Agent 配置
+
+公开的 Agent 配置页支持持久保存个人 Agent，并将启用的配置沿当前 DSH standard 声明发布为原生预设。“开始使用”通过 Workbench 的原生 Session 入口创建新对话，保留原对话和默认选择。本切片支持提示词；每 Agent 的 Skill、MCP 和来源同步后续接入。完整 Agent 配置与可复用的子角色分别保存。
+
 ## 你可以用它做什么
 
 - **复用生态套件。** 添加 Git 仓库、本地目录或压缩包作为来源，浏览、预览、安装和启用其中的套件，让支持的能力在 DSH 运行时生效。

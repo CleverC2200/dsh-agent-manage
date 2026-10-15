@@ -7,7 +7,26 @@ export type Dictionary = Record<string, string>
 /** Chinese is the source-of-truth key set; English is checked against it below. */
 /** 中文字典是键集合的事实来源，英文集合在文件末尾做一致性校验。 */
 export const zh = {
-  nav: '智能体市场',
+  agentConfiguration: 'Agent 配置',
+  agentAdd: '＋ 添加 Agent',
+  agentCurrent: '当前 Agent',
+  agentName: '名称',
+  agentDescription: '描述',
+  agentPrompt: '提示词',
+  agentSkill: 'Skill',
+  agentMcp: 'MCP',
+  agentBack: '‹ 返回 Agent 列表',
+  agentPersonal: '我的配置',
+  agentEnabled: '启用 {name}',
+  agentStart: '开始使用',
+  agentEmpty: '暂无 Agent',
+  agentSaved: '配置已保存',
+  agentSavedUnavailable: '配置已保存，预设暂不可用，请修正后重试。',
+  agentUnavailable: '预设不可用',
+  agentHostUnavailable: '原生会话入口尚未就绪，请稍后重试。',
+  agentNotDelivered: '此配置将在后续切片接入。',
+
+  nav: 'Agent 配置',
   detailPreview: '预览',
   serverConfigReadOnly: '此服务由宿主管理，请在原始配置中编辑。',
   lspServerName: '服务名称',
@@ -340,6 +359,25 @@ export const zh = {
 export type LocaleKey = keyof typeof zh
 
 export const en: Record<LocaleKey, string> = {
+  agentConfiguration: 'Agent configuration',
+  agentAdd: '+ Add Agent',
+  agentCurrent: 'Current Agents',
+  agentName: 'Name',
+  agentDescription: 'Description',
+  agentPrompt: 'Prompt',
+  agentSkill: 'Skill',
+  agentMcp: 'MCP',
+  agentBack: '‹ Back to Agents',
+  agentPersonal: 'My configuration',
+  agentEnabled: 'Enable {name}',
+  agentStart: 'Start chat',
+  agentEmpty: 'No Agents yet',
+  agentSaved: 'Configuration saved',
+  agentSavedUnavailable: 'Configuration saved. The preset is unavailable; correct the configuration and retry.',
+  agentUnavailable: 'Preset unavailable',
+  agentHostUnavailable: 'The native conversation entry is not ready. Please retry.',
+  agentNotDelivered: 'This configuration will be available in a later slice.',
+
   nav: 'Agent Marketplace',
   detailPreview: 'Preview',
   serverConfigReadOnly: 'This service is managed by the host. Edit its original configuration.',

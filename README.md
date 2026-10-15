@@ -16,6 +16,10 @@ English | [简体中文](README.zh.md) | [Documentation](https://github.com/Clev
 
 ![Current six-tab Agent Plugins workspace](docs/screenshot-workspace.png)
 
+## Personal Agent configuration
+
+The public Agent configuration page now creates durable personal Agents and publishes enabled configurations as native presets composed from the active DSH standard declaration. Start chat uses the Workbench native Session entry and keeps the current conversation and default choice. The first implementation slice supports prompts; per-Agent Skill, MCP and source synchronization follow separately. These configurations are distinct from reusable subagent roles.
+
 ## What you can do
 
 - **Reuse ecosystem suites.** Add a Git repository, local directory or archive as a source; browse, preview, install and enable its suites. Supported capabilities become available to DSH at runtime.

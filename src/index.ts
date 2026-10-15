@@ -24,6 +24,8 @@ import type { Context, Volatile } from '@deepseek-ai/cordis'
 import type { SkillProviderControl } from '@deepseek-ai/dsh-skill'
 import { BusinessResources } from './runtime/business-resources.js'
 import * as StandardPreset from './runtime/standard-preset.js'
+import { UserAgents } from './runtime/user-agents.js'
+import { mountUserAgentRoutes } from './runtime/user-agent-routes.js'
 import { readJsonRequest, RequestBodyTooLarge } from './runtime/request-body.js'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-settings'
@@ -160,6 +162,10 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     // Selected identities compose the same standard declaration as orchestration.
     // Wait on that initialization fiber, never the parent Host tree.
     await standardInitialization
+    const userAgents = new UserAgents(host, resolve(dataRoot, 'user-agents.json'))
+    await userAgents.load()
+    host.effect(() => () => userAgents.dispose())
+    mountUserAgentRoutes(host, userAgents)
     const businessResources = new BusinessResources(host, resolve(dataRoot, 'selected-resources.json'))
     await businessResources.load()
     const releaseBusinessSkills = await businessResources.register([

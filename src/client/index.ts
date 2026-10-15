@@ -57,7 +57,7 @@ interface SuiteClientContext {
   effect(callback: () => unknown, label?: string): void
   /** Resolve the current host's declared services within their lifetime. */
   /** 中文：在当前宿主声明的服务生命周期内接线。 */
-  inject(services: string[], callback: (resolved: { settingsScope: SettingsScopeService; slots: SlotsService; effect(callback: () => unknown): void; agentWorkbench: {register(page: {id: string; label: () => string}): () => void} }) => void): void
+  inject(services: string[], callback: (resolved: { settingsScope: SettingsScopeService; slots: SlotsService; effect(callback: () => unknown): void; agentWorkbench: {register(page: {id: string; label: () => string}): () => void; startAgent(preset: string): Promise<void>} }) => void): void
   locale: LocaleService
   slots: SlotsService
   remote: { credentials: CredentialRemote }
@@ -151,20 +151,25 @@ export function apply(ctx: SuiteClientContext): void {
     )
   })
 
+  let beginAgent: ((preset: string) => Promise<void>) | undefined
+  const startAgent = async (preset: string) => {
+    if (!beginAgent) throw Error(t('agentHostUnavailable'))
+    await beginAgent(preset)
+  }
   ctx.inject(['agentWorkbench'], scoped => {
+    beginAgent = preset => scoped.agentWorkbench.startAgent(preset)
+    scoped.effect(() => () => { beginAgent = undefined })
     scoped.effect(() => scoped.agentWorkbench.register({id: 'agent-plugin-workspace', label: () => t('nav')}));
   });
 
   // Workbench discovers the public main entry; settings retains the same resource workspace.
   ctx.slots.inject('main', () => ctx.slots.register({
     name: 'main', key: 'agent-plugin-workspace',
-  }, () => h('section', {className: 'agent-workbench-ui', style: {height: '100%'}}, h(PluginWorkspace, {t, credentials}))));
+  }, () => h('section', {className: 'agent-workbench-ui', style: {height: '100%'}}, h(PluginWorkspace, {t, credentials, startAgent}))));
 
   // 中文：settings.section 是设置区工作台挂载位，由宿主声明生命周期管理。
   ctx.slots.inject('settings.section', () => {
-    // One section, six top tabs (market / skills / commands / personas /
-    // MCP / LSP) — the PluginWorkspace owns the tab row and per-tab scroll.
-    // 中文：设置区只挂一个工作台入口，六个业务表面的标签和滚动由 PluginWorkspace 管理。
+    // Main and settings consume the same Agent list/editor.
     const workspaceDispose = ctx.slots.register({
       name: 'settings.section',
       id: 'agent-plugin-workspace',
@@ -175,6 +180,7 @@ export function apply(ctx: SuiteClientContext): void {
     }, () => h(PluginWorkspace, {
       t,
       credentials,
+      startAgent,
     }))
     return () => {
       if (typeof workspaceDispose === 'function') workspaceDispose()

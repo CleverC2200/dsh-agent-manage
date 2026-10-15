@@ -41,3 +41,9 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 ## Consequences
 
 已选身份恢复定义，不改写 Session 数据或业务资源正文。缺少 owner 明确失败，释放失败可显式重试。Native 安装与真实业务、模型验收分别留证。包 owner 可声明 `publishPreset`，在安装/启用后发布已校验的业务预设，供官方列表发现。发布不改变当前 Session、用户默认或 selected-resources.json，也不授予 Consumer 权限；演示 owner 不启用该选项。无效 Prompt 保留资源诊断，健康 Prompt 继续发布，owner 卸载仍释放自己的声明。
+
+## 个人完整 Agent 配置
+
+完整个人 Agent 由 `UserAgents` 持有，与目录角色、已选择业务身份分别保存。统一配置发布 interface 串行写入 `user-agents.json`，校验外部输入，并通过 standard 组合将启用配置以稳定的 `user-agent-<id>` 身份注册。改名不改身份；持久保存与注册、resolve 分别处理。发布失败保留可编辑配置、诊断以及已有的最后可用声明。Host 启动恢复启用声明，Loader 激活完成后再核可用性。Core 的既有 generation 保留运行中 Session 的 revision。
+
+主入口和设置共用 Agent 页，替换六 Tab 工作区入口。经认证的 Host Fetch 提供列表、保存、启停和选择；显式选择不修改默认或已有 Session。Workbench 的公开 `startAgent` 负责原生工作区和 Session 导航。每 Agent Skill、MCP、导入同步及删除由后续切片完成，本改动不声称其可用。

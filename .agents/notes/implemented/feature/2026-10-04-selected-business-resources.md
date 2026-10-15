@@ -43,3 +43,9 @@ Package owners may declare `publishPreset` to publish validated business presets
 ## Consequences
 
 Selected identities recover definitions without rewriting Session data or business resource bodies. Missing owners fail explicitly; failed release remains retryable. Native installation and business/model acceptance require their own receipts.
+
+## Personal Agent configurations
+
+Complete personal Agents use `UserAgents`, separately from catalog roles and selected business identities. Its single configuration/publication interface serializes writes into `user-agents.json`, validates external inputs, and publishes enabled configurations with a stable `user-agent-<id>` registry identity through standard composition. Name edits retain identity; registration and resolution are distinct from durable save. Publication failure retains an editable configuration, a diagnostic and, when available, the last usable declaration. Host startup registers saved enabled definitions; availability is audited after Loader activation settles. Existing Core generations retain live Session revisions.
+
+The shared main/settings Agent page replaces the six-tab workspace entry. Authenticated Host Fetch routes provide list, save, enable and selection. Selecting is explicit and does not change the default or an existing Session. Workbench owns the public `startAgent` action and native workspace/Session navigation. Per-Agent Skill, MCP, import/synchronization and deletion are separate implementation slices; this change does not claim those capabilities.
