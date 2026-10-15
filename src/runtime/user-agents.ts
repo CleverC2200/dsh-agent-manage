@@ -71,7 +71,9 @@ export class UserAgents {
     private readonly ctx: Context,
     private readonly file: string,
     runtime?: RuntimeManagement
-  ) { if (runtime) this.mcp = new AgentMcp(ctx, dirname(file), runtime) }
+  ) {
+    if (runtime) this.mcp = new AgentMcp(ctx, dirname(file), runtime)
+  }
 
   async load(): Promise<void> {
     try {
@@ -295,7 +297,7 @@ export class UserAgents {
         (agent.source !== undefined && JSON.stringify(agent.skills) !== JSON.stringify(agent.source.base.skills)),
       origin: 'user',
       preset: this.preset(agent.id),
-      publication: !agent.enabled ? 'disabled' : error ? 'failed' : 'ready',
+      publication: agent.source?.importPending ? 'failed' : !agent.enabled ? 'disabled' : error ? 'failed' : 'ready',
       ...(error ? { error } : {})
     }
   }

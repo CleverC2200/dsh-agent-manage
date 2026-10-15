@@ -6,6 +6,14 @@ import css from './user-agents.module.css'
 
 /** Config sources share Catalog acquisition without installing executable plugins. */
 export function AgentSources({ t, onImported }: { t: Translate; onImported: () => Promise<void> }) {
+  const explain = (failure: string) => {
+    if (failure === 'AGENT_SOURCE_IMPORT_INCOMPLETE') return t('agentSourceIncomplete')
+    if (failure === 'AGENT_SOURCE_SKILLS_DISABLED') return t('agentSourceSkillDisabled')
+    if (failure === 'AGENT_SOURCE_UNSUPPORTED_COMPONENTS') return t('agentSourceUnsupported')
+    if (failure === 'AGENT_SOURCE_ROLE_RESTRICTIONS_REQUIRE_MANUAL_CONFIGURATION') return t('agentSourceRoleRestricted')
+    if (failure === 'AGENT_SOURCE_REMOTE_REQUIRES_OWN_SOURCE') return t('agentSourceRemote')
+    return failure
+  }
   const [sources, setSources] = useState<AgentSourceView[]>([])
   const [kind, setKind] = useState<AcquireAgentSource['kind']>('git')
   const [url, setUrl] = useState('')
@@ -34,7 +42,7 @@ export function AgentSources({ t, onImported }: { t: Translate; onImported: () =
     try {
       await operation()
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure))
+      setError(explain(failure instanceof Error ? failure.message : String(failure)))
     } finally {
       setBusy(false)
     }
@@ -70,15 +78,19 @@ export function AgentSources({ t, onImported }: { t: Translate; onImported: () =
             <div className={css.row} key={`${candidate.suiteId}/${candidate.resourceKey}`}>
               <div className={css.title}>
                 <strong>{candidate.name}</strong>
-                <p className={css.muted}>{candidate.error || candidate.description}</p>
+                <p className={css.muted}>{candidate.error ? explain(candidate.error) : candidate.description}</p>
               </div>
               <button
                 disabled={busy || !!candidate.error}
                 type="button"
                 onClick={() =>
                   void run(async () => {
-                    const agent = await agentSourceApi.import({ sourceId: source.id, suiteId: candidate.suiteId, resourceKey: candidate.resourceKey })
-                    await onImported()
+                    let agent
+                    try {
+                      agent = await agentSourceApi.import({ sourceId: source.id, suiteId: candidate.suiteId, resourceKey: candidate.resourceKey })
+                    } finally {
+                      await onImported()
+                    }
                     setMessage(t(agent.publication === 'failed' ? 'agentSavedUnavailable' : 'agentSourceImported'))
                   })
                 }

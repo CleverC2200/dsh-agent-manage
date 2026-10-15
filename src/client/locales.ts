@@ -7,6 +7,12 @@ export type Dictionary = Record<string, string>
 /** Chinese is the source-of-truth key set; English is checked against it below. */
 /** 中文字典是键集合的事实来源，英文集合在文件末尾做一致性校验。 */
 export const zh = {
+  agentSourceIncomplete: '导入尚未完成，请在配置来源中重新导入以继续。',
+  agentSourceSkillDisabled: '来源 Skill 已停用，请先恢复该依赖，再重新导入。',
+  agentSourceUnsupported: '此来源还包含命令、Hook 或 LSP，不能作为完整 Agent 导入。',
+  agentSourceRoleRestricted: '此角色包含模型或工具限制，请手工配置并核对这些限制。',
+  agentSourceRemote: '请先将此引用的仓库添加为配置来源。',
+
   agentSources: '配置来源',
   agentSourcesHelp: '从 Git、本地目录或配置包读取 Agent，导入后可独立定制。',
   agentSourceAdd: '添加配置来源',
@@ -400,6 +406,12 @@ export const zh = {
 export type LocaleKey = keyof typeof zh
 
 export const en: Record<LocaleKey, string> = {
+  agentSourceIncomplete: 'Import is incomplete. Import it again from Configuration sources to continue.',
+  agentSourceSkillDisabled: 'Source Skills are disabled. Restore that dependency before importing again.',
+  agentSourceUnsupported: 'This source also contains commands, hooks or LSP and cannot be imported as a complete Agent.',
+  agentSourceRoleRestricted: 'This role declares model or tool restrictions. Configure it manually and preserve those restrictions.',
+  agentSourceRemote: 'Add the referenced repository as a configuration source first.',
+
   agentSources: 'Configuration sources',
   agentSourcesHelp: 'Read Agents from Git, a local directory or an archive. Imported Agents can be customized independently.',
   agentSourceAdd: 'Add configuration source',

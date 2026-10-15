@@ -12,20 +12,18 @@ it('cancels a source form without acquiring or importing and refreshes the Agent
     { id: 'team', url: '/team', kind: 'local', candidates: [{ suiteId: 'helper', resourceKey: 'suite', name: '团队助手', description: '可定制配置' }], errors: [] }
   ])
   const acquire = vi.spyOn(agentSourceApi, 'acquire')
-  const imported = vi
-    .spyOn(agentSourceApi, 'import')
-    .mockResolvedValue({
-      id: 'agent',
-      name: '团队助手',
-      description: '',
-      prompt: 'help',
-      enabled: true,
-      revision: 1,
-      customized: false,
-      origin: 'user',
-      preset: 'user-agent-team',
-      publication: 'ready'
-    })
+  const imported = vi.spyOn(agentSourceApi, 'import').mockResolvedValue({
+    id: 'agent',
+    name: '团队助手',
+    description: '',
+    prompt: 'help',
+    enabled: true,
+    revision: 1,
+    customized: false,
+    origin: 'user',
+    preset: 'user-agent-team',
+    publication: 'ready'
+  })
   const onImported = vi.fn(async () => {})
   const element = document.createElement('div')
   document.body.append(element)
