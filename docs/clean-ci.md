@@ -77,6 +77,8 @@ The registered personal repository denies upstream release-please, npm and Pages
 
 GitHub 不再执行无条件全量普通测试。当前必需检查、受影响选择、缓存与失败汇总统一见[当前 CI 规则](../../dsh-agent-workbench/docs/ci-required-and-affected.md)，本页的 SDK、Windows 与安全检查约束继续适用。
 
+Workbench's registered `static/regional/` and `static/category/` resources select Manage's `business-resources` contract; `static/mps/` selects its MPS resource-reception contract. An edit to Manage's own test-selection policy additionally selects both real consumer contracts, while other configuration changes retain their existing selection. Unregistered static resource directories still reject the plan. Selection does not prove page rendering or installed resource reception. / Workbench 已登记的 regional/category 静态资源映到 Manage 的业务资源合同，mps 映到 MPS 资源接收合同；仅 Manage 自身测试策略编辑额外选中这两个真实消费者合同，其他配置变动保持原选择。未登记静态资源目录仍拒绝计划；测试选择不证明页面渲染或已安装资源接收。
+
 ## Frozen business repair exception
 
 The user authorized merging the 2026-10-14 business repair group without full tests. The `business-profile` lane is limited to the reviewed product commits declared in `scripts/business-profile-ci.mjs`, plus the listed CI and evidence files. It validates all three actual source checkouts against those commits. A different product source rejects this lane; other PR branches keep the normal gates. Same-tree main and explicit main dispatch can use the targeted lane. The existing final aggregate still rejects failed, cancelled, skipped or missing jobs, and branch protection is unchanged.
