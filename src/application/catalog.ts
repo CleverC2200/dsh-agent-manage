@@ -778,7 +778,7 @@ export class Catalog {
    * dialog before this runs; disabling afterwards is always available.
    * 中文：确认源和套件后获取缺失检出、记录锁定值并启用安装项；后续仍可关闭。
    */
-  async install(sourceId: string, suiteId: string, surfaces?: SurfaceOverrides): Promise<void> {
+  async install(sourceId: string, suiteId: string, options: { surfaces?: SurfaceOverrides; configurationOnly?: true } = {}): Promise<void> {
     return this.enqueue(async () => {
       const source = this.state.sources.find(entry => entry.id === sourceId)
       if (source === undefined) throw new Error(`unknown source "${sourceId}"`)
@@ -793,7 +793,13 @@ export class Catalog {
       // is the lock value.
       // 中文：压缩包或 tarball 回退没有 Git HEAD，使用内容摘要作为锁定值。
       const lockCommit = (await tryHead(checkout)) ?? freshLock ?? this.headCache.get(sourceId)
-      await this.setInstalled(sourceId, suiteId, { enabled: true, installedAt: new Date().toISOString(), lockCommit, ...(surfaces ? { surfaces } : {}) })
+      await this.setInstalled(sourceId, suiteId, {
+        enabled: true,
+        installedAt: new Date().toISOString(),
+        lockCommit,
+        ...(options.surfaces ? { surfaces: options.surfaces } : {}),
+        ...(options.configurationOnly ? { configurationOnly: true as const } : {})
+      })
       await this.notifyChanged(true)
     })
   }
@@ -963,6 +969,7 @@ export class Catalog {
       const enabled = suite.manifest.layout === 'project-native' || installed?.enabled === true
       return {
         ...suite,
+        ...(installed?.configurationOnly ? { configurationOnly: true as const } : {}),
         enabled,
         activeSurfaces: {
           ...effectiveSurfaces(installed?.surfaces),

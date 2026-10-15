@@ -84,7 +84,11 @@ export class AgentSources {
     if (suite.skills.length) {
       const card = (await this.catalog.overview()).suites.find(row => row.sourceId === suite.sourceId && row.suiteId === suite.id)!
       if (card.installed && (!card.enabled || card.surfaceToggles?.skills === false)) throw Error('AGENT_SOURCE_SKILLS_DISABLED')
-      if (!card.installed) await this.catalog.install(suite.sourceId, suite.id, { skills: true, mcp: false, hooks: false, commands: false, agents: false, lsp: false })
+      if (!card.installed)
+        await this.catalog.install(suite.sourceId, suite.id, {
+          surfaces: { skills: true, mcp: false, hooks: false, commands: false, agents: false, lsp: false },
+          configurationOnly: true
+        })
       const available = await this.agents.skillCatalog()
       for (const skill of suite.skills) {
         const reference = available.find(row => row.name === skill.name && row.provider === 'agent-plugin' && row.path === skill.file)

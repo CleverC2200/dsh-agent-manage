@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { Catalog } from '../src/application/catalog.js'
+import { suiteInstructions } from '../src/runtime/project-runtime.js'
 import { SuiteSkillProvider } from '../src/runtime/skills-provider.js'
 import { AgentSources } from '../src/runtime/agent-sources.js'
 import { UserAgents } from '../src/runtime/user-agents.js'
@@ -179,6 +180,10 @@ it('imports complete source Skills with reference assets and keeps personal Skil
   expect(changed.source?.base.skills).toEqual(imported.skills)
   expect(await readFile(join(skillRoot, 'SKILL.md'), 'utf8')).toBe(original)
   const entry = (await catalog.readUserCatalog()).suites[0]
+  expect((await suiteInstructions([entry])).text).toBe('')
+  const reloadedCatalog = new Catalog({ userRoot: catalog.userRoot, dataRoot: join(home, 'data'), onChanged: () => {} })
+  await reloadedCatalog.load()
+  expect((await reloadedCatalog.readUserCatalog()).suites[0].configurationOnly).toBe(true)
   expect(entry.activeSurfaces).toEqual({ skills: true, mcp: false, hooks: false, commands: false, agents: false, lsp: false })
   await agents.dispose()
 })

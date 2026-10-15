@@ -225,6 +225,8 @@ export type SuiteDimension = 'user' | 'project'
 /** One discovered suite with runtime-relevant fields resolved. */
 /** 中文：一套已发现且已解析出运行时字段的套件。 */
 export interface Suite {
+  /** A personal Agent dependency supplies Skills without injecting its persona globally. */
+  configurationOnly?: true
   resources?: { commands: SuiteMarkdownResource[]; agents: SuiteMarkdownResource[] }
   systemPrompt?: string
   /** Validated native settings hooks; serialized only into a runtime-owned temporary file. */
@@ -292,6 +294,7 @@ export function effectiveSurfaces(overrides: SurfaceOverrides | undefined): Reco
 /** Persisted install entry, keyed `${sourceId}/${suiteId}`. */
 /** 中文：按 `${sourceId}/${suiteId}` 索引的持久化安装记录。 */
 export interface InstalledEntry {
+  configurationOnly?: true
   enabled: boolean
   lockCommit?: string
   installedAt: string
