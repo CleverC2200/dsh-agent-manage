@@ -29,7 +29,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   const { Business } = await import('preset-integration-gea/host/business')
   const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
   const { registerGeaTools } = await import('preset-integration-gea/host/agent-tools')
-  const { createCubeMcpService } = await import('preset-integration-gea/host/cube-mcp-service')
+  const { createGatewayMcpService } = await import('preset-integration-gea/host/gateway-mcp-service')
   const { createCapabilityRegistry } = await import('preset-integration-gea/capability/registry')
   const { ctx, home } = await presetHarness({
     importModule: name =>
@@ -184,7 +184,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
     await userAgents.load()
     onTestFinished(() => userAgents.dispose())
   }
-  const service = createCubeMcpService(ctx, business)
+  const service = createGatewayMcpService(ctx, business)
   ctx.provide('geaMcp', service)
   await ctx.plugin({ apply: mountGeaMcp })
   const releasePrompts = mountBusinessPrompts(ctx, business, capabilities)

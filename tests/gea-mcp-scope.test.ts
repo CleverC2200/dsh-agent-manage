@@ -90,7 +90,7 @@ it('tracks new tools, logout/login, preset switches and agent disposal without e
   const f = fixture()
   const stop = restrictGeaMcp(f.host, agent => f.host.agentPresets.composedPreset(agent.ctx) === 'gea-readonly')
   const agent = f.add('code')
-  f.names.add('mcp__gea_gateway__lightrag_query_456')
+  f.names.add('mcp__gea_gateway__weknora_ask_456')
   f.emit('tools/change')
   expect(f.visible(agent)).toEqual(['read'])
   f.presets.set(agent.ctx, 'gea-readonly')

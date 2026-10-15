@@ -1,10 +1,10 @@
-/** Register the two Cube-New server schemas; GEA owns execution identity and transport. */
+/** Register authorized GEA gateway schemas; GEA owns execution identity and transport. */
 import type { Context } from '@deepseek-ai/cordis'
 import { publicToolName, type ToolHost, type ToolDefinition } from './mcp-client/tools.js'
 import { restrictGeaMcp, type GeaScopeHost } from './gea-mcp-scope.js'
 
 export interface GeaMcpTool {
-  name: 'inspect_cube_model' | 'query_business_data'
+  name: 'inspect_cube_model' | 'query_business_data' | 'weknora_list_knowledge_bases' | 'weknora_ask'
   description: string
   inputSchema: Record<string, unknown>
 }
@@ -164,7 +164,7 @@ export function mountGeaMcp(ctx: Context): void {
             }
           }
         },
-        () => host.logger?.warn('Cube-New MCP discovery failed; check the current login and published tool grants.')
+        () => host.logger?.warn('GEA MCP discovery failed; check the current login and published tool grants.')
       )
       // Core collects tool providers before its assembly waterfall. Capture that
       // publication revision, await discovery, and ask Core to assemble again only

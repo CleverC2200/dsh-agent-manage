@@ -31,6 +31,8 @@ The [dual official Core decision](../.agents/notes/implemented/process/2026-10-1
 
 [MCP resource reading](../.agents/notes/implemented/bug-fix/2026-09-14-mcp-resource-reader.md) and [中文](../.agents/notes/implemented/bug-fix/2026-09-14-mcp-resource-reader.zh.md) preserve same-connection URI reading, cancellation and explicit binary results. / MCP 资源读取保持同连接 URI、取消与明确的二进制结果。
 
+- [GEA knowledge tools](../.agents/notes/implemented/feature/2026-10-15-gea-knowledge-tools.md) and [中文](../.agents/notes/implemented/feature/2026-10-15-gea-knowledge-tools.zh.md) extend the existing governed bridge to dynamic knowledge discovery and single-turn answers. GEA retains identity and result ownership. / 现有受控桥接入动态知识目录及单轮问答，身份和结果处理仍归 GEA。
+
 ## Reference and history / 参考与历史
 
 [CONTRIBUTING](../CONTRIBUTING.md) covers contributions; the [engineering rules entry](standards/dsh-plugin-development-standard.md) routes to current owners and [original guidance](history/agent-guidance-before-20261010/README.md); [Agent Notes](../.agents/notes/README.md) define current ownership, bilingual pairs and partial supersession. Browse lifecycle/class folders when a decision is relevant. Proposed notes can describe partly implemented work and are not acceptance receipts. / [工程规则入口](standards/dsh-plugin-development-standard.md)指向现行 owner 与[原指引](history/agent-guidance-before-20261010/README.md)；贡献和 Note 生命周期各归原入口；按相关决定浏览目录，proposed 可包含部分实现，不是验收回执。
