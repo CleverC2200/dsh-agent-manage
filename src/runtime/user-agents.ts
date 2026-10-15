@@ -5,6 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import type { UserAgentConfig, UserAgentView, UserAgentSkillOption } from '../contracts/user-agents.js'
 import type { RuntimeManagement } from '../application/runtime-management.js'
+import type {} from './user-agent-cube.js'
 import { AgentMcp } from './agent-mcp.js'
 import { composeStandardPreset } from './standard-preset.js'
 
@@ -18,7 +19,8 @@ export const agentSkills = z.array(z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('reference'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), provider: z.string().min(1), path: z.string().optional(), enabled: z.boolean(), content: z.string().trim().min(1).max(96000).optional() }),
   z.object({ kind: z.literal('personal'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), description: z.string().trim().min(1).max(1000), content: z.string().trim().min(1).max(96000), enabled: z.boolean() })
 ])).max(200).refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length, 'DUPLICATE_AGENT_SKILL')
-const savedAgent = z.object({ ...fields, id: z.uuid(), skills: agentSkills.default([]), revision: z.number().int().positive() })
+const cubeReference = z.object({ sourceRef: z.string().regex(/^[a-z][a-z0-9-]*$/), enabled: z.boolean() }).strict()
+const savedAgent = z.object({ ...fields, id: z.uuid(), skills: agentSkills.default([]), cube: cubeReference.optional(), revision: z.number().int().positive() })
 const saveAgent = z.object({ ...fields, id: z.uuid().optional() })
 const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) })
 
@@ -28,6 +30,8 @@ const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) }
  */
 export class UserAgents {
   private agents: UserAgentConfig[] = []
+  private readonly cubeGrants = new Map<string, { generation: string; sourceRef: string; signal: AbortSignal; controller: AbortController }>()
+  private readonly cubeListeners = new Set<() => void>()
   private releases = new Map<string, () => Promise<void>>()
   private published = new Map<string, UserAgentConfig>()
   private errors = new Map<string, string>()
@@ -49,6 +53,7 @@ export class UserAgents {
     } catch (error) {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     }
+    this.syncCubeGrants()
     await this.mcp?.load(this.agents)
     // During Host activation only register, never await the whole Loader tree.
     // Actual availability is audited by list/select after the Host has settled.
@@ -64,10 +69,11 @@ export class UserAgents {
     const value = saveAgent.parse(input)
     return this.write(async () => {
       const previous = value.id ? this.find(value.id) : undefined
-      const agent: UserAgentConfig = { ...value, skills: previous?.skills ?? [], id: previous?.id ?? randomUUID(), revision: (previous?.revision ?? 0) + 1 }
+      const agent: UserAgentConfig = { ...value, skills: previous?.skills ?? [], ...(previous?.cube ? { cube: previous.cube } : {}), id: previous?.id ?? randomUUID(), revision: (previous?.revision ?? 0) + 1 }
       const next = previous ? this.agents.map(row => (row.id === agent.id ? agent : row)) : [...this.agents, agent]
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       if (agent.enabled) await this.publish(agent, true)
       else await this.withdraw(agent.id)
@@ -75,6 +81,54 @@ export class UserAgents {
     })
   }
 
+  /** Resolves the declaration retained by Core, then applies current revocation. */
+  cubeFor(agent: { ctx: Context }): { sourceRef: string; signal: AbortSignal; generation: string } | undefined {
+    const declaration = this.ctx.agentPresets.serviceFor(agent, 'userAgentCube')
+    if (!declaration) return undefined
+    const grant = this.cubeGrants.get(declaration.id)
+    if (this.closed || !grant || grant.signal.aborted || grant.generation !== declaration.generation || grant.sourceRef !== declaration.sourceRef) return undefined
+    return grant
+  }
+  watchCube(listener: () => void): () => void {
+    this.cubeListeners.add(listener)
+    return () => { this.cubeListeners.delete(listener) }
+  }
+  private syncCubeGrants(): void {
+    for (const [id, grant] of this.cubeGrants) {
+      const agent = this.agents.find(row => row.id === id)
+      if (!this.closed && agent?.enabled && agent.cube?.enabled && agent.cube.sourceRef === grant.sourceRef) continue
+      grant.controller.abort()
+      this.cubeGrants.delete(id)
+    }
+    for (const agent of this.agents) if (!this.closed && agent.enabled && agent.cube?.enabled && !this.cubeGrants.has(agent.id)) {
+      const controller = new AbortController()
+      this.cubeGrants.set(agent.id, { sourceRef: agent.cube.sourceRef, generation: randomUUID(), controller, signal: controller.signal })
+    }
+    for (const listener of this.cubeListeners) listener()
+  }
+  saveCube(id: string, input: unknown): Promise<UserAgentView> {
+    const cube = input === null ? undefined : cubeReference.parse(input)
+    return this.write(async () => {
+      const previous = this.find(id)
+      if (cube && !this.ctx.agentResources.cubeCatalog().some(row => row.sourceRef === cube.sourceRef)) throw Error('CUBE_SOURCE_UNAVAILABLE')
+      const { cube: _previousCube, ...base } = previous
+      const agent: UserAgentConfig = { ...base, ...(cube ? { cube } : {}), revision: previous.revision + 1 }
+      const next = this.agents.map(row => row.id === id ? agent : row)
+      await this.persist(next)
+      this.agents = next
+      this.syncCubeGrants()
+      if (agent.enabled) await this.publish(agent, true)
+      return this.view(agent)
+    })
+  }
+  cubeSources() { return this.ctx.agentResources.cubeCatalog() }
+  setPluginCubeEnabled(sourceRef: string, enabled: boolean) { return this.ctx.agentResources.setCubeEnabled(sourceRef, enabled) }
+  async copyPlugin(sourceRef: string): Promise<UserAgentView> {
+    const copy = await this.ctx.agentResources.copyable(sourceRef)
+    const saved = await this.save({ name: copy.name, description: copy.description, prompt: copy.prompt, enabled: true })
+    await this.saveSkills(saved.id, copy.skills)
+    return copy.cube ? this.saveCube(saved.id, copy.cube) : this.view(this.find(saved.id))
+  }
   async skillCatalog(cwd?: string, signal?: AbortSignal): Promise<UserAgentSkillOption[]> {
     return (await this.ctx.skills.list({ cwd, signal })).filter(skill => skill.invocation.userInvocable || skill.invocation.modelInvocable)
       .map(({ name, description, provider, path }) => ({ name, description, provider, ...(path ? { path } : {}) }))
@@ -94,6 +148,7 @@ export class UserAgents {
       const next = this.agents.map(row => row.id === id ? agent : row)
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       if (agent.enabled) await this.publish(agent, true)
       return this.view(agent)
@@ -106,6 +161,7 @@ export class UserAgents {
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       if (enabled) await this.publish(agent, true)
       else await this.withdraw(id)
@@ -122,6 +178,7 @@ export class UserAgents {
 
   async dispose(): Promise<void> {
     this.closed = true
+    this.syncCubeGrants()
     await this.pending
     await this.mcp?.dispose()
     for (const id of this.releases.keys()) await this.withdraw(id)
@@ -155,6 +212,7 @@ export class UserAgents {
 
   private async register(agent: UserAgentConfig): Promise<() => Promise<void>> {
     for (const skill of agent.skills) if (skill.kind === 'reference' && skill.enabled) await this.readSkill(skill.name, skill.provider, undefined, undefined, skill.path)
+    const grant = this.cubeGrants.get(agent.id)
     return this.ctx.agentPresets.register(
       await composeStandardPreset(
         this.ctx.agentPresets,
@@ -163,7 +221,7 @@ export class UserAgents {
           name: agent.name,
           description: agent.description
         },
-        { personaPrefix: agent.prompt, plugins: [{ id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills: agent.skills } }] }
+        { personaPrefix: agent.prompt, plugins: [{ id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills: agent.skills } }, ...(agent.cube?.enabled && grant ? [{ id: 'user-agent-cube-scope', name: 'cordis:group', group: true as const, isolate: { userAgentCube: true as const }, config: [{ id: 'user-agent-cube', name: 'dsh-agent-manage/user-agent-cube', config: { id: agent.id, sourceRef: agent.cube.sourceRef, generation: grant.generation } }] }] : [])] }
       )
     )
   }

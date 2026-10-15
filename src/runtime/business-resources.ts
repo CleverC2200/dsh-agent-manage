@@ -31,6 +31,8 @@ export interface BusinessResourceDefinition {
   /** A policy JSON file may contain several original profiles. */
   profileKey?: string
   profile: ExecutionProfile
+  /** Host-verified GEA Cube capability. Never populated from user/source imports. */
+  cube?: boolean
   skillFiles?: Record<string, string>
   enabled?: boolean
   /** Existing scoped resource-reference plugin, when required by this resource. */
@@ -58,9 +60,11 @@ export interface ResourceSelection {
   interpreters?: readonly string[]
 }
 interface Entry {
+  instructions?: string
   interpreters?: readonly string[]
   definition: BusinessResourceDefinition
   owner: AbortController
+  cube: AbortController
   error?: string
 }
 const SKILL_PRESET = 'agent-resource-skill'
@@ -94,6 +98,8 @@ declare module '@deepseek-ai/cordis' {
 }
 
 export class BusinessResources {
+  private readonly listeners = new Set<() => void>()
+  private readonly cubeDisabled = new Set<string>()
   private readonly entries = new Map<string, Entry>()
   private readonly mounted = new Map<string, () => Promise<void>>()
   private readonly versions = new Map<string, string>()
@@ -120,9 +126,13 @@ export class BusinessResources {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
       throw Error('INVALID_SELECTED_RESOURCE_INDEX', { cause: error })
     }
-    const state = value as { version?: unknown; selected?: unknown }
+    const state = value as { version?: unknown; selected?: unknown; cubeDisabled?: unknown }
     if (state.version !== 1 || !Array.isArray(state.selected) || state.selected.some(id => typeof id !== 'string' || !/^[a-z][a-z0-9-]*$/.test(id)))
       throw Error('INVALID_SELECTED_RESOURCE_INDEX')
+    if (state.cubeDisabled !== undefined) {
+      if (!Array.isArray(state.cubeDisabled) || state.cubeDisabled.some(id => typeof id !== 'string')) throw Error('INVALID_SELECTED_RESOURCE_INDEX')
+      for (const id of state.cubeDisabled) this.cubeDisabled.add(id)
+    }
     for (const id of state.selected) this.selected.add(id)
     if (this.selected.has(SKILL_PRESET)) await this.mountSkillPreset()
   }
@@ -135,7 +145,7 @@ export class BusinessResources {
       if (!/^[a-z][a-z0-9-]*$/.test(definition.id) || ids.has(definition.id) || this.entries.has(definition.id)) throw Error('DUPLICATE_AGENT_RESOURCE')
       ids.add(definition.id)
     }
-    for (const definition of definitions) this.entries.set(definition.id, { definition, owner })
+    for (const definition of definitions) this.entries.set(definition.id, { definition, owner, cube: new AbortController() })
     this.control?.invalidate()
     for (const { id, publishPreset, enabled } of definitions)
       if (this.selected.has(id) || (publishPreset && enabled !== false)) {
@@ -146,9 +156,11 @@ export class BusinessResources {
           if (entry) entry.error = String(error)
         }
       }
+    this.changed()
     let released = false
     return async () => {
       owner.abort()
+      this.changed()
       await this.serialize(async () => {
         if (released) return
         try {
@@ -165,6 +177,60 @@ export class BusinessResources {
     }
   }
 
+  /** Host-only projection; owner identity and Consumer never cross the UI interface. */
+  cubeSource(id: string): { sourceRef: string; consumerCode: string; signal: AbortSignal } | undefined {
+    const entry = this.entries.get(id)
+    if (this.closed || !entry?.definition.cube || entry.definition.enabled === false || entry.error || entry.owner.signal.aborted || this.cubeDisabled.has(id) || !this.versions.has(id)) return undefined
+    return { sourceRef: id, consumerCode: entry.definition.profile.consumerCode, signal: entry.cube.signal }
+  }
+  cubeCatalog(): Array<{ sourceRef: string; name: string; enabled: boolean; available: boolean }> {
+    return [...this.entries.values()].filter(entry => entry.definition.cube && !entry.owner.signal.aborted)
+      .map(({ definition }) => ({ sourceRef: definition.id, name: definition.presetName ?? definition.label, enabled: !this.cubeDisabled.has(definition.id), available: !!this.cubeSource(definition.id) }))
+  }
+  watch(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+  private changed(): void {
+    for (const [id, entry] of this.entries) {
+      if (entry.owner.signal.aborted || entry.error || entry.definition.enabled === false || this.cubeDisabled.has(id)) entry.cube.abort()
+      else if (entry.cube.signal.aborted) entry.cube = new AbortController()
+    }
+    for (const listener of this.listeners) listener()
+  }
+  /** Plugin MCP membership is fixed; the only supported mutation is enabling it. */
+  async setCubeEnabled(id: string, enabled: boolean): Promise<void> {
+    await this.serialize(async () => {
+      const entry = this.entries.get(id)
+      if (!entry?.definition.cube || entry.owner.signal.aborted) throw Error('CUBE_SOURCE_UNAVAILABLE')
+      const previous = this.cubeDisabled.has(id)
+      if (enabled) this.cubeDisabled.delete(id)
+      else this.cubeDisabled.add(id)
+      try { await this.persist() } catch (error) {
+        if (previous) this.cubeDisabled.add(id)
+        else this.cubeDisabled.delete(id)
+        throw error
+      }
+      entry.cube.abort()
+      entry.cube = new AbortController()
+      this.changed()
+    })
+  }
+  /** Explicit copy contains only original instructions and permitted resource references. */
+  async copyable(id: string): Promise<{ name: string; description: string; prompt: string; skills: Array<{ kind: 'reference'; name: string; provider: string; path?: string; enabled: boolean }>; cube?: { sourceRef: string; enabled: boolean } }> {
+    const entry = this.entries.get(id)
+    if (!entry?.definition.cube) throw Error('CUBE_SOURCE_UNAVAILABLE')
+    await this.serialize(() => this.mountPrompt(id, new AbortController().signal))
+    const d = entry.definition
+    const skills = await this.ctx.skills.list()
+    if (entry.owner.signal.aborted || entry.error) throw Error('CUBE_SOURCE_UNAVAILABLE')
+    return { name: d.presetName ?? d.label, description: promptDescription(d), prompt: entry.instructions!,
+      skills: d.profile.skills.map(name => {
+        const skill = skills.find(skill => skill.name === name)
+        if (!skill) throw Error(`AGENT_SKILL_SOURCE_MISSING: ${name}`)
+        return { kind: 'reference', name, provider: skill.provider, ...(skill.path ? { path: skill.path } : {}), enabled: true }
+      }), cube: { sourceRef: id, enabled: !!this.cubeSource(id) } }
+  }
   /** Only a selected, validated original profile can contribute extra page interpreters. */
   interpreters(id: string): readonly string[] {
     const entry = this.entries.get(id)
@@ -267,7 +333,7 @@ export class BusinessResources {
   private async persist(): Promise<void> {
     await mkdir(dirname(this.indexFile), { recursive: true })
     const temporary = this.indexFile + '.tmp'
-    await writeFile(temporary, JSON.stringify({ version: 1, selected: [...this.selected].sort() }) + '\n', { mode: 0o600 })
+    await writeFile(temporary, JSON.stringify({ version: 1, selected: [...this.selected].sort(), cubeDisabled: [...this.cubeDisabled].sort() }) + '\n', { mode: 0o600 })
     await rename(temporary, this.indexFile)
   }
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
@@ -379,8 +445,11 @@ export class BusinessResources {
       this.versions.set(id, version)
       entry.interpreters = interpreters as string[] | undefined
       delete entry.error
+      entry.instructions = profile.persona
+      this.changed()
     } catch (error) {
       entry.error = String(error)
+      this.changed()
       await this.unmount(id)
       throw error
     }
@@ -413,6 +482,7 @@ export class BusinessResources {
         } catch (error) {
           options.signal?.throwIfAborted()
           entry.error = `${name}: ${String(error)}`
+          this.changed()
           continue
         }
       }
@@ -437,6 +507,7 @@ export class BusinessResources {
     } catch (error) {
       options.signal?.throwIfAborted()
       entry.error = `${locator.name}: ${String(error)}`
+      this.changed()
       return undefined
     }
   }
@@ -458,6 +529,8 @@ export class BusinessResources {
   async dispose(): Promise<void> {
     if (!this.closed) {
       this.closed = true
+    for (const entry of this.entries.values()) entry.cube.abort()
+    this.changed()
       this.lifetime.abort()
       for (const entry of this.entries.values()) entry.owner.abort()
       this.unregisterProvider()

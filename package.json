@@ -31,6 +31,10 @@
       "types": "./lib/types/aps-compute/*.d.ts",
       "default": "./lib/aps-compute/*.js"
     },
+    "./user-agent-cube": {
+      "types": "./lib/types/runtime/user-agent-cube.d.ts",
+      "default": "./lib/runtime/user-agent-cube.js"
+    },
     "./user-agent-skills": {
       "types": "./lib/types/runtime/user-agent-skills.d.ts",
       "default": "./lib/runtime/user-agent-skills.js"

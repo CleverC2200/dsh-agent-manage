@@ -10,7 +10,7 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
   const action = z.object({ id: z.uuid(), enabled: z.boolean() })
   const selection = z.object({ id: z.uuid() }).strict()
   for (const [path, method] of Object.entries({ ...USER_AGENT_ROUTES, ...AGENT_MCP_ROUTES })) {
-    const mutation = !['list', 'skillCatalog', 'skillRead'].includes(path)
+    const mutation = !['list', 'skillCatalog', 'skillRead', 'cubeSources'].includes(path)
     host.effect(() =>
       host.connection.fetch.register({
         path: method,
@@ -22,6 +22,7 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
             if (mutation && origin && origin !== new URL(request.url).origin) return Response.json({ error: 'CROSS_ORIGIN_REQUEST' }, { status: 403 })
             let result: unknown
             if (path === 'list') result = await agents.list()
+            else if (path === 'cubeSources') result = agents.cubeSources()
             else if (path === 'skillCatalog' || path === 'skillRead') {
               const query = new URL(request.url).searchParams
               const cwd = query.get('cwd') ?? undefined
@@ -37,7 +38,16 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
               else if (path === 'mcpAssociate') result = await agents.mcp!.associate(input)
               else if (path === 'mcpEnabled') result = await agents.mcp!.setEnabled(input)
               else if (path === 'mcpRemove') result = await agents.mcp!.remove(input)
-              else if (path === 'save') result = await agents.save(input)
+              else if (path === 'cubeSave') {
+                const value = z.object({ id: z.uuid(), cube: z.unknown() }).strict().parse(input)
+                result = await agents.saveCube(value.id, value.cube)
+              } else if (path === 'cubeEnabled') {
+                const value = z.object({ sourceRef: z.string().min(1), enabled: z.boolean() }).strict().parse(input)
+                await agents.setPluginCubeEnabled(value.sourceRef, value.enabled)
+                result = agents.cubeSources()
+              } else if (path === 'pluginCopy') {
+                result = await agents.copyPlugin(z.object({ sourceRef: z.string().min(1) }).strict().parse(input).sourceRef)
+              } else if (path === 'save') result = await agents.save(input)
               else if (path === 'skills') {
                 const value = z.object({ id: z.uuid(), skills: z.unknown() }).parse(input)
                 result = await agents.saveSkills(value.id, value.skills)

@@ -1,4 +1,4 @@
-import { USER_AGENT_ROUTES, type SaveUserAgent, type UserAgentView, type UserAgentSkill, type UserAgentSkillOption } from '../contracts/user-agents.js'
+import { USER_AGENT_ROUTES, type TrustedCubeSource, type SaveUserAgent, type UserAgentView, type UserAgentSkill, type UserAgentSkillOption } from '../contracts/user-agents.js'
 export type { UserAgentView, SaveUserAgent, UserAgentSkill, UserAgentSkillOption }
 
 export async function request<T>(path: string, value?: unknown, signal?: AbortSignal): Promise<T> {
@@ -11,6 +11,10 @@ export async function request<T>(path: string, value?: unknown, signal?: AbortSi
   return body as T
 }
 export const userAgentApi = {
+  cubeSources: () => request<TrustedCubeSource[]>(USER_AGENT_ROUTES.cubeSources),
+  saveCube: (id: string, cube: UserAgentView['cube'] | null) => request<UserAgentView>(USER_AGENT_ROUTES.cubeSave, { id, cube }),
+  setPluginCubeEnabled: (sourceRef: string, enabled: boolean) => request<TrustedCubeSource[]>(USER_AGENT_ROUTES.cubeEnabled, { sourceRef, enabled }),
+  copyPlugin: (sourceRef: string) => request<UserAgentView>(USER_AGENT_ROUTES.pluginCopy, { sourceRef }),
   list: () => request<UserAgentView[]>(USER_AGENT_ROUTES.list),
   skillCatalog: (signal?: AbortSignal) => request<UserAgentSkillOption[]>(USER_AGENT_ROUTES.skillCatalog, undefined, signal),
   readSkill: (skill: UserAgentSkillOption, signal?: AbortSignal) => request<{ content: string }>(`${USER_AGENT_ROUTES.skillRead}?${new URLSearchParams({ name: skill.name, provider: skill.provider, ...(skill.path ? { path: skill.path } : {}) })}`, undefined, signal),
