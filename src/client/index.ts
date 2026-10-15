@@ -17,7 +17,6 @@ import { fetchMcpBackend } from './api.js'
 import { en, zh, type LocaleKey } from './locales.js'
 import { PluginWorkspace } from './PluginWorkspace.js'
 import { McpPluginCard } from './McpPluginCard.js'
-import { credentialApi, type CredentialRemote } from './credentials.js'
 
 const NS = 'dsh-agent-plugins-market'
 const SETTINGS_NAMESPACE = 'dsh-agent-manage'
@@ -60,11 +59,10 @@ interface SuiteClientContext {
   inject(services: string[], callback: (resolved: { settingsScope: SettingsScopeService; slots: SlotsService; effect(callback: () => unknown): void; agentWorkbench: {register(page: {id: string; label: () => string}): () => void; startAgent(preset: string): Promise<void>} }) => void): void
   locale: LocaleService
   slots: SlotsService
-  remote: { credentials: CredentialRemote }
 }
 
 export const name = 'dsh-agent-manage'
-export const inject = ['slots', 'locale', 'remote', 'remote.credentials']
+export const inject = ['slots', 'locale']
 export const REQUIRED_PRIMITIVES = ['Button', 'Input', 'Modal', 'Toast', 'Tooltip'] as const
 
 /**
@@ -93,7 +91,6 @@ export function apply(ctx: SuiteClientContext): void {
   }, 'dsh-agent-manage: styles')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-agent-plugins: dictionaries')
   const t = ctx.locale.bind(NS)
-  const credentials = credentialApi(ctx.remote.credentials)
 
   const gaps = missingPrimitives(primitives as unknown as Record<string, unknown>)
   if (gaps.length > 0) {
@@ -165,7 +162,7 @@ export function apply(ctx: SuiteClientContext): void {
   // Workbench discovers the public main entry; settings retains the same resource workspace.
   ctx.slots.inject('main', () => ctx.slots.register({
     name: 'main', key: 'agent-plugin-workspace',
-  }, () => h('section', {className: 'agent-workbench-ui', style: {height: '100%'}}, h(PluginWorkspace, {t, credentials, startAgent}))));
+  }, () => h('section', {className: 'agent-workbench-ui', style: {height: '100%'}}, h(PluginWorkspace, {t, startAgent}))));
 
   // 中文：settings.section 是设置区工作台挂载位，由宿主声明生命周期管理。
   ctx.slots.inject('settings.section', () => {
@@ -179,7 +176,6 @@ export function apply(ctx: SuiteClientContext): void {
       inject: () => ({ t }),
     }, () => h(PluginWorkspace, {
       t,
-      credentials,
       startAgent,
     }))
     return () => {

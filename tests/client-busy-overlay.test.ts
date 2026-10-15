@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { beginBusyOperation, busySnapshot, withBusyOperation } from '../src/client/ui/busy-operation.js'
 import { BusyOverlay, BUSY_SHOW_DELAY_MS, BUSY_MIN_VISIBLE_MS, BUSY_SETTLE_MS } from '../src/client/ui/BusyOverlay.js'
 import type { Translate } from '../src/client/index.js'
-import { fetchLspStatus, postAction } from '../src/client/api.js'
+import { fetchModelCatalog } from '../src/client/api.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const t: Translate = key => key
@@ -35,14 +35,15 @@ describe('shared operation overlay', () => {
       )
     )
     try {
-      const polling = fetchLspStatus(true)
+      const polling = fetchModelCatalog()
       expect(busySnapshot()).toHaveLength(0)
       complete(new Response('{}', { status: 200 }))
       await polling
-      const mutation = postAction('test', {})
+      const mutation = withBusyOperation(async () => {
+        throw Error('rejected')
+      })
       expect(busySnapshot()).toHaveLength(1)
       const failure = expect(mutation).rejects.toThrow('rejected')
-      complete(new Response(JSON.stringify({ ok: false, error: 'rejected' }), { status: 400 }))
       await failure
       expect(busySnapshot()).toHaveLength(0)
     } finally {

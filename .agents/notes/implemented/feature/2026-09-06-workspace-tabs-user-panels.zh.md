@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[原生业务资源的 Agent 配置入口](2026-10-04-selected-business-resources.zh.md#已退役的配置入口)替代本 Note 的六页签、资源编辑器与旧 HTTP 路径。下文保留原界面理由供追溯，组件名与 hash 链接描述前代实现。用户存储、运行引擎、来源获取与反馈沿所链接的当前决定保留。
+
 ## Problem
 
 十一项体验反馈集中到来；其中四项带有值得记录的决策：

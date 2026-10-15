@@ -8,7 +8,7 @@ Personal Agent MCP connections use the Agent configuration MCP tab. Display name
 
 The same MCP editor supports Streamable HTTP, SSE and stdio. For stdio, command, arguments, working directory and environment variables remain separate; personal definitions allow absolute paths and retain unknown extension fields. OAuth uses the existing host credential record and browser flow. Saving can return while browser approval is pending; cancellation and failure remain visible until reauthorization. Cancelling or replacing a connection closes its pending callback and rejects late token writes.
 
-**A plugin marketplace and agent capability workspace for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).**
+**An Agent configuration and native preset workspace for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).**
 
 Reuse supported content from Claude Code, Codex, Cursor, Kimi and other recognized layouts. Manage your own skills, commands, agent personas, MCP services and LSP servers in the DSH Web GUI. Supported layouts are read in place, without converting manifests or manually copying files into DSH. See the capability matrix for format-specific limits.
 
@@ -18,20 +18,18 @@ English | [简体中文](README.zh.md) | [Documentation](https://github.com/Clev
 
 [Quick start](#quick-start) · [Everyday use](#everyday-use) · [Compatibility](#compatibility-and-boundaries) · [FAQ](#faq)
 
-![Current six-tab Agent Plugins workspace](docs/screenshot-workspace.png)
-
 ## Personal Agent configuration
 
 The public Agent configuration page now creates durable personal Agents and publishes enabled configurations as native presets composed from the active DSH standard declaration. Start chat uses the Workbench native Session entry and keeps the current conversation and default choice. The Skill tab selects existing provider resources or creates personal instructions. Skill edits and enable switches apply to new Sessions of that Agent; source files and existing Session revisions stay intact. Disabling withdraws the preset from new tasks; deletion retains recoverable configuration, history and drafts. Restore leaves the configuration disabled until explicit enable and dependency checks, without changing the host default. Live Sessions retain their revision; cold recovery uses the retained current configuration and cannot reconstruct older revisions. External MCP connections use the MCP tab. Imported Git, directory and archive configurations support three-way synchronization with local, upstream or manual conflict resolution; a failed update preserves the usable revision. The MCP tab also selects one trusted plugin Cube reference under the current GEA identity; plugin presets offer an explicit copy into a personal Agent. These configurations are distinct from reusable subagent roles.
 
 ## What you can do
 
-- **Reuse ecosystem suites.** Add a Git repository, local directory or archive as a source; browse, preview, install and enable its suites. Supported capabilities become available to DSH at runtime.
-- **Build your own toolkit.** Create skills, reusable slash commands and agent personas. Edit or disable your own entries without deleting them.
-- **Keep project resources in place.** Project `.claude/` and `.agents/` skills and agents are discovered without an installation step or file copying.
-- **Manage services where you use them.** Add your own MCP services and LSP servers, configure credentials and authorization for installed ones, inspect status, and diagnose unavailable services from one workspace.
+- Create and enable personal Agents with stable native preset identities.
+- Import Git, local-directory and archive configurations, then preserve personal changes through synchronization.
+- Select existing Skills or edit personal Skill bodies for each Agent.
+- Configure Agent-scoped MCP connections and permitted trusted Cube references using host credentials and authorization.
 
-This isolated project uses its registered official Core releases and public interfaces. Project commands and suite instructions finish through asynchronous `agent/created` before the first model request; the obsolete `agent/session-start` listener is removed.
+Project resources and native commands, LSP, hooks and subagent runtimes retain their existing execution contracts. The Agent directory changes configuration management; those runtimes remain available under host policy.
 
 ## Quick start
 
@@ -45,41 +43,22 @@ Install into your profile, replacing `<name>` with its name:
 dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
-1. Restart DSH and open **Workbench → Agent Marketplace** (`agent-plugin-workspace`). The same resource workspace also remains available in **Settings → Agent Marketplace**. The Workbench directory uses the official `main` registration; titles are presentation metadata.
-2. In **Market**, add a source, for example `https://github.com/anthropics/claude-plugins-official`. The bundled sales-plan configuration source is already discoverable; importing it remains explicit.
-3. Open a suite, review its contents, then install it and ensure it is enabled.
-4. For a suite with skills, check the **Skills** tab and type `/` in chat to find its user-invocable skills. For an MCP suite, check **MCP services** and resolve any credential or connection notices before using its tools.
-
-For GitHub installation and profile configuration, see the [usage guide](docs/guides/usage.md#installation-options).
+1. Restart DSH and open **Workbench → Agent configuration** (`agent-plugin-workspace`). Settings opens the same Agent list and editor.
+2. Create a personal Agent, or open **Configuration sources** to acquire a Git repository, local directory or archive and explicitly import an Agent. The bundled sales source is discoverable but requires import.
+3. Configure its **Prompt**, **Skill** and **MCP** tabs. Cancel discards the form; saving configuration, publishing the native preset and connecting MCP have separate results.
+4. Enable the Agent and choose **Start conversation**, or select it in the ordinary host roster. Enabling does not change your default Agent or an existing Session.
 
 ## Everyday use
 
-MCP details separate Retry connection (keeps credentials) from confirmed OAuth reauthorization. There is no enable switch in the detail dialog.
+The Agent list shows source, personal changes, enablement and availability. Source synchronization compares base, personal configuration and upstream, then asks for an explicit conflict resolution. A failed update keeps the previous usable preset. Disabling or deleting a personal Agent preserves recoverable configuration, Session history and drafts.
 
-The workspace has six tabs:
+Personal MCP connections support Streamable HTTP, SSE, stdio and the host credential/OAuth mechanisms. Removing an association affects only the current Agent. Plugin-provided MCP is source-owned and only supports enablement; create a personal Agent for permitted combinations. GEA Cube is a trusted plugin reference checked by the GEA Host against the current identity and Consumer.
 
-| Tab            | Use it to                                                                                                                         |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Market         | Add sources, preview suites, install / uninstall, enable / disable and refresh.                                                   |
-| Skills         | Browse skills and create or edit your own reusable instructions.                                                                  |
-| Commands       | Manage prompt templates invoked as `/name`; `$ARGUMENTS` inserts the text supplied after the command.                             |
-| Agent personas | Select providers, models and reasoning effort from DSH, manage role instructions and tools, and delegate through `subagents_run`. |
-| MCP services   | Add a service or configure an installed one, its credentials and authorization; inspect status and retry failures.                |
-| LSP servers    | Add and configure language servers and inspect their runtime status.                                                              |
+The retired market installation, command/LSP editors and generic resource HTTP writes are removed. Discovery, acquisition, cache, source locks, import/sync, commands/LSP/hooks/project runtimes and subagent execution remain. See [storage and discovery](docs/guides/usage.md#storage-and-discovery) for paths and precedence.
 
-A **source** is where content comes from; a **suite** is an installable unit discovered there. Adding a source discovers its suites. Installing and enabling a suite controls its runtime capabilities. Suite details preview files; MCP credentials and overrides are edited in **MCP services**.
+Startup uses the current `$DSH_HOME/agent-plugins` storage only. Retired `userRoot` or `dataRoot` configuration is rejected with `MANAGE_STORAGE_UPGRADE_REQUIRED` before runtime mounting; existing data stays in place and any conversion is a separately authorized upgrade. The canonical home, user/data, authored-user and `.sources` directories must not be symbolic links.
 
-Your own skills, commands and personas are stored as Markdown under `~/.dsh/agent-plugins/user/`. Project-native resources stay in the project. See [storage and discovery](docs/guides/usage.md#storage-and-discovery) for paths and precedence.
-
-Startup uses the current `$DSH_HOME/agent-plugins` storage only. Retired `userRoot` or `dataRoot` configuration is rejected with `MANAGE_STORAGE_UPGRADE_REQUIRED` before runtime mounting; remove those overrides for a fresh profile. Startup neither reads nor moves old trees or backend `settings.json`. Existing data stays at its original path; any required conversion is a separately authorized upgrade. The canonical home, user/data, authored-user and `.sources` directories must not be symbolic links.
-
-All six tabs share a saved grid/list preference. Add and refresh actions sit at the top right; resource state rails are green when active.
-
-Resource details share a wide dialog. Markdown resources open with rendered content and structured frontmatter; switch to Markdown to edit. MCP/LSP provide fixed forms and JSON editing over the same configuration.
-
-Services you add yourself are validated before saving, persist under `~/.dsh/agent-plugins/data/`, and mount through the same lifecycle as suite services. Services observed from the host configuration stay read-only.
-
-Asynchronous workspace actions show a blocking overlay on the active settings panel or detail dialog, with rotating waiting messages. The overlay is released on success or failure; background status polling stays silent.
+Old plugin MCP connection overrides remain in `data/overrides/` for recovery. Only their enablement applies; runtime status reports `PLUGIN_MCP_OVERRIDE_RETIRED` with the preserved file path. Copy desired values explicitly into a personal Agent connection. Personal MCP definitions and credentials keep their existing storage and lifecycle.
 
 ## Compatibility and boundaries
 

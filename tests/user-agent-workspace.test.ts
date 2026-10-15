@@ -12,7 +12,7 @@ it('opens an inline form, cancels without saving and starts an enabled Agent thr
     id: 'b575551f-6614-4e1b-813a-640d881631c8',
     name: '销售助手',
     description: '个人配置',
-    prompt: 'Sales persona',
+    prompt: 'Sales persona<script>alert(1)</script>',
     enabled: true,
     revision: 1,
     origin: 'user' as const,
@@ -44,7 +44,8 @@ it('opens an inline form, cancels without saving and starts an enabled Agent thr
     expect(startAgent).toHaveBeenCalledExactlyOnceWith(saved.preset)
     await act(async () => (element.querySelector('article button') as HTMLButtonElement).click())
     expect(element.querySelector('nav')?.textContent).toBe('提示词SkillMCP')
-    expect(element.querySelector('textarea')?.value).toBe('Sales persona')
+    expect(element.querySelector('textarea')?.value).toBe(saved.prompt)
+    expect(element.querySelector('script')).toBeNull()
   } finally {
     await act(async () => root.unmount())
     element.remove()

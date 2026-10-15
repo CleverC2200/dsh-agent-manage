@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "required": ["tests/market-contracts.test.ts", "tests/routes.test.ts"],
+  "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
   "tests": ["tests/*.test.ts"],
   "rules": [
     {
       "repo": "dsh-agent-manage",
       "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|tsconfig|vitest|\\.github/|scripts/)",
-      "tests": ["tests/market-contracts.test.ts", "tests/routes.test.ts"],
+      "tests": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
       "exclusive": true
     },
     {
@@ -17,7 +17,7 @@
     {
       "repo": "dsh-agent-workbench",
       "pattern": "^(?:src|scripts|theme|business)/",
-      "tests": ["tests/market-contracts.test.ts"]
+      "tests": ["tests/agent-mcp.test.ts"]
     },
     {
       "repo": "dsh-gea-plugin",

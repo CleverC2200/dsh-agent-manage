@@ -1,6 +1,6 @@
 {
   "name": "dsh-agent-manage",
-  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) — zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
+  "description": "Configure personal Agents, Skills and MCP connections for DeepSeek Harness, publish native presets, and preserve source import, synchronization and host-owned runtime capabilities.",
   "version": "0.6.3-company.6",
   "type": "module",
   "main": "lib/index.js",
@@ -61,7 +61,7 @@
     "build": "node scripts/generate-plugin-package-version.mjs && tsc -p tsconfig.json && pnpm run build:client",
     "build:client": "node scripts/generate-plugin-package-version.mjs && tsdown && node scripts/normalize-client-banner.mjs",
     "test": "pnpm run test:package-version && vitest run && pnpm run test:preset-client",
-    "test:contract": "vitest run tests/market-contracts.test.ts tests/routes.test.ts",
+    "test:contract": "vitest run tests/routes.test.ts tests/agent-mcp.test.ts",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src tests",
     "format": "prettier --write .",

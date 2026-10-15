@@ -9,35 +9,8 @@ export const MARKET_API_PREFIX = '/api/agent-plugins/' as const
 /** Fixed Agent Plugins Market HTTP routes. */
 /** 中文：集中维护市场各功能的固定 HTTP 路由，避免客户端和主机拼接不一致。 */
 export const MARKET_ROUTES = {
-  overview: `${MARKET_API_PREFIX}overview`,
-  mcpStatus: `${MARKET_API_PREFIX}mcp-status`,
-  addMcpServer: `${MARKET_API_PREFIX}mcp-servers/add`,
-  lspStatus: `${MARKET_API_PREFIX}lsp-status`,
-  lspServers: `${MARKET_API_PREFIX}lsp-servers`,
-  addLspServer: `${MARKET_API_PREFIX}lsp-servers/add`,
-  serverConfig: `${MARKET_API_PREFIX}server-config`,
-  saveServerConfig: `${MARKET_API_PREFIX}server-config/save`,
-  progress: `${MARKET_API_PREFIX}progress`,
-  config: `${MARKET_API_PREFIX}config`,
   modelCatalog: `${MARKET_API_PREFIX}model-catalog`,
-  suite: `${MARKET_API_PREFIX}suite`,
-  skill: `${MARKET_API_PREFIX}skill`,
-  addSource: `${MARKET_API_PREFIX}sources/add`,
-  updateSource: `${MARKET_API_PREFIX}sources/update`,
-  adoptSource: `${MARKET_API_PREFIX}sources/adopt`,
-  removeSource: `${MARKET_API_PREFIX}sources/remove`,
-  refreshSource: `${MARKET_API_PREFIX}sources/refresh`,
-  install: `${MARKET_API_PREFIX}install`,
-  uninstall: `${MARKET_API_PREFIX}uninstall`,
-  setEnabled: `${MARKET_API_PREFIX}set-enabled`,
-  setSurface: `${MARKET_API_PREFIX}set-surface`,
-  mcpOverrides: `${MARKET_API_PREFIX}mcp-overrides`,
-  setMcpOverride: `${MARKET_API_PREFIX}set-mcp-override`,
-  mcpRetry: `${MARKET_API_PREFIX}mcp-retry`,
-  mcpReauthorize: `${MARKET_API_PREFIX}mcp-reauthorize`,
-  mcpBackend: `${MARKET_API_PREFIX}mcp-backend`,
-  setMcpBackend: `${MARKET_API_PREFIX}set-mcp-backend`,
-  userPanel: `${MARKET_API_PREFIX}user-panel`
+  mcpBackend: `${MARKET_API_PREFIX}mcp-backend`
 } as const
 
 /** Editable service configuration; masked values are preserved when unchanged. */
@@ -55,30 +28,6 @@ export interface ModelCatalogPayload {
   providers: Array<{ id: string; name: string }>
   models: Array<{ id: string; name: string }>
   reasoning?: { efforts: Array<{ id: string; name: string; description?: string }>; defaultEffort?: string }
-}
-
-/**
- * Mutation routes carry their verb in the path because the host webserver
- * keys its exact table by pathname only — a second registration on the same
- * path throws `duplicate exact route` at mount. The read route keeps the
- * bare panel path; every write gets a distinct segment below it.
- */
-/** 中文：写操作使用独立路径段，避免主机精确路由注册重复；读取仍使用基础面板路径。 */
-export type UserPanelMutation = 'create' | 'update' | 'delete'
-
-/** Build one user-panel list route URL (`GET`, no mutation). */
-/** 中文：生成用户面板列表 GET 地址，不执行变更。 */
-export function userPanelRoute(kind: UserPanelKind): string {
-  /** 将面板类型拼到统一用户面板路由后，返回只读列表地址。 */
-  return `${MARKET_ROUTES.userPanel}/${kind}`
-}
-
-/** Build one user-panel mutation route URL (all POSTs). */
-/** 中文：生成用户面板新增、更新或删除操作的 POST 地址。 */
-export function userPanelMutationRoute(kind: UserPanelKind, mutation: UserPanelMutation, name?: string): string {
-  /** 追加变更动作，并在提供名称时进行 URL 编码后写入查询参数。 */
-  const base = `${userPanelRoute(kind)}/${mutation}`
-  return name === undefined ? base : `${base}?name=${encodeURIComponent(name)}`
 }
 
 /** The MCP mount backend state reported to the settings page. */
@@ -324,8 +273,8 @@ export interface UserPanelEntryWire {
   name: string
   description: string
   disabled: boolean
-  /** User and managed plugin entries are editable; external source files remain read-only. */
-  /** 中文：用户条目和受管插件条目可编辑，外部来源文件保持只读。 */
+  /** User entries are editable; plugin source files remain read-only. */
+  /** 中文：用户条目可编辑，插件来源文件保持只读。 */
   origin: 'user' | 'plugin'
   id?: string
   rawText: string
@@ -340,17 +289,3 @@ export interface UserPanelEntryWire {
 /** The user panel surface the market exposes. */
 /** 中文：市场对外提供的用户面板类型。 */
 export type UserPanelKind = 'skills' | 'commands' | 'agents'
-
-/** Build a suite-detail URL without duplicating route or query encoding logic. */
-/** 中文：生成套件详情地址，统一处理路由和查询参数编码。 */
-export function suiteRoute(sourceId: string, suiteId: string): string {
-  /** 将 sourceId 和 suiteId 编码后组成详情弹窗请求地址。 */
-  return `${MARKET_ROUTES.suite}?sourceId=${encodeURIComponent(sourceId)}&suiteId=${encodeURIComponent(suiteId)}`
-}
-
-/** Build a skill-content URL without duplicating route or query encoding logic. */
-/** 中文：生成 skill 内容地址，统一处理路由和查询参数编码。 */
-export function skillRoute(sourceId: string, suiteId: string, skill: string): string {
-  /** 将来源、套件和 skill 名称编码后组成内容请求地址。 */
-  return `${MARKET_ROUTES.skill}?sourceId=${encodeURIComponent(sourceId)}&suiteId=${encodeURIComponent(suiteId)}&skill=${encodeURIComponent(skill)}`
-}

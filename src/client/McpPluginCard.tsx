@@ -18,7 +18,7 @@ import { createElement as h, useCallback, useEffect, useState, type ReactNode } 
 import * as primitives from '@deepseek-ai/dsh-client-ui-primitives'
 import type { McpBackendInfo } from './api.js'
 import { ToggleSwitch } from './ui/ToggleSwitch.js'
-import css from './market.module.css'
+import css from './plugin-settings.module.css'
 
 /** Locale subset the card needs (structural — the host binds the real one). */
 /** 中文：卡片只依赖这组翻译键，真实翻译器由宿主入口绑定。 */

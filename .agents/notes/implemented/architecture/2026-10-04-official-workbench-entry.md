@@ -20,6 +20,6 @@ The module-loader banner supplies CSS text to the apply effect. Manage installs 
 
 ## Consequences
 
-This partially updates the entry placement in [workspace tabs](../feature/2026-09-06-workspace-tabs-user-panels.md), preserving its one workspace and six tabs decision. It updates the resource provider described by [market affordances](../feature/2026-09-02-market-card-platform-affordances.md): Workbench now supplies plugin CSS instead of a modified ui-theme build. Catalog, install state, MCP transport and business resource ownership stay with their existing modules.
+This partially updates the entry placement in [workspace tabs](../feature/2026-09-06-workspace-tabs-user-panels.md), preserving one shared workspace; [Agent configuration](../feature/2026-10-04-selected-business-resources.md#retired-configuration-entries) supersedes its six tabs. It updates the resource provider described by [market affordances](../feature/2026-09-02-market-card-platform-affordances.md): Workbench now supplies plugin CSS instead of a modified ui-theme build. Catalog, install state, MCP transport and business resource ownership stay with their existing modules.
 
 The entry test exercises public contributions, title release and style release. Typecheck and client build verify the candidate; live same-host display is separately recorded by specification 41.

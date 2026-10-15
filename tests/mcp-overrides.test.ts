@@ -1,11 +1,19 @@
-import { cp, mkdir, mkdtemp } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { Catalog } from '../src/application/catalog.js'
 import { toMcpMounts } from '../src/runtime/mcp-config.js'
-import { applyOverride, loadSuiteOverrides, mergeOverridePatch, sanitizeOverridePatch, sanitizeOverrides, saveSuiteOverrides } from '../src/runtime/mcp-overrides.js'
+import {
+  suiteOverridePath,
+  applyOverride,
+  loadSuiteOverrides,
+  mergeOverridePatch,
+  sanitizeOverridePatch,
+  sanitizeOverrides,
+  saveSuiteOverrides
+} from '../src/runtime/mcp-overrides.js'
 import type { McpServerStreamableHttp, Suite } from '../src/model/types.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -157,8 +165,8 @@ describe('mergeOverridePatch', () => {
 })
 
 describe('Catalog runtime overrides', () => {
-  async function installedCatalog(): Promise<Catalog> {
-    const userRoot = await mkdtemp(join(tmpdir(), 'dsh-mcpov-cat-'))
+  async function installedCatalog(root?: string): Promise<Catalog> {
+    const userRoot = root ?? (await mkdtemp(join(tmpdir(), 'dsh-mcpov-cat-')))
     const manager = new Catalog({ userRoot, dataRoot: join(userRoot, 'data'), onChanged: () => {} })
     await manager.load()
     const checkout = join(userRoot, '.sources', 'demo')
@@ -168,6 +176,22 @@ describe('Catalog runtime overrides', () => {
     await manager.install('demo', 'v1-suite')
     return manager
   }
+
+  it('preserves retired plugin connection patches on disk but applies only enablement and diagnoses them', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-retired-mcpov-'))
+    const manager = await installedCatalog(root)
+    const original = await manager.runtime.mcpStatus()
+    const key = original.entries[0]!.serverKey!
+    const overrides = { [key]: { enabled: true, config: { type: 'stdio' as const, command: 'old-override' }, env: { TOKEN: '${TOKEN}' } } }
+    await saveSuiteOverrides(join(root, 'data'), 'demo/v1-suite', overrides)
+    const before = await readFile(suiteOverridePath(join(root, 'data'), 'demo/v1-suite'), 'utf8')
+    const selected = await manager.runtime.allMcpOverrides()
+    expect(selected.get('demo/v1-suite')).toEqual({ [key]: { enabled: true } })
+    const status = await manager.runtime.mcpStatus()
+    expect(status.entries[0]!.config).toEqual(original.entries[0]!.config)
+    expect(status.entries[0]!.reason).toContain('PLUGIN_MCP_OVERRIDE_RETIRED')
+    expect(await readFile(suiteOverridePath(join(root, 'data'), 'demo/v1-suite'), 'utf8')).toBe(before)
+  })
 
   it('persists a plugin enablement override and reports it in suite detail', async () => {
     const manager = await installedCatalog()
