@@ -10,7 +10,7 @@ The market cannot discover authorized GEA tools from a transport URL alone. GEA 
 
 GEA Host remains the only login, credential and Consumer authority. The current v2 discovery and dispatch contract is documented in [GEA Cube-New MCP](../../../../docs/guides/gea-mcp.md); [selected business resources](2026-10-04-selected-business-resources.md#trusted-cube-references) owns trusted personal Agent references.
 
-Manage publishes the server schemas and scoped tools; GEA resolves the actual Core Session's enabled business source or trusted Cube reference. User configuration cannot select a Consumer, gateway or login token. A personal reference grants only inspect/query Cube methods, with source/identity revocation and child tool-filter intersections. The earlier optional v1 transport service and single `gea-readonly` configuration are retired.
+Manage publishes the server schemas and scoped tools; GEA resolves the actual Core Session's enabled business source or trusted Cube reference. User configuration cannot select a Consumer, gateway or login token. A personal reference exposes Cube inspect/query and the [knowledge catalog/ask methods](2026-10-15-gea-knowledge-tools.md) under the same Consumer and server grants, with source/identity revocation and child tool-filter intersections. The earlier optional v1 transport service and single `gea-readonly` configuration are retired.
 
 Logout, environment change, expiration and owner disposal abort old calls and reject late results. Gateway credentials are never persisted as external MCP configuration. Ordinary personal Agent configuration does not require GEA.
 

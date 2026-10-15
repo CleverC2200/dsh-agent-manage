@@ -20,4 +20,4 @@ The [Chinese execution contract](../../../../../dsh-gea-plugin/docs/knowledge-mc
 
 ## Consequences
 
-Knowledge and Cube share registration, while GEA keeps their result contracts separate. Knowledge-only Agents do not require a Cube source. Existing business Session selection, stale-call rejection and login disposal remain necessary. Source and fixture verification do not establish real grants, content migration, installation or business acceptance.
+Knowledge and Cube share registration, while GEA keeps their result contracts separate. Knowledge tools do not require a configured Cube MCP endpoint. Personal Agents still require an enabled trusted source association to resolve their Consumer. Existing business Session selection, stale-call rejection and login disposal remain necessary. Source and fixture verification do not establish real grants, content migration, installation or business acceptance.
