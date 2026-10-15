@@ -46,4 +46,10 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 
 完整个人 Agent 由 `UserAgents` 持有，与目录角色、已选择业务身份分别保存。统一配置发布 interface 串行写入 `user-agents.json`，校验外部输入，并通过 standard 组合将启用配置以稳定的 `user-agent-<id>` 身份注册。改名不改身份；持久保存与注册、resolve 分别处理。发布失败保留可编辑配置、诊断以及已有的最后可用声明。Host 启动恢复启用声明，Loader 激活完成后再核可用性。Core 的既有 generation 保留运行中 Session 的 revision。
 
-主入口和设置共用 Agent 页，替换六 Tab 工作区入口。经认证的 Host Fetch 提供列表、保存、启停和选择；显式选择不修改默认或已有 Session。Workbench 的公开 `startAgent` 负责原生工作区和 Session 导航。每 Agent Skill、MCP、导入同步及删除由后续切片完成，本改动不声称其可用。
+主入口和设置共用 Agent 页，替换六 Tab 工作区入口。经认证的 Host Fetch 提供列表、保存、启停和选择；显式选择不修改默认或已有 Session。Workbench 的公开 `startAgent` 负责原生工作区和 Session 导航。每 Agent Skill 组合见下节，MCP、导入同步及删除由后续切片完成。
+
+## 个人 Agent 的 Skill 作用域
+
+`UserAgents` 随 Agent 配置持久保存 Skill 引用和个人正文。引用保存获胜 provider 与可选源路径；来源缺失或改变时，发布与读取明确拒绝。个人定制保留原引用的资源目录，不写回受管源。`dsh-agent-manage/user-agent-skills` 在官方预设作用域内贡献配置，复用全局 provider 读取，允许选中且启用的引用，并将未选中或停用的全局 Skill 的两种调用策略设为停用。standard 声明及其原生作用域资源保留，Core 为已有 Session 保留旧 revision 作用域。
+
+Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取消只丢弃本地编辑；保存失败保留表单。卸载时取消读取并忽略迟到结果。生产 Core Session 测试覆盖来源选择、作用域目录与工具实际调用，不证明已安装客户端或外部模型验收。

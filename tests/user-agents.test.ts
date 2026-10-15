@@ -1,7 +1,54 @@
 import { expect, it } from 'vitest'
 import { join } from 'node:path'
 import { UserAgents } from '../src/runtime/user-agents.js'
-import { agentOn, completion, presetHarness, turn } from './core-preset-harness.js'
+import { agentOn, completion, presetHarness, turn, official } from './core-preset-harness.js'
+
+it('keeps selected and personal Skills scoped to new Core Sessions across edits and restart', async () => {
+  const { ctx, home, start } = await presetHarness({ importModule: name => name === 'dsh-agent-manage/user-agent-skills' ? import('../src/runtime/user-agent-skills.js') : official(name) })
+  const withdraw = ctx.skills.register({ name: 'source-skill', description: 'Original provider skill', source: 'bundled', content: 'ORIGINAL_SKILL_BODY' })
+  const agents = new UserAgents(ctx, join(home, 'skills-agents.json'))
+  await agents.load()
+  const a = await agents.save({ name: 'A', description: '', prompt: 'PERSONA_A', enabled: true })
+  const b = await agents.save({ name: 'B', description: '', prompt: 'PERSONA_B', enabled: true })
+  const saved = await agents.saveSkills(a.id, [
+    { kind: 'reference', name: 'source-skill', provider: 'runtime', enabled: true, content: 'CUSTOMIZED_SKILL_BODY' },
+    { kind: 'personal', name: 'personal-skill', description: 'Personal instructions', content: 'PERSONAL_SKILL_BODY', enabled: true }
+  ])
+  expect(saved.publication).toBe('ready')
+  const first = await agentOn(ctx, 'skills-a-first', a.preset, undefined, home)
+  const other = await agentOn(ctx, 'skills-b', b.preset, undefined, home)
+  expect((await ctx.skills.get('source-skill', { scope: first, cwd: home }))?.content).toBe('CUSTOMIZED_SKILL_BODY')
+  expect(await ctx.skills.get('personal-skill', { scope: other, cwd: home })).toBeUndefined()
+  expect((await ctx.skills.get('source-skill', { scope: other, cwd: home }))?.invocation.modelInvocable).toBe(false)
+  expect((await ctx.skills.get('source-skill', { cwd: home }))?.content).toBe('ORIGINAL_SKILL_BODY')
+  await agents.saveSkills(a.id, saved.skills.map(skill => ({ ...skill, enabled: false })))
+  const next = await agentOn(ctx, 'skills-a-next', a.preset, undefined, home)
+  expect((await ctx.skills.list({ scope: next, cwd: home })).filter(skill => skill.invocation.modelInvocable).map(skill => skill.name)).not.toContain('source-skill')
+  const requests = await completion(ctx, 262144, false, undefined, { tools: [{ name: 'skill', arguments: { name: 'source-skill' } }], checkpoint: '' })
+  await turn(ctx, next, 'Attempt disabled skill')
+  expect(JSON.stringify(requests)).toContain('not available for model invocation')
+  expect(JSON.stringify(requests)).not.toContain('CUSTOMIZED_SKILL_BODY')
+  expect((await ctx.skills.get('source-skill', { scope: first, cwd: home }))?.content).toBe('CUSTOMIZED_SKILL_BODY')
+  expect(ctx.commands.list(next).map(command => command.name)).toContain('compact')
+  const conflict = await agents.saveSkills(b.id, [{ kind: 'reference', name: 'source-skill', provider: 'runtime', path: '/different-suite/SKILL.md', enabled: true }])
+  expect(conflict.publication).toBe('failed')
+  expect(conflict.error).toContain('AGENT_SKILL_SOURCE_MISSING')
+  withdraw()
+  const missing = await agents.saveSkills(b.id, [{ kind: 'reference', name: 'source-skill', provider: 'runtime', enabled: true }])
+  expect(missing.publication).toBe('failed')
+  expect(missing.error).toContain('AGENT_SKILL_SOURCE_MISSING')
+  await expect(agents.select(b.id)).rejects.toThrow('AGENT_SKILL_SOURCE_MISSING')
+  await agents.saveSkills(a.id, [{ kind: 'personal', name: 'personal-skill', description: 'Personal instructions', content: 'PERSONAL_SKILL_BODY', enabled: true }])
+  await agents.dispose()
+  await ctx.fiber.dispose()
+  const restarted = await start()
+  const restored = new UserAgents(restarted, join(home, 'skills-agents.json'))
+  await restored.load()
+  expect((await restored.list()).find(agent => agent.id === a.id)?.skills).toContainEqual(expect.objectContaining({ name: 'personal-skill', content: 'PERSONAL_SKILL_BODY', enabled: true }))
+  const afterRestart = await agentOn(restarted, 'skills-after-restart', a.preset, undefined, home)
+  expect((await restarted.skills.get('personal-skill', { scope: afterRestart, cwd: home }))?.content).toBe('PERSONAL_SKILL_BODY')
+  await restored.dispose()
+})
 
 it('persists a personal Agent, publishes standard capabilities and keeps its identity on edit and restart', async () => {
   const { ctx, home, start } = await presetHarness()
@@ -60,6 +107,11 @@ it('exposes authenticated configuration operations and rejects disabled selectio
   const response = await post(USER_AGENT_ROUTES.save, { name: '可选助手', description: '', prompt: 'PERSONAL_INSTRUCTIONS', enabled: true })
   expect(response.status).toBe(200)
   const saved = await response.json()
+  const withSkill = await (await post(USER_AGENT_ROUTES.skills, { id: saved.id, skills: [{ kind: 'personal', name: 'route-skill', description: 'Route instructions', content: 'ROUTE_SKILL_BODY', enabled: true }] })).json()
+  expect(withSkill.publication).toBe('ready')
+  const session = await agentOn(ctx, 'route-skill-session', saved.preset)
+  expect((await ctx.skills.get('route-skill', { scope: session }))?.content).toBe('ROUTE_SKILL_BODY')
+  expect((await post(USER_AGENT_ROUTES.skills, { id: saved.id, skills: [] }, 'https://elsewhere.example')).status).toBe(403)
   expect(await (await post(USER_AGENT_ROUTES.select, { id: saved.id })).json()).toEqual({ preset: saved.preset })
   expect((await post(USER_AGENT_ROUTES.save, { ...saved, name: '' })).status).toBe(400)
   await post(USER_AGENT_ROUTES.enabled, { id: saved.id, enabled: false })
