@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { BusinessResources } from '../src/runtime/business-resources.js'
-import type { SkillProvider, SkillProviderControl } from '@deepseek-ai/dsh-skill'
+import type { SkillProvider, SkillProviderControl, SkillLookupOptions } from '@deepseek-ai/dsh-skill'
 it('selects original APS profile with unique Manage analysis sources and refuses malformed explicit references', async () => {
   const temporary = await mkdtemp(join(tmpdir(), 'aps-resource-'))
   const root = fileURLToPath(new URL('../business-resources/inventory-apsplan/', import.meta.url))
@@ -16,8 +16,12 @@ it('selects original APS profile with unique Manage analysis sources and refuses
         provider = create({ invalidate() {}, signal: new AbortController().signal })
         return () => {}
       },
-      async list() {
-        return provider.list({})
+      async list(options: SkillLookupOptions = {}) {
+        return provider.list(options)
+      },
+      async get(name: string, options: SkillLookupOptions = {}) {
+        const candidate = (await provider.list(options)).find(row => row.name === name)
+        return candidate ? provider.get(candidate, options) : undefined
       }
     },
     agentPresets: {

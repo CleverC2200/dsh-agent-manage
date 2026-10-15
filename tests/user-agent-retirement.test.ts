@@ -115,7 +115,8 @@ it('requires the missing Skill source again after explicitly restoring and enabl
   expect((await restored.setEnabled(saved.id, true)).publication).toBe('ready')
   expect(await cold.sessionController.create({ cwd: home, sessionId: created.sessionId })).toEqual(created)
   const agent = cold.agents.get(created.sessionId)!
-  expect((await cold.skills.get('recover-source', { scope: agent })).content).toBe('RESTORED_DEPENDENCY')
+  expect((await cold.skills.get('recover-source')).content).toBe('RESTORED_DEPENDENCY')
+  expect((await cold.skills.get('recover-source', { scope: agent })).content).toBe('TRUSTED_DEPENDENCY')
   repaired()
   await record('user-agent-dependency-recovery', { hostRestarted: true, restoredSourceMissingRejected: true, sourceRestoredExplicitEnableRecoveredSameSession: true })
   await restored.dispose()
