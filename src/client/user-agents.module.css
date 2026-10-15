@@ -42,7 +42,7 @@
 .mcpRow strong { font-weight: 550; }
 .badge { margin-left: 8px; padding: 1px 5px; border-radius: 3px; background: var(--workbench-hover, #f5f6f7); color: var(--workbench-muted, #69717c); font-size: 11px; white-space: nowrap; }
 .state { color: var(--workbench-muted, #69717c); font-size: 12px; white-space: nowrap; }
-.workspace .textButton, .workspace .iconButton { border: 0; padding: 6px; color: var(--workbench-muted, #69717c); }
+.workspace .textButton { border: 0; padding: 6px; color: var(--workbench-muted, #69717c); }
 .workspace .danger { color: var(--workbench-danger, #b42318); }
 .menu { position: relative; }
 .menu > summary { cursor: pointer; list-style: none; border-radius: 8px; padding: 4px 8px; font-size: 20px; }
@@ -91,3 +91,5 @@
 .conflictValues { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .conflictValues pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; font: inherit; }
 @media (max-width: 700px) { .conflictValues { grid-template-columns: 1fr; } }
+
+.workspace .iconButton { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; color: var(--workbench-muted, #69717c); }

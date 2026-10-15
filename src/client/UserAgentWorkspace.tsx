@@ -1,4 +1,5 @@
 import React, { useEffect, useState, type FormEvent } from 'react'
+import { IconRefreshOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Translate } from './index.js'
 import { userAgentApi, type SaveUserAgent, type UserAgentView } from './user-agent-api.js'
 import { AgentSources } from './AgentSources.js'
@@ -67,9 +68,9 @@ export function UserAgentWorkspace({ t, startAgent, surface = 'main' }: UserAgen
   })
   const leaveEditor = () => { setSelected(undefined); setDraft(blank()); setError(''); setMessage('') }
   const fields = <>
-    <label>{t('agentName')}<input disabled={busy || selected?.origin === 'plugin'} required maxLength={160} value={draft.name} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))} /></label>
+    <label>{t('agentName')}<input autoFocus={adding} disabled={busy || selected?.origin === 'plugin'} required maxLength={160} value={draft.name} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))} /></label>
     <label>{t('agentDescription')}<input disabled={busy || selected?.origin === 'plugin'} maxLength={1000} value={draft.description} onChange={event => setDraft(value => ({ ...value, description: event.target.value }))} /></label>
-    <label>{t('agentPrompt')}<textarea disabled={busy} required rows={12} maxLength={48000} value={draft.prompt} onChange={event => setDraft(value => ({ ...value, prompt: event.target.value }))} /></label>
+    <label>{t('agentPrompt')}<textarea disabled={busy} required rows={adding ? 6 : 12} maxLength={48000} value={draft.prompt} onChange={event => setDraft(value => ({ ...value, prompt: event.target.value }))} /></label>
   </>
   const enable = (agent: UserAgentView) => <button type="button" role="switch" aria-label={t('agentEnabled', { name: agent.name })} aria-checked={agent.enabled} className={agent.enabled ? css.switchOn : css.switchOff} disabled={busy} onClick={() => toggle(agent)}><span /></button>
   return <section className={`${css.workspace} ${surface === 'settings' ? css.settingsWorkspace : ''}`}>
@@ -83,8 +84,9 @@ export function UserAgentWorkspace({ t, startAgent, surface = 'main' }: UserAgen
       </nav>
       {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={leaveEditor}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : selected.origin === 'plugin' ? <PluginMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => setSelected(agent)} /> : <AgentMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} />}</>}
     </> : <>
-      <header className={css.heading}><div className={css.title}><h2>{t('agentConfiguration')}</h2></div><button type="button" disabled={busy} aria-label={t('refresh')} className={css.iconButton} onClick={() => void run(refresh)}>↻</button><button type="button" aria-expanded={showSources} onClick={() => { setSourceRequest(undefined); setShowSources(value => !value) }}>{t('agentSources')}</button><button className={css.primary} type="button" disabled={busy} onClick={() => { setDraft(blank()); setAdding(true); setMessage('') }}>{t('agentAdd')}</button></header>
-      {showSources && <AgentSources key={sourceRequest?.request ?? 0} t={t} agents={agents} initialSyncId={sourceRequest?.id} onImported={refresh} />}
+      <header className={css.heading}><div className={css.title}><h2>{t('agentConfiguration')}</h2></div><button type="button" disabled={busy} aria-label={t('refresh')} className={css.iconButton} title={t('refresh')} aria-busy={busy} onClick={() => void run(refresh)}><IconRefreshOutlineRegular size={18} /></button><button type="button" aria-expanded={showSources} onClick={() => { setSourceRequest(undefined); setAdding(false); setShowSources(value => !value) }}>{t('agentSources')}</button><button className={css.primary} type="button" disabled={busy} onClick={() => { setDraft(blank()); setAdding(true); setShowSources(false); setSourceRequest(undefined); setMessage('') }}>{t('agentAdd')}</button></header>
+      {adding && <form className={css.inline} onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => setAdding(false)}>{t('cancel')}</button><button className={css.primary} type="submit" disabled={busy}>{t('save')}</button></footer></form>}
+      {showSources && <AgentSources key={sourceRequest?.request ?? 0} t={t} agents={agents} initialSyncId={sourceRequest?.id} onImported={refresh} onClose={() => { setShowSources(false); setSourceRequest(undefined) }} />}
       <p className={css.sectionTitle}>{t('agentCurrent')} <span>{agents.filter(agent => !agent.deletedAt).length}</span></p>
       {agents.map(agent => <article className={css.row} key={agent.id}>
         <button className={css.identity} type="button" disabled={busy} onClick={() => edit(agent)}><span className={css.icon}>{agentIcon}</span><span><strong>{agent.name}</strong><span className={css.description}>{agent.description || t('agentPersonal')}{agent.customized ? ` · ${t('agentSourceCustomized')}` : ''}{agent.publication === 'deleted' ? ` · ${t('agentDeleted')}` : agent.publication === 'failed' ? ` · ${t('agentUnavailable')}` : ''}</span></span></button>
@@ -93,7 +95,6 @@ export function UserAgentWorkspace({ t, startAgent, surface = 'main' }: UserAgen
       </article>)}
       <TrustedPluginAgents onEdit={edit} t={t} />
       {!agents.length && !adding && <p className={css.muted}>{t('agentEmpty')}</p>}
-      {adding && <form className={css.inline} onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => setAdding(false)}>{t('cancel')}</button><button className={css.primary} type="submit" disabled={busy}>{t('save')}</button></footer></form>}
     </>}
     {error && <p role="alert" className={css.error}>{error}</p>}{message && <p role="status" className={css.muted}>{message}</p>}
   </section>

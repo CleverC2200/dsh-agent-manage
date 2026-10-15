@@ -25,6 +25,7 @@ it('cancels a source form without acquiring or importing and refreshes the Agent
     publication: 'ready'
   })
   const onImported = vi.fn(async () => {})
+  const onClose = vi.fn()
   const element = document.createElement('div')
   document.body.append(element)
   const root = createRoot(element)
@@ -35,8 +36,9 @@ it('cancels a source form without acquiring or importing and refreshes the Agent
       button.click()
     })
   try {
-    await act(async () => root.render(createElement(AgentSources, { t: key => zh[key], onImported })))
+    await act(async () => root.render(createElement(AgentSources, { t: key => zh[key], onImported, onClose })))
     await click(zh.cancel)
+    expect(onClose).toHaveBeenCalledOnce()
     expect(acquire).not.toHaveBeenCalled()
     expect(imported).not.toHaveBeenCalled()
     await click(zh.agentSourceImport)
@@ -85,6 +87,7 @@ it('shows three-way conflicts, cancels without a write and applies an explicit u
   const cancel = vi.spyOn(agentSourceApi, 'cancel').mockResolvedValue({ cancelled: true })
   const commit = vi.spyOn(agentSourceApi, 'commit').mockResolvedValue({ ...agent, prompt: 'upstream', revision: 3 })
   const onImported = vi.fn(async () => {})
+  const onClose = vi.fn()
   const element = document.createElement('div')
   document.body.append(element)
   const root = createRoot(element)
@@ -95,7 +98,7 @@ it('shows three-way conflicts, cancels without a write and applies an explicit u
       button.click()
     })
   try {
-    await act(async () => root.render(createElement(AgentSources, { t: key => zh[key], onImported, agents: [agent], initialSyncId: agent.id })))
+    await act(async () => root.render(createElement(AgentSources, { t: key => zh[key], onImported, onClose, agents: [agent], initialSyncId: agent.id })))
     expect(agentSourceApi.preview).toHaveBeenCalledWith(agent.id, expect.any(AbortSignal))
     expect(element.textContent).toContain(zh.agentSourceConflicts)
     expect([...element.querySelectorAll('pre')].map(row => row.textContent)).toEqual(['base', 'local', 'upstream'])

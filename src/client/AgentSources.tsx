@@ -6,7 +6,7 @@ import { agentSourceApi } from './agent-source-api.js'
 import css from './user-agents.module.css'
 
 /** Config sources share Catalog acquisition without installing executable plugins. */
-export function AgentSources({ t, onImported, agents = [], initialSyncId }: { t: Translate; onImported: () => Promise<void>; agents?: UserAgentView[]; initialSyncId?: string }) {
+export function AgentSources({ t, onImported, onClose, agents = [], initialSyncId }: { t: Translate; onImported: () => Promise<void>; onClose: () => void; agents?: UserAgentView[]; initialSyncId?: string }) {
   const explain = (failure: string) => {
     if (['AGENT_SOURCE_PREVIEW_STALE', 'AGENT_SOURCE_PREVIEW_EXPIRED'].includes(failure)) return t('agentSourcePreviewStale')
     if (failure.startsWith('AGENT_SOURCE_CONFLICT_UNRESOLVED')) return t('agentSourceResolveAll')
@@ -95,7 +95,7 @@ export function AgentSources({ t, onImported, agents = [], initialSyncId }: { t:
     <section className={css.inline} aria-label={t('agentSources')}>
       <h3>{t('agentSources')}</h3>
       <p className={css.muted}>{t('agentSourcesHelp')}</p>
-      {busy && <button type="button" onClick={() => operation.current?.abort()}>{t('cancel')}</button>}
+      {busy && <button type="button" onClick={() => { operation.current?.abort(); onClose() }}>{t('cancel')}</button>}
       {preview && <form onSubmit={commit} className={css.inline}>
         <h3>{t('agentSourceConflicts')}</h3>
         <p className={css.muted}>{t('agentSourceConflictHelp')}</p>
@@ -191,6 +191,7 @@ export function AgentSources({ t, onImported, agents = [], initialSyncId }: { t:
                 setBranch('')
                 setError('')
                 setMessage('')
+                onClose()
               }}
             >
               {t('cancel')}
