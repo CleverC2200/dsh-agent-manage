@@ -79,14 +79,14 @@ it('ordinary Skill Sessions hide gated GEA tools, retain independent MCP and rep
   await record('ordinary-business-admission', { names, diagnostic, realBusinessQueries: 0 })
 })
 
-it('selected inventory Sessions expose governed query but diagnose an unbound page and absent calling Agent separately', async () => {
+it('selected inventory Sessions hide Cube without a current identity and diagnose an unbound page and absent calling Agent separately', async () => {
   const f = await fixture()
   const selection = await f.resources.select('gea-html-inventory-aqkc', new AbortController().signal)
   const agent = await agentOn(f.ctx, 'inventory-unbound', selection.preset)
   const requests = await completion(f.ctx)
   await turn(f.ctx, agent, 'Explain the current page limitations.')
   const names = requests.at(-1)?.tools?.map(row => row.name) ?? []
-  expect(names).toContain('mcp__gea-gateway__query_business_data')
+  expect(names).not.toContain('mcp__gea-gateway__query_business_data')
   expect(names).not.toContain('gea_page')
   const diagnostic = await f.execute('gea_runtime_diagnose', agent)
   expect(JSON.parse(String(diagnostic.value))).toMatchObject({ consumerCode: 'base-safety-stock', pageBound: false, businessAuthorization: 'not-checked' })

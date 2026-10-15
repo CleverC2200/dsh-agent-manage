@@ -126,12 +126,16 @@ it.each(salesRoles)('$name keeps disabled resources unavailable and leaves the o
   await f.login()
   expect(JSON.stringify(await f.query())).toContain('42')
   await f.releaseResource()
-  expect(JSON.stringify(await f.query())).toContain('GEA_AGENT_RESOURCE_MISSING')
+  const withdrawn = await f.query()
+  expect(withdrawn.isError).toBe(true)
+  expect(JSON.stringify(withdrawn)).toContain('GEA MCP requires an enabled business Agent and current GEA identity')
+  expect(f.ctx.tools.schemas(f.agent).map(row => row.name)).not.toContain('mcp__gea-gateway__query_business_data')
+  expect(f.network.filter(row => row.body.method === 'tools/call')).toHaveLength(1)
   await record(role.id + '-resource-owner', {
     disabledSelection: 'rejected',
     sourcePreserved: true,
     selectedIndexPreserved: true,
-    withdrawnExecution: 'GEA_AGENT_RESOURCE_MISSING'
+    withdrawnExecution: 'Cube source unavailable; schema hidden and execution denied'
   })
 })
 
