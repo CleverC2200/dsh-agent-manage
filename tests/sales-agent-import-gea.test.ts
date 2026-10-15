@@ -63,7 +63,10 @@ it('imports the original sales instructions and selected Skill into a personal C
   expect(f.network.filter(row => row.path === '/ai/gateway/session').every(row => row.body.consumerCode === 'sales_forecast')).toBe(true)
   expect(f.network.filter(row => row.body.method === 'tools/call').map(row => row.body.params)).toEqual([
     expect.objectContaining({ name: 'inspect_cube_model', arguments: {} }),
-    expect.objectContaining({ name: 'query_business_data', arguments: { action: 'query', response_mode: 'inline_complete', queries: [{ name: 'inv', query: { measures: ['inv.row_count'], limit: 3 } }] } })
+    expect.objectContaining({
+      name: 'query_business_data',
+      arguments: { action: 'query', response_mode: 'inline_complete', queries: [{ name: 'inv', query: { measures: ['inv.row_count'], limit: 3 } }] }
+    })
   ])
   expect(f.ctx.tools.schemas(previous).map(tool => tool.name)).not.toContain('mcp__gea-gateway__query_business_data')
   expect(JSON.stringify(await f.execute('gea_workbench_apply', {}, personal))).toContain('GEA_BUSINESS_PROFILE_REQUIRED')

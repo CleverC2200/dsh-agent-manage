@@ -290,11 +290,16 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
         if (!disposed) host.logger.error(`${label}: tool re-sync failed: ${String(error)}`)
       }
     })
-    const { transport, oauthProvider } = createTransport(config, credentials, message => host.logger.info(message), state => {
-      if (!isCurrent(generation)) return
-      authorizationState = state
-      if (state === 'awaiting-authorization') authorizationStarted.resolve({})
-    })
+    const { transport, oauthProvider } = createTransport(
+      config,
+      credentials,
+      message => host.logger.info(message),
+      state => {
+        if (!isCurrent(generation)) return
+        authorizationState = state
+        if (state === 'awaiting-authorization') authorizationStarted.resolve({})
+      }
+    )
     authorizing = oauthProvider
     try {
       if (config.startupTimeoutMs === undefined) await generation.connect(transport)
@@ -393,22 +398,32 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
   // Pending browser approval releases startup so configuration can return and
   // expose cancellation. Otherwise readiness follows the first attempt. If the first attempt fails and reconnect is enabled, the
   // supervisor is already scheduling a retry — ready just reports the outcome.
-  const ready: Promise<ConnectionOutcome> = Promise.race([authorizationStarted.promise, settling.then(() => {
-    // After settling: if client is set the initial connect+sync succeeded.
-    // If not, the supervisor either scheduled a retry (error logged) or gave
-    // up (error logged). Either way the outcome is reported with the real error.
-    // Note: settling.then() is a microtask; stdio onclose is a macrotask — so
-    // a server that crashes AFTER a successful initial sync cannot flip client
-    // to undefined before this continuation runs.
-    if (client !== undefined) return {}
-    /* v8 ignore next -- defensive: firstAttemptError is always set when connect/sync fails */
-    return { error: firstAttemptError ?? new Error(`${label}: initial connection failed`) }
-  })])
+  const ready: Promise<ConnectionOutcome> = Promise.race([
+    authorizationStarted.promise,
+    settling.then(() => {
+      // After settling: if client is set the initial connect+sync succeeded.
+      // If not, the supervisor either scheduled a retry (error logged) or gave
+      // up (error logged). Either way the outcome is reported with the real error.
+      // Note: settling.then() is a microtask; stdio onclose is a macrotask — so
+      // a server that crashes AFTER a successful initial sync cannot flip client
+      // to undefined before this continuation runs.
+      if (client !== undefined) return {}
+      /* v8 ignore next -- defensive: firstAttemptError is always set when connect/sync fails */
+      return { error: firstAttemptError ?? new Error(`${label}: initial connection failed`) }
+    })
+  ])
 
   return {
     ready,
     cancelAuthorization: () => authorizing?.resetCallback(),
-    state: () => authorizationState !== 'idle' ? authorizationState : connectedAt !== undefined && client !== undefined ? 'connected' : client !== undefined || reconnectTimer !== undefined ? 'connecting' : 'failed',
+    state: () =>
+      authorizationState !== 'idle'
+        ? authorizationState
+        : connectedAt !== undefined && client !== undefined
+          ? 'connected'
+          : client !== undefined || reconnectTimer !== undefined
+            ? 'connecting'
+            : 'failed',
     /** 取消重连计时器并关闭当前连接，释放所有工具注册。 */
     async dispose(): Promise<void> {
       disposed = true

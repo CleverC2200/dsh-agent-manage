@@ -188,7 +188,14 @@ export async function presetHarness(options: PresetHarnessOptions = {}) {
       if (manage) runtime.loader.builtins['company-manage'] = manage
       runtime.loader.internal = {
         version: 'v2',
-        import: (name: string) => (name === 'dsh-agent-manage/user-agent-skills' ? import('../src/runtime/user-agent-skills.js') : name === 'dsh-agent-manage' && manage ? Promise.resolve(manage) : options.importModule ? options.importModule(name, runtime) : official(name))
+        import: (name: string) =>
+          name === 'dsh-agent-manage/user-agent-skills'
+            ? import('../src/runtime/user-agent-skills.js')
+            : name === 'dsh-agent-manage' && manage
+              ? Promise.resolve(manage)
+              : options.importModule
+                ? options.importModule(name, runtime)
+                : official(name)
       } as never
     })
     await resourcesReady

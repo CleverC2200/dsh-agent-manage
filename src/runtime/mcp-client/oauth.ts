@@ -435,7 +435,9 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
         this.callbackServer = server
         authorizationUrl.searchParams.set('redirect_uri', this.redirectUrl)
         this.log(`${this.serverName}: opening the browser for MCP authorization — approve access in the page that opens`)
-        void this.opener(authorizationUrl, this.serverName, this.log).catch(error => this.resetCallback(new AuthorizationAbortedError(`${this.serverName}: could not open authorization browser`, { cause: error })))
+        void this.opener(authorizationUrl, this.serverName, this.log).catch(error =>
+          this.resetCallback(new AuthorizationAbortedError(`${this.serverName}: could not open authorization browser`, { cause: error }))
+        )
         this.callbackTimer = setTimeout(() => {
           this.resetCallback(
             new AuthorizationAbortedError(

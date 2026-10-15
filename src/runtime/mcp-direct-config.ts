@@ -73,6 +73,10 @@ export async function addUserMcpServer(dataRoot: string, name: string, server: u
 
 /** Roots come only from Host import resolution, outside editable server configuration. */
 async function loadServerRoots(dataRoot: string): Promise<Record<string, string>> {
-  try { return z.record(z.string(), z.string().min(1)).parse(JSON.parse(await readFile(join(dataRoot, 'mcp-server-roots.json'), 'utf8'))) }
-  catch (error) { if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return {}; throw error }
+  try {
+    return z.record(z.string(), z.string().min(1)).parse(JSON.parse(await readFile(join(dataRoot, 'mcp-server-roots.json'), 'utf8')))
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return {}
+    throw error
+  }
 }

@@ -46,7 +46,12 @@ function hasStaticAuthorization(headers: Record<string, string>): boolean {
  * Authorization.
  */
 /** 按配置和凭据创建 OAuth 回调提供器；静态授权或未启用时返回 undefined。 */
-function buildOAuthProvider(config: StreamableHttpConfig | SseConfig, credentials: unknown, log: (message: string) => void, onAuthorizationState: (state: AuthorizationState) => void): LoopbackOAuthClientProvider | undefined {
+function buildOAuthProvider(
+  config: StreamableHttpConfig | SseConfig,
+  credentials: unknown,
+  log: (message: string) => void,
+  onAuthorizationState: (state: AuthorizationState) => void
+): LoopbackOAuthClientProvider | undefined {
   const auth = config.auth
   if (auth?.enabled === false || hasStaticAuthorization(config.headers)) return undefined
   return new LoopbackOAuthClientProvider(config.serverName, auth?.storage ?? {}, auth?.scope, log, credentials, undefined, onAuthorizationState)

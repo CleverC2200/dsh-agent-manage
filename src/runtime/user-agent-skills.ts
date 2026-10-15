@@ -21,12 +21,24 @@ export function apply(ctx: Context, config: { skills: UserAgentSkill[] }): void 
       })
       for (const choice of config.skills) {
         if (choice.kind === 'reference') {
-          if (choice.enabled && !sources.some(source => source.name === choice.name && source.provider === choice.provider && (choice.path === undefined || source.path === choice.path))) throw Error(`AGENT_SKILL_SOURCE_MISSING: ${choice.name}`)
+          if (
+            choice.enabled &&
+            !sources.some(source => source.name === choice.name && source.provider === choice.provider && (choice.path === undefined || source.path === choice.path))
+          )
+            throw Error(`AGENT_SKILL_SOURCE_MISSING: ${choice.name}`)
           continue
         }
         const existing = candidates.findIndex(skill => skill.name === choice.name)
         if (existing >= 0) candidates.splice(existing, 1)
-        candidates.push({ name: choice.name, description: choice.description, source: 'custom', provider, rank: -1000, locator: choice.name, invocation: { modelInvocable: choice.enabled, userInvocable: choice.enabled } })
+        candidates.push({
+          name: choice.name,
+          description: choice.description,
+          source: 'custom',
+          provider,
+          rank: -1000,
+          locator: choice.name,
+          invocation: { modelInvocable: choice.enabled, userInvocable: choice.enabled }
+        })
       }
       return candidates
     },

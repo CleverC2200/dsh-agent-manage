@@ -318,12 +318,24 @@ describe('LoopbackOAuthClientProvider callback leg', () => {
   }, 15_000)
 })
 
-
 it('cancels a pending browser authorization and rejects a callback from the abandoned generation', async () => {
   const opened = Promise.withResolvers<URL>()
-  const provider = new LoopbackOAuthClientProvider('cancelled', {}, undefined, () => {}, undefined, async url => { opened.resolve(url) })
+  const provider = new LoopbackOAuthClientProvider(
+    'cancelled',
+    {},
+    undefined,
+    () => {},
+    undefined,
+    async url => {
+      opened.resolve(url)
+    }
+  )
   let exchanged = false
-  provider.bindTransport({ finishAuth: async () => { exchanged = true } })
+  provider.bindTransport({
+    finishAuth: async () => {
+      exchanged = true
+    }
+  })
   const pending = provider.redirectToAuthorization(new URL('https://auth.example/authorize'))
   const rejected = expect(pending).rejects.toThrow(/cancel/i)
   const url = await opened.promise
@@ -341,10 +353,28 @@ it('does not persist tokens returned after the authorization generation was canc
   const exchangeStarted = Promise.withResolvers<void>()
   const response = Promise.withResolvers<void>()
   const store = createRecordStore()
-  const provider = new LoopbackOAuthClientProvider('late', {}, undefined, () => {}, store, async url => { opened.resolve(url) })
-  provider.bindTransport({ finishAuth: async () => { exchangeStarted.resolve(); await response.promise; await provider.saveTokens(TOKENS) } })
+  const provider = new LoopbackOAuthClientProvider(
+    'late',
+    {},
+    undefined,
+    () => {},
+    store,
+    async url => {
+      opened.resolve(url)
+    }
+  )
+  provider.bindTransport({
+    finishAuth: async () => {
+      exchangeStarted.resolve()
+      await response.promise
+      await provider.saveTokens(TOKENS)
+    }
+  })
   const pending = provider.redirectToAuthorization(new URL('https://auth.example/authorize'))
-  const outcome = pending.then(() => 'authorized', () => 'cancelled')
+  const outcome = pending.then(
+    () => 'authorized',
+    () => 'cancelled'
+  )
   const url = await opened.promise
   await fetch(`${url.searchParams.get('redirect_uri')}?code=late`)
   await exchangeStarted.promise
