@@ -313,7 +313,7 @@ export class RuntimeManagement {
   async setMcpOverride(sourceId: string, suiteId: string, serverKey: string, override: McpServerOverride | null): Promise<void> {
     return this.catalog.change(async () => {
       const suiteKey = qualifiedSuiteId(sourceId, suiteId)
-      if (sourceId !== USER_MCP_SOURCE && (override === null || Object.keys(override).some(key => key !== 'enabled'))) throw Error('PLUGIN_MCP_EDIT_FORBIDDEN')
+      if ((sourceId !== USER_MCP_SOURCE || suiteId !== USER_MCP_SUITE) && (override === null || Object.keys(override).some(key => key !== 'enabled'))) throw Error('PLUGIN_MCP_EDIT_FORBIDDEN')
       const suite = sourceId === USER_MCP_SOURCE && suiteId === USER_MCP_SUITE ? await loadUserMcpSuite(this.dataRoot) : await this.catalog.resolveSuite(sourceId, suiteId)
       if (suite.mcp?.servers[serverKey] === undefined) throw new Error(`server "${serverKey}" is not defined by suite "${suiteId}"`)
       // Override files are keyed by the qualified id so two sources' same-named
