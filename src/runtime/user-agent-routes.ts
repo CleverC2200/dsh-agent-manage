@@ -44,7 +44,9 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
               } else if (path === 'enabled') {
                 const { id, enabled } = action.parse(input)
                 result = await agents.setEnabled(id, enabled)
-              } else result = await agents.select(selection.parse(input).id)
+              } else if (path === 'remove') result = await agents.remove(selection.parse(input).id)
+              else if (path === 'restore') result = await agents.restore(selection.parse(input).id)
+              else result = await agents.select(selection.parse(input).id)
             }
             return Response.json(result, { headers: { 'cache-control': 'no-store' } })
           } catch (error) {

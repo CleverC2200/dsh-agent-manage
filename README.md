@@ -20,7 +20,7 @@ English | [简体中文](README.zh.md) | [Documentation](https://github.com/Clev
 
 ## Personal Agent configuration
 
-The public Agent configuration page now creates durable personal Agents and publishes enabled configurations as native presets composed from the active DSH standard declaration. Start chat uses the Workbench native Session entry and keeps the current conversation and default choice. The Skill tab selects existing provider resources or creates personal instructions. Skill edits and enable switches apply to new Sessions of that Agent; source files and existing Session revisions stay intact. MCP and source synchronization follow separately. These configurations are distinct from reusable subagent roles.
+The public Agent configuration page now creates durable personal Agents and publishes enabled configurations as native presets composed from the active DSH standard declaration. Start chat uses the Workbench native Session entry and keeps the current conversation and default choice. The Skill tab selects existing provider resources or creates personal instructions. Skill edits and enable switches apply to new Sessions of that Agent; source files and existing Session revisions stay intact. Disabling withdraws the preset from new tasks; deletion retains recoverable configuration, history and drafts. Restore leaves the configuration disabled until explicit enable and dependency checks, without changing the host default. Live Sessions retain their revision; cold recovery uses the retained current configuration and cannot reconstruct older revisions. MCP and source synchronization follow separately. These configurations are distinct from reusable subagent roles.
 
 ## What you can do
 

@@ -211,6 +211,7 @@ export class AgentMcp {
   private requireAgent(id: string): UserAgentConfig {
     const agent = this.agents.find(row => row.id === id)
     if (!agent) throw Error('USER_AGENT_NOT_FOUND')
+    if (agent.deletedAt) throw Error('USER_AGENT_DELETED: restore configuration before editing connections')
     return agent
   }
   private find(id: string): Definition {
