@@ -20,7 +20,7 @@
 
 ## 个人 Agent 配置
 
-公开的 Agent 配置页支持持久保存个人 Agent，并将启用的配置沿当前 DSH standard 声明发布为原生预设。“开始使用”通过 Workbench 的原生 Session 入口创建新对话，保留原对话和默认选择。本切片支持提示词；每 Agent 的 Skill、MCP 和来源同步后续接入。完整 Agent 配置与可复用的子角色分别保存。
+公开的 Agent 配置页支持持久保存个人 Agent，并将启用的配置沿当前 DSH standard 声明发布为原生预设。“开始使用”通过 Workbench 的原生 Session 入口创建新对话，保留原对话和默认选择。Skill 页可选用已有资源或创建个人正文；编辑与启停作用于该 Agent 的新会话，源文件与既有会话 revision 保留。MCP 和来源同步后续接入。完整 Agent 配置与可复用的子角色分别保存。
 
 ## 你可以用它做什么
 

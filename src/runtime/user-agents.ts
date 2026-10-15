@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
-import type { UserAgentConfig, UserAgentView } from '../contracts/user-agents.js'
+import type { UserAgentConfig, UserAgentView, UserAgentSkillOption } from '../contracts/user-agents.js'
 import type { RuntimeManagement } from '../application/runtime-management.js'
 import { AgentMcp } from './agent-mcp.js'
 import { composeStandardPreset } from './standard-preset.js'
@@ -14,7 +14,11 @@ const fields = {
   prompt: z.string().trim().min(1).max(48_000),
   enabled: z.boolean()
 }
-const savedAgent = z.object({ ...fields, id: z.uuid(), revision: z.number().int().positive() })
+export const agentSkills = z.array(z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('reference'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), provider: z.string().min(1), path: z.string().optional(), enabled: z.boolean(), content: z.string().trim().min(1).max(96000).optional() }),
+  z.object({ kind: z.literal('personal'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), description: z.string().trim().min(1).max(1000), content: z.string().trim().min(1).max(96000), enabled: z.boolean() })
+])).max(200).refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length, 'DUPLICATE_AGENT_SKILL')
+const savedAgent = z.object({ ...fields, id: z.uuid(), skills: agentSkills.default([]), revision: z.number().int().positive() })
 const saveAgent = z.object({ ...fields, id: z.uuid().optional() })
 const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) })
 
@@ -60,13 +64,38 @@ export class UserAgents {
     const value = saveAgent.parse(input)
     return this.write(async () => {
       const previous = value.id ? this.find(value.id) : undefined
-      const agent: UserAgentConfig = { ...value, id: previous?.id ?? randomUUID(), revision: (previous?.revision ?? 0) + 1 }
+      const agent: UserAgentConfig = { ...value, skills: previous?.skills ?? [], id: previous?.id ?? randomUUID(), revision: (previous?.revision ?? 0) + 1 }
       const next = previous ? this.agents.map(row => (row.id === agent.id ? agent : row)) : [...this.agents, agent]
       await this.persist(next)
       this.agents = next
       await this.mcp?.agentsChanged(this.agents)
       if (agent.enabled) await this.publish(agent, true)
       else await this.withdraw(agent.id)
+      return this.view(agent)
+    })
+  }
+
+  async skillCatalog(cwd?: string, signal?: AbortSignal): Promise<UserAgentSkillOption[]> {
+    return (await this.ctx.skills.list({ cwd, signal })).filter(skill => skill.invocation.userInvocable || skill.invocation.modelInvocable)
+      .map(({ name, description, provider, path }) => ({ name, description, provider, ...(path ? { path } : {}) }))
+  }
+
+  async readSkill(name: string, provider: string, cwd?: string, signal?: AbortSignal, path?: string): Promise<{ content: string }> {
+    const skill = await this.ctx.skills.get(name, { cwd, signal })
+    if (!skill || skill.provider !== provider || (path !== undefined && skill.path !== path)) throw Error(`AGENT_SKILL_SOURCE_MISSING: ${name}`)
+    return { content: skill.content }
+  }
+
+  saveSkills(id: string, input: unknown): Promise<UserAgentView> {
+    const skills = agentSkills.parse(input)
+    return this.write(async () => {
+      const previous = this.find(id)
+      const agent = { ...previous, skills, revision: previous.revision + 1 }
+      const next = this.agents.map(row => row.id === id ? agent : row)
+      await this.persist(next)
+      this.agents = next
+      await this.mcp?.agentsChanged(this.agents)
+      if (agent.enabled) await this.publish(agent, true)
       return this.view(agent)
     })
   }
@@ -125,6 +154,7 @@ export class UserAgents {
   }
 
   private async register(agent: UserAgentConfig): Promise<() => Promise<void>> {
+    for (const skill of agent.skills) if (skill.kind === 'reference' && skill.enabled) await this.readSkill(skill.name, skill.provider, undefined, undefined, skill.path)
     return this.ctx.agentPresets.register(
       await composeStandardPreset(
         this.ctx.agentPresets,
@@ -133,7 +163,7 @@ export class UserAgents {
           name: agent.name,
           description: agent.description
         },
-        { personaPrefix: agent.prompt }
+        { personaPrefix: agent.prompt, plugins: [{ id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills: agent.skills } }] }
       )
     )
   }
@@ -166,6 +196,7 @@ export class UserAgents {
   }
 
   private async assertReady(id: string): Promise<void> {
+    for (const skill of this.find(id).skills) if (skill.kind === 'reference' && skill.enabled) await this.readSkill(skill.name, skill.provider, undefined, undefined, skill.path)
     const preset = await this.ctx.agentPresets.resolve(this.preset(id))
     if (preset.broken) throw Error(preset.broken)
   }
