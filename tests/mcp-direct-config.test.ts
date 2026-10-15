@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -33,6 +33,17 @@ describe('user MCP persistence', () => {
     await expect(addUserMcpServer(path, 'one', { type: 'stdio', command: 'other' })).rejects.toThrow('already exists')
     await expect(addUserMcpServer(path, 'bad', { type: 'streamable-http' })).rejects.toThrow('invalid MCP')
     expect(await readFile(join(path, 'mcp-servers.json'), 'utf8')).toBe(before)
+  })
+  it('retains a Host-derived source root for imported relative commands and placeholders', async () => {
+    const path = await root()
+    const source = join(path, 'source')
+    await mkdir(join(source, 'bin'), { recursive: true })
+    await writeFile(join(source, 'bin', 'service'), '#!/bin/sh\n')
+    await addUserMcpServer(path, 'imported', { type: 'stdio', command: './bin/service', args: ['${PLUGIN_ROOT}/data'], cwd: './' }, source)
+    const suite = await loadUserMcpSuite(path)
+    const result = await toMcpMounts(suite, path)
+    expect(result.failures).toEqual([])
+    expect(result.mounts[0]?.config).toMatchObject({ command: join(source, 'bin/service'), cwd: source, args: [join(source, 'data')] })
   })
   it('fails closed on corrupt storage and refuses to overwrite it', async () => {
     const path = await root()

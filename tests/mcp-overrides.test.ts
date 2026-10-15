@@ -1,11 +1,19 @@
-import { cp, mkdir, mkdtemp } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { Catalog } from '../src/application/catalog.js'
 import { toMcpMounts } from '../src/runtime/mcp-config.js'
-import { applyOverride, loadSuiteOverrides, mergeOverridePatch, sanitizeOverridePatch, sanitizeOverrides, saveSuiteOverrides } from '../src/runtime/mcp-overrides.js'
+import {
+  suiteOverridePath,
+  applyOverride,
+  loadSuiteOverrides,
+  mergeOverridePatch,
+  sanitizeOverridePatch,
+  sanitizeOverrides,
+  saveSuiteOverrides
+} from '../src/runtime/mcp-overrides.js'
 import type { McpServerStreamableHttp, Suite } from '../src/model/types.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -157,8 +165,8 @@ describe('mergeOverridePatch', () => {
 })
 
 describe('Catalog runtime overrides', () => {
-  async function installedCatalog(): Promise<Catalog> {
-    const userRoot = await mkdtemp(join(tmpdir(), 'dsh-mcpov-cat-'))
+  async function installedCatalog(root?: string): Promise<Catalog> {
+    const userRoot = root ?? (await mkdtemp(join(tmpdir(), 'dsh-mcpov-cat-')))
     const manager = new Catalog({ userRoot, dataRoot: join(userRoot, 'data'), onChanged: () => {} })
     await manager.load()
     const checkout = join(userRoot, '.sources', 'demo')
@@ -169,33 +177,49 @@ describe('Catalog runtime overrides', () => {
     return manager
   }
 
-  it('persists an override and reports it in suite detail', async () => {
+  it('preserves retired plugin connection patches on disk but applies only enablement and diagnoses them', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-retired-mcpov-'))
+    const manager = await installedCatalog(root)
+    const original = await manager.runtime.mcpStatus()
+    const key = original.entries[0]!.serverKey!
+    const overrides = { [key]: { enabled: true, config: { type: 'stdio' as const, command: 'old-override' }, env: { TOKEN: '${TOKEN}' } } }
+    await saveSuiteOverrides(join(root, 'data'), 'demo/v1-suite', overrides)
+    const before = await readFile(suiteOverridePath(join(root, 'data'), 'demo/v1-suite'), 'utf8')
+    const selected = await manager.runtime.allMcpOverrides()
+    expect(selected.get('demo/v1-suite')).toEqual({ [key]: { enabled: true } })
+    const status = await manager.runtime.mcpStatus()
+    expect(status.entries[0]!.config).toEqual(original.entries[0]!.config)
+    expect(status.entries[0]!.reason).toContain('PLUGIN_MCP_OVERRIDE_RETIRED')
+    expect(await readFile(suiteOverridePath(join(root, 'data'), 'demo/v1-suite'), 'utf8')).toBe(before)
+  })
+
+  it('persists a plugin enablement override and reports it in suite detail', async () => {
     const manager = await installedCatalog()
 
-    await manager.runtime.setMcpOverride('demo', 'v1-suite', Object.keys((await manager.suiteDetail('demo', 'v1-suite')).mcpServers)[0] ?? 'none', null).catch(() => {})
     const detailBefore = await manager.suiteDetail('demo', 'v1-suite')
     const serverKey = detailBefore.mcpServers[0]?.key
     if (serverKey === undefined) throw new Error('fixture has no MCP server')
 
-    await manager.runtime.setMcpOverride('demo', 'v1-suite', serverKey, { url: 'http://127.0.0.1:9/mcp' })
+    await manager.runtime.setMcpOverride('demo', 'v1-suite', serverKey, { enabled: false })
     const after = await manager.suiteDetail('demo', 'v1-suite')
-    expect(after.mcpOverrides?.[serverKey]).toEqual({ enabled: true, url: 'http://127.0.0.1:9/mcp' })
+    expect(after.mcpOverrides?.[serverKey]).toEqual({ enabled: false })
 
     // mcpOverrides query returns the same record.
-    expect(await manager.runtime.mcpOverrides('demo', 'v1-suite')).toEqual({ [serverKey]: { enabled: true, url: 'http://127.0.0.1:9/mcp' } })
+    expect(await manager.runtime.mcpOverrides('demo', 'v1-suite')).toEqual({ [serverKey]: { enabled: false } })
   })
 
-  it('clears an override with null and rejects unknown servers', async () => {
+  it('toggles plugin services, rejects config clearing and rejects unknown servers', async () => {
     const manager = await installedCatalog()
     const detail = await manager.suiteDetail('demo', 'v1-suite')
     const serverKey = detail.mcpServers[0]?.key
     if (serverKey === undefined) throw new Error('fixture has no MCP server')
 
     await manager.runtime.setMcpOverride('demo', 'v1-suite', serverKey, { enabled: false })
-    await manager.runtime.setMcpOverride('demo', 'v1-suite', serverKey, null)
-    expect(await manager.runtime.mcpOverrides('demo', 'v1-suite')).toEqual({})
+    await expect(manager.runtime.setMcpOverride('demo', 'v1-suite', serverKey, null)).rejects.toThrow('PLUGIN_MCP_EDIT_FORBIDDEN')
+    await manager.runtime.setMcpOverride('demo', 'v1-suite', serverKey, { enabled: true })
+    expect(await manager.runtime.mcpOverrides('demo', 'v1-suite')).toEqual({ [serverKey]: { enabled: true } })
 
     await expect(manager.runtime.setMcpOverride('demo', 'v1-suite', 'nope', { enabled: false })).rejects.toThrow('is not defined by suite')
-    await expect(manager.runtime.setMcpOverride('demo', 'ghost-suite', serverKey, null)).rejects.toThrow('not found in source')
+    await expect(manager.runtime.setMcpOverride('demo', 'ghost-suite', serverKey, { enabled: false })).rejects.toThrow('not found in source')
   })
 })

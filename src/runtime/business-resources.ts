@@ -1,4 +1,7 @@
 /** Manage owns original resource loading, native publication and selected-id recovery. */
+import { z } from 'zod'
+import type { UserAgentSkill, UserAgentView } from '../contracts/user-agents.js'
+import { agentSkills, captureAgentSkills } from './agent-skills.js'
 import { createHash } from 'node:crypto'
 import { readFile, realpath, mkdir, writeFile, rename } from 'node:fs/promises'
 import { resolve, sep, dirname } from 'node:path'
@@ -31,6 +34,8 @@ export interface BusinessResourceDefinition {
   /** A policy JSON file may contain several original profiles. */
   profileKey?: string
   profile: ExecutionProfile
+  /** Host-verified GEA Cube capability. Never populated from user/source imports. */
+  cube?: boolean
   skillFiles?: Record<string, string>
   enabled?: boolean
   /** Existing scoped resource-reference plugin, when required by this resource. */
@@ -58,11 +63,18 @@ export interface ResourceSelection {
   interpreters?: readonly string[]
 }
 interface Entry {
+  sourceVersion?: string
+  instructions?: string
   interpreters?: readonly string[]
   definition: BusinessResourceDefinition
   owner: AbortController
+  cube: AbortController
   error?: string
 }
+const customization = z
+  .object({ prompt: z.string().trim().min(1).max(48000).optional(), skills: agentSkills.optional(), disabled: z.boolean().optional(), revision: z.number().int().positive() })
+  .strict()
+type Customization = z.infer<typeof customization>
 const SKILL_PRESET = 'agent-resource-skill'
 
 /** The registry and resource discovery project the same trusted Agent metadata. */
@@ -94,6 +106,9 @@ declare module '@deepseek-ai/cordis' {
 }
 
 export class BusinessResources {
+  private readonly listeners = new Set<() => void>()
+  private readonly customizations = new Map<string, Customization>()
+  private readonly cubeDisabled = new Set<string>()
   private readonly entries = new Map<string, Entry>()
   private readonly mounted = new Map<string, () => Promise<void>>()
   private readonly versions = new Map<string, string>()
@@ -120,9 +135,15 @@ export class BusinessResources {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
       throw Error('INVALID_SELECTED_RESOURCE_INDEX', { cause: error })
     }
-    const state = value as { version?: unknown; selected?: unknown }
+    const state = value as { version?: unknown; selected?: unknown; cubeDisabled?: unknown; customizations?: unknown }
     if (state.version !== 1 || !Array.isArray(state.selected) || state.selected.some(id => typeof id !== 'string' || !/^[a-z][a-z0-9-]*$/.test(id)))
       throw Error('INVALID_SELECTED_RESOURCE_INDEX')
+    if (state.cubeDisabled !== undefined) {
+      if (!Array.isArray(state.cubeDisabled) || state.cubeDisabled.some(id => typeof id !== 'string')) throw Error('INVALID_SELECTED_RESOURCE_INDEX')
+      for (const id of state.cubeDisabled) this.cubeDisabled.add(id)
+    }
+    if (state.customizations !== undefined)
+      for (const [id, value] of Object.entries(z.record(z.string(), customization).parse(state.customizations))) this.customizations.set(id, value)
     for (const id of state.selected) this.selected.add(id)
     if (this.selected.has(SKILL_PRESET)) await this.mountSkillPreset()
   }
@@ -135,10 +156,10 @@ export class BusinessResources {
       if (!/^[a-z][a-z0-9-]*$/.test(definition.id) || ids.has(definition.id) || this.entries.has(definition.id)) throw Error('DUPLICATE_AGENT_RESOURCE')
       ids.add(definition.id)
     }
-    for (const definition of definitions) this.entries.set(definition.id, { definition, owner })
+    for (const definition of definitions) this.entries.set(definition.id, { definition, owner, cube: new AbortController() })
     this.control?.invalidate()
     for (const { id, publishPreset, enabled } of definitions)
-      if (this.selected.has(id) || (publishPreset && enabled !== false)) {
+      if (!this.customizations.get(id)?.disabled && (this.selected.has(id) || (publishPreset && enabled !== false))) {
         try {
           await this.serialize(() => this.mountPrompt(id, new AbortController().signal))
         } catch (error) {
@@ -146,9 +167,11 @@ export class BusinessResources {
           if (entry) entry.error = String(error)
         }
       }
+    this.changed()
     let released = false
     return async () => {
       owner.abort()
+      this.changed()
       await this.serialize(async () => {
         if (released) return
         try {
@@ -165,6 +188,185 @@ export class BusinessResources {
     }
   }
 
+  /** Host-only projection; owner identity and Consumer never cross the UI interface. */
+  cubeSource(id: string): { sourceRef: string; consumerCode: string; signal: AbortSignal } | undefined {
+    const entry = this.entries.get(id)
+    if (
+      this.closed ||
+      !entry?.definition.cube ||
+      entry.definition.enabled === false ||
+      this.customizations.get(id)?.disabled ||
+      entry.error ||
+      entry.owner.signal.aborted ||
+      this.cubeDisabled.has(id) ||
+      !this.versions.has(id)
+    )
+      return undefined
+    return { sourceRef: id, consumerCode: entry.definition.profile.consumerCode, signal: entry.cube.signal }
+  }
+  cubeCatalog(): Array<{ sourceRef: string; name: string; enabled: boolean; available: boolean }> {
+    return [...this.entries.values()]
+      .filter(entry => entry.definition.cube && !entry.owner.signal.aborted)
+      .map(({ definition }) => ({
+        sourceRef: definition.id,
+        name: definition.presetName ?? definition.label,
+        enabled: !this.cubeDisabled.has(definition.id),
+        available: !!this.cubeSource(definition.id)
+      }))
+  }
+  watch(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+  private fail(entry: Entry, reason: string): void {
+    if (entry.error === reason) return
+    entry.error = reason
+    this.changed()
+  }
+  private changed(): void {
+    for (const [id, entry] of this.entries) {
+      if (this.closed || entry.owner.signal.aborted || entry.error || entry.definition.enabled === false || this.customizations.get(id)?.disabled || this.cubeDisabled.has(id))
+        entry.cube.abort()
+      else if (entry.cube.signal.aborted) entry.cube = new AbortController()
+    }
+    for (const listener of this.listeners) listener()
+  }
+  /** Plugin MCP membership is fixed; the only supported mutation is enabling it. */
+  async setCubeEnabled(id: string, enabled: boolean): Promise<void> {
+    await this.serialize(async () => {
+      const entry = this.entries.get(id)
+      if (!entry?.definition.cube || entry.owner.signal.aborted) throw Error('CUBE_SOURCE_UNAVAILABLE')
+      const previous = this.cubeDisabled.has(id)
+      if (previous === !enabled) return
+      if (enabled) this.cubeDisabled.delete(id)
+      else this.cubeDisabled.add(id)
+      try {
+        await this.persist()
+      } catch (error) {
+        if (previous) this.cubeDisabled.add(id)
+        else this.cubeDisabled.delete(id)
+        throw error
+      }
+      entry.cube.abort()
+      entry.cube = new AbortController()
+      this.changed()
+    })
+  }
+  /** Explicit copy contains only original instructions and permitted resource references. */
+  async copyable(id: string): Promise<{
+    name: string
+    description: string
+    prompt: string
+    skills: UserAgentSkill[]
+    cube?: { sourceRef: string; enabled: boolean }
+  }> {
+    const entry = this.entries.get(id)
+    if (!entry?.definition.prompt || entry.owner.signal.aborted) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
+    if (this.customizations.get(id)?.disabled) entry.instructions = (await this.originalProfile(entry, entry.owner.signal)).profile.persona
+    else await this.serialize(() => this.mountPrompt(id, new AbortController().signal))
+    const d = entry.definition
+    const skills = await this.ctx.skills.list()
+    if (entry.owner.signal.aborted || entry.error || !entry.instructions) throw Error('CUBE_SOURCE_UNAVAILABLE')
+    return {
+      name: d.presetName ?? d.label,
+      description: promptDescription(d),
+      prompt: this.customizations.get(id)?.prompt ?? entry.instructions,
+      skills:
+        this.customizations.get(id)?.skills ??
+        (await captureAgentSkills(
+          this.ctx,
+          d.profile.skills.map(name => {
+            const skill = skills.find(skill => skill.name === name)
+            if (!skill) throw Error(`AGENT_SKILL_SOURCE_MISSING: ${name}`)
+            return { kind: 'reference', name, provider: skill.provider, ...(skill.path ? { path: skill.path } : {}), enabled: true }
+          })
+        )),
+      ...(d.cube ? { cube: { sourceRef: id, enabled: !!this.cubeSource(id) } } : {})
+    }
+  }
+  /** All trusted prompt declarations, including non-Cube Agents, use their original preset identity. */
+  async pluginAgents(): Promise<UserAgentView[]> {
+    return Promise.all([...this.entries.values()].filter(entry => entry.definition.prompt && !entry.owner.signal.aborted).map(entry => this.pluginAgent(entry.definition.id)))
+  }
+  async pluginAgent(id: string): Promise<UserAgentView> {
+    const entry = this.entries.get(id)
+    if (!entry?.definition.prompt || entry.owner.signal.aborted) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
+    const custom = this.customizations.get(id)
+    const enabled = entry.definition.enabled !== false && !custom?.disabled
+    try {
+      if (enabled) await this.serialize(() => this.mountPrompt(id, new AbortController().signal))
+      else entry.instructions = (await this.originalProfile(entry, entry.owner.signal)).profile.persona
+    } catch (error) {
+      entry.error = String(error)
+    }
+    const d = entry.definition
+    const skills =
+      custom?.skills ??
+      (await captureAgentSkills(
+        this.ctx,
+        (await this.ctx.skills.list())
+          .filter(skill => d.profile.skills.includes(skill.name))
+          .map(skill => ({ kind: 'reference' as const, name: skill.name, provider: skill.provider, ...(skill.path ? { path: skill.path } : {}), enabled: true }))
+      ))
+    return {
+      id,
+      preset: id,
+      name: d.presetName ?? d.label,
+      description: promptDescription(d),
+      prompt: custom?.prompt ?? entry.instructions ?? '',
+      skills,
+      enabled,
+      revision: custom?.revision ?? 1,
+      origin: 'plugin',
+      customized: custom?.prompt !== undefined || custom?.skills !== undefined,
+      pluginSource: { sourceRef: id, version: entry.sourceVersion ?? 'unavailable' },
+      publication: !enabled ? 'disabled' : entry.error ? 'failed' : 'ready',
+      defaultUnavailable: this.ctx.agentPresets.defaultId === id && !enabled,
+      ...(d.cube ? { cube: { sourceRef: id, enabled: !this.cubeDisabled.has(id) } } : {}),
+      ...(entry.error ? { error: entry.error } : {})
+    }
+  }
+  async savePlugin(input: unknown): Promise<UserAgentView> {
+    const value = z
+      .object({ id: z.string().min(1), prompt: z.string().trim().min(1).max(48000).optional(), skills: agentSkills.optional() })
+      .strict()
+      .parse(input)
+    if (!this.entries.get(value.id)?.definition.prompt) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
+    const skills = value.skills && (await captureAgentSkills(this.ctx, value.skills))
+    await this.updatePlugin(value.id, { ...(value.prompt === undefined ? {} : { prompt: value.prompt }), ...(skills ? { skills } : {}) })
+    return this.pluginAgent(value.id)
+  }
+  async setPluginEnabled(id: string, enabled: boolean): Promise<UserAgentView> {
+    await this.updatePlugin(id, { disabled: !enabled })
+    return this.pluginAgent(id)
+  }
+  private async updatePlugin(id: string, patch: Partial<Customization>): Promise<void> {
+    await this.serialize(async () => {
+      const entry = this.entries.get(id)
+      if (!entry?.definition.prompt || entry.owner.signal.aborted) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
+      const previous = this.customizations.get(id)
+      this.customizations.set(id, { ...previous, ...patch, revision: (previous?.revision ?? 1) + 1 })
+      try {
+        await this.persist()
+      } catch (error) {
+        if (previous) this.customizations.set(id, previous)
+        else this.customizations.delete(id)
+        throw error
+      }
+      this.control?.invalidate()
+      this.changed()
+      if (this.customizations.get(id)?.disabled) await this.unmount(id)
+      else {
+        try {
+          await this.mountPrompt(id, new AbortController().signal)
+        } catch (error) {
+          this.fail(entry, String(error))
+        }
+      }
+    })
+  }
   /** Only a selected, validated original profile can contribute extra page interpreters. */
   interpreters(id: string): readonly string[] {
     const entry = this.entries.get(id)
@@ -190,7 +392,7 @@ export class BusinessResources {
           kind: 'prompt',
           description: promptDescription(d),
           installed: true,
-          enabled: d.enabled !== false && !error && !owner.signal.aborted,
+          enabled: d.enabled !== false && !this.customizations.get(d.id)?.disabled && !error && !owner.signal.aborted,
           provider: 'package',
           skills: [...d.profile.skills],
           ...(interpreters
@@ -267,7 +469,16 @@ export class BusinessResources {
   private async persist(): Promise<void> {
     await mkdir(dirname(this.indexFile), { recursive: true })
     const temporary = this.indexFile + '.tmp'
-    await writeFile(temporary, JSON.stringify({ version: 1, selected: [...this.selected].sort() }) + '\n', { mode: 0o600 })
+    await writeFile(
+      temporary,
+      JSON.stringify({
+        version: 1,
+        selected: [...this.selected].sort(),
+        ...(this.customizations.size ? { customizations: Object.fromEntries(this.customizations) } : {}),
+        ...(this.cubeDisabled.size ? { cubeDisabled: [...this.cubeDisabled].sort() } : {})
+      }) + '\n',
+      { mode: 0o600 }
+    )
     await rename(temporary, this.indexFile)
   }
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
@@ -295,11 +506,7 @@ export class BusinessResources {
       throw error
     }
   }
-  private async mountPrompt(id: string, signal: AbortSignal): Promise<void> {
-    const entry = this.entries.get(id)
-    if (!entry || !entry.definition.prompt || entry.definition.enabled === false) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
-    signal = AbortSignal.any([signal, entry.owner.signal])
-    signal.throwIfAborted()
+  private async originalProfile(entry: Entry, signal: AbortSignal) {
     const d = entry.definition
     const file = await resourceFile(d.root, d.prompt!)
     const raw = JSON.parse(await readFile(file, { encoding: 'utf8', signal }))
@@ -354,18 +561,40 @@ export class BusinessResources {
       (!Array.isArray(interpreters) ||
         interpreters.length < 1 ||
         interpreters.length > 4 ||
-        !interpreters.includes(id) ||
+        !interpreters.includes(d.id) ||
         new Set(interpreters).size !== interpreters.length ||
         interpreters.some(value => typeof value !== 'string' || !/^gea-html-inventory-[a-z]+$/.test(value)))
     )
       throw Error('INVALID_AGENT_RESOURCE_IDENTITY')
-    const version = createHash('sha256').update(JSON.stringify(profile)).digest('hex')
+    entry.sourceVersion = createHash('sha256').update(JSON.stringify(profile)).digest('hex')
+    return { profile, interpreters }
+  }
+
+  private async mountPrompt(id: string, signal: AbortSignal): Promise<void> {
+    const entry = this.entries.get(id)
+    if (!entry || !entry.definition.prompt || entry.definition.enabled === false || this.customizations.get(id)?.disabled) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
+    signal = AbortSignal.any([signal, entry.owner.signal])
+    signal.throwIfAborted()
+    const d = entry.definition
+    const { profile, interpreters } = await this.originalProfile(entry, signal)
+    const override = this.customizations.get(id)
+    const skills = await captureAgentSkills(
+      this.ctx,
+      override?.skills ??
+        (await this.ctx.skills.list())
+          .filter(skill => d.profile.skills.includes(skill.name))
+          .map(skill => ({ kind: 'reference' as const, name: skill.name, provider: skill.provider, ...(skill.path ? { path: skill.path } : {}), enabled: true }))
+    )
+    const version = createHash('sha256').update(JSON.stringify({ profile, override, skills })).digest('hex')
     if (this.mounted.has(id) && this.versions.get(id) === version && !entry.error) return
     await this.unmount(id)
     const definition = await composeStandardPreset(
       this.ctx.agentPresets,
       { id, name: d.presetName ?? d.profile.label, description: promptDescription(d) },
-      { personaPrefix: profile.persona, plugins: d.plugins }
+      {
+        personaPrefix: override?.prompt ?? profile.persona,
+        plugins: [...(d.plugins ?? []), { id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills } }]
+      }
     )
     signal.throwIfAborted()
     const dispose = await this.ctx.agentPresets.register(definition)
@@ -379,8 +608,10 @@ export class BusinessResources {
       this.versions.set(id, version)
       entry.interpreters = interpreters as string[] | undefined
       delete entry.error
+      entry.instructions = profile.persona
+      this.changed()
     } catch (error) {
-      entry.error = String(error)
+      this.fail(entry, String(error))
       await this.unmount(id)
       throw error
     }
@@ -412,7 +643,7 @@ export class BusinessResources {
           })
         } catch (error) {
           options.signal?.throwIfAborted()
-          entry.error = `${name}: ${String(error)}`
+          this.fail(entry, `${name}: ${String(error)}`)
           continue
         }
       }
@@ -436,7 +667,7 @@ export class BusinessResources {
       return { ...candidate, content: stripFrontmatter(raw), invocation: parsed.invocation }
     } catch (error) {
       options.signal?.throwIfAborted()
-      entry.error = `${locator.name}: ${String(error)}`
+      this.fail(entry, `${locator.name}: ${String(error)}`)
       return undefined
     }
   }
@@ -458,6 +689,8 @@ export class BusinessResources {
   async dispose(): Promise<void> {
     if (!this.closed) {
       this.closed = true
+      for (const entry of this.entries.values()) entry.cube.abort()
+      this.changed()
       this.lifetime.abort()
       for (const entry of this.entries.values()) entry.owner.abort()
       this.unregisterProvider()

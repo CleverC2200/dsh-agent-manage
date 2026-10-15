@@ -81,7 +81,8 @@ export async function toMcpMounts(
     if (override?.enabled === false) continue
     const server = applyOverride(source as McpServerStdio | McpServerStreamableHttp | McpServerSse, override)
     try {
-      const result = await toResolvedMount(suite.mcp.root === undefined ? suite : { ...suite, root: suite.mcp.root }, serverKey, server, pluginDataRoot, resolver)
+      const root = suite.mcp.serverRoots?.[serverKey] ?? suite.mcp.root ?? suite.root
+      const result = await toResolvedMount({ ...suite, root }, serverKey, server, pluginDataRoot, resolver)
       if (result.failure !== undefined) failures.push(result.failure)
       if (result.request !== undefined) mounts.push(result.request)
     } catch {

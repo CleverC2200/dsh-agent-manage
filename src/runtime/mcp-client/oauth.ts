@@ -104,6 +104,10 @@ export class AuthorizationAbortedError extends Error {
   }
 }
 
+export type AuthorizationState = 'idle' | 'awaiting-authorization' | 'authorization-cancelled' | 'authorization-failed'
+
+class AuthorizationCancelledError extends AuthorizationAbortedError {}
+
 /** Opens the platform browser; injected in tests to record the URL instead. */
 export type BrowserOpener = (authorizationUrl: URL, serverName: string, log: (message: string) => void) => Promise<void>
 
@@ -141,6 +145,9 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
   private activeTransport: { finishAuth(code: string): Promise<void> } | undefined
   /** Resolves `true` when the leg saved tokens, `false` when it failed; undefined while no leg is open. */
   private browserLegSettled: PromiseWithResolvers<boolean> | undefined
+  private abandoned: Error | undefined
+  private authState: AuthorizationState = 'idle'
+  private rejectCallback: ((error: Error) => void) | undefined
   private callbackServer: Server | undefined
   private callbackTimer: NodeJS.Timeout | undefined
   private boundPort: number | undefined
@@ -154,7 +161,8 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     private readonly scope: string | undefined,
     private readonly log: (message: string) => void,
     store: unknown,
-    private readonly opener: BrowserOpener = platformBrowserOpener
+    private readonly opener: BrowserOpener = platformBrowserOpener,
+    private readonly onAuthorizationState: (state: AuthorizationState) => void = () => {}
   ) {
     this.recordKey = mcpAuthRecordKey(serverName)
     this.store = typeof (store as Partial<CredentialRecordStore> | undefined)?.modifyRecord === 'function' ? (store as CredentialRecordStore) : undefined
@@ -219,21 +227,42 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
    */
   /** 打开浏览器授权页并等待本地回调完成。 */
   async redirectToAuthorization(authorizationUrl: URL): Promise<void> {
+    if (this.abandoned) throw this.abandoned
     const transport = this.activeTransport
     if (transport === undefined) {
       throw new AuthorizationAbortedError(`${this.serverName}: no active transport to complete authorization into`)
     }
     this.browserLegSettled = Promise.withResolvers()
+    this.setAuthorizationState('awaiting-authorization')
     let succeeded = false
     try {
       const code = await this.awaitCallback(authorizationUrl)
       await transport.finishAuth(code)
       succeeded = true
+      this.setAuthorizationState('idle')
       return
+    } catch (error) {
+      this.abandoned = error instanceof Error ? error : new AuthorizationAbortedError(`${this.serverName}: authorization failed`)
+      this.setAuthorizationState(error instanceof AuthorizationCancelledError ? 'authorization-cancelled' : 'authorization-failed')
+      throw error
     } finally {
+      this.rejectCallback = undefined
+      this.clearCallbackTimer()
+      this.callbackServer?.close(() => undefined)
+      this.callbackServer = undefined
+      this.boundPort = undefined
       this.browserLegSettled?.resolve(succeeded)
       this.browserLegSettled = undefined
     }
+  }
+
+  get authorizationState(): AuthorizationState {
+    return this.authState
+  }
+
+  private setAuthorizationState(state: AuthorizationState): void {
+    this.authState = state
+    this.onAuthorizationState(state)
   }
 
   /** Whether a browser leg is open and the code exchange is still pending. */
@@ -267,7 +296,11 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
 
   /** Abandon any previously bound browser leg before a new one starts. */
   /** 取消当前回调监听并清理超时，避免旧授权串入新连接。 */
-  resetCallback(): void {
+  resetCallback(reason: Error = new AuthorizationCancelledError(`${this.serverName}: authorization cancelled`)): void {
+    this.abandoned = reason
+    this.setAuthorizationState(reason instanceof AuthorizationCancelledError ? 'authorization-cancelled' : 'authorization-failed')
+    this.rejectCallback?.(reason)
+    this.rejectCallback = undefined
     if (this.callbackTimer !== undefined) {
       clearTimeout(this.callbackTimer)
       this.callbackTimer = undefined
@@ -350,7 +383,9 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
   /** 串行修改并保存 Provider 状态，避免并发 OAuth 回调覆盖。 */
   private async mutate(mutator: (state: ProviderState) => void): Promise<void> {
     const run = this.writeChain.then(async () => {
+      if (this.abandoned) throw this.abandoned
       await this.load()
+      if (this.abandoned) throw this.abandoned
       mutator(this.providerState)
       if (this.store === undefined) return
       const record: McpAuthRecord = {
@@ -360,7 +395,10 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
           ...(this.providerState.tokens === undefined ? {} : { tokens: this.providerState.tokens })
         }
       }
-      await this.store.modifyRecord(this.recordKey, () => Promise.resolve(record))
+      await this.store.modifyRecord(this.recordKey, () => {
+        if (this.abandoned) throw this.abandoned
+        return Promise.resolve(record)
+      })
     })
     // A failed write must not poison the chain; the caller's rejection is the
     // signal, and the next write re-reads whatever is durable now.
@@ -378,6 +416,7 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
   /** 启动 loopback HTTP 回调服务器并等待一次性授权 code。 */
   private awaitCallback(authorizationUrl: URL): Promise<string> {
     return new Promise<string>((resolve, reject) => {
+      this.rejectCallback = reject
       const server = createServer(request => {
         this.handleCallbackRequest(request, server, resolve, reject)
       })
@@ -396,10 +435,11 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
         this.callbackServer = server
         authorizationUrl.searchParams.set('redirect_uri', this.redirectUrl)
         this.log(`${this.serverName}: opening the browser for MCP authorization — approve access in the page that opens`)
-        void this.opener(authorizationUrl, this.serverName, this.log)
+        void this.opener(authorizationUrl, this.serverName, this.log).catch(error =>
+          this.resetCallback(new AuthorizationAbortedError(`${this.serverName}: could not open authorization browser`, { cause: error }))
+        )
         this.callbackTimer = setTimeout(() => {
-          this.resetCallback()
-          reject(
+          this.resetCallback(
             new AuthorizationAbortedError(
               `${this.serverName}: authorization was not completed within ${CALLBACK_TIMEOUT_MS / 60_000} minutes — open the server's page again or retry the mount`
             )
@@ -428,11 +468,12 @@ export class LoopbackOAuthClientProvider implements OAuthClientProvider {
     }
     this.clearCallbackTimer()
     this.callbackServer = undefined
-    this.boundPort = undefined
+    // Keep the issued redirect URI stable through the token exchange.
     if (oauthError !== null) {
       const description = url.searchParams.get('error_description') ?? ''
       respond(400, `Authorization failed: ${oauthError}${description === '' ? '' : ` — ${description}`}`)
-      reject(new AuthorizationAbortedError(`${this.serverName}: the authorization server returned "${oauthError}"${description === '' ? '' : ` (${description})`}`))
+      const message = `${this.serverName}: the authorization server returned "${oauthError}"`
+      reject(oauthError === 'access_denied' ? new AuthorizationCancelledError(message) : new AuthorizationAbortedError(message))
       return
     }
     if (code === null || code === '') {

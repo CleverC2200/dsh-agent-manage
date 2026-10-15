@@ -57,3 +57,17 @@ APS 页面使用公开 `aps-compute/*` 源码和运行时导出。原预测及�
 DMS模拟接收资源只有 `business-resources/inventory-dms` 一份。`src/inventory-compute/dms-mock-packets.ts` 维护输入数量、三位小数与M/Z分笔键的纯计算。Workbench拥有页面内存模拟器，复用现有销售工作流投影。资源不包含DMS凭据、SQL能力或写MCP。
 
 Skill 资源会话使用当前官方标准组合，保留通用工具与压缩。现有资源列表显示各 Skill 的描述；选择 Skill 不授予业务 Consumer。
+
+## Agent 配置来源
+
+“配置来源”自动显示随包的 `bundled-sales-plan`，此时不创建 Agent。显式导入“销售计划助手”后，在个人 Agent 的 MCP 页选择已启用的销售 Cube。[源资产](../../business-resources/sales-plan/README.md)保留用户完整主提示词、问数 Skill 与 Cube 参考；提示词提及的其他任务 Skill 尚未附带。导入不授予 Consumer、页面动作或业务写入，不改原销售预设、已有 Session 或用户默认。
+
+Agent 页的“配置来源”面板沿用 Catalog 的 Git、本地目录和压缩包获取能力。发现复用既有套件 manifest、系统提示词和 Agent Markdown 卡片。导入创建稳定的个人 Agent；来源声明的 origin、owner 或 Consumer 不授予插件或 GEA 身份。无法支持的角色限制、缺失或无效组件会明确拒绝导入。
+
+`AgentSources` 持有获取与导入编排，`UserAgents` 在 `user-agents.json` 中分别保存导入基线和可编辑字段。提示词或 Skill 定制不写源 checkout；重复导入保留原 Agent 和个人修改。Skill 引用保留实际 provider、源路径及其参考目录。首次安装来源依赖时，同一次 Catalog 变更只开启 Skill surface；已安装但停用的 Skill 依赖需用户明确决定后恢复。
+
+来源外部 MCP 与手工配置共用个人连接定义和关联链；根目录由 Host 发现结果提供，凭据沿用既有 MCP 解析规则。部分导入保持停用并提供诊断，重试继续同一 Agent。配置保存、预设可用与 MCP 连通分别反馈。来源同步和三方冲突解决走独立更新流程，导入不覆盖已定制 Agent。
+
+“检查并同步”读取新来源，无冲突时直接应用。有冲突时，对提示词字段、Skill 或 MCP 服务分别选择保留本地、采用上游或手动合并，再应用。取消保留当前 Agent。校验或发布失败保留原可用 revision，当前预览可继续重试；预览过期需重新检查。Host 重启丢弃预览，只恢复已提交配置。
+
+成功提交后，新 Session 使用新 revision；已有 live Session 保留原提示词、选中 Skill 正文和来源 MCP 连接身份。参考资产仍跟随来源目录，缺依赖仍明确诊断。停用、删除 Agent 或移除来源也会撤销旧来源 MCP 能力。同步不改宿主默认和 Session 草稿，不承诺重启后精确重建历史 revision。

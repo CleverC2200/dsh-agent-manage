@@ -22,7 +22,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { resolveReconnectPolicy, startConnection } from './connection.js'
+import { resolveReconnectPolicy, startConnection, type ConnectionHandle } from './connection.js'
 import { validateConfig } from './config.js'
 import type { Config } from './config.js'
 import type { ToolHost } from './tools.js'
@@ -40,6 +40,17 @@ export const inject = ['tools']
  * shadowing. The mount registry deduplicates too; this is the last line of
  * defense for direct programmatic loads.
  */
+const connections = new WeakMap<Context, Map<string, ConnectionHandle>>()
+/** Read the supervisor's current generation, including legitimate zero-tool servers. */
+export function connectionState(root: Context, serverName: string) {
+  return connections.get(root)?.get(serverName)?.state()
+}
+
+/** Cancel only the current generation; no credential record is removed. */
+export function cancelAuthorization(root: Context, serverName: string): void {
+  connections.get(root)?.get(serverName)?.cancelAuthorization()
+}
+
 const activeServerNames = new WeakMap<Context, Set<string>>()
 
 /** Tolerantly read an optional service from the cordis context. */
@@ -73,6 +84,7 @@ function toToolHost(ctx: Context): ToolHost {
   const registry = ctx as unknown as { tools?: { register?: (definition: unknown) => () => void } }
   return {
     logger,
+    executionScope: (agent, serverName) => ctx.get('agentMcpScopes')?.executionScope(agent, serverName),
     tools: {
       /** 中文：向宿主工具注册表注册桥接工具，并在缺少服务时显式失败。 */
       register(definition) {
@@ -131,8 +143,17 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const credentials = optionalService(ctx, 'credentials')
   const connection = startConnection(host, config, reconnect, credentials)
 
+  let active = connections.get(ctx.root)
+  if (!active) {
+    active = new Map()
+    connections.set(ctx.root, active)
+  }
+  active.set(config.serverName, connection)
   ctx.effect(() => {
-    return () => connection.dispose()
+    return async () => {
+      await connection.dispose()
+      active.delete(config.serverName)
+    }
   }, 'market-mcp-client.connection')
 
   // Block plugin activation on the initial connection + tool discovery so

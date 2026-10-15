@@ -1,0 +1,220 @@
+import { expect, it } from 'vitest'
+import { join } from 'node:path'
+import { UserAgents } from '../src/runtime/user-agents.js'
+import { agentOn, completion, presetHarness, turn, official } from './core-preset-harness.js'
+
+it('keeps selected and personal Skills scoped to new Core Sessions across edits and restart', async () => {
+  const { ctx, home, start } = await presetHarness({
+    importModule: name => (name === 'dsh-agent-manage/user-agent-skills' ? import('../src/runtime/user-agent-skills.js') : official(name))
+  })
+  const withdraw = ctx.skills.register({ name: 'source-skill', description: 'Original provider skill', source: 'bundled', content: 'ORIGINAL_SKILL_BODY' })
+  const agents = new UserAgents(ctx, join(home, 'skills-agents.json'))
+  await agents.load()
+  const a = await agents.save({ name: 'A', description: '', prompt: 'PERSONA_A', enabled: true })
+  const b = await agents.save({ name: 'B', description: '', prompt: 'PERSONA_B', enabled: true })
+  const saved = await agents.saveSkills(a.id, [
+    { kind: 'reference', name: 'source-skill', provider: 'runtime', enabled: true, content: 'CUSTOMIZED_SKILL_BODY' },
+    { kind: 'personal', name: 'personal-skill', description: 'Personal instructions', content: 'PERSONAL_SKILL_BODY', enabled: true }
+  ])
+  expect(saved.publication).toBe('ready')
+  const first = await agentOn(ctx, 'skills-a-first', a.preset, undefined, home)
+  const other = await agentOn(ctx, 'skills-b', b.preset, undefined, home)
+  expect((await ctx.skills.get('source-skill', { scope: first, cwd: home }))?.content).toBe('CUSTOMIZED_SKILL_BODY')
+  expect(await ctx.skills.get('personal-skill', { scope: other, cwd: home })).toBeUndefined()
+  expect((await ctx.skills.get('source-skill', { scope: other, cwd: home }))?.invocation.modelInvocable).toBe(false)
+  expect((await ctx.skills.get('source-skill', { cwd: home }))?.content).toBe('ORIGINAL_SKILL_BODY')
+  await agents.saveSkills(
+    a.id,
+    saved.skills.map(skill => ({ ...skill, enabled: false }))
+  )
+  const next = await agentOn(ctx, 'skills-a-next', a.preset, undefined, home)
+  expect((await ctx.skills.list({ scope: next, cwd: home })).filter(skill => skill.invocation.modelInvocable).map(skill => skill.name)).not.toContain('source-skill')
+  const requests = await completion(ctx, 262144, false, undefined, { tools: [{ name: 'skill', arguments: { name: 'source-skill' } }], checkpoint: '' })
+  await turn(ctx, next, 'Attempt disabled skill')
+  expect(JSON.stringify(requests)).toContain('not available for model invocation')
+  expect(JSON.stringify(requests)).not.toContain('CUSTOMIZED_SKILL_BODY')
+  expect((await ctx.skills.get('source-skill', { scope: first, cwd: home }))?.content).toBe('CUSTOMIZED_SKILL_BODY')
+  expect(ctx.commands.list(next).map(command => command.name)).toContain('compact')
+  const conflict = await agents.saveSkills(b.id, [{ kind: 'reference', name: 'source-skill', provider: 'runtime', path: '/different-suite/SKILL.md', enabled: true }])
+  expect(conflict.publication).toBe('failed')
+  expect(conflict.error).toContain('AGENT_SKILL_SOURCE_MISSING')
+  withdraw()
+  const missing = await agents.saveSkills(b.id, [{ kind: 'reference', name: 'source-skill', provider: 'runtime', enabled: true }])
+  expect(missing.publication).toBe('failed')
+  expect(missing.error).toContain('AGENT_SKILL_SOURCE_MISSING')
+  await expect(agents.select(b.id)).rejects.toThrow('AGENT_SKILL_SOURCE_MISSING')
+  await agents.saveSkills(a.id, [{ kind: 'personal', name: 'personal-skill', description: 'Personal instructions', content: 'PERSONAL_SKILL_BODY', enabled: true }])
+  await agents.dispose()
+  await ctx.fiber.dispose()
+  const restarted = await start()
+  const restored = new UserAgents(restarted, join(home, 'skills-agents.json'))
+  await restored.load()
+  expect((await restored.list()).find(agent => agent.id === a.id)?.skills).toContainEqual(
+    expect.objectContaining({ name: 'personal-skill', content: 'PERSONAL_SKILL_BODY', enabled: true })
+  )
+  const afterRestart = await agentOn(restarted, 'skills-after-restart', a.preset, undefined, home)
+  expect((await restarted.skills.get('personal-skill', { scope: afterRestart, cwd: home }))?.content).toBe('PERSONAL_SKILL_BODY')
+  await restored.dispose()
+})
+
+it('persists a personal Agent, publishes standard capabilities and keeps its identity on edit and restart', async () => {
+  const { ctx, home, start } = await presetHarness()
+  const file = join(home, 'user-agents.json')
+  const agents = new UserAgents(ctx, file)
+  await agents.load()
+  const saved = await agents.save({ name: '销售助手', description: '个人配置', prompt: 'Answer every request with the marker SALES_PERSONA.', enabled: true })
+  expect(saved.publication).toBe('ready')
+  expect(ctx.agentPresets.defaultId).toBe('minimal')
+  const requests = await completion(ctx)
+  const agent = await agentOn(ctx, 'personal-agent', saved.preset)
+  const standard = await agentOn(ctx, 'standard-reference', 'standard')
+  expect(
+    ctx.tools
+      .schemas(agent)
+      .map(tool => tool.name)
+      .sort()
+  ).toEqual(
+    ctx.tools
+      .schemas(standard)
+      .map(tool => tool.name)
+      .sort()
+  )
+  expect(ctx.commands.list(agent).map(command => command.name)).toContain('compact')
+  await turn(ctx, agent, 'Identify your instructions')
+  expect(JSON.stringify(requests)).toContain('SALES_PERSONA')
+  const renamed = await agents.save({ ...saved, name: '改名后的助手', prompt: 'UPDATED_PERSONA' })
+  expect(renamed.id).toBe(saved.id)
+  expect(renamed.preset).toBe(saved.preset)
+  expect(ctx.agentPresets.composedPreset(agent.ctx)).toBe(saved.preset)
+  await agents.dispose()
+  await ctx.fiber.dispose()
+  const restored = new UserAgents(await start(), file)
+  await restored.load()
+  expect(await restored.list()).toContainEqual(expect.objectContaining({ id: saved.id, name: '改名后的助手', prompt: 'UPDATED_PERSONA', publication: 'ready' }))
+  await restored.dispose()
+})
+
+it('exposes authenticated configuration operations and rejects disabled selection and cross-origin writes', async () => {
+  const { mountUserAgentRoutes } = await import('../src/runtime/user-agent-routes.js')
+  const { USER_AGENT_ROUTES } = await import('../src/contracts/user-agents.js')
+  const { ctx, home } = await presetHarness()
+  const agents = new UserAgents(ctx, join(home, 'route-agents.json'))
+  await agents.load()
+  mountUserAgentRoutes(ctx, agents)
+  const handler = ctx.connection.createSharedFetchHandler('/api')
+  const post = (path: string, value: unknown, origin = 'http://localhost') =>
+    handler.fetch(
+      new Request(`http://localhost${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin },
+        body: JSON.stringify(value)
+      })
+    )
+  expect((await post(USER_AGENT_ROUTES.save, { name: 'Attacker', description: '', prompt: 'x', enabled: true }, 'https://elsewhere.example')).status).toBe(403)
+  const response = await post(USER_AGENT_ROUTES.save, { name: '可选助手', description: '', prompt: 'PERSONAL_INSTRUCTIONS', enabled: true })
+  expect(response.status).toBe(200)
+  const saved = await response.json()
+  const withSkill = await (
+    await post(USER_AGENT_ROUTES.skills, {
+      id: saved.id,
+      skills: [{ kind: 'personal', name: 'route-skill', description: 'Route instructions', content: 'ROUTE_SKILL_BODY', enabled: true }]
+    })
+  ).json()
+  expect(withSkill.publication).toBe('ready')
+  const session = await agentOn(ctx, 'route-skill-session', saved.preset)
+  expect((await ctx.skills.get('route-skill', { scope: session }))?.content).toBe('ROUTE_SKILL_BODY')
+  expect((await post(USER_AGENT_ROUTES.skills, { id: saved.id, skills: [] }, 'https://elsewhere.example')).status).toBe(403)
+  expect(await (await post(USER_AGENT_ROUTES.select, { id: saved.id })).json()).toEqual({ preset: saved.preset })
+  expect((await post(USER_AGENT_ROUTES.save, { ...saved, name: '' })).status).toBe(400)
+  await post(USER_AGENT_ROUTES.enabled, { id: saved.id, enabled: false })
+  expect((await post(USER_AGENT_ROUTES.select, { id: saved.id })).status).toBe(400)
+  expect(await (await handler.fetch(new Request(`http://localhost${USER_AGENT_ROUTES.list}`))).json()).toContainEqual(
+    expect.objectContaining({ id: saved.id, publication: 'disabled' })
+  )
+  await agents.dispose()
+})
+
+it('binds a trusted Cube reference to the actual Core revision and revokes removed references', async () => {
+  const { BusinessResources } = await import('../src/runtime/business-resources.js')
+  const { writeFile } = await import('node:fs/promises')
+  const { ctx, home } = await presetHarness({
+    importModule: name =>
+      name === 'dsh-agent-manage/user-agent-cube'
+        ? import('../src/runtime/user-agent-cube.js')
+        : name === 'dsh-agent-manage/user-agent-skills'
+          ? import('../src/runtime/user-agent-skills.js')
+          : official(name)
+  })
+  await writeFile(join(home, 'prompt.json'), JSON.stringify({ persona: 'TRUSTED_PROMPT', consumerCode: 'cube-consumer', skills: [] }))
+  const resources = new BusinessResources(ctx, join(home, 'resources.json'))
+  ctx.provide('agentResources', resources)
+  const release = await resources.register([
+    {
+      id: 'trusted-cube',
+      label: 'Trusted Cube',
+      root: home,
+      prompt: 'prompt.json',
+      publishPreset: true,
+      cube: true,
+      profile: { label: 'Cube', consumerCode: 'cube-consumer', skills: [] }
+    }
+  ])
+  const agents = new UserAgents(ctx, join(home, 'cube-agents.json'))
+  await agents.load()
+  const saved = await agents.save({ name: 'Personal', description: '', prompt: 'PERSONAL_PROMPT', enabled: true })
+  await expect(agents.saveCube(saved.id, { sourceRef: 'forged', enabled: true })).rejects.toThrow('CUBE_SOURCE_UNAVAILABLE')
+  expect(() => agents.saveCube(saved.id, { sourceRef: 'trusted-cube', enabled: true, consumerCode: 'forged' })).toThrow()
+  await agents.saveCube(saved.id, { sourceRef: 'trusted-cube', enabled: true })
+  const first = await agentOn(ctx, 'cube-first', saved.preset)
+  const grant = agents.cubeFor(first)
+  expect(grant?.sourceRef).toBe('trusted-cube')
+  await agents.save({ ...saved, prompt: 'UPDATED_PROMPT' })
+  expect(agents.cubeFor(first)?.signal).toBe(grant?.signal)
+  await agents.saveCube(saved.id, null)
+  expect(grant?.signal.aborted).toBe(true)
+  expect(agents.cubeFor(first)).toBeUndefined()
+  await agents.saveCube(saved.id, { sourceRef: 'trusted-cube', enabled: true })
+  expect(agents.cubeFor(first)).toBeUndefined()
+  const next = await agentOn(ctx, 'cube-next', saved.preset)
+  expect(agents.cubeFor(next)?.sourceRef).toBe('trusted-cube')
+  const { mountUserAgentRoutes } = await import('../src/runtime/user-agent-routes.js')
+  const { USER_AGENT_ROUTES } = await import('../src/contracts/user-agents.js')
+  mountUserAgentRoutes(ctx, agents)
+  const handler = ctx.connection.createSharedFetchHandler('/api')
+  const post = (path: string, value: unknown) =>
+    handler.fetch(
+      new Request(`http://localhost${path}`, { method: 'POST', headers: { origin: 'http://localhost', 'content-type': 'application/json' }, body: JSON.stringify(value) })
+    )
+  const catalog = await (await handler.fetch(new Request(`http://localhost${USER_AGENT_ROUTES.cubeSources}`))).json()
+  expect(catalog).toEqual([{ sourceRef: 'trusted-cube', name: 'Trusted Cube', enabled: true, available: true }])
+  expect((await post(USER_AGENT_ROUTES.cubeEnabled, { sourceRef: 'trusted-cube', enabled: true, consumerCode: 'forged' })).status).toBe(400)
+  expect((await post(USER_AGENT_ROUTES.save, { id: 'trusted-cube', name: 'Changed plugin', prompt: 'x', enabled: true })).status).toBe(400)
+  expect((await post(USER_AGENT_ROUTES.remove, { id: 'trusted-cube' })).status).toBe(400)
+  const clone = await (await post(USER_AGENT_ROUTES.pluginCopy, { sourceRef: 'trusted-cube' })).json()
+  expect(clone.prompt).toBe('TRUSTED_PROMPT')
+  expect(clone.cube).toEqual({ sourceRef: 'trusted-cube', enabled: true })
+  expect(clone).not.toHaveProperty('profile')
+  await release()
+  expect(resources.cubeSource('trusted-cube')).toBeUndefined()
+  await agents.dispose()
+  await resources.dispose()
+})
+
+it('retains ordinary referenced Skill text in each real Core revision', async () => {
+  const { ctx, home } = await presetHarness()
+  let release = ctx.skills.register({ name: 'changing-skill', description: 'Source text', source: 'bundled', content: 'ORIGINAL_REFERENCE_BODY' })
+  const agents = new UserAgents(ctx, join(home, 'reference-agents.json'))
+  await agents.load()
+  const a = await agents.save({ name: 'Snapshot', prompt: 'Snapshot persona', enabled: true })
+  const skill = { kind: 'reference' as const, name: 'changing-skill', provider: 'runtime', enabled: true }
+  await agents.saveSkills(a.id, [skill])
+  const first = await agentOn(ctx, 'reference-old', a.preset, undefined, home)
+  release()
+  release = ctx.skills.register({ name: 'changing-skill', description: 'Source text', source: 'bundled', content: 'UPDATED_REFERENCE_BODY' })
+  await agents.saveSkills(a.id, [skill])
+  const next = await agentOn(ctx, 'reference-new', a.preset, undefined, home)
+  expect((await ctx.skills.get(skill.name, { scope: first, cwd: home }))?.content).toBe('ORIGINAL_REFERENCE_BODY')
+  expect((await ctx.skills.get(skill.name, { scope: next, cwd: home }))?.content).toBe('UPDATED_REFERENCE_BODY')
+  await agents.dispose()
+  release()
+})

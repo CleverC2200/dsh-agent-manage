@@ -15,7 +15,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js'
 import { scrubbedParentEnv } from './host-seams.js'
-import { LoopbackOAuthClientProvider } from './oauth.js'
+import { type AuthorizationState, LoopbackOAuthClientProvider } from './oauth.js'
 import type { Config, SseConfig, StreamableHttpConfig } from './config.js'
 
 /**
@@ -46,10 +46,15 @@ function hasStaticAuthorization(headers: Record<string, string>): boolean {
  * Authorization.
  */
 /** 按配置和凭据创建 OAuth 回调提供器；静态授权或未启用时返回 undefined。 */
-function buildOAuthProvider(config: StreamableHttpConfig | SseConfig, credentials: unknown, log: (message: string) => void): LoopbackOAuthClientProvider | undefined {
+function buildOAuthProvider(
+  config: StreamableHttpConfig | SseConfig,
+  credentials: unknown,
+  log: (message: string) => void,
+  onAuthorizationState: (state: AuthorizationState) => void
+): LoopbackOAuthClientProvider | undefined {
   const auth = config.auth
   if (auth?.enabled === false || hasStaticAuthorization(config.headers)) return undefined
-  return new LoopbackOAuthClientProvider(config.serverName, auth?.storage ?? {}, auth?.scope, log, credentials)
+  return new LoopbackOAuthClientProvider(config.serverName, auth?.storage ?? {}, auth?.scope, log, credentials, undefined, onAuthorizationState)
 }
 
 /**
@@ -75,7 +80,8 @@ function buildOAuthProvider(config: StreamableHttpConfig | SseConfig, credential
 export function createTransport(
   config: Config,
   credentials?: unknown,
-  log: (message: string) => void = () => {}
+  log: (message: string) => void = () => {},
+  onAuthorizationState: (state: AuthorizationState) => void = () => {}
 ): { transport: Transport; oauthProvider: LoopbackOAuthClientProvider | undefined } {
   switch (config.transport) {
     case 'stdio':
@@ -89,7 +95,7 @@ export function createTransport(
         oauthProvider: undefined
       }
     case 'streamable-http': {
-      const oauthProvider = buildOAuthProvider(config, credentials, log)
+      const oauthProvider = buildOAuthProvider(config, credentials, log, onAuthorizationState)
       // The MCP SDK's StreamableHTTPClientTransport has optional callback
       // properties typed without `| undefined` (exactOptionalPropertyTypes
       // mismatch with the Transport interface); the SDK constructed the
@@ -105,7 +111,7 @@ export function createTransport(
       return { transport, oauthProvider }
     }
     case 'sse': {
-      const oauthProvider = buildOAuthProvider(config, credentials, log)
+      const oauthProvider = buildOAuthProvider(config, credentials, log, onAuthorizationState)
       // The legacy SSE transport negotiates a separate endpoint POST channel.
       // The SDK applies `requestInit.headers` to both the stream request and
       // every endpoint POST (its `_commonHeaders` merge), so no separate

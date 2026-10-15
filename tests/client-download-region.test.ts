@@ -3,7 +3,7 @@ import { act, createElement as h } from 'react'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it, vi } from 'vitest'
 import { McpPluginCard, type McpEnhanceScopeFace } from '../src/client/McpPluginCard.js'
-import css from '../src/client/market.module.css'
+import css from '../src/client/plugin-settings.module.css'
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({ IconChevronDownOutline14: undefined }))
 globalThis.IS_REACT_ACT_ENVIRONMENT = true

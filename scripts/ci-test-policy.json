@@ -1,13 +1,18 @@
 {
   "schemaVersion": 1,
-  "required": ["tests/market-contracts.test.ts", "tests/routes.test.ts"],
+  "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
   "tests": ["tests/*.test.ts"],
   "rules": [
     {
       "repo": "dsh-agent-manage",
       "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|tsconfig|vitest|\\.github/|scripts/)",
-      "tests": ["tests/market-contracts.test.ts", "tests/routes.test.ts"],
+      "tests": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
       "exclusive": true
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:src/application/queries\\.ts|src/client/ErrorBoundary\\.tsx|src/client/LspStatusPanel\\.tsx|src/client/MarketSection\\.tsx|src/client/McpCredentialEditor\\.tsx|src/client/McpStatusPanel\\.tsx|src/client/SearchFilterToolbar\\.module\\.css|src/client/SearchFilterToolbar\\.tsx|src/client/SuiteDetail\\.tsx|src/client/credentials\\.ts|src/client/features/market/InstallConfirmModal\\.tsx|src/client/features/market/SourceEditorModal\\.tsx|src/client/features/market/SourceTab\\.tsx|src/client/features/market/SourceTabsRow\\.tsx|src/client/features/market/SuiteCard\\.tsx|src/client/features/market/market\\-resource\\.ts|src/client/features/market/market\\-view\\-model\\.ts|src/client/features/mcp\\-status/detail\\-actions\\.ts|src/client/features/mcp\\-status/mcp\\-status\\-view\\-model\\.ts|src/client/features/personas/RoleMetadataFields\\.tsx|src/client/features/personas/frontmatter\\.ts|src/client/features/suite\\-detail/suite\\-detail\\-resource\\.ts|src/client/layout\\-label\\.ts|src/client/market\\.module\\.css|src/client/mcp\\-credential\\.module\\.css|src/client/mcp\\-status\\.module\\.css|src/client/ui/DetailModal\\.tsx|src/client/ui/MarkdownDocument\\.tsx|src/client/ui/ResourceCard\\.tsx|src/client/ui/ServerConfigDetail\\.tsx|src/client/ui/StatusIcon\\.tsx|src/client/ui/UserPanelSurface\\.tsx|src/client/ui/interpolate\\.ts|src/client/ui/panel\\.module\\.css|src/client/ui/panel\\.tsx|src/client/ui/resource\\-card\\.module\\.css|src/client/ui/workspace\\-view\\.ts|src/client/workspace\\.module\\.css)$",
+      "tests": ["tests/routes.test.ts", "tests/user-agent-workspace.test.ts", "tests/agent-config-regression.test.ts", "tests/agent-mcp.test.ts"]
     },
     {
       "repo": "dsh-agent-manage",
@@ -22,7 +27,7 @@
     {
       "repo": "dsh-agent-workbench",
       "pattern": "^(?:src|scripts|theme|business)/",
-      "tests": ["tests/market-contracts.test.ts"]
+      "tests": ["tests/agent-mcp.test.ts"]
     },
     {
       "repo": "dsh-agent-workbench",

@@ -11,6 +11,7 @@ export async function inventoryRoleInput(role: (typeof inventoryRoles)[number]) 
   const profile = profileFor(preset)!
   const root = resolve(import.meta.dirname, '../business-resources', role.id)
   const resource = {
+    cube: true,
     id: preset,
     label: profile.label,
     presetName: profile.presetName,

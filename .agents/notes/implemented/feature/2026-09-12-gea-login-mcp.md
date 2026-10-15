@@ -8,9 +8,11 @@ The market cannot discover authorized GEA tools from a transport URL alone. GEA 
 
 ## Decision
 
-The optional `geaMcp` service v1 exposes login observation and an in-process transport capability. The GEA plugin owns creation of a business session and injection of complete trusted `params._meta`; the market owns the MCP SDK connection and tool registration. Both plugins must be loaded in the same Cordis scope. The default Consumer is the GEA plugin's configured analysis Agent; an explicit registered AGENT or CLIENT_APP Consumer can override it. No new registered Consumer is invented.
+GEA Host remains the only login, credential and Consumer authority. The current v2 discovery and dispatch contract is documented in [GEA Cube-New MCP](../../../../docs/guides/gea-mcp.md); [selected business resources](2026-10-04-selected-business-resources.md#trusted-cube-references) owns trusted personal Agent references.
 
-Logout, environment change, expiration observed by the login owner and plugin disposal abort old requests. Reconciliation serializes mount disposal and rejects late discovery. The gateway is never persisted as a suite or direct MCP configuration. Ordinary marketplace features do not require GEA.
+Manage publishes the server schemas and scoped tools; GEA resolves the actual Core Session's enabled business source or trusted Cube reference. User configuration cannot select a Consumer, gateway or login token. A personal reference grants only inspect/query Cube methods, with source/identity revocation and child tool-filter intersections. The earlier optional v1 transport service and single `gea-readonly` configuration are retired.
+
+Logout, environment change, expiration and owner disposal abort old calls and reject late results. Gateway credentials are never persisted as external MCP configuration. Ordinary personal Agent configuration does not require GEA.
 
 ## Alternatives considered
 
@@ -20,16 +22,8 @@ Logout, environment change, expiration observed by the login owner and plugin di
 
 ## Consequences
 
-Only tools granted to the selected Consumer are discovered. All host conversations using this mount share its login-generation gateway business session; it does not represent a separate gateway conversation per DSH conversation. Authentication/session failures require a new login cycle; there is no automatic session recreation or tool replay. Existing bridge behavior preserves server-side authorization and host confirmation handling. This does not claim production acceptance.
+Source discovery, native publication, model-visible schemas and real business success remain separate evidence. This Note retains the login-ownership rationale; the linked v2 and personal-reference contracts supersede its original transport and single-preset choices. [The original ADR](../../../../docs/history/decision-snapshots/2026-09-12-gea-mcp-login-owner.md) preserves the earlier input.
 
-No active Agent Note previously covered GEA login integration; no supersession is required.
-
-## Runtime acceptance
+## Runtime acceptance (2026-09-12)
 
 A live profile initially loaded an older installed market package rather than this checkout. The profile patch disables that entry and inserts the local build; GEA login survives this hot reload. The gateway registered five tools and a read-only September 2026 query completed through the actual host tool runtime. This verifies that profile, not npm publication.
-
-Observed services do not expose the market-owned configuration editor. Their detail panel shows an informational ownership hint and the discovered tools, avoiding a request to an API that cannot resolve their configuration.
-
-GEA MCP calls and model-visible tools are restricted to the local DSH `gea-readonly` preset (the demand forecast entry). Set `geaMcp.agentPreset` alongside the Consumer fields to choose another local preset. Consumer authorization and local preset selection are separate boundaries. Other presets and calls without an Agent are denied; login refreshes, live agents, new agents and empty-session preset switches retain this boundary. Agents inheriting the same preset also inherit access. The host MCP status remains visible for diagnostics. Hosts without `agents` or `agentPresets` do not mount this integration.
-
-The same preset boundary also covers the legacy `gea_sales_plan_read` tool, keeping the standard preset free of GEA business-query capabilities.

@@ -10,6 +10,8 @@ export const presetLanes = {
   },
   client: {
     'tests/standard-preset-draft.test.ts': 1,
+    'tests/user-agent-retirement-draft.test.ts': 1,
+    'tests/agent-source-sync-draft.test.ts': 1,
     'tests/preset-catalog-client.test.ts': 1,
     'tests/skill-preset-client.test.ts': 1,
     'tests/base-preset-client.test.ts': 1,
@@ -17,6 +19,8 @@ export const presetLanes = {
     'tests/inventory-family-client.test.ts': 3
   },
   gea: {
+    'tests/sales-agent-import-gea.test.ts': 1,
+    'tests/user-agent-cube-gea.test.ts': 2,
     'tests/business-admission-gea.test.ts': 4,
     'tests/standard-preset-gea.test.ts': 11,
     'tests/skill-preset-gea.test.ts': 1,

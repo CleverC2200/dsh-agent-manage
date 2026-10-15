@@ -23,6 +23,8 @@ async function route() {
   const select = vi.spyOn(BusinessResources.prototype, 'select').mockResolvedValue({ id: 'existing', preset: 'original' })
   const list = vi.spyOn(BusinessResources.prototype, 'list').mockResolvedValue([])
   const context = {
+    tools: { guard: () => () => {}, schemas: () => [] },
+    agents: { list: () => [] },
     skills: { registerProvider: () => () => {} },
     agentPresets: { register: async () => async () => {}, resolve: async (id: string) => ({ id }) },
     connection: {

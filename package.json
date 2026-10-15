@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
-  "description": "The standard way to install Claude Code / Codex / Cursor / Kimi plugin marketplace suites in DeepSeek Harness (DSH) — zero conversion, zero file copying. Skills, MCP servers, hooks and slash commands are injected into your dsh sessions at runtime.",
-  "version": "0.6.3-company.6",
+  "description": "Configure personal Agents, Skills and MCP connections for DeepSeek Harness, publish native presets, and preserve source import, synchronization and host-owned runtime capabilities.",
+  "version": "0.6.3-company.15",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -31,6 +31,14 @@
       "types": "./lib/types/aps-compute/*.d.ts",
       "default": "./lib/aps-compute/*.js"
     },
+    "./user-agent-cube": {
+      "types": "./lib/types/runtime/user-agent-cube.d.ts",
+      "default": "./lib/runtime/user-agent-cube.js"
+    },
+    "./user-agent-skills": {
+      "types": "./lib/types/runtime/user-agent-skills.d.ts",
+      "default": "./lib/runtime/user-agent-skills.js"
+    },
     "./standard-preset": {
       "types": "./lib/types/runtime/standard-preset.d.ts",
       "default": "./lib/runtime/standard-preset.js"
@@ -53,7 +61,7 @@
     "build": "node scripts/generate-plugin-package-version.mjs && tsc -p tsconfig.json && pnpm run build:client",
     "build:client": "node scripts/generate-plugin-package-version.mjs && tsdown && node scripts/normalize-client-banner.mjs",
     "test": "pnpm run test:package-version && vitest run && pnpm run test:preset-client",
-    "test:contract": "vitest run tests/market-contracts.test.ts tests/routes.test.ts",
+    "test:contract": "vitest run tests/routes.test.ts tests/agent-mcp.test.ts",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src tests",
     "format": "prettier --write .",
@@ -73,7 +81,8 @@
     "quality:ci": "node scripts/run-quality-ci.mjs",
     "test:ci-inputs": "node --test tests/sdk-input-cli.test.mjs tests/quality-ci-cli.test.mjs tests/run-quality-checks.test.mjs tests/preset-capabilities-cli.test.mjs tests/sdk-artifact-cache.test.mjs scripts/business-profile-ci.test.mjs",
     "check:static": "pnpm run check:knowledge && pnpm run test:knowledge && pnpm run test:ci-inputs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
-    "test:ci-unit": "pnpm run test:package-version && vitest run --config vitest.ci-unit.config.ts"
+    "test:ci-unit": "pnpm run test:package-version && vitest run --config vitest.ci-unit.config.ts",
+    "test:agent-browser": "vitest run --config vitest.agent-browser.config.ts"
   },
   "dsh": {
     "bundle": {
@@ -128,14 +137,14 @@
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.4 || 4.0.5-alpha.1",
+    "@deepseek-ai/cordis-plugin-include": "1.0.9 || 1.0.10-alpha.1",
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-hooks-claude-code": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-llm": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-mcp-client": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-skill": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-alpha.1",
-    "@deepseek-ai/schemastery": "3.18.4 || 3.18.5-alpha.1",
-    "@deepseek-ai/cordis-plugin-include": "1.0.9 || 1.0.10-alpha.1",
-    "@deepseek-ai/dsh-agent-preset-registry": "0.2.0-rc.2 || 0.2.1-alpha.1"
+    "@deepseek-ai/schemastery": "3.18.4 || 3.18.5-alpha.1"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-mcp-client": {
@@ -151,28 +160,34 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.31.0",
     "ajv": "^8.17.1",
+    "decimal.js": "10.6.0",
     "fflate": "^0.8.3",
+    "js-yaml": "4.3.2",
     "smol-toml": "^1.8.0",
     "yaml": "^2.7.0",
-    "zod": "^4.4.3",
-    "decimal.js": "10.6.0",
-    "js-yaml": "4.3.2"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "link:../../official-latest-standard/vendor/cordis",
+    "@deepseek-ai/cordis-plugin-include": "link:../../official-latest-standard/vendor/include",
+    "@deepseek-ai/dsh-agent-preset-registry": "link:../../official-latest-standard/packages/preset/agent-preset-registry",
     "@deepseek-ai/dsh-client-ui-primitives": "link:../../official-latest-standard/packages/client/ui-primitives",
     "@deepseek-ai/dsh-hooks-claude-code": "link:../../official-latest-standard/packages/hooks/hooks-claude-code",
     "@deepseek-ai/dsh-llm": "link:../../official-latest-standard/packages/llm/llm",
     "@deepseek-ai/dsh-mcp-client": "link:../../official-latest-standard/packages/mcp/mcp-client",
     "@deepseek-ai/dsh-skill": "link:../../official-latest-standard/packages/skill/skill",
     "@deepseek-ai/dsh-tools": "link:../../official-latest-standard/packages/core/tools",
+    "@deepseek-ai/schemastery": "link:../../official-latest-standard/vendor/schemastery",
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "1.58.2",
     "@tsdown/css": "^0.22.14",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.15.0",
     "@types/react": "~18.3.1",
     "@types/react-dom": "^19.2.4",
     "@vitest/coverage-v8": "^4.1.11",
     "dependency-cruiser": "^18.2.0",
+    "esbuild": "0.25.9",
     "eslint": "^10.9.1",
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
@@ -181,11 +196,7 @@
     "tsdown": "^0.22.14",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.67.0",
-    "vitest": "^4.1.10",
-    "@deepseek-ai/schemastery": "link:../../official-latest-standard/vendor/schemastery",
-    "@types/js-yaml": "^4.0.9",
-    "@deepseek-ai/cordis-plugin-include": "link:../../official-latest-standard/vendor/include",
-    "@deepseek-ai/dsh-agent-preset-registry": "link:../../official-latest-standard/packages/preset/agent-preset-registry"
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"

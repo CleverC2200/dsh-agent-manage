@@ -2,6 +2,8 @@
 
 Status: implemented
 
+The Agent configuration entry in [selected business resources](2026-10-04-selected-business-resources.md#retired-configuration-entries) supersedes this Note's six-tab UI, resource editors and old HTTP paths. The original UI rationale below is retained for traceability; its component names and hash links describe the predecessor. User storage, runtime engines, source acquisition and feedback remain owned by their linked current notes.
+
 ## Problem
 
 Eleven experience-feedback items landed at once; four of them carry decisions worth recording:

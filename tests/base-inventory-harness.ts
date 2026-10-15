@@ -6,8 +6,9 @@ import type { BusinessResourceDefinition } from '../src/runtime/business-resourc
 import type { Deployment } from 'preset-integration-gea/host/business'
 import type { CapabilityContract } from 'preset-integration-gea/capability/contract'
 import { BusinessResources } from '../src/runtime/business-resources.js'
+import { UserAgents } from '../src/runtime/user-agents.js'
 import { mountGeaMcp } from '../src/runtime/gea-mcp.js'
-import { agentOn, presetHarness } from './core-preset-harness.js'
+import { agentOn, presetHarness, official } from './core-preset-harness.js'
 
 export interface BusinessPresetHarnessInput {
   resource?: BusinessResourceDefinition
@@ -19,6 +20,7 @@ export interface BusinessPresetHarnessInput {
   seed?: readonly unknown[]
   sessionId?: string
   cwd?: string
+  personalAgents?: boolean
 }
 
 /** Other role tickets supply their actual package resource and contract; the external adapter remains shared. */
@@ -29,7 +31,14 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   const { registerGeaTools } = await import('preset-integration-gea/host/agent-tools')
   const { createCubeMcpService } = await import('preset-integration-gea/host/cube-mcp-service')
   const { createCapabilityRegistry } = await import('preset-integration-gea/capability/registry')
-  const { ctx, home } = await presetHarness()
+  const { ctx, home } = await presetHarness({
+    importModule: name =>
+      name === 'dsh-agent-manage/user-agent-cube'
+        ? import('../src/runtime/user-agent-cube.js')
+        : name === 'dsh-agent-manage/user-agent-skills'
+          ? import('../src/runtime/user-agent-skills.js')
+          : official(name)
+  })
   const root = resolve(import.meta.dirname, '../business-resources/inventory-aqkc')
   const profile = profileFor('gea-html-inventory-aqkc')!
   const resource = input.resource ?? {
@@ -46,7 +55,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   ctx.provide('agentResources', resources)
   onTestFinished(() => resources.dispose())
   onTestFinished(installPromptProfile(resource.id, resource.profile))
-  const releaseResource = await resources.register([resource, ...(input.additionalResources ?? [])])
+  const releaseResource = await resources.register([{ ...resource, cube: true }, ...(input.additionalResources ?? [])])
   const selection = await resources.select(resource.id, new AbortController().signal, input.cwd)
   const contract = input.contract ?? JSON.parse(await readFile(resolve(resource.root, 'capability.json'), 'utf8'))
   const capabilities = createCapabilityRegistry([
@@ -169,6 +178,12 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   business.setCapabilities(capabilities)
   onTestFinished(() => business.dispose())
   registerGeaTools(ctx, business, capabilities)
+  const userAgents = input.personalAgents ? new UserAgents(ctx, resolve(home, 'user-agents.json')) : undefined
+  if (userAgents) {
+    ctx.provide('userAgents', userAgents)
+    await userAgents.load()
+    onTestFinished(() => userAgents.dispose())
+  }
   const service = createCubeMcpService(ctx, business)
   ctx.provide('geaMcp', service)
   await ctx.plugin({ apply: mountGeaMcp })
@@ -196,6 +211,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   return {
     ctx,
     home,
+    userAgents,
     resources,
     selection,
     releaseResource,

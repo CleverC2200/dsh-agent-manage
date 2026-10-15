@@ -92,6 +92,7 @@ export async function presetHarness(options: PresetHarnessOptions = {}) {
   const entries = base[0].insert
     .filter(row => providers.has(row.id))
     .map(row => {
+      if (row.id === 'credentials') return { ...row, config: { path: join(home, '.credentials.yaml'), watch: false } }
       if (row.id === 'storage-json') return { ...row, config: { root: join(home, 'storages') } }
       if (row.id === 'sandbox-policy') return { ...row, config: { mode: 'danger-full-access', workspaceRoot: home } }
       if (row.id === 'approval') return { ...row, config: { policy: 'never' } }
@@ -187,7 +188,14 @@ export async function presetHarness(options: PresetHarnessOptions = {}) {
       if (manage) runtime.loader.builtins['company-manage'] = manage
       runtime.loader.internal = {
         version: 'v2',
-        import: (name: string) => (name === 'dsh-agent-manage' && manage ? Promise.resolve(manage) : options.importModule ? options.importModule(name, runtime) : official(name))
+        import: (name: string) =>
+          name === 'dsh-agent-manage/user-agent-skills'
+            ? import('../src/runtime/user-agent-skills.js')
+            : name === 'dsh-agent-manage' && manage
+              ? Promise.resolve(manage)
+              : options.importModule
+                ? options.importModule(name, runtime)
+                : official(name)
       } as never
     })
     await resourcesReady

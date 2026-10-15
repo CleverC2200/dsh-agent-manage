@@ -21,3 +21,5 @@ Caching a second market projection would duplicate installation state and invali
 Single-resource reads do not probe unrelated market checkouts or load unrelated resource bodies. Installed resources still use the existing bounded discovery cache; no second cache or persisted format is introduced. A write whose runtime notification fails still reports that failure after the file change, as before. This source decision does not establish installed-client or business acceptance.
 
 [中文](2026-10-14-installed-panel-resources.zh.md)
+
+Source-owned update/delete is now rejected by PanelResources itself. The [Agent configuration entry](../feature/2026-10-04-selected-business-resources.md#retired-configuration-entries) supersedes the former managed-source write policy; installed reads and serialized personal writes remain.

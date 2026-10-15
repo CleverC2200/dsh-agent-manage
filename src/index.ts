@@ -1,3 +1,5 @@
+import { AgentSources } from './runtime/agent-sources.js'
+import { mountAgentSourceRoutes } from './runtime/agent-source-routes.js'
 /** 文件作用：插件宿主入口，注册技能提供器、运行时协调器、市场 HTTP 路由和项目级资源挂载。 */
 /**
  * dsh-agent-plugins-market host entry: the Agent Plugins Market manager.
@@ -24,6 +26,8 @@ import type { Context, Volatile } from '@deepseek-ai/cordis'
 import type { SkillProviderControl } from '@deepseek-ai/dsh-skill'
 import { BusinessResources } from './runtime/business-resources.js'
 import * as StandardPreset from './runtime/standard-preset.js'
+import { UserAgents } from './runtime/user-agents.js'
+import { mountUserAgentRoutes } from './runtime/user-agent-routes.js'
 import { readJsonRequest, RequestBodyTooLarge } from './runtime/request-body.js'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-settings'
@@ -115,6 +119,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   const panels = createUserPanelStores(userRoot)
   const userCommands = new UserCommandMountRegistry(ctx, panels.commands, (key, params) => hostLocale.t(key, params))
 
+  let agentSources: AgentSources | undefined
   let disposed = false
   let projectCommands: ReturnType<typeof mountProjectCommands> | undefined
   let projectMcp: ReturnType<typeof mountProjectMcp> | undefined
@@ -123,6 +128,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   /** 响应 Catalog 变更，刷新各资源挂载并触发运行时重协调。 */
   const onChanged = async (): Promise<void> => {
     if (disposed) return
+    agentSources?.changed()
     providerControl?.invalidate()
     userPanelControl?.invalidate()
     await projectCommands?.refresh()
@@ -156,10 +162,17 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     }
   })
   await catalog.load()
-  ctx.inject(['agentPresets', 'connection'], async host => {
+  ctx.inject(['agentPresets', 'connection', 'tools', 'agents'], async host => {
     // Selected identities compose the same standard declaration as orchestration.
     // Wait on that initialization fiber, never the parent Host tree.
     await standardInitialization
+    const userAgents = new UserAgents(host, resolve(dataRoot, 'user-agents.json'), catalog.runtime)
+    host.provide('userAgents', userAgents)
+    await userAgents.load()
+    host.effect(() => () => userAgents.dispose())
+    mountUserAgentRoutes(host, userAgents)
+    agentSources = new AgentSources(catalog, userAgents)
+    mountAgentSourceRoutes(host, agentSources)
     const businessResources = new BusinessResources(host, resolve(dataRoot, 'selected-resources.json'))
     await businessResources.load()
     const releaseBusinessSkills = await businessResources.register([
@@ -236,7 +249,10 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     )
   })
 
-  await catalog.mergeSources(config.sources ?? [])
+  await catalog.mergeSources([
+    ...(config.sources ?? []),
+    { id: 'bundled-sales-plan', url: fileURLToPath(new URL('../business-resources/sales-plan/', import.meta.url)), local: true }
+  ])
   const resources = createPanelResources(catalog, panels)
   catalog.setDownloadRegionProvider(async () => narrowDownloadRegion(config.downloadRegion.get()))
   await catalog.setScanProjectLayouts(config.scanProjectLayouts.get())
@@ -342,7 +358,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
 
   ctx.inject(['webServer', 'loader'], hostCtx => {
     // 中文：把 Catalog 和资源仓库接入市场 HTTP 路由，效果销毁时卸载路由。
-    hostCtx.effect(() => mountSuiteRoutes(hostCtx, catalog, resources), 'dsh-agent-plugins-market: http routes')
+    hostCtx.effect(() => mountSuiteRoutes(hostCtx, catalog), 'dsh-agent-plugins-market: http routes')
   })
 
   ctx.effect(

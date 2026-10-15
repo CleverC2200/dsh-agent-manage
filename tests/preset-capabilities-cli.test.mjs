@@ -9,8 +9,25 @@ import process from 'node:process'
 // Child-process completion is the CLI seam; real client/Host lanes run separately.
 const files = {
   'standard-skill': { 'standard-preset': 11, 'skill-preset': 5, 'manage-cold-boot': 6, 'manage-settings': 1, 'bundled-sales-skills': 2, 'manage-bundle-default': 1 },
-  client: { 'standard-preset-draft': 1, 'preset-catalog-client': 1, 'skill-preset-client': 1, 'base-preset-client': 1, 'sales-preset-client': 2, 'inventory-family-client': 3 },
-  gea: { 'business-admission-gea': 4, 'standard-preset-gea': 11, 'skill-preset-gea': 1, 'sales-preset-gea': 11, 'inventory-family-preset': 13 }
+  client: {
+    'user-agent-retirement-draft': 1,
+    'agent-source-sync-draft': 1,
+    'standard-preset-draft': 1,
+    'preset-catalog-client': 1,
+    'skill-preset-client': 1,
+    'base-preset-client': 1,
+    'sales-preset-client': 2,
+    'inventory-family-client': 3
+  },
+  gea: {
+    'sales-agent-import-gea': 1,
+    'user-agent-cube-gea': 2,
+    'business-admission-gea': 4,
+    'standard-preset-gea': 11,
+    'skill-preset-gea': 1,
+    'sales-preset-gea': 11,
+    'inventory-family-preset': 13
+  }
 }
 function run(change = () => {}) {
   const root = mkdtempSync(join(tmpdir(), 'preset-cli-'))

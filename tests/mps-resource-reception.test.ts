@@ -19,8 +19,12 @@ it('selects the received MPS persona and Skill, then withdraws only its installe
         provider = create({ invalidate() {}, signal: new AbortController().signal })
         return () => {}
       },
-      async list(options: SkillLookupOptions) {
+      async list(options: SkillLookupOptions = {}) {
         return provider.list(options)
+      },
+      async get(name: string, options: SkillLookupOptions = {}) {
+        const candidate = (await provider.list(options)).find(row => row.name === name)
+        return candidate ? provider.get(candidate, options) : undefined
       }
     },
     agentPresets: {

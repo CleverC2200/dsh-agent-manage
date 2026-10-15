@@ -18,6 +18,8 @@ MCP 指纹包含所选后端，因此即使配置未变，后端切换也会重�
 
 GEA Schema 发布使用 GEA 自有的身份信号。同身份资源刷新先准备发现结果再替换当前 Schema，身份变化则先退役旧代际。刷新监听器向 Core 串行 `agent/created` 事件返回队列。对于已开始的组装，公开工具 provider 捕获其发布版本；`system-prompt/assemble` waterfall 等待就绪，只在版本改变时让 Core 重新组装。作用域、PTC 模式与工具顺序仍由 Core 持有。组装取消后不等待忽略取消的发现 provider。
 
+个人 MCP 配置从内置校验器派生 Schema，保留已知字段校验，允许扩展字段与外部 command/cwd 路径；可移植插件声明继续使用严格 Schema 和路径包含规则。连接监督器分别报告浏览器待授权、取消、失败与连接成功。待授权时首次挂载可返回，使 Agent 配置页能够取消；取消关闭 loopback 等待，退役 Provider 拒绝迟到的凭据写入。重新授权仍删除既有宿主 grant 记录并重建原归属连接。
+
 ## Alternatives considered
 
 **保留 Catalog 操作转发与 setter 回调。** 这会继续保留额外 interface，并让入口重复组装顺序规则。本次迁移全部现有调用方到 `Catalog.runtime`。
@@ -35,3 +37,7 @@ GEA Schema 发布使用 GEA 自有的身份信号。同身份资源刷新先准�
 行为测试经公开运行时 interface 覆盖 HTTP OAuth 重新授权及精确挂载归属、配置脱敏、后端重挂、清理重试、慢启动期间凭据通知与释放顺序。这些结果证明选定 SDK 下的本地源码行为，不证明已安装 Native、真实模型、业务、CI 或发布验收。
 
 [English](2026-10-15-resource-runtime-management.md)
+
+个人 Agent 的 MCP 关联由 `UserAgents` 旁的 `AgentMcp` 管理，保存共享连接身份和每 Agent 关联，配置、凭据和连接生命周期仍归 `Catalog.runtime`。源导入的 Host 目录单独保存，不进入可编辑服务 JSON；校验和挂载时沿用该目录，HTTP 请求不能自填目录或声明插件身份。
+
+经认证的 Agent 路由供内联编辑和关联操作共用。工具 schema 和 dispatch 同时按 Core `composedPreset` 与当前关联收窄，已运行 Session 也立即受新开关约束，未知个人 MCP 命名空间拒绝使用。移除关联保留共享定义。插件 MCP 的直接编辑被拒，仍允许启停。连接状态读取既有 supervisor，成功发现零工具也视为已连接。受控本地 HTTP 验证覆盖初始化、工具发现、取消、真实 Session 作用域和重启；实际客户端与业务验收仍需单独留证。

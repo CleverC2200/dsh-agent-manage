@@ -8,6 +8,8 @@ Durable Sessions retain preset identities after restart, while package resource 
 
 ## Decision
 
+The user's original sales-plan prompt and Q&A Skill are a separate bundled Catalog configuration source under `business-resources/sales-plan`. Startup discovers it without importing, enabling or binding a personal Agent. Explicit import uses the existing Agent-card and Skill-reference flow; the full prompt exceeds the suite system-prompt byte limit, so it remains an Agent card without truncation or a raised limit. The only prose changes describe the current personal trusted-Cube identity contract; the linked Cube query reference is unchanged. Source baselines and personal changes remain separate. This addition leaves the original `gea-readonly` profile and four forecast Skills intact. See [the source record](../../../../business-resources/sales-plan/README.md) for provided and missing assets. Actual Core first-turn coverage uses the external gateway fixture; installed-client, model and live business acceptance remain separate.
+
 Manage owns one resource interface and the official Skill Provider for enabled package resources. Catalog continues to own Suite source and installed/enabled facts. A live package registers private file references through its effect; browser requests select stable resource identities and carry their absolute native workspace context, never resource-file paths or Consumer overrides. Inventory contains summaries. Prompt bodies load when selected or when their enabled package owner opts into `publishPreset`; Skill bodies still load on selection. Source files and user drafts are never overwritten.
 
 Skill and Prompt selection both confirm the official registry resolution is not broken before committing a selected identity. A failed Skill activation uses the existing preset disposer for rollback, including an already retained mount; failed release keeps its handle for explicit retry. Restoring a broken selected Skill rejects loading and leaves the original recovery index unchanged.
@@ -43,3 +45,55 @@ Package owners may declare `publishPreset` to publish validated business presets
 ## Consequences
 
 Selected identities recover definitions without rewriting Session data or business resource bodies. Missing owners fail explicitly; failed release remains retryable. Native installation and business/model acceptance require their own receipts.
+
+## Personal Agent configurations
+
+Complete personal Agents use `UserAgents`, separately from catalog roles and selected business identities. Its single configuration/publication interface serializes writes into `user-agents.json`, validates external inputs, and publishes enabled configurations with a stable `user-agent-<id>` registry identity through standard composition. Name edits retain identity; registration and resolution are distinct from durable save. Publication failure retains an editable configuration, a diagnostic and, when available, the last usable declaration. Host startup registers saved enabled definitions; availability is audited after Loader activation settles. Existing Core generations retain live Session revisions.
+
+The shared main/settings Agent page replaces the six-tab workspace entry. Authenticated Host Fetch routes provide list, save, enable and selection. Selecting is explicit and does not change the default or an existing Session. Workbench owns the public `startAgent` action and native workspace/Session navigation. Per-Agent Skill composition is described below. External MCP and source import retain their own modules; trusted Cube references follow the contract below.
+
+## Personal Agent Skill scope
+
+`UserAgents` persists each Agent's Skill references and personal bodies with its configuration. A reference keeps the winning provider and optional source path; publication and reads reject a missing or changed source. Personal overrides keep that reference's resource base and never write its managed source. `dsh-agent-manage/user-agent-skills` contributes through the official preset scope. It resolves the existing global providers, permits selected enabled references, and masks unselected or disabled global Skills with both invocation policies disabled. Standard preset declarations remain intact, including native scoped resources. Core retains old revision scopes for existing Sessions.
+
+The Skill tab uses the authenticated Agent configuration routes for catalog, body and save operations. Cancel discards only local edits; save failures keep the form. Unmounting aborts reads and ignores late results. Source selection, scoped catalog and tool dispatch are covered through production Core Sessions; this does not establish installed-client or external-model acceptance.
+
+## Personal Agent retirement and recovery
+
+Disabling withdraws the preset from the Core selection roster without changing the host default, Sessions or drafts. Deletion writes `deletedAt` and `enabled: false` into the same personal configuration; its stable ID, prompt and dependency references remain recoverable. Deleted records reject save, capability edits, enable and select operations until explicit restore. Restore only clears deletion and leaves the configuration disabled. The configuration page offers recovery, dependency checks and a return to the Agent list for an explicit new conversation. An unavailable default is diagnosed without editing the host setting.
+
+`UserAgents.watch` signals committed configuration/lifecycle changes. Consumers read this same configuration and reconcile their capabilities; listeners are not awaited inside the write queue and must schedule their reads without throwing. This is configuration lifecycle, not Session or authorization ownership. A source that is still missing after restore blocks publication and cold recovery; restore never recreates its authorization.
+
+The fixed official Core can retain a revision for live Sessions but has no separate selectable flag or durable historical revision registration. Withdrawal therefore makes cold recovery fail explicitly until the user restores and enables the retained configuration and its dependencies. Recovery then composes that retained current configuration, including when Core reuses a persisted blank Session. It does not promise reconstruction of an older revision after edits. A future exact revision contract needs a Core-owned durable revision/availability interface; Manage must not add a Session sidecar, replace the preset with standard or modify protected Core. Tests exercise authenticated configuration operations, real Core persistence/restart and the official client draft input. Installed-client and external-model acceptance remain separate.
+
+## Imported Agent synchronization
+
+`AgentSources` captures the existing upstream MCP definitions and effective user overrides before Catalog refreshes a managed checkout. It compares baseline, personal configuration and refreshed source by prompt fields, Skill identity and MCP server key. Conflicts accept local, upstream or a validated manual result. Preview and cancel leave the committed Agent unchanged. Preview tokens remain Host-local, expire on restart or replacement, and reject a changed Agent revision or MCP association. Unchanged sources do not create a revision.
+
+Imported Skill references persist their selected body as content, keeping user overrides and old live preset scopes independent of a checkout refresh. Source resource directories and reference assets remain dynamic dependencies; this is not a snapshot of an entire source tree. Changed source MCP definitions use separate connection identities. Their original config remains the Host-side baseline and existing runtime overrides hold personal changes. Agent list/provenance contains references only, and MCP conflict previews are redacted.
+
+`UserAgents.syncSource` prepares the declaration and validates dependencies, registers/resolves the stable identity, then persists the new configuration. Core has no atomic replace operation; failed replacement is compensated without publishing a separate candidate identity. Publication or persistence failure restores the old declaration and durable configuration. Failed declaration release handles remain retained for compensation, retry or teardown. Old live Core revisions keep their selected source connections; Agent disable/delete and explicit source removal still revoke tools and dispatch. The default, Session and draft owners remain Core. Restart publishes the committed current configuration; exact historical cold revision recovery retains the limitation documented above.
+
+## Trusted Cube references
+
+Only GEA Host registration may mark an installed BusinessResources entry as Cube-capable. `cubeSource` reads current availability, Consumer and the owner's revocable signal without scanning Skill catalogs. Its browser catalog contains only source identity, name, enable intent and availability. Plugin membership is fixed; only the Cube enable switch is writable. An explicit copy produces personal prompt text and allowed Skill/Cube references, with no business profile, cross-Consumer routes or page actions.
+
+Personal configurations persist at most one `{ sourceRef, enabled }` Cube reference. The official preset mounts an isolated `userAgentCube` declaration; Core's public `serviceFor(actualAgent, ...)` resolves the revision actually retained by that Session and inherited by its children. UserAgents applies current enable/delete/reference revocation and signals through its existing lifecycle watch. Prompt or Skill edits keep the prior Session reference; removing or disabling it aborts old grants, and re-adding it never revives those grants.
+
+GEA alone resolves the source owner and Consumer against current identity. Cube discovery and dispatch use that same resolution before and after awaits; identity, association and owner signals cancel in-flight calls and reject late results even if the replacement Consumer is identical. The v2 bridge retains server schemas and first-request publication readiness. Schema masks refresh on lifecycle/source changes as well as tool changes. Personal references grant only the two Cube methods and preserve Core tool-filter intersections; they never install a business profile. Source/Core tests do not establish installed-client or real business acceptance.
+
+## Retired configuration entries
+
+The shared Agent editor replaces [the former workspace](2026-09-06-workspace-tabs-user-panels.md)'s six tabs, market installation dialogs, hash navigation and command/LSP editors. Their unused client adapters are removed. Host HTTP retains only model-catalog and MCP-backend reads; Agent mutations use authenticated configuration routes. PanelResources still supplies runtime reads, but rejects source-owned update/delete requests even from direct callers. Personal changes use the Agent configuration owner.
+
+Catalog acquisition, discovery, cache, locks, import/sync and installed state remain. MCP transport/credentials/OAuth, commands/LSP/hooks/project runtimes, subagents, original business assets, native standard composition and Core Session/draft/history owners remain. Retired-query fixtures and dated failure evidence remain unchanged.
+
+Old plugin MCP connection patches remain in their original override files. Runtime selection applies only enablement, reports `PLUGIN_MCP_OVERRIDE_RETIRED` with the preserved path and uses the plugin declaration for connection inputs. Desired custom connections require explicit personal Agent configuration; startup never rewrites or deletes preserved patches. User-owned Agent MCP definitions retain full validated edits.
+
+| Retired coverage | Current behavior coverage |
+| --- | --- |
+| Market installation/cancel and old tab rendering | `user-agent-workspace.test.ts`, `agent-source-panel.test.ts` (inline cancellation, explicit import, three tabs) |
+| Resource editor writes into managed sources | `panel-resources.test.ts`, `user-agent-skills-client.test.ts`, `user-agent-skills.test.ts` (source immutability and personal changes) |
+| Global MCP detail/authorization HTTP actions | `agent-mcp.test.ts`, `agent-mcp-transports.test.ts`, `runtime-management.test.ts` (association, real transport, OAuth cancellation/retry and owned release) |
+| Generic route and old writable-policy assertions | `routes.test.ts`, `mcp-overrides.test.ts` (retired routes absent; retained patches inactive and diagnostic) |
+| Market cards/filter counts/grid state and detail request adapters | Removed with their retired components; these no longer describe a supported user action |

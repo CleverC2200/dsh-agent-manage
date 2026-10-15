@@ -21,3 +21,5 @@ Status: implemented
 单项读取不探测无关市场 checkout，也不加载无关资源正文。已安装资源继续复用既有有界发现缓存，不新增缓存或持久格式。写入后若运行时通知失败，仍在文件已改变后报告失败，保持原语义。本源码决定不证明客户端装载或业务验收。
 
 [English](2026-10-14-installed-panel-resources.md)
+
+PanelResources 现直接拒绝插件源更新与删除。[Agent 配置入口](../feature/2026-10-04-selected-business-resources.zh.md#已退役的配置入口)替代原受管源写策略，已安装资源读取与个人资源串行写入保留。

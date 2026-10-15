@@ -25,8 +25,12 @@ it('isolates malformed Skill metadata within one provider and applies the same f
         provider = create({ invalidate() {}, signal: new AbortController().signal })
         return () => {}
       },
-      async list(options: SkillLookupOptions) {
+      async list(options: SkillLookupOptions = {}) {
         return provider.list(options)
+      },
+      async get(name: string, options: SkillLookupOptions = {}) {
+        const candidate = (await provider.list(options)).find(row => row.name === name)
+        return candidate ? provider.get(candidate, options) : undefined
       }
     },
     agentPresets: {
@@ -213,12 +217,12 @@ it('loads a packaged Skill verbatim, rejects symlink escapes and withdraws an un
         provider = create({ invalidate() {}, signal: new AbortController().signal })
         return () => {}
       },
-      async list(options: SkillLookupOptions) {
+      async list(options: SkillLookupOptions = {}) {
         return provider.list(options)
       },
-      async get(name: string, options: SkillLookupOptions) {
-        const candidate = (await provider.list(options)).find(item => item.name === name)
-        return candidate && provider.get(candidate, options)
+      async get(name: string, options: SkillLookupOptions = {}) {
+        const candidate = (await provider.list(options)).find(row => row.name === name)
+        return candidate ? provider.get(candidate, options) : undefined
       }
     },
     agentPresets: {
@@ -311,8 +315,12 @@ it('selects the restored regional resource through the original Skill provider a
         provider = create({ invalidate() {}, signal: new AbortController().signal })
         return () => {}
       },
-      async list(options: SkillLookupOptions) {
+      async list(options: SkillLookupOptions = {}) {
         return provider.list(options)
+      },
+      async get(name: string, options: SkillLookupOptions = {}) {
+        const candidate = (await provider.list(options)).find(row => row.name === name)
+        return candidate ? provider.get(candidate, options) : undefined
       }
     },
     agentPresets: {
@@ -377,8 +385,12 @@ it('selects the retained category prototype resource and keeps its Skill contrib
         provider = create({ invalidate() {}, signal: new AbortController().signal })
         return () => {}
       },
-      async list(options: SkillLookupOptions) {
+      async list(options: SkillLookupOptions = {}) {
         return provider.list(options)
+      },
+      async get(name: string, options: SkillLookupOptions = {}) {
+        const candidate = (await provider.list(options)).find(row => row.name === name)
+        return candidate ? provider.get(candidate, options) : undefined
       }
     },
     agentPresets: {

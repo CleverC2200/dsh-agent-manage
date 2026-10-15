@@ -18,6 +18,7 @@
  * @module runtime/mcp-client/tools
  */
 
+import type { Context } from '@deepseek-ai/cordis'
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -39,6 +40,7 @@ export type McpResult<Structured extends JsonValue = JsonValue> = {
 
 /** The agent on whose behalf a tool call runs (structural mirror). */
 interface ToolExecutionAgent {
+  readonly ctx?: Context
   session?: { requestHeader?: () => { config?: { provider?: string; model?: string } } | undefined }
   options?: { provider?: string; model?: string }
 } /** Execution identity handed to a tool body (structural mirror). */
@@ -82,6 +84,7 @@ export interface ToolHost {
   readonly tools: { register(definition: ToolDefinition): () => void }
   /** Optional service lookup; image projection degrades when absent. */
   getService?(name: 'attachments' | 'llm'): unknown
+  executionScope?(agent: ToolExecutionAgent | undefined, serverName: string): { signal: AbortSignal; validate(): void } | undefined
 }
 
 /** Resolved options relevant to tool bridging. */
@@ -93,6 +96,18 @@ export interface ToolBridgeOptions {
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
+}
+
+/** One authority/cancellation decision shared by tool calls and resource reads. */
+function scopedExecution(host: ToolHost, exec: ToolExecution, serverName: string) {
+  const scope = host.executionScope?.(exec.agent, serverName)
+  const signal = scope ? AbortSignal.any([exec.signal, scope.signal]) : exec.signal
+  const validate = () => {
+    signal.throwIfAborted()
+    scope?.validate()
+  }
+  validate()
+  return { signal, validate }
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -227,10 +242,12 @@ export async function syncTools(client: Client, host: ToolHost, opts: ToolBridge
       /** 资源工具回调：读取 MCP URI 并把资源块交给宿主渲染。 */
       async execute(args, exec) {
         if (!args || typeof args !== 'object' || !('uri' in args) || typeof args.uri !== 'string' || !args.uri) throw new Error('MCP_RESOURCE_URI_REQUIRED')
+        const scope = scopedExecution(host, exec, opts.serverName)
         const response = await client.request({ method: 'resources/read', params: { uri: args.uri } }, ReadResourceResultSchema, {
-          signal: exec.signal,
+          signal: scope.signal,
           timeout: opts.toolCallTimeoutMs
         })
+        scope.validate()
         return { content: response.contents.map(resource => ({ type: 'resource', resource })) }
       }
     })
@@ -388,7 +405,10 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const result = await callToolUncached(client, rawName, argsObj, exec, opts)
+    const scope = scopedExecution(host, exec, opts.serverName)
+    const invocation = { ...exec, signal: scope.signal }
+    const result = await callToolUncached(client, rawName, argsObj, invocation, opts)
+    scope.validate()
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {
@@ -418,7 +438,8 @@ function createExecutor(
     }
     if (containsImage(content)) {
       const fallback: ContentBlock[] = [{ type: 'text', text: extractText(content, rawName) }]
-      const projected = await prepareImageProjection(host, exec, content, rawName)
+      const projected = await prepareImageProjection(host, invocation, content, rawName)
+      scope.validate()
       projections.set(exec, { value, fallback, content: projected })
     }
     return value

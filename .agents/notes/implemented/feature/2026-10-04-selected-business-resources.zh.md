@@ -8,6 +8,8 @@ Status: implemented
 
 ## Decision
 
+用户原销售主提示词与问数 Skill 作为独立 Catalog 配置源随包保存在 `business-resources/sales-plan`。启动只发现来源，不导入、启用或绑定个人 Agent；显式导入复用 Agent 卡片和 Skill 引用。完整提示词超过套件 systemPrompt 的字节限制，因此使用既有 Agent 卡片，不截断原文或提高限额。正文仅修正个人可信 Cube 身份合同，Cube 查询参考原样保留。源基线和个人修改分开保存，原 `gea-readonly` profile 及四个预测 Skill 保持。[来源记录](../../../../business-resources/sales-plan/README.md)列明已有与缺失资产。真实 Core 首轮用例只替换外部 Gateway 响应；客户端装载、模型与真实业务验收分别留证。
+
 Manage 持有唯一的资源interface与已启用包资源的官方Skill Provider。Catalog继续持有Suite源、安装与启用事实。当前包在自己的effect下登记私有文件引用；浏览器选用稳定资源标识并传入原生工作区绝对路径上下文，不传资源文件路径或Consumer覆盖。目录只返回轻量摘要；Prompt 正文在选用时或已启用包 owner 明确启用 `publishPreset` 时装载，Skill 正文仍在选用时装载。原文件与用户草稿不覆盖。
 
 Skill 和 Prompt 选用均确认官方 Registry resolve 未返回 broken 后才提交选中身份。Skill 激活失败沿现有预设释放句柄回滚，已保留的挂载也重新核对可用性；释放失败保留句柄供显式重试。恢复已选 Skill 时，broken 预设使 load 拒绝，原恢复索引保持不变。
@@ -41,3 +43,55 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 ## Consequences
 
 已选身份恢复定义，不改写 Session 数据或业务资源正文。缺少 owner 明确失败，释放失败可显式重试。Native 安装与真实业务、模型验收分别留证。包 owner 可声明 `publishPreset`，在安装/启用后发布已校验的业务预设，供官方列表发现。发布不改变当前 Session、用户默认或 selected-resources.json，也不授予 Consumer 权限；演示 owner 不启用该选项。无效 Prompt 保留资源诊断，健康 Prompt 继续发布，owner 卸载仍释放自己的声明。
+
+## 个人完整 Agent 配置
+
+完整个人 Agent 由 `UserAgents` 持有，与目录角色、已选择业务身份分别保存。统一配置发布 interface 串行写入 `user-agents.json`，校验外部输入，并通过 standard 组合将启用配置以稳定的 `user-agent-<id>` 身份注册。改名不改身份；持久保存与注册、resolve 分别处理。发布失败保留可编辑配置、诊断以及已有的最后可用声明。Host 启动恢复启用声明，Loader 激活完成后再核可用性。Core 的既有 generation 保留运行中 Session 的 revision。
+
+主入口和设置共用 Agent 页，替换六 Tab 工作区入口。经认证的 Host Fetch 提供列表、保存、启停和选择；显式选择不修改默认或已有 Session。Workbench 的公开 `startAgent` 负责原生工作区和 Session 导航。每 Agent Skill 组合见下节，MCP 关联和来源同步分别沿 `AgentMcp` 与 `AgentSources` 接入。
+
+## 个人 Agent 的 Skill 作用域
+
+`UserAgents` 随 Agent 配置持久保存 Skill 引用和个人正文。引用保存获胜 provider 与可选源路径；来源缺失或改变时，发布与读取明确拒绝。个人定制保留原引用的资源目录，不写回受管源。`dsh-agent-manage/user-agent-skills` 在官方预设作用域内贡献配置，复用全局 provider 读取，允许选中且启用的引用，并将未选中或停用的全局 Skill 的两种调用策略设为停用。standard 声明及其原生作用域资源保留，Core 为已有 Session 保留旧 revision 作用域。
+
+Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取消只丢弃本地编辑；保存失败保留表单。卸载时取消读取并忽略迟到结果。生产 Core Session 测试覆盖来源选择、作用域目录与工具实际调用，不证明已安装客户端或外部模型验收。
+
+## 个人 Agent 停用、删除与恢复
+
+停用从 Core 选择目录撤下预设，不改变宿主默认、Session 或草稿。删除在同一个人配置中写入 `deletedAt` 和 `enabled: false`，保留稳定 ID、提示词与依赖引用。删除记录在显式恢复前拒绝保存、能力编辑、启用与选择。恢复仅清除删除标记，配置仍停用。配置页直接提供恢复、依赖检查及返回列表另选 Agent 新建对话的入口。不可用的默认值单独提示，不修改宿主设置。
+
+`UserAgents.watch` 在配置及生命周期提交后发出通知。能力消费者读取同一配置并 reconcile，不另建状态权威。写队列不等待监听器，监听器应安排异步读取且不抛错。这是配置生命周期，不拥有 Session 或业务授权。恢复后来源仍缺失时，发布与冷恢复继续拒绝，恢复操作不重建被撤销的授权。
+
+固定官方 Core 能为运行中 Session 保留 revision，但没有独立的可选标记或持久历史 revision 注册。撤下后冷恢复会明确失败，直到用户显式恢复、启用保留配置并补齐依赖。此后恢复组合保留的当前配置，持久空白 Session 复用也核原 preset；不承诺编辑后重建过去的 revision。精确历史修订需要由 Core 提供持久 revision/可用性 interface，Manage 不增加 Session sidecar、不替换为 standard、不修改保护中的 Core。测试覆盖认证配置操作、真实 Core 持久化与重启，以及官方客户端草稿输入；实际客户端装载和外部模型验收分别处理。
+
+## 导入 Agent 同步
+
+`AgentSources` 在 Catalog 刷新受管 checkout 前读取旧上游 MCP 定义及用户生效覆盖，按提示词字段、Skill 名称和 MCP 服务键比较基线、个人配置与新来源。冲突支持保留本地、采用上游和经校验的手动结果；预览及取消不改变已提交 Agent。预览令牌只在 Host 内存中保留，重启或替换预览后失效；Agent revision 或 MCP 关联变化时拒绝迟到提交。来源无变化不新增 revision。
+
+导入 Skill 引用持久保存选中正文，用户覆盖与旧 live preset 作用域不随 checkout 刷新而改正文。资源目录和参考资产仍是动态依赖，不快照整个来源树。来源 MCP 变更使用独立连接身份，原始 config 继续作为 Host 基线，个人修改沿既有 runtime override 保存。Agent 列表及来源元数据只保存引用，MCP 冲突预览经过脱敏。
+
+`UserAgents.syncSource` 先解析声明、校验依赖，再注册并 resolve 稳定身份后持久保存。Core 没有原子替换操作，替换失败沿补偿恢复，不发布独立候选身份。发布或持久写失败恢复旧声明和原持久配置。声明释放失败保留句柄，补偿、重试或卸载时继续清理。旧 live Core revision 保留原来源连接；停用、删除 Agent 或明确移除来源仍撤销 schema 和 dispatch。默认选择、Session 和草稿继续归 Core。重启发布已提交的当前配置；精确历史 revision 冷恢复仍受上一节的 Core 合同限制。
+
+## 可信 Cube 引用
+
+仅 GEA Host 登记可将已安装的 BusinessResources 来源标记为 Cube 能力。`cubeSource` 直接读取当前可用性、Consumer 与 owner 撤销信号，不扫描 Skill 目录。前台目录只返回来源 ID、名称、启用意图与可用性。插件成员固定，只允许切换 Cube 启停。显式复制仅生成个人提示词正文及获准的 Skill、Cube 引用，不复制业务 profile、跨 Consumer 路由或页面动作。
+
+个人配置最多持久保存一个 `{ sourceRef, enabled }` 引用。原生预设挂载隔离的 `userAgentCube` 声明，Core 公开 `serviceFor(actualAgent, ...)` 读取实际 Session 保留的 revision，子 Agent 继承相同声明。UserAgents 按当前启停、删除和引用状态撤销授权，沿已有生命周期 watch 通知。提示词或 Skill 更新保留旧会话引用；移除或停用立即中止旧授权，重新添加也不会恢复旧授权。
+
+GEA 按当前身份反查来源 owner 与 Consumer。发现和调用在异步步骤前后复核相同归属，身份、关联或 owner 信号撤销在途调用；替换来源即使 Consumer 相同也拒绝旧结果。v2 bridge 保留服务端原始 schema 与首轮 publication 就绪等待；生命周期和来源变化立即刷新 schema mask。个人引用只授予两项 Cube 工具，子 Agent 继续受 Core 工具过滤交集约束，不注册业务 profile。源码及 Core 测试不证明实际客户端或真实业务验收。
+
+## 已退役的配置入口
+
+统一 Agent 编辑器替代[原工作区](2026-09-06-workspace-tabs-user-panels.zh.md)的六页签、市场安装交互、hash 导航及命令/LSP 编辑器，无调用方的客户端适配随之删除。Host HTTP 仅保留模型目录和 MCP 后端读取；Agent 变更通过认证配置路由。PanelResources 继续提供运行时读取，但直接调用更新或删除插件源也会被拒。个人修改归 Agent 配置所有者。
+
+Catalog 获取、发现、缓存、锁、导入/同步及安装状态保留。MCP 传输、凭据/OAuth、命令/LSP/Hook/项目运行、子 Agent、原业务资产、原生 standard 组合，以及 Core Session、草稿与历史归属均保留。退休查询 fixture 与日期失败证据保持原件。
+
+旧插件 MCP 连接补丁保留原覆盖文件。运行时仅应用启停，使用插件声明的连接输入，并以 `PLUGIN_MCP_OVERRIDE_RETIRED` 标明保留路径。需要定制时显式创建个人 Agent 连接；启动不改写或删除旧补丁。个人 Agent 的 MCP 定义仍可完整校验编辑。
+
+| 旧覆盖                               | 当前行为覆盖                                                                                                                 |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| 市场安装/取消和旧页签                | `user-agent-workspace.test.ts`、`agent-source-panel.test.ts`：内联取消、显式导入、三页签                                     |
+| 受管源直接写入                       | `panel-resources.test.ts`、`user-agent-skills-client.test.ts`、`user-agent-skills.test.ts`：源不变与个人修改                 |
+| 全局 MCP 详情/授权 HTTP 操作         | `agent-mcp.test.ts`、`agent-mcp-transports.test.ts`、`runtime-management.test.ts`：关联、真实传输、OAuth 取消/重试与归属释放 |
+| 通用路由与旧可写策略                 | `routes.test.ts`、`mcp-overrides.test.ts`：旧路径未注册，旧补丁不生效且可诊断                                                |
+| 市场卡片/筛选计数/网格状态及详情适配 | 随退役组件删除，已无对应产品操作                                                                                             |

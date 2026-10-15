@@ -60,13 +60,9 @@ it('projects and persists live Manage configuration through official SettingsFor
   expect(tools()).not.toContain('report_market_issue')
   expect(ctx.agentResources).toBe(resources)
   expect(await backend()).toMatchObject({ backend: 'host', downloadRegion: { setting: 'china' } })
-  const writeBackend = await fetch(`http://127.0.0.1:${ctx.webServer.port}/api/agent-plugins/set-mcp-backend`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ backend: 'builtin' })
-  })
-  expect(writeBackend.status).toBe(200)
+  await ctx.settings.update(namespace, { mcpEnhanced: true }, descriptor()!.revision)
   expect(descriptor()?.value).toMatchObject({ mcpEnhanced: true })
+  expect(await backend()).toMatchObject({ backend: 'builtin' })
   await ctx.settings.update(namespace, { mcpEnhanced: false })
   const savedPatch = await readFile(fixture.profile.patchPath, 'utf8')
   expect(savedPatch).toContain('dsh-agent-manage')

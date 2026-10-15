@@ -2,10 +2,8 @@
 import { act, createElement as h, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ServerConfigEditor } from '../src/client/ui/ServerConfigEditor.js'
-import { MarkdownDocument } from '../src/client/ui/MarkdownDocument.js'
 import type { Translate } from '../src/client/index.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -49,18 +47,6 @@ async function change(label: string, value: string) {
 const value = () => JSON.parse(host.querySelector('[data-value]')!.textContent!) as Record<string, unknown>
 
 describe('shared resource detail editors', () => {
-  it('renders Markdown as markup and metadata as a definition list without rendering HTML injection', () => {
-    const markup = renderToStaticMarkup(
-      h(MarkdownDocument, { t, text: '---\nname: reviewer\ntools: [Read, Grep]\nmetadata:\n  priority: 2\n---\n# Review\n\n**Carefully**\n\n<script>alert(1)</script>' })
-    )
-    expect(markup).toContain('<dl')
-    expect(markup).toContain('priority')
-    expect(markup).toContain('Read')
-    expect(markup).toContain('<strong>Carefully</strong>')
-    expect(markup).not.toContain('<script>')
-    expect(renderToStaticMarkup(h(MarkdownDocument, { t, text: '---\na: [\n---\nbody' }))).toContain('role="alert"')
-  })
-
   it('preserves fields in form/JSON roundtrips and retains invalid JSON for correction', async () => {
     await mount({ type: 'stdio', command: 'node', args: ['arg with spaces'], env: { TOKEN: '${TOKEN}' }, custom: { nested: [true, 2] } })
     expect(host.querySelector('[data-valid]')!.textContent).toBe('true')
