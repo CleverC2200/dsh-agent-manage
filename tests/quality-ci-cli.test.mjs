@@ -1,10 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
+import { spawnSync, execFileSync } from 'node:child_process'
 import process from 'node:process'
 import { mkdtempSync, readFileSync, existsSync, rmSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, resolve, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const call = (phase, env) => spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', phase], { encoding: 'utf8', env: { ...process.env, ...env } })
@@ -336,4 +336,110 @@ test('personal integration cannot trigger upstream release or Pages publication'
   }
   assert.match(npm, /pnpm publish --no-git-checks --provenance/)
   assert.match(pages, /actions\/deploy-pages@v5/)
+})
+
+async function sourceImpactFixture(t) {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-source-impact-')))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const source = resolve(import.meta.dirname, '..')
+  const workbenchSource = process.env.QUALITY_POLICY_WORKBENCH ?? resolve(source, '../dsh-agent-workbench')
+  const { selectCiTests } = await import(pathToFileURL(join(workbenchSource, 'scripts/ci-test-plan.mjs')))
+  const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  const write = (path, bytes) => {
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, bytes)
+  }
+  const commit = path => {
+    git(path, 'add', '.')
+    git(path, '-c', 'user.name=fixture', '-c', 'user.email=fixture@invalid', 'commit', '--quiet', '-m', 'source snapshot')
+    return git(path, 'rev-parse', 'HEAD')
+  }
+  const repositories = []
+  for (const repo of ['dsh-agent-workbench', 'dsh-gea-plugin', 'dsh-agent-manage']) {
+    const path = join(root, repo)
+    write(join(path, 'package.json'), JSON.stringify({ name: repo }))
+    git(path, 'init', '--quiet')
+    if (repo === 'dsh-agent-manage') {
+      // Snapshot authored inputs only; concurrent scratch directories and builds have other owners.
+      for (const file of git(source, 'ls-files', '-z').split('\0').filter(Boolean)) {
+        if (file.startsWith('lib/') || !/\.(?:[cm]?[jt]sx?|css|html|json|ya?ml)$/.test(file)) continue
+        write(join(path, file), readFileSync(join(source, file)))
+      }
+      write(join(path, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories: repositories.map(({ repo, head }) => ({ repo, head })) }))
+    }
+    repositories.push({ repo, path, head: commit(path) })
+  }
+  const own = repositories.find(entry => entry.repo === 'dsh-agent-manage')
+  const workbench = repositories.find(entry => entry.repo === 'dsh-agent-workbench')
+  const base = own.head
+  return {
+    own,
+    change(file, entry = workbench) {
+      const path = join(entry.path, file)
+      write(path, existsSync(path) ? Buffer.concat([readFileSync(path), Buffer.from('\n')]) : 'changed fixture source\n')
+      entry.head = commit(entry.path)
+    },
+    select: () => selectCiTests({ repositories, repo: own.repo, base })
+  }
+}
+
+test('regional page source selects its Manage resource contract without unrelated tests', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('static/regional/source/index.html')
+  const plan = fixture.select()
+  assert.deepEqual(plan.reasons['dsh-agent-workbench/static/regional/source/index.html'], ['tests/business-resources.test.ts'])
+  assert.deepEqual(plan.files, ['tests/business-resources.test.ts', 'tests/market-contracts.test.ts', 'tests/routes.test.ts'])
+  assert.deepEqual(plan.required, ['tests/market-contracts.test.ts', 'tests/routes.test.ts'])
+})
+
+test('category page source selects the same Manage resource contract', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('static/category/source/app.js')
+  const plan = fixture.select()
+  assert.deepEqual(plan.reasons['dsh-agent-workbench/static/category/source/app.js'], ['tests/business-resources.test.ts'])
+  assert.deepEqual(plan.files, ['tests/business-resources.test.ts', 'tests/market-contracts.test.ts', 'tests/routes.test.ts'])
+})
+
+test('MPS page source selects its dedicated resource reception contract', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('static/mps/source/app.js')
+  const plan = fixture.select()
+  assert.deepEqual(plan.reasons['dsh-agent-workbench/static/mps/source/app.js'], ['tests/mps-resource-reception.test.ts'])
+  assert.deepEqual(plan.files, ['tests/market-contracts.test.ts', 'tests/mps-resource-reception.test.ts', 'tests/routes.test.ts'])
+})
+
+test('unregistered source and neighbouring static directories remain unmapped', async t => {
+  for (const [file, own] of [
+    ['src/unmapped-fixture.ts', true],
+    ['static/regional-unregistered/source/index.html', false]
+  ]) {
+    const fixture = await sourceImpactFixture(t)
+    fixture.change(file, own ? fixture.own : undefined)
+    assert.throws(() => fixture.select(), /CI_TEST_IMPACT_UNMAPPED/)
+  }
+})
+
+test('missing static resource consumer contracts reject the plan instead of silently shrinking it', async t => {
+  for (const [source, target] of [
+    ['static/regional/source/index.html', 'tests/business-resources.test.ts'],
+    ['static/mps/source/app.js', 'tests/mps-resource-reception.test.ts']
+  ]) {
+    const fixture = await sourceImpactFixture(t)
+    fixture.change(source)
+    rmSync(join(fixture.own.path, target))
+    assert.throws(() => fixture.select(), /CI_TEST_FILE_REQUIRED/)
+  }
+})
+
+test('a Manage policy edit runs the static resource consumers in its own source CI plan', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('scripts/ci-test-policy.json', fixture.own)
+  const plan = fixture.select()
+  assert.deepEqual(plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'], [
+    'tests/business-resources.test.ts',
+    'tests/market-contracts.test.ts',
+    'tests/mps-resource-reception.test.ts',
+    'tests/routes.test.ts'
+  ])
+  assert.deepEqual(plan.files, ['tests/business-resources.test.ts', 'tests/market-contracts.test.ts', 'tests/mps-resource-reception.test.ts', 'tests/routes.test.ts'])
 })
