@@ -46,7 +46,7 @@ dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 ```
 
 1. Restart DSH and open **Workbench → Agent Marketplace** (`agent-plugin-workspace`). The same resource workspace also remains available in **Settings → Agent Marketplace**. The Workbench directory uses the official `main` registration; titles are presentation metadata.
-2. In **Market**, add a source, for example `https://github.com/anthropics/claude-plugins-official`. No sources are preconfigured.
+2. In **Market**, add a source, for example `https://github.com/anthropics/claude-plugins-official`. The bundled sales-plan configuration source is already discoverable; importing it remains explicit.
 3. Open a suite, review its contents, then install it and ensure it is enabled.
 4. For a suite with skills, check the **Skills** tab and type `/` in chat to find its user-invocable skills. For an MCP suite, check **MCP services** and resolve any credential or connection notices before using its tools.
 

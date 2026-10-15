@@ -249,7 +249,10 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     )
   })
 
-  await catalog.mergeSources(config.sources ?? [])
+  await catalog.mergeSources([
+    ...(config.sources ?? []),
+    { id: 'bundled-sales-plan', url: fileURLToPath(new URL('../business-resources/sales-plan/', import.meta.url)), local: true }
+  ])
   const resources = createPanelResources(catalog, panels)
   catalog.setDownloadRegionProvider(async () => narrowDownloadRegion(config.downloadRegion.get()))
   await catalog.setScanProjectLayouts(config.scanProjectLayouts.get())

@@ -60,6 +60,8 @@ The Skill distinguishes rule explanations, bound-page analysis and governed inde
 
 ## Agent configuration sources
 
+The bundled `bundled-sales-plan` source appears in Configuration sources without creating an Agent. Import its Sales plan assistant, then explicitly select the enabled sales Cube in that personal Agent's MCP tab. The [source assets](../../business-resources/sales-plan/README.md) retain the user's full prompt, Q&A Skill and Cube reference. The other task Skills named in the prompt are not included. Import grants no Consumer, page actions or business writes and does not change the original sales preset, existing Sessions or the user default.
+
 The Agent page’s Configuration sources panel reads existing Catalog Git, local-directory and archive sources. Discovery uses the supported suite manifests, system prompts and Agent Markdown cards. Import creates a stable personal Agent; source-declared `origin`, owner or Consumer metadata does not grant plugin or GEA identity. Unsupported role restrictions and missing or invalid components reject import with diagnostics.
 
 `AgentSources` owns acquisition and import orchestration. `UserAgents` persists the imported baseline separately from editable fields in `user-agents.json`; saving a prompt or Skill customization never edits the source checkout. Repeated imports retain the existing Agent and its customization. Skill imports retain the actual provider and source path, including their reference directories. A new source dependency is installed with only its Skill surface enabled in the same Catalog mutation; an already installed but disabled Skill dependency requires an explicit user decision.
