@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { Catalog } from '../src/application/catalog.js'
+import { inspectToolRegistry } from '../src/runtime/tool-registry-observer.js'
 import { suiteInstructions } from '../src/runtime/project-runtime.js'
 import { SuiteSkillProvider } from '../src/runtime/skills-provider.js'
 import { AgentSources } from '../src/runtime/agent-sources.js'
@@ -186,4 +187,90 @@ it('imports complete source Skills with reference assets and keeps personal Skil
   expect((await reloadedCatalog.readUserCatalog()).suites[0].configurationOnly).toBe(true)
   expect(entry.activeSurfaces).toEqual({ skills: true, mcp: false, hooks: false, commands: false, agents: false, lsp: false })
   await agents.dispose()
+})
+
+it('imports source MCP as personal external associations and resumes the same incomplete Agent after cancellation', async () => {
+  const cancellation = new AbortController()
+  const methods: string[] = []
+  const server = createServer(async (request, response) => {
+    if (request.method !== 'POST') {
+      response.writeHead(405).end()
+      return
+    }
+    let text = ''
+    for await (const chunk of request) text += chunk
+    const body = JSON.parse(text)
+    methods.push(body.method)
+    if (body.id === undefined) {
+      response.writeHead(202).end()
+      return
+    }
+    const result =
+      body.method === 'initialize'
+        ? { protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'source-fixture', version: '1' } }
+        : body.method === 'tools/list'
+          ? { tools: [{ name: 'source_echo', description: 'Controlled fixture', inputSchema: { type: 'object' } }] }
+          : { content: [{ type: 'text', text: 'SOURCE_MCP_RESULT' }] }
+    if (body.method === 'tools/list') cancellation.abort()
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: body.id, result }))
+  })
+  await listenLoopback(server)
+  const address = server.address()
+  if (!address || typeof address === 'string') throw Error('Missing local MCP address')
+  const { ctx, home } = await presetHarness()
+  const root = join(home, 'mcp-source')
+  await mkdir(join(root, '.claude-plugin'), { recursive: true })
+  await writeFile(
+    join(root, '.claude-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'source-mcp',
+      systemPrompt: 'Use the source MCP.',
+      origin: 'plugin',
+      consumerCode: 'admin',
+      mcpServers: { source: { type: 'streamable-http', url: `http://127.0.0.1:${address.port}/mcp`, auth: { enabled: false } } }
+    })
+  )
+  const catalog = new Catalog({
+    userRoot: join(home, 'catalog'),
+    dataRoot: home,
+    onChanged: () => {},
+    runtime: {
+      ctx,
+      translate: key => key,
+      backend: async () => 'builtin',
+      writeBackend: async () => {},
+      tools: () => inspectToolRegistry(ctx.tools),
+      deleteGrantRecord: async () => {}
+    }
+  })
+  await catalog.load()
+  const agents = new UserAgents(ctx, join(home, 'agents.json'), catalog.runtime)
+  await agents.load()
+  try {
+    const sources = new AgentSources(catalog, agents)
+    const source = await sources.acquire({ url: root, kind: 'local' })
+    const target = { sourceId: source.id, suiteId: 'source-mcp', resourceKey: 'suite' }
+    await expect(sources.import(target, cancellation.signal)).rejects.toThrow()
+    const partial = (await agents.list())[0]
+    expect(partial).toMatchObject({ enabled: false, source: { importPending: true } })
+    await expect(agents.setEnabled(partial.id, true)).rejects.toThrow('AGENT_SOURCE_IMPORT_INCOMPLETE')
+    const imported = await sources.import(target)
+    expect(imported).toMatchObject({ id: partial.id, origin: 'user', enabled: true, publication: 'ready', source: { importPending: false } })
+    expect(imported.source?.mcpReferences).toHaveLength(1)
+    const connections = await agents.mcp!.list(imported.id)
+    expect(connections).toHaveLength(1)
+    expect(connections[0]).toMatchObject({ owner: 'user', state: 'connected', allowedOps: ['edit', 'toggle', 'remove'] })
+    const session = await agentOn(ctx, 'source-with-mcp', (await agents.select(imported.id)).preset)
+    const standard = await agentOn(ctx, 'source-mcp-not-selected', 'standard')
+    const tool = ctx.tools.schemas(session).find(row => row.name.endsWith('__source_echo'))?.name
+    expect(tool).toBeTruthy()
+    expect(ctx.tools.schemas(standard).map(row => row.name)).not.toContain(tool)
+    expect(methods).toContain('initialize')
+    expect(methods).toContain('tools/list')
+    expect(await agents.list()).toHaveLength(1)
+  } finally {
+    await agents.dispose()
+    await catalog.runtime.dispose()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
 })

@@ -59,6 +59,7 @@ export class AgentSources {
           (value.kind === 'git' ? canonicalGitUrl(source.url) === canonicalGitUrl(value.url) : expandHome(source.url) === expandHome(value.url)) &&
           source.branch === value.branch
       )
+      if (existing && value.sha256 && existing.sha256 !== value.sha256) throw Error('AGENT_SOURCE_LOCK_MISMATCH')
       const source = existing ?? (await this.catalog.addSource(value))
       signal?.throwIfAborted()
       return (await this.list()).find(row => row.id === source.id)!
@@ -67,50 +68,81 @@ export class AgentSources {
     return result
   }
 
-  async import(input: unknown, signal?: AbortSignal) {
+  import(input: unknown, signal?: AbortSignal) {
     const value = selection.parse(input)
-    signal?.throwIfAborted()
-    const existing = (await this.agents.list()).find(
-      agent => agent.source?.sourceId === value.sourceId && agent.source?.suiteId === value.suiteId && agent.source?.resourceKey === value.resourceKey
-    )
-    if (existing) return existing
-    const source = (await this.list()).find(row => row.id === value.sourceId)
-    if (!source) throw Error('AGENT_SOURCE_NOT_FOUND')
-    const suite = (await this.catalog.readUserCatalog()).suites.find(row => row.sourceId === source.id && row.id === value.suiteId)
-    if (!suite) throw Error('AGENT_SOURCE_SUITE_NOT_FOUND')
-    const candidate = (await this.discover(suite)).find(row => row.resourceKey === value.resourceKey)
-    if (!candidate?.base) throw Error(candidate?.error ?? 'AGENT_SOURCE_CONFIGURATION_NOT_FOUND')
-    const skills: UserAgentSkill[] = []
-    if (suite.skills.length) {
-      const card = (await this.catalog.overview()).suites.find(row => row.sourceId === suite.sourceId && row.suiteId === suite.id)!
-      if (card.installed && (!card.enabled || card.surfaceToggles?.skills === false)) throw Error('AGENT_SOURCE_SKILLS_DISABLED')
-      if (!card.installed)
-        await this.catalog.install(suite.sourceId, suite.id, {
-          surfaces: { skills: true, mcp: false, hooks: false, commands: false, agents: false, lsp: false },
-          configurationOnly: true
-        })
-      const available = await this.agents.skillCatalog()
-      for (const skill of suite.skills) {
-        const reference = available.find(row => row.name === skill.name && row.provider === 'agent-plugin' && row.path === skill.file)
-        if (!reference) throw Error(`AGENT_SOURCE_SKILL_UNAVAILABLE: ${skill.name}`)
-        skills.push({ kind: 'reference', name: reference.name, provider: reference.provider, path: reference.path, enabled: true })
+    const result = this.pending.then(async () => {
+      signal?.throwIfAborted()
+      const existing = (await this.agents.list()).find(
+        agent => agent.source?.sourceId === value.sourceId && agent.source?.suiteId === value.suiteId && agent.source?.resourceKey === value.resourceKey
+      )
+      if (existing && !existing.source?.importPending) return existing
+      const source = (await this.list()).find(row => row.id === value.sourceId)
+      if (!source) throw Error('AGENT_SOURCE_NOT_FOUND')
+      const suite = (await this.catalog.readUserCatalog()).suites.find(row => row.sourceId === source.id && row.id === value.suiteId)
+      if (!suite) throw Error('AGENT_SOURCE_SUITE_NOT_FOUND')
+      const candidate = (await this.discover(suite)).find(row => row.resourceKey === value.resourceKey)
+      if (!candidate?.base) throw Error(candidate?.error ?? 'AGENT_SOURCE_CONFIGURATION_NOT_FOUND')
+      const skills: UserAgentSkill[] = []
+      if (suite.skills.length) {
+        const card = (await this.catalog.overview()).suites.find(row => row.sourceId === suite.sourceId && row.suiteId === suite.id)!
+        if (card.installed && (!card.enabled || card.surfaceToggles?.skills === false)) throw Error('AGENT_SOURCE_SKILLS_DISABLED')
+        if (!card.installed)
+          await this.catalog.install(suite.sourceId, suite.id, {
+            surfaces: { skills: true, mcp: false, hooks: false, commands: false, agents: false, lsp: false },
+            configurationOnly: true
+          })
+        const available = await this.agents.skillCatalog()
+        for (const skill of suite.skills) {
+          const reference = available.find(row => row.name === skill.name && row.provider === 'agent-plugin' && row.path === skill.file)
+          if (!reference) throw Error(`AGENT_SOURCE_SKILL_UNAVAILABLE: ${skill.name}`)
+          skills.push({ kind: 'reference', name: reference.name, provider: reference.provider, path: reference.path, enabled: true })
+        }
       }
-    }
-    const base = { ...candidate.base, skills }
-    signal?.throwIfAborted()
-    return this.agents.importSource(
-      { ...base, enabled: true },
-      {
-        sourceId: source.id,
-        suiteId: suite.id,
-        resourceKey: candidate.resourceKey,
-        url: source.url,
-        kind: source.kind,
-        ...(source.lockCommit ? { lockCommit: source.lockCommit } : {}),
-        ...(suite.manifest.version ? { version: suite.manifest.version } : {}),
-        base
+      const base = { ...candidate.base, skills }
+      signal?.throwIfAborted()
+      const hasMcp = Object.keys(suite.mcp?.servers ?? {}).length > 0
+      if (hasMcp && !this.agents.mcp) throw Error('AGENT_SOURCE_MCP_UNAVAILABLE')
+      const agent =
+        existing ??
+        (await this.agents.importSource(
+          { ...base, enabled: !hasMcp },
+          {
+            sourceId: source.id,
+            suiteId: suite.id,
+            resourceKey: candidate.resourceKey,
+            url: source.url,
+            kind: source.kind,
+            ...(source.lockCommit ? { lockCommit: source.lockCommit } : {}),
+            ...(suite.manifest.version ? { version: suite.manifest.version } : {}),
+            base,
+            ...(hasMcp ? { importPending: true } : {})
+          }
+        ))
+      if (!hasMcp) return agent
+      const mcp = this.agents.mcp!
+      const associations = await mcp.list(agent.id)
+      const references: NonNullable<AgentSourceBaseline['mcpReferences']> = []
+      const servers = Object.entries(suite.mcp!.servers).sort(([a], [b]) => a.localeCompare(b))
+      for (const [index, [serverKey, config]] of servers.entries()) {
+        signal?.throwIfAborted()
+        const serverId = `import-${agent.id.slice(0, 8)}-${index}-${serverKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`.slice(0, 64)
+        const previous = associations.find(row => row.serverId === serverId)
+        const connection =
+          previous ??
+          (await mcp.importSource({
+            agentId: agent.id,
+            serverId,
+            name: serverKey.slice(0, 160),
+            config,
+            source: { sourceId: suite.sourceId, suiteId: suite.id, serverKey, root: suite.mcp?.root ?? suite.root }
+          }))
+        references.push({ serverKey, serverId, connectionId: connection.connectionId })
       }
-    )
+      signal?.throwIfAborted()
+      return this.agents.finishSourceImport(agent.id, references)
+    })
+    this.pending = result.catch(() => {})
+    return result
   }
 
   private async discover(suite: Suite): Promise<Discovered[]> {
@@ -121,11 +153,7 @@ export class AgentSources {
     const common = { suiteId: suite.id, name: suite.manifest.name, description: suite.manifest.description ?? '' }
     if (suite.errors.length) return [{ ...common, resourceKey: 'suite', error: suite.errors.join('; ') }]
     const result: Discovered[] = []
-    const unsupported = suite.surfaces.mcp
-      ? 'AGENT_SOURCE_MEMBERS_REQUIRE_IMPORT_SUPPORT'
-      : suite.surfaces.hooks || suite.surfaces.commands || suite.surfaces.lsp
-        ? 'AGENT_SOURCE_UNSUPPORTED_COMPONENTS'
-        : undefined
+    const unsupported = suite.surfaces.hooks || suite.surfaces.commands || suite.surfaces.lsp ? 'AGENT_SOURCE_UNSUPPORTED_COMPONENTS' : undefined
     if (suite.systemPrompt?.trim())
       result.push({ ...common, resourceKey: 'suite', base: { name: common.name, description: common.description, prompt: suite.systemPrompt, skills: [] } })
     const resources = suite.resources?.agents ?? (await defaultMarkdownResources(suite.root, 'agents'))
