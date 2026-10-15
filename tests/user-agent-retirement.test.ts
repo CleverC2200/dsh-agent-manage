@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { UserAgents } from '../src/runtime/user-agents.js'
 import { mountUserAgentRoutes } from '../src/runtime/user-agent-routes.js'
 import { USER_AGENT_ROUTES } from '../src/contracts/user-agents.js'
-import { completion, official, presetHarness, turn } from './core-preset-harness.js'
+import { completion, official, presetHarness, record, turn } from './core-preset-harness.js'
 
 it('withdraws a personal Agent, retains live history and restores a deleted configuration explicitly after cold boot', async () => {
   const { ctx, home, start } = await presetHarness()
@@ -26,11 +26,11 @@ it('withdraws a personal Agent, retains live history and restores a deleted conf
   }
   const saved = (await post(ctx, USER_AGENT_ROUTES.save, { name: '保留历史', description: '', prompt: 'RETAIN_ORIGINAL_PERSONA', enabled: true })).body
   await completion(ctx)
-  const created = await ctx.sessionController.create({ cwd: home, agentPreset: saved.preset })
+  const { SessionId } = await official('@deepseek-ai/dsh-session')
+  const created = await ctx.sessionController.create({ cwd: home, sessionId: SessionId('retirement-preserved-draft'), agentPreset: saved.preset })
   const live = ctx.agents.get(created.sessionId)!
   await turn(ctx, live, 'Preserve this conversation')
   const history = live.session.snapshotEvents()
-  const { SessionId } = await official('@deepseek-ai/dsh-session')
   const blank = await ctx.sessionController.create({ cwd: home, sessionId: SessionId('retired-blank-session'), agentPreset: saved.preset })
   await ctx.settings.update('agent-preset-registry', { selectedDefault: saved.preset })
   expect((await post(ctx, USER_AGENT_ROUTES.enabled, { id: saved.id, enabled: false })).status).toBe(200)
@@ -69,6 +69,21 @@ it('withdraws a personal Agent, retains live history and restores a deleted conf
   expect(cold.agentPresets.composedPreset(cold.agents.get(created.sessionId)!.ctx)).toBe(saved.preset)
   expect(await cold.sessionController.create({ cwd: home, sessionId: blank.sessionId })).toEqual(blank)
   expect(cold.agentPresets.defaultId).toBe(saved.preset)
+  await record('user-agent-retirement', {
+    scope: 'authenticated configuration routes and fixed official Core libraries; local completion',
+    preset: saved.preset,
+    live: { withdrawnFromRoster: true, originalRevisionRetained: true, historyPreserved: true, defaultUnchanged: true },
+    cold: {
+      hostRestarted: true,
+      missingPresetRejected: true,
+      retainedHistoryRead: true,
+      blankSessionPresetChecked: true,
+      restoredDisabledFirst: true,
+      explicitEnableRecoveredSameSession: true,
+      defaultUnchanged: true
+    },
+    limitation: 'Cold recovery composes retained current configuration, not an archived historical revision'
+  })
   await restored.dispose()
 })
 
@@ -100,5 +115,6 @@ it('requires the missing Skill source again after explicitly restoring and enabl
   const agent = cold.agents.get(created.sessionId)!
   expect((await cold.skills.get('recover-source', { scope: agent })).content).toBe('RESTORED_DEPENDENCY')
   repaired()
+  await record('user-agent-dependency-recovery', { hostRestarted: true, restoredSourceMissingRejected: true, sourceRestoredExplicitEnableRecoveredSameSession: true })
   await restored.dispose()
 })

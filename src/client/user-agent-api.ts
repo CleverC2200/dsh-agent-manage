@@ -1,7 +1,7 @@
 import { USER_AGENT_ROUTES, type SaveUserAgent, type UserAgentView, type UserAgentSkill, type UserAgentSkillOption } from '../contracts/user-agents.js'
 export type { UserAgentView, SaveUserAgent, UserAgentSkill, UserAgentSkillOption }
 
-async function request<T>(path: string, value?: unknown, signal?: AbortSignal): Promise<T> {
+export async function request<T>(path: string, value?: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
     method: value === undefined ? 'GET' : 'POST', credentials: 'same-origin', cache: 'no-store', signal,
     ...(value === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) })

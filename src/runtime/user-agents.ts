@@ -4,6 +4,8 @@ import { dirname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import type { UserAgentConfig, UserAgentView, UserAgentSkillOption } from '../contracts/user-agents.js'
+import type { RuntimeManagement } from '../application/runtime-management.js'
+import { AgentMcp } from './agent-mcp.js'
 import { composeStandardPreset } from './standard-preset.js'
 
 const fields = {
@@ -33,10 +35,13 @@ export class UserAgents {
   private closed = false
   private readonly listeners = new Set<() => void>()
 
+  readonly mcp?: AgentMcp
+
   constructor(
-    private readonly ctx: Pick<Context, 'agentPresets' | 'skills'>,
-    private readonly file: string
-  ) {}
+    private readonly ctx: Context,
+    private readonly file: string,
+    runtime?: RuntimeManagement
+  ) { if (runtime) this.mcp = new AgentMcp(ctx, dirname(file), runtime) }
 
   async load(): Promise<void> {
     try {
@@ -45,6 +50,7 @@ export class UserAgents {
     } catch (error) {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     }
+    await this.mcp?.load(this.agents)
     // During Host activation only register, never await the whole Loader tree.
     // Actual availability is audited by list/select after the Host has settled.
     for (const agent of this.agents) if (agent.enabled && !agent.deletedAt) await this.publish(agent, false)
@@ -71,6 +77,7 @@ export class UserAgents {
       const next = previous ? this.agents.map(row => (row.id === agent.id ? agent : row)) : [...this.agents, agent]
       await this.persist(next)
       this.agents = next
+      await this.mcp?.agentsChanged(this.agents)
       if (agent.enabled) await this.publish(agent, true)
       else await this.withdraw(agent.id)
       return this.view(agent)
@@ -96,6 +103,7 @@ export class UserAgents {
       const next = this.agents.map(row => row.id === id ? agent : row)
       await this.persist(next)
       this.agents = next
+      await this.mcp?.agentsChanged(this.agents)
       if (agent.enabled) await this.publish(agent, true)
       return this.view(agent)
     })
@@ -107,6 +115,7 @@ export class UserAgents {
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
+      await this.mcp?.agentsChanged(this.agents)
       if (enabled) await this.publish(agent, true)
       else await this.withdraw(id)
       return this.view(agent)
@@ -121,6 +130,7 @@ export class UserAgents {
       const next = this.agents.map(row => row.id === id ? agent : row)
       await this.persist(next)
       this.agents = next
+      await this.mcp?.agentsChanged(this.agents)
       await this.withdraw(id)
       return this.view(agent)
     })
@@ -131,11 +141,12 @@ export class UserAgents {
     return this.write(async () => {
       const deleted = this.find(id, true)
       if (!deleted.deletedAt) throw Error('USER_AGENT_NOT_DELETED')
-      const { deletedAt: _deletedAt, ...previous } = deleted
-      const agent = { ...previous, enabled: false }
+      const agent = { ...deleted, enabled: false }
+      delete agent.deletedAt
       const next = this.agents.map(row => row.id === id ? agent : row)
       await this.persist(next)
       this.agents = next
+      await this.mcp?.agentsChanged(this.agents)
       return this.view(agent)
     })
   }
@@ -150,6 +161,7 @@ export class UserAgents {
   async dispose(): Promise<void> {
     this.closed = true
     await this.pending
+    await this.mcp?.dispose()
     for (const id of this.releases.keys()) await this.withdraw(id)
     this.listeners.clear()
   }

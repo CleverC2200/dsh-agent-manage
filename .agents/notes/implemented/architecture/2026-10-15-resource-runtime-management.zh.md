@@ -35,3 +35,7 @@ GEA Schema 发布使用 GEA 自有的身份信号。同身份资源刷新先准�
 行为测试经公开运行时 interface 覆盖 HTTP OAuth 重新授权及精确挂载归属、配置脱敏、后端重挂、清理重试、慢启动期间凭据通知与释放顺序。这些结果证明选定 SDK 下的本地源码行为，不证明已安装 Native、真实模型、业务、CI 或发布验收。
 
 [English](2026-10-15-resource-runtime-management.md)
+
+个人 Agent 的 MCP 关联由 `UserAgents` 旁的 `AgentMcp` 管理，保存共享连接身份和每 Agent 关联，配置、凭据和连接生命周期仍归 `Catalog.runtime`。源导入的 Host 目录单独保存，不进入可编辑服务 JSON；校验和挂载时沿用该目录，HTTP 请求不能自填目录或声明插件身份。
+
+经认证的 Agent 路由供内联编辑和关联操作共用。工具 schema 和 dispatch 同时按 Core `composedPreset` 与当前关联收窄，已运行 Session 也立即受新开关约束，未知个人 MCP 命名空间拒绝使用。移除关联保留共享定义。插件 MCP 的直接编辑被拒，仍允许启停。连接状态读取既有 supervisor，成功发现零工具也视为已连接。受控本地 HTTP 验证覆盖初始化、工具发现、取消、真实 Session 作用域和重启；实际客户端与业务验收仍需单独留证。
