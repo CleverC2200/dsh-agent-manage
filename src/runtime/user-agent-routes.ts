@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { AGENT_MCP_ROUTES } from '../contracts/agent-mcp.js'
 import { USER_AGENT_ROUTES } from '../contracts/user-agents.js'
 import { readJsonRequest, RequestBodyTooLarge } from './request-body.js'
+import { isSameOriginRequest } from './request-origin.js'
 import type { UserAgents } from './user-agents.js'
 
 /** Authenticated Host Fetch routes share the same complete configuration module as publication. */
@@ -18,8 +19,7 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
         requestBody: mutation ? 'streaming' : 'buffered',
         fetch: async request => {
           try {
-            const origin = request.headers.get('origin')
-            if (mutation && origin && origin !== new URL(request.url).origin) return Response.json({ error: 'CROSS_ORIGIN_REQUEST' }, { status: 403 })
+            if (mutation && !isSameOriginRequest(request)) return Response.json({ error: 'CROSS_ORIGIN_REQUEST' }, { status: 403 })
             let result: unknown
             if (path === 'list') result = await agents.list()
             else if (path === 'cubeSources') result = agents.cubeSources()

@@ -1,3 +1,4 @@
+import { isSameOriginRequest } from './request-origin.js'
 import type { Context } from '@deepseek-ai/cordis'
 import { AGENT_SOURCE_ROUTES } from '../contracts/agent-sources.js'
 import type { AgentSources } from './agent-sources.js'
@@ -14,8 +15,7 @@ export function mountAgentSourceRoutes(host: Pick<Context, 'connection' | 'effec
         requestBody: mutation ? 'streaming' : 'buffered',
         fetch: async request => {
           try {
-            const origin = request.headers.get('origin')
-            if (mutation && origin && origin !== new URL(request.url).origin) return Response.json({ error: 'CROSS_ORIGIN_REQUEST' }, { status: 403 })
+            if (mutation && !isSameOriginRequest(request)) return Response.json({ error: 'CROSS_ORIGIN_REQUEST' }, { status: 403 })
             const result =
               action === 'list'
                 ? await sources.list()

@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
   "description": "Configure personal Agents, Skills and MCP connections for DeepSeek Harness, publish native presets, and preserve source import, synchronization and host-owned runtime capabilities.",
-  "version": "0.6.3-company.6",
+  "version": "0.6.3-company.12",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -81,7 +81,8 @@
     "quality:ci": "node scripts/run-quality-ci.mjs",
     "test:ci-inputs": "node --test tests/sdk-input-cli.test.mjs tests/quality-ci-cli.test.mjs tests/run-quality-checks.test.mjs tests/preset-capabilities-cli.test.mjs tests/sdk-artifact-cache.test.mjs scripts/business-profile-ci.test.mjs",
     "check:static": "pnpm run check:knowledge && pnpm run test:knowledge && pnpm run test:ci-inputs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
-    "test:ci-unit": "pnpm run test:package-version && vitest run --config vitest.ci-unit.config.ts"
+    "test:ci-unit": "pnpm run test:package-version && vitest run --config vitest.ci-unit.config.ts",
+    "test:agent-browser": "vitest run --config vitest.agent-browser.config.ts"
   },
   "dsh": {
     "bundle": {
