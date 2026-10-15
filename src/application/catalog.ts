@@ -327,7 +327,6 @@ export class Catalog {
     const snapshot = await this.readUserCatalog()
     const sourceRows: SourceOverview[] = []
     for (const source of snapshot.sources) {
-      const inFlight = this.currentSourceState?.sourceId === source.id ? this.currentSourceState : undefined
       const checkout = this.sourceCheckoutPath(source)
       const kind = resolveSourceKind(source)
       let cloned = false
@@ -339,11 +338,6 @@ export class Catalog {
       } else if (kind === 'archive') {
         cloned = await isDirectory(checkout)
         lockCommit = this.headCache.get(source.id)
-      } else if (inFlight !== undefined) {
-        // A mutation owns this source right now: do not race git against its checkout.
-        // 中文：源正在变更时使用进行中的状态，避免与 Git 检查同时访问检出目录。
-        cloned = inFlight.cloned || (await isDirectory(checkout))
-        lockCommit = inFlight.head
       } else {
         const cachedHead = this.headCache.get(source.id)
         if (cachedHead !== undefined && (await isDirectory(checkout))) {
@@ -477,41 +471,39 @@ export class Catalog {
         ...(kind === 'local' ? { local: true as const } : { kind }),
         ...(input.kind === 'archive' && input.sha256 !== undefined && input.sha256 !== '' ? { sha256: input.sha256 } : {})
       }
-      let checkout = this.sourceCheckoutPath(source)
-      if (kind === 'local') {
-        if (!(await isDirectory(checkout))) throw new Error(`local source directory ${checkout} is missing`)
-      } else {
-        this.beginSourceState(baseId, kind === 'archive' ? 'downloading' : 'cloning', false)
-        try {
+      if (kind !== 'local') this.currentSourceState = { sourceId: baseId, step: kind === 'archive' ? 'downloading' : 'cloning' }
+      try {
+        let checkout = this.sourceCheckoutPath(source)
+        if (kind === 'local') {
+          if (!(await isDirectory(checkout))) throw new Error(`local source directory ${checkout} is missing`)
+        } else {
           const lock = await this.acquire(source)
           if (lock !== undefined) this.headCache.set(source.id, lock)
-        } catch (error) {
-          this.endSourceState()
-          throw error
+          this.currentSourceState = { sourceId: baseId, step: 'reading' }
         }
-        this.updateSourceStep('reading')
+        // The repo's own manifest names the source; move the checkout along so
+        // the registered id and its `.sources/` directory stay coherent. URL
+        // derived candidates stay as readable fallbacks before numeric suffixes.
+        // 中文：优先采用清单/仓库可读名称，并保持登记 ID 与 `.sources/` 目录一致。
+        const named = [...new Set([sanitizeId(await repoName(checkout)), ...deriveSourceIdCandidates(input.url)])]
+        const finalId = await this.pickSourceId(named, kind === 'local', kind === 'local' ? undefined : checkout)
+        if (kind !== 'local' && finalId !== baseId) {
+          const targetDir = sourceCheckoutDir(this.options.userRoot, finalId)
+          await rename(checkout, targetDir)
+          checkout = targetDir
+        }
+        source.id = finalId
+        if (resolveSourceKind(source) === 'git') {
+          const head = await tryHead(checkout)
+          if (head !== undefined) this.headCache.set(source.id, head)
+        }
+        this.state = { ...this.state, sources: [...this.state.sources, source] }
+        await saveState(this.statePath, this.state)
+        await this.notifyChanged()
+        return source
+      } finally {
+        this.currentSourceState = undefined
       }
-      // The repo's own manifest names the source; move the checkout along so
-      // the registered id and its `.sources/` directory stay coherent. URL
-      // derived candidates stay as readable fallbacks before numeric suffixes.
-      // 中文：优先采用清单/仓库可读名称，并保持登记 ID 与 `.sources/` 目录一致。
-      const named = [...new Set([sanitizeId(await repoName(checkout)), ...deriveSourceIdCandidates(input.url)])]
-      const finalId = await this.pickSourceId(named, kind === 'local', kind === 'local' ? undefined : checkout)
-      if (kind !== 'local' && finalId !== baseId) {
-        const targetDir = sourceCheckoutDir(this.options.userRoot, finalId)
-        await rename(checkout, targetDir)
-        checkout = targetDir
-      }
-      source.id = finalId
-      if (resolveSourceKind(source) === 'git') {
-        const head = await tryHead(checkout)
-        if (head !== undefined) this.headCache.set(source.id, head)
-      }
-      this.endSourceState()
-      this.state = { ...this.state, sources: [...this.state.sources, source] }
-      await saveState(this.statePath, this.state)
-      await this.notifyChanged()
-      return source
     })
   }
 
@@ -597,25 +589,7 @@ export class Catalog {
 
   /** Progress snapshot of the source mutation currently in flight. */
   /** 中文：记录当前正在执行的源变更及其步骤，供进度接口读取。 */
-  private currentSourceState: { sourceId: string; step: string; cloned: boolean; head?: string } | undefined
-
-  /** Begin reporting progress for a source mutation. */
-  /** 中文：开始报告指定源的获取步骤。 */
-  beginSourceState(sourceId: string, step: string, cloned: boolean): void {
-    this.currentSourceState = { sourceId, step, cloned }
-  }
-
-  /** Advance the in-flight source mutation step. */
-  /** 中文：推进当前源变更的进度步骤。 */
-  updateSourceStep(step: string): void {
-    if (this.currentSourceState !== undefined) this.currentSourceState = { ...this.currentSourceState, step }
-  }
-
-  /** Stop reporting source mutation progress. */
-  /** 中文：结束当前源变更的进度报告。 */
-  endSourceState(): void {
-    this.currentSourceState = undefined
-  }
+  private currentSourceState: { sourceId: string; step: string } | undefined
 
   /** Progress snapshot for the progress route. */
   /** 中文：返回进度路由所需的当前步骤快照。 */
