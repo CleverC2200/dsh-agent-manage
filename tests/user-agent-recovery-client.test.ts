@@ -46,3 +46,35 @@ it('offers explicit configuration recovery without enabling or rewriting a defau
     vi.restoreAllMocks()
   }
 })
+
+it('ignores recovery that completes after switching to another Agent', async () => {
+  const old = {
+    id: '98ea492c-eed1-46b3-bc10-56dbb3dcb060',
+    name: 'A',
+    description: '',
+    prompt: 'A',
+    skills: [],
+    revision: 1,
+    enabled: false,
+    origin: 'user' as const,
+    preset: 'user-agent-a',
+    publication: 'disabled' as const,
+    defaultUnavailable: false
+  }
+  const pending = Promise.withResolvers<typeof old>()
+  vi.spyOn(userAgentApi, 'setEnabled').mockReturnValue(pending.promise)
+  const changed = vi.fn()
+  const node = document.createElement('div')
+  const root = createRoot(node)
+  const props = { t: (key: keyof typeof zh) => zh[key], onChanged: changed, onChooseAnother: () => {} }
+  try {
+    await act(async () => root.render(createElement(AgentRecovery, { ...props, agent: old })))
+    await act(async () => [...node.querySelectorAll('button')].find(row => row.textContent === zh.agentEnableRecovery)!.click())
+    await act(async () => root.render(createElement(AgentRecovery, { ...props, agent: { ...old, id: 'b575551f-6614-4e1b-813a-640d881631c8', name: 'B' } })))
+    await act(async () => pending.resolve(old))
+    expect(changed).not.toHaveBeenCalled()
+  } finally {
+    await act(async () => root.unmount())
+    vi.restoreAllMocks()
+  }
+})

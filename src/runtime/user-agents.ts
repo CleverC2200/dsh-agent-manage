@@ -7,6 +7,8 @@ import type { AgentSourceBaseline } from '../contracts/agent-sources.js'
 import type { UserAgentConfig, UserAgentView, UserAgentSkillOption } from '../contracts/user-agents.js'
 import type { RuntimeManagement } from '../application/runtime-management.js'
 import type {} from './user-agent-cube.js'
+import { agentSkills, captureAgentSkills } from './agent-skills.js'
+export { agentSkills } from './agent-skills.js'
 import { AgentMcp } from './agent-mcp.js'
 import { composeStandardPreset } from './standard-preset.js'
 
@@ -16,28 +18,6 @@ const fields = {
   prompt: z.string().trim().min(1).max(48_000),
   enabled: z.boolean()
 }
-export const agentSkills = z
-  .array(
-    z.discriminatedUnion('kind', [
-      z.object({
-        kind: z.literal('reference'),
-        name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-        provider: z.string().min(1),
-        path: z.string().optional(),
-        enabled: z.boolean(),
-        content: z.string().trim().min(1).max(96000).optional()
-      }),
-      z.object({
-        kind: z.literal('personal'),
-        name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-        description: z.string().trim().min(1).max(1000),
-        content: z.string().trim().min(1).max(96000),
-        enabled: z.boolean()
-      })
-    ])
-  )
-  .max(200)
-  .refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length, 'DUPLICATE_AGENT_SKILL')
 const sourceBaseline = z.object({
   sourceId: z.string(),
   suiteId: z.string(),
@@ -262,6 +242,15 @@ export class UserAgents {
       return this.view(agent)
     })
   }
+  pluginAgents() {
+    return this.ctx.agentResources.pluginAgents()
+  }
+  savePlugin(input: unknown) {
+    return this.ctx.agentResources.savePlugin(input)
+  }
+  setPluginEnabled(id: string, enabled: boolean) {
+    return this.ctx.agentResources.setPluginEnabled(id, enabled)
+  }
   cubeSources() {
     return this.ctx.agentResources.cubeCatalog()
   }
@@ -271,7 +260,7 @@ export class UserAgents {
   async copyPlugin(sourceRef: string): Promise<UserAgentView> {
     const copy = await this.ctx.agentResources.copyable(sourceRef)
     const value = saveAgent.parse({ name: copy.name, description: copy.description, prompt: copy.prompt, enabled: true })
-    const skills = agentSkills.parse(copy.skills)
+    const skills = await captureAgentSkills(this.ctx, agentSkills.parse(copy.skills))
     return this.write(async () => {
       const agent: UserAgentConfig = { ...value, id: randomUUID(), revision: 1, skills, ...(copy.cube ? { cube: copy.cube } : {}) }
       const next = [...this.agents, agent]
@@ -296,8 +285,15 @@ export class UserAgents {
   }
 
   saveSkills(id: string, input: unknown): Promise<UserAgentView> {
-    const skills = agentSkills.parse(input)
+    const parsed = agentSkills.parse(input)
     return this.write(async () => {
+      let skills = parsed
+      let problem: string | undefined
+      try {
+        skills = await captureAgentSkills(this.ctx, parsed)
+      } catch (error) {
+        problem = error instanceof Error ? error.message : String(error)
+      }
       const previous = this.find(id)
       const agent = { ...previous, skills, revision: previous.revision + 1 }
       const next = this.agents.map(row => (row.id === id ? agent : row))
@@ -305,7 +301,8 @@ export class UserAgents {
       this.agents = next
       this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
-      if (agent.enabled) await this.publish(agent, true)
+      if (problem) this.errors.set(agent.id, problem)
+      else if (agent.enabled) await this.publish(agent, true)
       return this.view(agent)
     })
   }
@@ -407,7 +404,7 @@ export class UserAgents {
   }
 
   private async prepare(agent: UserAgentConfig) {
-    for (const skill of agent.skills) if (skill.kind === 'reference' && skill.enabled) await this.readSkill(skill.name, skill.provider, undefined, undefined, skill.path)
+    const skills = await captureAgentSkills(this.ctx, agent.skills)
     const grant = this.cubeGrants.get(agent.id)
     return composeStandardPreset(
       this.ctx.agentPresets,
@@ -422,7 +419,7 @@ export class UserAgents {
           {
             id: 'user-agent-skills',
             name: 'dsh-agent-manage/user-agent-skills',
-            config: { skills: agent.skills, sourceMcpConnections: agent.source?.mcpReferences?.filter(row => !row.removed).map(row => row.connectionId) ?? [] }
+            config: { skills, sourceMcpConnections: agent.source?.mcpReferences?.filter(row => !row.removed).map(row => row.connectionId) ?? [] }
           },
           ...(agent.cube?.enabled && grant
             ? [

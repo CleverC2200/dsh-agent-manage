@@ -11,6 +11,10 @@ export async function request<T>(path: string, value?: unknown, signal?: AbortSi
   return body as T
 }
 export const userAgentApi = {
+  pluginAgents: () => request<UserAgentView[]>(USER_AGENT_ROUTES.pluginList),
+  savePlugin: (id: string, prompt: string) => request<UserAgentView>(USER_AGENT_ROUTES.pluginSave, { id, prompt }),
+  savePluginSkills: (id: string, skills: UserAgentSkill[], signal?: AbortSignal) => request<UserAgentView>(USER_AGENT_ROUTES.pluginSkills, { id, skills }, signal),
+  setPluginEnabled: (id: string, enabled: boolean) => request<UserAgentView>(USER_AGENT_ROUTES.pluginEnabled, { id, enabled }),
   cubeSources: () => request<TrustedCubeSource[]>(USER_AGENT_ROUTES.cubeSources),
   saveCube: (id: string, cube: UserAgentView['cube'] | null) => request<UserAgentView>(USER_AGENT_ROUTES.cubeSave, { id, cube }),
   setPluginCubeEnabled: (sourceRef: string, enabled: boolean) => request<TrustedCubeSource[]>(USER_AGENT_ROUTES.cubeEnabled, { sourceRef, enabled }),

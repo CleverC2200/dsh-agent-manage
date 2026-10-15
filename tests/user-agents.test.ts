@@ -199,3 +199,22 @@ it('binds a trusted Cube reference to the actual Core revision and revokes remov
   await agents.dispose()
   await resources.dispose()
 })
+
+it('retains ordinary referenced Skill text in each real Core revision', async () => {
+  const { ctx, home } = await presetHarness()
+  let release = ctx.skills.register({ name: 'changing-skill', description: 'Source text', source: 'bundled', content: 'ORIGINAL_REFERENCE_BODY' })
+  const agents = new UserAgents(ctx, join(home, 'reference-agents.json'))
+  await agents.load()
+  const a = await agents.save({ name: 'Snapshot', prompt: 'Snapshot persona', enabled: true })
+  const skill = { kind: 'reference' as const, name: 'changing-skill', provider: 'runtime', enabled: true }
+  await agents.saveSkills(a.id, [skill])
+  const first = await agentOn(ctx, 'reference-old', a.preset, undefined, home)
+  release()
+  release = ctx.skills.register({ name: 'changing-skill', description: 'Source text', source: 'bundled', content: 'UPDATED_REFERENCE_BODY' })
+  await agents.saveSkills(a.id, [skill])
+  const next = await agentOn(ctx, 'reference-new', a.preset, undefined, home)
+  expect((await ctx.skills.get(skill.name, { scope: first, cwd: home }))?.content).toBe('ORIGINAL_REFERENCE_BODY')
+  expect((await ctx.skills.get(skill.name, { scope: next, cwd: home }))?.content).toBe('UPDATED_REFERENCE_BODY')
+  await agents.dispose()
+  release()
+})

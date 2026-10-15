@@ -30,7 +30,7 @@ export function AgentSkills({ agent, t, onSaved }: { agent: UserAgentView; t: Tr
     const controller = lifetime.current
     setBusy(true); setError(''); setMessage('')
     try {
-      const result = await userAgentApi.saveSkills(agent.id, next, controller?.signal)
+      const result = await (agent.origin === 'plugin' ? userAgentApi.savePluginSkills(agent.id, next, controller?.signal) : userAgentApi.saveSkills(agent.id, next, controller?.signal))
       if (controller?.signal.aborted) return
       onSaved(result)
       if (result.publication === 'failed') { setError(result.error ?? t('agentSavedUnavailable')); return }

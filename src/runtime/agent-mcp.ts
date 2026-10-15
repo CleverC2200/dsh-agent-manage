@@ -24,6 +24,12 @@ const target = association.omit({ enabled: true }).strict()
 const suiteId = USER_MCP_SUITE
 type Definition = z.infer<typeof definition>
 type Association = z.infer<typeof storedAssociation>
+type Agent = ReturnType<Context['agents']['list']>[number]
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    agentMcpScopes: AgentMcp
+  }
+}
 
 /** Personal MCP membership, persistence and scoped execution share this owner.
  * Definitions use Catalog.runtime; every managed namespace is masked before tools register. A mutation
@@ -36,6 +42,7 @@ export class AgentMcp {
   private sourceAvailable: (source: AgentSourceBaseline) => boolean = () => true
   private closed = false
   private queue: Promise<unknown> = Promise.resolve()
+  private readonly scopes = new Map<Agent, Map<string, AbortController>>()
   private masks = new Map<ReturnType<Context['agents']['list']>[number], () => void>()
   private readonly stop: Array<() => void>
 
@@ -44,6 +51,7 @@ export class AgentMcp {
     private readonly dataRoot: string,
     private readonly runtime: RuntimeManagement
   ) {
+    ctx.provide('agentMcpScopes', this)
     this.stop = [
       ctx.tools.guard(exec => {
         const connection = this.definitions.find(row => exec.name.startsWith(this.prefix(row)))
@@ -55,8 +63,30 @@ export class AgentMcp {
       this.stop.forEach(stop => stop())
       this.masks.forEach(stop => stop())
       this.masks.clear()
+      for (const scopes of this.scopes.values()) for (const controller of scopes.values()) controller.abort()
+      this.scopes.clear()
     })
     for (const event of ['tools/change', 'agent/created', 'agent/disposed', 'agent-preset/selected'] as const) this.stop.push(ctx.on(event, () => this.syncMasks()))
+  }
+
+  /** Each Agent/connection gets a revocable scope; the shared transport stays mounted. */
+  executionScope(subject: { ctx?: Context } | undefined, serverName: string): { signal: AbortSignal; validate(): void } | undefined {
+    const connection = this.definitions.find(row => deriveServerName(suiteId, row.serverId) === serverName)
+    if (!connection) return undefined
+    const agent = this.ctx.agents.list().find(row => row.ctx === subject?.ctx)
+    if (!agent || !this.permits(agent, connection.connectionId)) throw Error('AGENT_MCP_NOT_SELECTED')
+    let scopes = this.scopes.get(agent)
+    if (!scopes) this.scopes.set(agent, (scopes = new Map()))
+    let controller = scopes.get(connection.connectionId)
+    if (!controller || controller.signal.aborted) scopes.set(connection.connectionId, (controller = new AbortController()))
+    const signal = controller.signal
+    return {
+      signal,
+      validate: () => {
+        signal.throwIfAborted()
+        if (!this.permits(agent, connection.connectionId)) throw Error('AGENT_MCP_NOT_SELECTED')
+      }
+    }
   }
 
   async load(agents: readonly UserAgentConfig[]): Promise<void> {
@@ -330,6 +360,14 @@ export class AgentMcp {
     this.syncing = true
     try {
       const agents = new Set(this.ctx.agents.list())
+      for (const [agent, scopes] of this.scopes) {
+        for (const [id, controller] of scopes)
+          if (!agents.has(agent) || !this.definitions.some(row => row.connectionId === id) || !this.permits(agent, id)) {
+            controller.abort(Error('AGENT_MCP_SCOPE_REVOKED'))
+            scopes.delete(id)
+          }
+        if (!scopes.size) this.scopes.delete(agent)
+      }
       for (const [agent, stop] of this.masks)
         if (!agents.has(agent)) {
           this.masks.delete(agent)

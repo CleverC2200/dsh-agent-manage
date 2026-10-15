@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { Translate } from './index.js'
 import { userAgentApi, type UserAgentView } from './user-agent-api.js'
 import css from './user-agents.module.css'
@@ -10,15 +10,18 @@ export function AgentRecovery({ agent, t, onChanged, onChooseAnother }: {
   onChanged: (agent: UserAgentView) => void
   onChooseAnother: () => void
 }) {
+  const lifetime = useRef<AbortController>()
+  useEffect(() => { const controller = new AbortController(); lifetime.current = controller; return () => controller.abort() }, [agent.id])
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState('')
   const run = async (action: () => Promise<UserAgentView>) => {
+    const controller = lifetime.current
     setBusy(true)
     setError('')
-    try { onChanged(await action()); setConfirmDelete(false) }
-    catch (failure) { setError(failure instanceof Error ? failure.message : String(failure)) }
-    finally { setBusy(false) }
+    try { const saved = await action(); if (!controller?.signal.aborted) { onChanged(saved); setConfirmDelete(false) } }
+    catch (failure) { if (!controller?.signal.aborted) setError(failure instanceof Error ? failure.message : String(failure)) }
+    finally { if (!controller?.signal.aborted) setBusy(false) }
   }
   return <aside aria-label={t('agentRecovery')}>
     {agent.defaultUnavailable && <p role="alert">{t('agentDefaultUnavailable')}</p>}

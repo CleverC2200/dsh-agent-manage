@@ -3,7 +3,7 @@ import type { Translate } from './index.js'
 import { userAgentApi, type SaveUserAgent, type UserAgentView } from './user-agent-api.js'
 import { AgentSources } from './AgentSources.js'
 import { AgentSkills } from './AgentSkills.js'
-import { TrustedCubePanel, TrustedPluginAgents } from './TrustedCubePanel.js'
+import { TrustedCubePanel, TrustedPluginAgents, PluginMcpPanel } from './TrustedCubePanel.js'
 import { AgentRecovery } from './AgentRecovery.js'
 import { AgentMcpPanel } from './AgentMcpPanel.js'
 import css from './user-agents.module.css'
@@ -47,14 +47,14 @@ export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
   const save = (event: FormEvent) => {
     event.preventDefault()
     void run(async () => {
-      const agent = await userAgentApi.save(draft)
+      const agent = await (selected?.origin === 'plugin' ? userAgentApi.savePlugin(selected.id, draft.prompt) : userAgentApi.save(draft))
       setSelected(agent); setDraft(agent); setAdding(false)
       await refresh()
       setMessage(t(agent.publication === 'failed' ? 'agentSavedUnavailable' : 'agentSaved'))
     })
   }
   const toggle = (agent: UserAgentView) => void run(async () => {
-    const result = await userAgentApi.setEnabled(agent.id, !agent.enabled)
+    const result = await (agent.origin === 'plugin' ? userAgentApi.setPluginEnabled(agent.id, !agent.enabled) : userAgentApi.setEnabled(agent.id, !agent.enabled))
     if (selected?.id === agent.id) { setSelected(result); setDraft(value => ({ ...value, enabled: result.enabled })) }
     await refresh()
   })
@@ -64,21 +64,21 @@ export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
     await startAgent(preset)
   })
   const fields = <>
-    <label>{t('agentName')}<input disabled={busy} required maxLength={160} value={draft.name} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))} /></label>
-    <label>{t('agentDescription')}<input disabled={busy} maxLength={1000} value={draft.description} onChange={event => setDraft(value => ({ ...value, description: event.target.value }))} /></label>
+    <label>{t('agentName')}<input disabled={busy || selected?.origin === 'plugin'} required maxLength={160} value={draft.name} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))} /></label>
+    <label>{t('agentDescription')}<input disabled={busy || selected?.origin === 'plugin'} maxLength={1000} value={draft.description} onChange={event => setDraft(value => ({ ...value, description: event.target.value }))} /></label>
     <label>{t('agentPrompt')}<textarea disabled={busy} required rows={12} maxLength={48000} value={draft.prompt} onChange={event => setDraft(value => ({ ...value, prompt: event.target.value }))} /></label>
   </>
   const enable = (agent: UserAgentView) => <button type="button" role="switch" aria-label={t('agentEnabled', { name: agent.name })} aria-checked={agent.enabled} className={agent.enabled ? css.switchOn : css.switchOff} disabled={busy} onClick={() => toggle(agent)}><span /></button>
   return <section className={css.workspace}>
     {selected ? <>
       <button type="button" className={css.back} disabled={busy} onClick={() => { setSelected(undefined); setError(''); setMessage('') }}>{t('agentBack')}</button>
-      <header className={css.heading}><div className={css.icon}>{agentIcon}</div><div className={css.title}><h2>{selected.name}</h2><p>{selected.source ? `${selected.source.suiteId} · ${t(selected.customized ? 'agentSourceCustomized' : 'agentSourceUnmodified')}` : t('agentPersonal')}</p></div>{!selected.deletedAt && enable(selected)}</header>
+      <header className={css.heading}><div className={css.icon}>{agentIcon}</div><div className={css.title}><h2>{selected.name}</h2><p>{selected.source ? `${selected.source.suiteId} · ${t(selected.customized ? 'agentSourceCustomized' : 'agentSourceUnmodified')}` : selected.origin === 'plugin' ? `${selected.pluginSource?.sourceRef} · ${t(selected.customized ? 'agentSourceCustomized' : 'agentSourceUnmodified')}` : t('agentPersonal')}</p></div>{!selected.deletedAt && enable(selected)}</header>
       {selected.error && <p role="alert" className={css.error}>{selected.error === 'AGENT_SOURCE_IMPORT_INCOMPLETE' ? t('agentSourceIncomplete') : selected.error}</p>}
-      <AgentRecovery key={selected.id} agent={selected} t={t} onChanged={agent => { setSelected(agent); setDraft(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} onChooseAnother={() => setSelected(undefined)} />
+      {selected.origin === 'user' && <AgentRecovery key={selected.id} agent={selected} t={t} onChanged={agent => { setSelected(agent); setDraft(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} onChooseAnother={() => setSelected(undefined)} />}
       {!selected.deletedAt && <><nav className={css.tabs} aria-label={t('agentConfiguration')}>
         {(['prompt', 'skill', 'mcp'] as const).map(value => <button type="button" key={value} disabled={busy} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{t(value === 'prompt' ? 'agentPrompt' : value === 'skill' ? 'agentSkill' : 'agentMcp')}</button>)}
       </nav>
-      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => edit(selected)}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : <><TrustedCubePanel key={`${selected.id}-cube`} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /><AgentMcpPanel key={selected.id} agentId={selected.id} t={t} /></>}</>}
+      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => edit(selected)}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : selected.origin === 'plugin' ? <PluginMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => setSelected(agent)} /> : <><TrustedCubePanel key={`${selected.id}-cube`} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /><AgentMcpPanel key={selected.id} agentId={selected.id} t={t} /></>}</>}
     </> : <>
       <header className={css.heading}><div className={css.title}><h2>{t('agentConfiguration')}</h2></div><button type="button" disabled={busy} aria-label={t('refresh')} onClick={() => void run(refresh)}>↻</button><button type="button" aria-expanded={showSources} onClick={() => { setSourceRequest(undefined); setShowSources(value => !value) }}>{t('agentSources')}</button><button className={css.primary} type="button" disabled={busy} onClick={() => { setDraft(blank()); setAdding(true); setMessage('') }}>{t('agentAdd')}</button></header>
       {showSources && <AgentSources key={sourceRequest?.request ?? 0} t={t} agents={agents} initialSyncId={sourceRequest?.id} onImported={refresh} />}
@@ -88,7 +88,7 @@ export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
         {agent.source && !agent.deletedAt && !agent.source.importPending && <button type="button" disabled={busy} onClick={() => { setShowSources(true); setSourceRequest(previous => ({ id: agent.id, request: (previous?.request ?? 0) + 1 })) }}>{t('agentSourceSync')}</button>}
         <button type="button" disabled={busy || agent.publication !== 'ready'} onClick={() => start(agent)}>{t('agentStart')}</button>{!agent.deletedAt && enable(agent)}
       </article>)}
-      <TrustedPluginAgents t={t} startAgent={startAgent} onCopied={agent => { setAgents(rows => [...rows, agent]); edit(agent) }} />
+      <TrustedPluginAgents onEdit={edit} t={t} startAgent={startAgent} onCopied={agent => { setAgents(rows => [...rows, agent]); edit(agent) }} />
       {!agents.length && !adding && <p className={css.muted}>{t('agentEmpty')}</p>}
       {adding && <form className={css.inline} onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => setAdding(false)}>{t('cancel')}</button><button className={css.primary} type="submit" disabled={busy}>{t('save')}</button></footer></form>}
     </>}

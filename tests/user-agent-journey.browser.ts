@@ -20,6 +20,18 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   const resources = new BusinessResources(ctx, join(home, 'browser-resources.json'))
   await resources.load()
   ctx.provide('agentResources', resources)
+  const pluginPrompt = JSON.stringify({ persona: 'BROWSER_PLUGIN_ORIGINAL', consumerCode: 'controlled-reader', skills: [] })
+  await writeFile(join(home, 'browser-plugin.json'), pluginPrompt)
+  await resources.register([
+    {
+      id: 'browser-plugin',
+      label: '浏览器插件助手',
+      root: home,
+      prompt: 'browser-plugin.json',
+      publishPreset: true,
+      profile: { label: 'Plugin', consumerCode: 'controlled-reader', skills: [] }
+    }
+  ])
   onTestFinished(() => resources.dispose())
   const agents = new UserAgents(ctx, join(home, 'browser-user-agents.json'))
   await agents.load()
@@ -175,18 +187,20 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   expect(JSON.stringify(original.session.snapshotEvents())).toBe(existingEvents)
   await browserExpect(page.getByRole('navigation', { name: 'Agent 配置', exact: true })).toHaveText('提示词SkillMCP')
   await page.getByRole('button', { name: '‹ 返回 Agent 列表', exact: true }).click()
-  await browserExpect(page.getByRole('button', { name: '开始使用', exact: true })).toBeEnabled()
+  const personalRow = page.locator('article').filter({ has: page.getByText('浏览器个人助手', { exact: true }) })
+  const personalStart = personalRow.getByRole('button', { name: '开始使用', exact: true })
+  await browserExpect(personalStart).toBeEnabled()
   const toggle = page.getByRole('switch', { name: '启用 浏览器个人助手', exact: true })
   await toggle.click()
-  await browserExpect(page.getByRole('button', { name: '开始使用', exact: true })).toBeDisabled()
+  await browserExpect(personalStart).toBeDisabled()
   await toggle.click()
-  await browserExpect(page.getByRole('button', { name: '开始使用', exact: true })).toBeEnabled()
+  await browserExpect(personalStart).toBeEnabled()
   const foreign = await page.request.post(base + USER_AGENT_ROUTES.save, {
     headers: { origin: 'https://foreign.invalid' },
     data: { name: 'Untrusted', prompt: 'x', description: '', enabled: true }
   })
   expect(foreign.status()).toBe(403)
-  await page.getByRole('button', { name: '开始使用', exact: true }).click()
+  await personalStart.click()
   await browserExpect.poll(() => started.length).toBe(1)
   const { forwardWebRequest } = await import(/* @vite-ignore */ `${core}/apps/desktop/src/web-document.ts`)
   const cookie = (await page.context().cookies(base)).map(value => `${value.name}=${value.value}`).join('; ')
@@ -212,6 +226,22 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   expect(JSON.stringify(await ctx.systemPrompt.assemble({ scope: session, agent: session } as never))).toContain('BROWSER_PERSONAL_AGENT_INSTRUCTIONS')
   expect(ctx.agentPresets.defaultId).toBe(originalDefault)
   expect(JSON.stringify(original.session.snapshotEvents())).toBe(existingEvents)
+  await page.getByRole('button', { name: /浏览器插件助手/ }).click()
+  await page.getByRole('textbox', { name: '提示词', exact: true }).fill('BROWSER_PLUGIN_CUSTOMIZED')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await browserExpect(page.getByRole('status')).toHaveText('配置已保存')
+  const plugin = await resources.pluginAgent('browser-plugin')
+  expect(plugin).toMatchObject({ preset: 'browser-plugin', origin: 'plugin', prompt: 'BROWSER_PLUGIN_CUSTOMIZED', customized: true })
+  expect(await readFile(join(home, 'browser-plugin.json'), 'utf8')).toBe(pluginPrompt)
+  await page.getByRole('button', { name: 'MCP', exact: true }).click()
+  await browserExpect(page.getByText('MCP 成员由插件提供，只能启停。需要增删时请复制为个人 Agent。', { exact: true })).toBeVisible()
+  expect(await page.getByRole('button', { name: '添加 MCP', exact: true }).count()).toBe(0)
+  await page.getByRole('button', { name: '‹ 返回 Agent 列表', exact: true }).click()
+  const pluginRow = page.locator('article').filter({ has: page.getByText('浏览器插件助手', { exact: true }) })
+  await pluginRow.getByRole('button', { name: '开始使用', exact: true }).click()
+  await browserExpect.poll(() => started.length).toBe(2)
+  expect(ctx.agentPresets.composedPreset(started[1].ctx)).toBe('browser-plugin')
+  expect(ctx.agentPresets.defaultId).toBe(originalDefault)
   expect(failures.filter(message => !message.includes('403'))).toEqual([])
   if (process.env.PRESET_EVIDENCE_DIR) {
     await page.screenshot({ path: join(process.env.PRESET_EVIDENCE_DIR, 'browser-agent-start.png') })
@@ -233,6 +263,8 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
     unauthenticated: 401,
     crossOrigin: 403,
     nativeForwarding: 'actual Core desktop forwardWebRequest, temporary Host cookie, trusted app only',
+    pluginPresetPreserved: true,
+    pluginSourceUntouched: true,
     installedClient: false,
     native: 'owner lane',
     model: 'not-invoked',

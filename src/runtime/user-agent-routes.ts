@@ -11,7 +11,7 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
   const action = z.object({ id: z.uuid(), enabled: z.boolean() })
   const selection = z.object({ id: z.uuid() }).strict()
   for (const [path, method] of Object.entries({ ...USER_AGENT_ROUTES, ...AGENT_MCP_ROUTES })) {
-    const mutation = !['list', 'skillCatalog', 'skillRead', 'cubeSources'].includes(path)
+    const mutation = !['list', 'pluginList', 'skillCatalog', 'skillRead', 'cubeSources'].includes(path)
     host.effect(() =>
       host.connection.fetch.register({
         path: method,
@@ -21,7 +21,8 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
           try {
             if (mutation && !isSameOriginRequest(request)) return Response.json({ error: 'CROSS_ORIGIN_REQUEST' }, { status: 403 })
             let result: unknown
-            if (path === 'list') result = await agents.list()
+            if (path === 'pluginList') result = await agents.pluginAgents()
+            else if (path === 'list') result = await agents.list()
             else if (path === 'cubeSources') result = agents.cubeSources()
             else if (path === 'skillCatalog' || path === 'skillRead') {
               const query = new URL(request.url).searchParams
@@ -39,7 +40,14 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
             } else {
               const input = await readJsonRequest(request)
               if (path.startsWith('mcp') && !agents.mcp) throw Error('AGENT_MCP_RUNTIME_UNAVAILABLE')
-              if (path === 'mcpAvailable') result = agents.mcp!.available(z.object({ agentId: z.uuid() }).strict().parse(input).agentId)
+              if (path === 'pluginSave' || path === 'pluginSkills') result = await agents.savePlugin(input)
+              else if (path === 'pluginEnabled') {
+                const value = z
+                  .object({ id: z.string().min(1), enabled: z.boolean() })
+                  .strict()
+                  .parse(input)
+                result = await agents.setPluginEnabled(value.id, value.enabled)
+              } else if (path === 'mcpAvailable') result = agents.mcp!.available(z.object({ agentId: z.uuid() }).strict().parse(input).agentId)
               else if (path === 'mcpList') result = await agents.mcp!.list(z.object({ agentId: z.uuid() }).strict().parse(input).agentId)
               else if (path === 'mcpSave') result = await agents.mcp!.save(input)
               else if (path === 'mcpAssociate') result = await agents.mcp!.associate(input)

@@ -20,6 +20,7 @@ it('opens an inline form, cancels without saving and starts an enabled Agent thr
     publication: 'ready' as const
   }
   vi.spyOn(userAgentApi, 'list').mockResolvedValue([saved])
+  vi.spyOn(userAgentApi, 'pluginAgents').mockResolvedValue([])
   vi.spyOn(userAgentApi, 'cubeSources').mockResolvedValue([])
   const save = vi.spyOn(userAgentApi, 'save')
   vi.spyOn(userAgentApi, 'select').mockResolvedValue({ preset: saved.preset })
@@ -54,7 +55,22 @@ it('opens an inline form, cancels without saving and starts an enabled Agent thr
 })
 
 it('shows trusted plugin presets with a Cube switch and explicit personal copy', async () => {
-  const source = { sourceRef: 'trusted-cube', name: 'Trusted plugin', enabled: true, available: true }
+  const source = {
+    id: 'trusted-cube',
+    preset: 'trusted-cube',
+    name: 'Trusted plugin',
+    enabled: true,
+    publication: 'ready' as const,
+    prompt: 'PLUGIN_PROMPT',
+    description: '',
+    skills: [],
+    origin: 'plugin' as const,
+    customized: false,
+    revision: 1,
+    defaultUnavailable: false,
+    pluginSource: { sourceRef: 'trusted-cube', version: 'source-1' },
+    cube: { sourceRef: 'trusted-cube', enabled: true }
+  }
   const copied = {
     id: 'a7e2da91-cac0-4093-9b8e-61123a67be90',
     name: 'Trusted plugin',
@@ -69,8 +85,10 @@ it('shows trusted plugin presets with a Cube switch and explicit personal copy',
     cube: { sourceRef: 'trusted-cube', enabled: true }
   }
   vi.spyOn(userAgentApi, 'list').mockResolvedValue([])
-  vi.spyOn(userAgentApi, 'cubeSources').mockResolvedValue([source])
-  const toggle = vi.spyOn(userAgentApi, 'setPluginCubeEnabled').mockResolvedValue([{ ...source, enabled: false, available: false }])
+  vi.spyOn(userAgentApi, 'cubeSources').mockResolvedValue([])
+  vi.spyOn(userAgentApi, 'pluginAgents').mockResolvedValue([source])
+  const toggle = vi.spyOn(userAgentApi, 'setPluginEnabled').mockResolvedValue({ ...source, enabled: false, publication: 'disabled' })
+  const savePlugin = vi.spyOn(userAgentApi, 'savePlugin').mockResolvedValue({ ...source, prompt: 'CUSTOM_PLUGIN_PROMPT', customized: true })
   const copy = vi.spyOn(userAgentApi, 'copyPlugin').mockResolvedValue(copied)
   const element = document.createElement('div')
   document.body.append(element)
@@ -84,6 +102,19 @@ it('shows trusted plugin presets with a Cube switch and explicit personal copy',
     expect(row.textContent).not.toContain(zh.agentMcpRemove)
     await act(async () => (row.querySelector('[role="switch"]') as HTMLButtonElement).click())
     expect(toggle).toHaveBeenCalledExactlyOnceWith('trusted-cube', false)
+    await act(async () =>
+      [...element.querySelectorAll('button')].find(button => button.textContent?.includes('Trusted plugin') && button.textContent !== zh.agentCopyPersonal)!.click()
+    )
+    expect(element.querySelector('nav')?.textContent).toBe('提示词SkillMCP')
+    const prompt = element.querySelector('textarea')!
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!
+    await act(async () => {
+      setter.call(prompt, 'CUSTOM_PLUGIN_PROMPT')
+      prompt.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    await act(async () => [...element.querySelectorAll('button')].find(button => button.textContent === zh.save)!.click())
+    expect(savePlugin).toHaveBeenCalledExactlyOnceWith('trusted-cube', 'CUSTOM_PLUGIN_PROMPT')
+    await act(async () => [...element.querySelectorAll('button')].find(button => button.textContent === zh.agentBack)!.click())
     await act(async () => [...element.querySelectorAll('button')].find(button => button.textContent === zh.agentCopyPersonal)!.click())
     expect(copy).toHaveBeenCalledExactlyOnceWith('trusted-cube')
     expect(element.querySelector('textarea')?.value).toBe('COPIED_PROMPT')

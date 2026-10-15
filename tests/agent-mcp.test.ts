@@ -178,3 +178,101 @@ it('connects an HTTP MCP through authenticated Agent configuration and scopes sc
   expect(failed).toMatchObject({ state: 'failed', enabled: true })
   expect(failed.reason).toContain('mount failed')
 })
+
+it.each(['association', 'source'])('cancels a revoked %s in flight without disconnecting its shared MCP', async mode => {
+  const waiting = Promise.withResolvers<void>()
+  const release = Promise.withResolvers<void>()
+  const server = createServer(async (request, response) => {
+    if (request.method !== 'POST') {
+      response.writeHead(405).end()
+      return
+    }
+    let text = ''
+    for await (const chunk of request) text += chunk
+    const body = JSON.parse(text)
+    if (body.id === undefined) {
+      response.writeHead(202).end()
+      return
+    }
+    if (body.method === 'tools/call' && body.params.arguments.slow) {
+      waiting.resolve()
+      await release.promise
+    }
+    const result =
+      body.method === 'initialize'
+        ? { protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'revocation', version: '1' } }
+        : body.method === 'tools/list'
+          ? { tools: [{ name: 'echo', inputSchema: { type: 'object' } }] }
+          : { content: [{ type: 'text', text: 'LATE_SHARED_RESPONSE' }] }
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: body.id, result }))
+  })
+  await new Promise<void>(ready => server.listen(0, '127.0.0.1', ready))
+  onTestFinished(() => {
+    release.resolve()
+    server.closeAllConnections()
+    return new Promise<void>(done => server.close(() => done()))
+  })
+  const address = server.address()
+  if (!address || typeof address === 'string') throw Error('ADDRESS')
+  const { ctx, home } = await presetHarness()
+  const catalog = new Catalog({
+    userRoot: join(home, 'catalog'),
+    dataRoot: home,
+    onChanged: async () => {},
+    runtime: {
+      ctx,
+      translate: key => key,
+      backend: async () => 'builtin',
+      writeBackend: async () => {},
+      tools: () => inspectToolRegistry(ctx.tools),
+      deleteGrantRecord: async () => {}
+    }
+  })
+  await catalog.load()
+  onTestFinished(() => catalog.runtime.dispose())
+  const agents = new UserAgents(ctx, join(home, 'agents.json'), catalog.runtime)
+  await agents.load()
+  onTestFinished(() => agents.dispose())
+  const a =
+    mode === 'source'
+      ? await agents.importSource(
+          { name: 'A', prompt: 'A', enabled: true },
+          { sourceId: 'scope-source', suiteId: 'scope-suite', resourceKey: 'agent:a', url: home, kind: 'local', base: { name: 'A', prompt: 'A', description: '', skills: [] } }
+        )
+      : await agents.save({ name: 'A', prompt: 'A', enabled: true })
+  let available = true
+  agents.mcp!.setSourceAvailability(() => available)
+  const b = await agents.save({ name: 'B', prompt: 'B', enabled: true })
+  const saved = await agents.mcp!.save({
+    agentId: a.id,
+    serverId: 'shared',
+    name: 'Shared',
+    config: { type: 'streamable-http', url: `http://127.0.0.1:${address.port}`, auth: { enabled: false } }
+  })
+  await agents.mcp!.associate({ agentId: b.id, connectionId: saved.connectionId, enabled: true })
+  const first = await agentOn(ctx, 'revoke-a', a.preset)
+  const other = await agentOn(ctx, 'keep-b', b.preset)
+  const name = ctx.tools.schemas(first).find(tool => tool.name.endsWith('__echo'))!.name
+  let settled = false
+  const pending = ctx.tools
+    .execute({ callId: 'slow-before-revocation' as never, name, arguments: { slow: true }, agent: first, signal: new AbortController().signal })
+    .then(result => {
+      settled = true
+      return result
+    })
+  try {
+    await waiting.promise
+    if (mode === 'source') {
+      available = false
+      agents.mcp!.sourceAvailabilityChanged()
+    } else await agents.mcp!.setEnabled({ agentId: a.id, connectionId: saved.connectionId, enabled: false })
+    await expect.poll(() => settled, { timeout: 1000 }).toBe(true)
+    release.resolve()
+    expect(JSON.stringify(await pending)).not.toContain('LATE_SHARED_RESPONSE')
+    const kept = await ctx.tools.execute({ callId: 'other-agent-kept' as never, name, arguments: {}, agent: other, signal: new AbortController().signal })
+    expect(JSON.stringify(kept)).toContain('LATE_SHARED_RESPONSE')
+  } finally {
+    release.resolve()
+    await pending
+  }
+})

@@ -84,6 +84,7 @@ function toToolHost(ctx: Context): ToolHost {
   const registry = ctx as unknown as { tools?: { register?: (definition: unknown) => () => void } }
   return {
     logger,
+    executionScope: (agent, serverName) => ctx.get('agentMcpScopes')?.executionScope(agent, serverName),
     tools: {
       /** 中文：向宿主工具注册表注册桥接工具，并在缺少服务时显式失败。 */
       register(definition) {
@@ -143,7 +144,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const connection = startConnection(host, config, reconnect, credentials)
 
   let active = connections.get(ctx.root)
-  if (!active) { active = new Map(); connections.set(ctx.root, active) }
+  if (!active) {
+    active = new Map()
+    connections.set(ctx.root, active)
+  }
   active.set(config.serverName, connection)
   ctx.effect(() => {
     return async () => {

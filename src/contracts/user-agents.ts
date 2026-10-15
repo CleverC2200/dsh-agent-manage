@@ -33,7 +33,8 @@ export interface UserAgentConfig {
 
 export interface UserAgentView extends UserAgentConfig {
   customized: boolean
-  origin: 'user'
+  origin: 'user' | 'plugin'
+  pluginSource?: { sourceRef: string; version: string }
   preset: string
   publication: 'ready' | 'disabled' | 'deleted' | 'failed'
   /** The host default still points here; only an explicit host selection changes it. */
@@ -43,6 +44,10 @@ export interface UserAgentView extends UserAgentConfig {
 export type SaveUserAgent = Pick<UserAgentConfig, 'name' | 'description' | 'prompt' | 'enabled'> & { id?: string }
 export const USER_AGENT_ROUTES = {
   list: '/api/agent-manage/agents',
+  pluginList: '/api/agent-manage/agents/plugins',
+  pluginSave: '/api/agent-manage/agents/plugin/save',
+  pluginSkills: '/api/agent-manage/agents/plugin/skills',
+  pluginEnabled: '/api/agent-manage/agents/plugin/enabled',
   save: '/api/agent-manage/agents/save',
   enabled: '/api/agent-manage/agents/enabled',
   select: '/api/agent-manage/agents/select',

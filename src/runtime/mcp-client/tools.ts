@@ -18,6 +18,7 @@
  * @module runtime/mcp-client/tools
  */
 
+import type { Context } from '@deepseek-ai/cordis'
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -39,6 +40,7 @@ export type McpResult<Structured extends JsonValue = JsonValue> = {
 
 /** The agent on whose behalf a tool call runs (structural mirror). */
 interface ToolExecutionAgent {
+  readonly ctx?: Context
   session?: { requestHeader?: () => { config?: { provider?: string; model?: string } } | undefined }
   options?: { provider?: string; model?: string }
 } /** Execution identity handed to a tool body (structural mirror). */
@@ -82,6 +84,7 @@ export interface ToolHost {
   readonly tools: { register(definition: ToolDefinition): () => void }
   /** Optional service lookup; image projection degrades when absent. */
   getService?(name: 'attachments' | 'llm'): unknown
+  executionScope?(agent: ToolExecutionAgent | undefined, serverName: string): { signal: AbortSignal; validate(): void } | undefined
 }
 
 /** Resolved options relevant to tool bridging. */
@@ -388,7 +391,11 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const result = await callToolUncached(client, rawName, argsObj, exec, opts)
+    const scope = host.executionScope?.(exec.agent, opts.serverName)
+    const invocation = scope ? { ...exec, signal: AbortSignal.any([exec.signal, scope.signal]) } : exec
+    const result = await callToolUncached(client, rawName, argsObj, invocation, opts)
+    invocation.signal.throwIfAborted()
+    scope?.validate()
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {
@@ -418,7 +425,9 @@ function createExecutor(
     }
     if (containsImage(content)) {
       const fallback: ContentBlock[] = [{ type: 'text', text: extractText(content, rawName) }]
-      const projected = await prepareImageProjection(host, exec, content, rawName)
+      const projected = await prepareImageProjection(host, invocation, content, rawName)
+      invocation.signal.throwIfAborted()
+      scope?.validate()
       projections.set(exec, { value, fallback, content: projected })
     }
     return value
