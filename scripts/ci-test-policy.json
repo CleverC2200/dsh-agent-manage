@@ -11,6 +11,11 @@
     },
     {
       "repo": "dsh-agent-manage",
+      "pattern": "^scripts/ci-test-policy\\.json$",
+      "tests": ["tests/business-resources.test.ts", "tests/mps-resource-reception.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-manage",
       "pattern": "^(?:business-resources|presets)/",
       "tests": ["tests/bundled-sales-skills.test.ts", "tests/manage-bundle-default.test.ts"]
     },
@@ -18,6 +23,16 @@
       "repo": "dsh-agent-workbench",
       "pattern": "^(?:src|scripts|theme|business)/",
       "tests": ["tests/agent-mcp.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-workbench",
+      "pattern": "^static/(?:regional|category)/",
+      "tests": ["tests/business-resources.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-workbench",
+      "pattern": "^static/mps/",
+      "tests": ["tests/mps-resource-reception.test.ts"]
     },
     {
       "repo": "dsh-gea-plugin",
