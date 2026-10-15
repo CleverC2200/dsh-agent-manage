@@ -11,18 +11,15 @@
  * (suite `${PLUGIN_DATA}` directories) and `overrides/` (MCP configuration
  * rewrites) — so no sibling `agent-plugins-data` root exists.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
 /** Source checkouts live under `<dimensionRoot>/.sources/<sourceId>/`. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const SOURCES_DIR_NAME = '.sources'
 
 /** Per-suite mutable data directory (the `${PLUGIN_DATA}` placeholder). */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export const DATA_DIR_NAME = 'data'
 
 export const STATE_FILE_NAME = 'state.json'
@@ -137,7 +134,6 @@ export function sanitizeId(raw: string): string {
 }
 
 /** Archive extensions stripped from a URL basename before id derivation. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 const ARCHIVE_SUFFIX_PATTERN = /\.(zip|tgz|tar\.gz|tar)$/i
 
 /** Strip a trailing `.git` or archive suffix (`plugin-0.1.zip` → `plugin-0-1`). */

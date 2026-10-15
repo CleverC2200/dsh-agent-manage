@@ -1,6 +1,5 @@
 /** 文件作用：读取项目原生 MCP 配置，区分真实服务器定义和无关设置。 */
 /** Read native project configuration without treating unrelated settings as server definitions. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readFile, realpath } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { McpSuiteConfig } from '../model/types.js'

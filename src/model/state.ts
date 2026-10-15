@@ -3,9 +3,8 @@
  * Persisted suite state: configured sources and per-suite install entries.
  *
  * State is a plain JSON file at `<dimensionRoot>/state.json`. The host is the
- * only writer (through manager actions and the HTTP routes); the manager
- * re-reads the file whenever a mutation races, keeping the on-disk copy
- * authoritative like the market profile state this pattern follows.
+ * only writer through Catalog's serialized mutations. Saves replace the
+ * file atomically through a temporary file and rename.
  *
  * 中文：本文件负责读写 suite 的持久化状态，内容包括已配置源和安装记录。
  * 状态保存在各维度根目录的 `state.json`，磁盘副本是权威数据，并通过临时文件重命名实现原子更新。

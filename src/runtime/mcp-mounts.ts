@@ -9,7 +9,6 @@
  * broken third-party suite must not take the host down — and reported through
  * the manager's diagnostic list.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import type { Context } from '@deepseek-ai/cordis'
 import { createHash } from 'node:crypto'
 import * as mcpBridge from './mcp-client/bridge.js'
@@ -33,7 +32,6 @@ interface LiveMount {
   serverKey: string
   serverName: string
   /** Fingerprint of the request config this mount was built from. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   configFingerprint: string
   disposer: () => void | Promise<void>
 }
@@ -43,7 +41,6 @@ interface LiveMount {
  * permanently broken server must eventually stop consuming attempt budget, so
  * the schedule is capped and resets with every reconcile pass.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const RETRY_SCHEDULE_MS = [1_500, 5_000, 15_000, 45_000, 120_000]
 const MAX_RETRY_ATTEMPTS = RETRY_SCHEDULE_MS.length
 
@@ -55,7 +52,6 @@ interface MountPluginHandle {
 }
 
 /** Structural `ctx.plugin` surface for mounting one plugin instance. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface PluginMountContext {
   plugin(plugin: unknown, config: unknown): MountPluginHandle
 }
@@ -85,7 +81,6 @@ export class McpMountRegistry {
    * reconcile must tear down and remount them even when the resolved config
    * fingerprint is unchanged — dropping a grant changes no config field.
    */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   private readonly forcedRemounts = new Set<string>()
   /** Snapshot of the last reconciled suite set, replayed by retry passes. */
   /** 中文：重试只重放最近快照，避免恢复已卸载或已禁用的服务。 */
@@ -144,7 +139,6 @@ export class McpMountRegistry {
     if (owner === undefined) return undefined
     // Values are `${suiteId}\u0000${serverKey}` — suite ids may contain a
     // slash (qualified ids), so the separator is the NUL byte, not '/'.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const separator = owner.indexOf('\u0000')
     return { suiteId: owner.slice(0, separator), serverKey: owner.slice(separator + 1) }
   }
@@ -191,7 +185,6 @@ export class McpMountRegistry {
       }
       for (const mount of mounts) {
         // Bridge namespaces are reserved app-wide, even when tools are agent-scoped.
-        // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         if (this.namespace !== undefined) mount.config.serverName = deriveServerName(mount.config.serverName, this.namespace)
         wanted.set(mountKey(mount.suiteId, mount.serverKey), { suite, serverKey: mount.serverKey, request: mount })
       }
@@ -213,13 +206,11 @@ export class McpMountRegistry {
       // purpose: dropping a grant does not change the resolved config, so
       // only the explicit instruction tears the live bridge down and lets
       // the server's 401 restart the browser authorization.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       if (live !== undefined && !this.forcedRemounts.has(key) && live.configFingerprint === fingerprintOf(entry.request, backend)) continue
       // Either a fresh mount, or a remount because the resolved config moved
       // (a credential rotation rewrites the env/header/url values while the
       // suite stays enabled) — keeping the old mount would keep serving the
       // old token until disable or restart.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       if (live !== undefined) {
         const reason = await this.unmount(key, live)
         if (reason !== undefined) {
@@ -230,7 +221,6 @@ export class McpMountRegistry {
       this.forcedRemounts.delete(key)
       // A retry attempt runs the same mount path; only the last failure is
       // reported so a transient error does not shadow the final state.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       const failure = await this.mountWith(entry.request, backend)
       if (failure !== undefined) {
         diagnostics.push({ suiteId: qualifiedSuiteId(entry.suite.sourceId, entry.suite.id), serverKey: entry.serverKey, reason: failure.reason, code: failure.code })
@@ -307,7 +297,6 @@ export class McpMountRegistry {
       // Two sources shipping the same suite/server pair derive one serverName:
       // the model only needs one copy, so later arrivals skip with an
       // informational diagnostic instead of double-registering.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       return {
         reason: `server "${request.config.serverName}" is already mounted from ${owner} — this suite's copy is redundant and was skipped`,
         code: 'duplicate-mount'
@@ -321,7 +310,6 @@ export class McpMountRegistry {
     // diagnostic — a leftover of this plugin's own earlier mount (registry
     // record lost without a teardown) reads as an orphan here, and a Host
     // restart clears it; a genuinely foreign owner keeps the skip sticky.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const prefix = `mcp__${request.config.serverName}__`
     const foreign = this.toolNamesProvider().filter(name => name.startsWith(prefix))
     if (foreign.length > 0) {
@@ -334,7 +322,6 @@ export class McpMountRegistry {
     // (with OAuth), and legacy SSE servers in-process; the host backend
     // mounts the host's own `dsh-mcp-client` for compatibility, at the cost
     // of OAuth and SSE support.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const mountCtx = this.ctx as unknown as PluginMountContext
     if (typeof mountCtx.plugin !== 'function') {
       return { reason: 'the host context does not support dynamic plugin mounting', code: 'mount-failed' }
@@ -368,13 +355,11 @@ export class McpMountRegistry {
       // connection or initialization failure rejects here. Drop the
       // half-mounted handle before reporting so no orphan child survives a
       // failed startup.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       if (handle !== undefined) {
         try {
           await handle.dispose()
         } catch {
           // Ignore teardown errors: the startup failure is the real signal.
-          // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
         }
       }
       return { reason: `mount failed: ${error instanceof Error ? error.message : String(error)}`, code: 'mount-failed' }

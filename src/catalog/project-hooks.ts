@@ -1,6 +1,5 @@
 /** 文件作用：读取并归一化项目原生 Claude hooks，合并事件层并去重。 */
 /** Normalize native Claude-shaped command hooks for the existing host execution bridge. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import type { ProjectHooks } from '../model/types.js'
 import { readProjectDocument } from './project-config.js'
 import type { ProjectHookFormat } from '../model/layouts.js'

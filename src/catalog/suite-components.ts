@@ -1,6 +1,5 @@
 /** 文件作用：读取套件 LSP、hooks 和系统提示组件，转换为运行时统一资源。 */
 /** Resolve all plugin component declarations into the same normalized resources used by runtime consumers. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readFile } from 'node:fs/promises'
 import { relative } from 'node:path'
 import type { ProjectHooks, SuiteManifest, LspSuiteConfig } from '../model/types.js'

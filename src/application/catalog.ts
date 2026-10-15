@@ -4,7 +4,7 @@
  * discovery, install mutations, and coherent suite snapshots.
  *
  * The module deliberately keeps the existing filesystem and Git operations
- * behind one interface while callers migrate from SuiteManager. User and
+ * behind one interface. User and
  * project snapshots use their own persisted state files and share the same
  * source-selection and suite-scanning rules.
  *
@@ -441,7 +441,8 @@ export class Catalog {
    * Git sources with an already-present checkout whose `origin` matches the
    * input URL are adopted in place — the manual-clone repair path — so no
    * second clone is made and no `-2` suffixed id is invented. Adopted
-   * checkouts are never deleted on source removal.
+   * checkouts are preserved on URL changes; explicit source removal may
+   * delete their managed `.sources/<id>` storage.
    * 中文：登记源并立即获取内容；已有匹配远程地址的检出会原地收编，避免重复克隆。
    */
   async addSource(input: { url: string; branch?: string; local?: boolean; kind?: SourceKind; sha256?: string }): Promise<SourceRef> {

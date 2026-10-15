@@ -1,6 +1,5 @@
 /** 文件作用：读取并执行套件中的 Agent 角色卡，并把结果接入宿主的子 Agent 服务。 */
 /** Execute user and installed-suite agent cards through the host subagent service. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -13,7 +12,6 @@ type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string
 export const AGENT_ROLE_TOOL_NAME = 'subagents_run'
 
 /** Panel identity is preserved so identically named cards from different suites remain addressable. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface AgentRoleEntry {
   name: string
   path: string

@@ -21,80 +21,61 @@
  * attempt is recorded on the result, so callers can surface why a source
  * resolved the way it did.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import type { Suite } from '../model/types.js'
 
 /** One filter's work context: the checkout and its identity. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ScanContext {
   marketplacePath?: string
   /** Absolute path of the source checkout. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   checkout: string
   /** The configured source id suites will be attributed to. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   sourceId: string
   /** The dimension being scanned. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   dimension: 'user' | 'project'
   /** The source's own URL, when known; used by self-reference handling. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   sourceUrl?: string
   /** Diagnostics accumulated across the chain (append-only). */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   notes: string[]
 }
 
 /** Why a filter did not resolve the checkout. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export type ScanAbstentionReason = string
 
 /** The outcome of one filter (or the whole chain) for one checkout. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export type ScanResolution = { kind: 'resolved'; suites: Suite[] } | { kind: 'abstain'; reason: ScanAbstentionReason }
 
 /** The rest of the chain beyond the filter that holds it. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ScanChain {
   /** Hand the checkout to the next filter; terminal when none remain. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   /** 中文：把当前 checkout 交给下一个扫描策略，并返回解析或放弃结果。 */
   next(context: ScanContext): Promise<ScanResolution>
 }
 
 /** One strategy in the source scan chain. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ScanFilter {
   /** Stable filter name, recorded on every attempt. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   readonly name: string
   /** Either resolve the checkout or forward to `chain.next`. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   /** 中文：执行当前扫描策略；命中则产出套件，否则返回可解释的放弃原因。 */
   doScan(context: ScanContext, chain: ScanChain): Promise<ScanResolution>
 }
 
 /** One recorded chain attempt. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ScanAttempt {
   filter: string
   outcome: 'resolved' | 'abstain'
   /** Suites produced when resolved; the abstention reason otherwise. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   detail: string
   /** Suite ids produced, when resolved. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   suiteIds: string[]
 }
 
 /** The full outcome of scanning one checkout. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ScanResult {
   marketplacePath?: string
   suites: Suite[]
   attempts: ScanAttempt[]
   /** Human-readable diagnostics: dropped entries, broken manifests, fallbacks taken. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   notes: string[]
 }
 

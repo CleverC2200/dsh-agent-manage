@@ -7,7 +7,6 @@
  * the runtime mounts.
  * @module runtime/user-store
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import { readSkillHeader } from '../catalog/skill-files.js'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
@@ -22,11 +21,9 @@ export function userEntryDir(dataRoot: string, kind: 'skills' | 'commands' | 'ag
 }
 
 /** `[a-z][a-z0-9_-]*` — the grammar every panel entry name must satisfy. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const USER_ENTRY_NAME = /^[a-z][a-z0-9_-]*$/
 
 /** The enablement frontmatter key shared by skills and commands. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export const DISABLED_KEY = 'disabled'
 
 /** Parse full YAML metadata without flattening arrays, mappings, or multiline strings. */
@@ -76,31 +73,22 @@ export async function readEntryFile(file: string, fallbackName: string, strict =
 }
 
 /** One parsed Markdown panel entry. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface UserEntryFile {
   /** The file's base name (the entry identity). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   fallbackName: string
   /** The frontmatter name when valid, else the fallback. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   name: string
   /** Absolute file path. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   file: string
   /** The raw file text, frontmatter included. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   text: string
   /** The body after frontmatter removal. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   body: string
   /** The shallow frontmatter record (description, hint, disabled, …). */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   meta: Record<string, unknown>
   /** Additional fields when the entry carried valid skill frontmatter. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   whenToUse?: string
   /** The strict-parse description when the frontmatter was valid YAML. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   description?: string
   invocation?: { modelInvocable: boolean; userInvocable: boolean }
 }

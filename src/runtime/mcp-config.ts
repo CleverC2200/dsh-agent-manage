@@ -11,7 +11,6 @@
  * such transport); unrecognized shapes are still skipped with a per-server
  * reason.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { createHash } from 'node:crypto'
 import type { Config, SseConfig } from './mcp-client/config.js'
 import { DEFAULT_TOOL_CALL_TIMEOUT_MS } from './mcp-client/config.js'
@@ -22,7 +21,6 @@ import type { McpServer, McpServerSse, McpServerStdio, McpServerStreamableHttp, 
 import { PLUGIN_ROOT_VARIABLES, PLUGIN_DATA_VARIABLES } from '../model/layouts.js'
 
 /** The max length the bridge accepts for a serverName. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const SERVER_NAME_MAX = 32
 const PLACEHOLDER = /\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g
 const BUILTIN_PLACEHOLDERS = new Set([...PLUGIN_ROOT_VARIABLES, ...PLUGIN_DATA_VARIABLES])
@@ -40,10 +38,8 @@ export type McpMountFailureCode =
   | 'unmount-failed'
   | 'mount-failed'
   /** The derived serverName's namespace is already mounted by another MCP client — informational, not a failure. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   | 'foreign-mount'
   /** Another source's identical suite/server pair mounted first — this copy is redundant, informational. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   | 'duplicate-mount'
 
 export interface McpMountFailure {
@@ -54,7 +50,6 @@ export interface McpMountFailure {
 }
 
 /** Optional DSH credential resolver used while building an in-memory mount. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface McpCredentialResolver {
   resolve(ref: string): Promise<{ value: string; source?: string } | undefined>
 }
@@ -105,7 +100,6 @@ export function credentialRefsInServer(server: McpServer): string[] {
   } else {
     // A remote endpoint may carry the token in the URL query as well as in a
     // header, so both are scanned and both are resolved at mount time.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     values.push(server.url ?? '', ...Object.values(server.headers ?? {}))
   }
   const refs = new Set<string>()
@@ -128,7 +122,6 @@ async function toResolvedMount(
 ): Promise<{ request?: McpMountRequest; failure?: McpMountFailure }> {
   if (server.type === 'sse') {
     // The market bridge supports the legacy HTTP+SSE transport natively.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const expand = expander(suite, joinInside(pluginDataRoot, qualifiedSuiteId(suite.sourceId, suite.id)), resolver)
     const url = await expand.one(server.url)
     const headers = await expand.map(server.headers ?? {})
@@ -220,7 +213,6 @@ function bridgePolicy(server: McpServer) {
 function expander(suite: Suite, pluginData: string, resolver: McpCredentialResolver) {
   // Promise-valued cache: concurrent expansions of the same reference share
   // one in-flight lookup, so a config using a token twice resolves it once.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   const inflight = new Map<string, Promise<{ value: string; source?: string } | undefined>>()
   /** 读取并缓存单个凭据引用，确保同一展开过程不会重复发起查询。 */
   const lookup = (name: string): Promise<{ value: string; source?: string } | undefined> => {

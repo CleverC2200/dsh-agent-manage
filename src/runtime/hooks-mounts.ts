@@ -11,7 +11,6 @@
  * on every enable/disable/install/uninstall; a missing bridge package, a
  * broken hook file, or a mount failure is contained per suite.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
@@ -63,7 +62,6 @@ export class HooksMountRegistry {
     const diagnostics: HooksMountDiagnostic[] = []
     const active = enabledSuites.filter(suite => suite.activeSurfaces?.hooks !== false && (suite.resources === undefined || suite.hooks !== undefined))
     // Keys are the qualified suite id: bare ids are unique per source only.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const wanted = new Set(active.map(suite => qualifiedSuiteId(suite.sourceId, suite.id)))
     for (const [suiteId, handle] of [...this.live]) {
       if (!wanted.has(suiteId)) {
@@ -139,7 +137,6 @@ export class HooksMountRegistry {
         await handle?.dispose()
       } catch {
         /* Preserve the startup failure. */
-        /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
       }
       if (temporary !== undefined) await rm(temporary, { recursive: true, force: true })
       return `mount failed: ${error instanceof Error ? error.message : String(error)}`
@@ -171,7 +168,6 @@ export async function hookConfigPath(root: string): Promise<string | undefined> 
       if ((await stat(path)).isFile()) return path
     } catch {
       // try the next candidate
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     }
   }
   return undefined

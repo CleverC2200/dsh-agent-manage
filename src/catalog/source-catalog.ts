@@ -8,7 +8,6 @@
  * native agent directories (`.claude/`, `.agents/`) in place so repositories
  * migrating from other coding agents need no file copying.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { expandHome, isDirectory, sourcesDir } from './paths.js'

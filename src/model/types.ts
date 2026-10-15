@@ -1,12 +1,7 @@
 /** 文件作用：定义来源、套件、组件、覆盖配置和扫描结果等核心领域类型。 */
 /**
- * Shared shapes for the dsh-agent-plugins-market Agent Plugins manager.
- *
- * A suite is the portable Agent Plugins package defined by the
- * agent-plugins.org v1.0.0 specification, plus the two dialect layouts this
- * manager normalizes as inputs (Claude Code `.claude-plugin/plugin.json` and
- * Codex `.codex-plugin/plugin.json`). Discovery maps every layout onto this
- * internal shape; runtime injection consumes only the internal shape.
+ * Discovery normalizes the dialects in the layout registry into these
+ * shared shapes; runtime injection consumes only the normalized shapes.
  */
 /** 中文：集中定义来源、套件、surface 及运行时注入共用的领域类型，catalog 负责归一化，runtime 只消费归一化结构。 */
 
@@ -17,8 +12,8 @@ export type SourceKind = 'git' | 'local' | 'archive'
 /** One configured repository source. */
 /** 中文：一条已配置的仓库数据源。 */
 export interface SourceRef {
-  /** Stable local id; `[a-z0-9][a-z0-9-]*`, unique across sources. */
-  /** 中文：稳定的本地 ID，符合 `[a-z0-9][a-z0-9-]*` 且在来源间唯一。 */
+  /** Stable local id, unique across configured sources; adopted checkouts retain their directory name. */
+  /** 中文：已配置源之间唯一的稳定 ID；收编检出保留既有目录名。 */
   id: string
   /** Git URL, archive (zip / tar.gz) URL, or a local directory path. */
   /** 中文：Git 地址、压缩包地址或本地目录路径。 */
@@ -29,14 +24,14 @@ export interface SourceRef {
   /** Read the source directory directly instead of cloning it (legacy flag; `kind: 'local'`). */
   /** 中文：直接读取来源目录而不克隆；历史标记，与 `kind: 'local'` 等价。 */
   local?: boolean
-  /** Acquisition kind; inferred from the URL shape when omitted. */
-  /** 中文：采集类型；缺省时根据 URL 形状推断。 */
+  /** Acquisition kind; the local flag takes precedence, then this field, then the URL shape. */
+  /** 中文：采集类型依次按 local 标记、此字段和 URL 形状决定。 */
   kind?: SourceKind
   /** Expected SHA-256 of an archive download (archive sources only). */
   /** 中文：压缩包下载的预期 SHA-256，仅 archive 来源适用。 */
   sha256?: string
-  /** The checkout pre-existed (manually cloned or adopted); never deleted on source removal. */
-  /** 中文：检出目录在纳管前已存在，移除来源时不得删除。 */
+  /** Pre-existing checkout; URL changes preserve it. Explicit removal may delete managed `.sources/<id>` storage. */
+  /** 中文：纳管前已存在的检出，更新 URL 时保留；显式移除可删除 `.sources/<id>` 内的托管目录。 */
   adopted?: boolean
 }
 
@@ -47,18 +42,16 @@ const ARCHIVE_URL_PATTERN = /\.(zip|tgz|tar\.gz|tar)$/i
 /** Whether a URL points at a downloadable archive. */
 /** 中文：判断 URL 是否指向可下载的压缩包。 */
 export function isArchiveUrl(url: string): boolean {
-  /** 去除首尾空格后按支持的压缩包后缀进行大小写不敏感匹配。 */
   return ARCHIVE_URL_PATTERN.test(url.trim())
 }
 
 /**
- * Effective acquisition kind of a source: the explicit `kind` wins, the
- * legacy `local` flag maps to `'local'`, archive-shaped URLs infer
+ * Effective acquisition kind of a source: the legacy `local` flag or
+ * `kind: 'local'` wins, then explicit git/archive kinds, archive-shaped URLs infer
  * `'archive'`, and everything else stays `'git'`.
  */
-/** 中文：显式 kind 优先，其次兼容 legacy local 标记，再按 URL 推断 archive，剩余视为 git。 */
+/** 中文：local 标记或 local kind 优先，其次显式 git/archive，再按 URL 推断，剩余视为 git。 */
 export function resolveSourceKind(source: Pick<SourceRef, 'url' | 'local' | 'kind'>): SourceKind {
-  /** 将来源输入归一化为 runtime 使用的唯一采集类型。 */
   if (source.local === true || source.kind === 'local') return 'local'
   if (source.kind === 'git' || source.kind === 'archive') return source.kind
   return isArchiveUrl(source.url) ? 'archive' : 'git'

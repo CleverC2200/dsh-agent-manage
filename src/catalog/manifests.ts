@@ -19,7 +19,6 @@
  * present, while surfaces (skills/commands/agents/hooks/mcp) are scanned from
  * the directories regardless of which dialect won.
  */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 import { readFile, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { sanitizeId } from './paths.js'
@@ -30,7 +29,6 @@ import { PLUGIN_LAYOUTS, MANIFEST_ALIASES, MARKETPLACE_PATHS, type ManifestKind 
 export type { ManifestKind } from '../model/layouts.js'
 
 /** One manifest candidate: its file path and the dialect it selects. */
-/** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
 export interface ManifestCandidate {
   kind: ManifestKind
   path: string
@@ -179,11 +177,9 @@ export interface MarketplaceEntry extends SuiteComponents {
   version?: string
   description?: string
   /** Claude Code: inline `lspServers` table declared on the entry itself. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   lspServers?: unknown
   /** Claude Code: a relative path string or `{ source: 'url', url }`.
    *  Codex: `{ source: 'local', path }` or `{ source: 'remote', url }`. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   source: string | { source?: string; url?: string; path?: string }
 }
 
@@ -195,7 +191,6 @@ export interface Marketplace {
 
 export interface ReadMarketplaceResult extends Marketplace {
   /** The manifest file the entries were read from. */
-  /** 中文：该注释补充对应业务契约、数据边界或实现约束，具体输入输出以英文原文为准。 */
   path: string
 }
 
@@ -335,7 +330,6 @@ export async function repoName(checkoutDir: string): Promise<string> {
       }
     } catch {
       // fall through to basename
-      // 中文：这里补充该实现约束对业务流程和错误边界的影响，避免误改行为。
     }
   }
   return syntheticManifestName(checkoutDir)

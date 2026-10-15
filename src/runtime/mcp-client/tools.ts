@@ -17,7 +17,6 @@
  *
  * @module runtime/mcp-client/tools
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
@@ -30,33 +29,27 @@ import { assertSupportedJsonSchema } from './json-schema-subset.js'
 import { isImageAdmissionError, type AttachmentStoreLike, type ImageMediaType, type SaveImageAttachment } from './host-seams.js'
 
 /** Lossless JSON value vocabulary the bridge exchanges with the registry. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 
 /** Canonical MCP result exposed to Code Mode without discarding protocol blocks. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type McpResult<Structured extends JsonValue = JsonValue> = {
   content: JsonValue[]
   structuredContent?: Structured
 }
 
 /** The agent on whose behalf a tool call runs (structural mirror). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface ToolExecutionAgent {
   session?: { requestHeader?: () => { config?: { provider?: string; model?: string } } | undefined }
   options?: { provider?: string; model?: string }
 } /** Execution identity handed to a tool body (structural mirror). */
 export interface ToolExecution {
   /** Caller-owned cancellation for this invocation. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   readonly signal: AbortSignal
   /** The calling agent, when the call came from one. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   readonly agent?: ToolExecutionAgent
 }
 
 /** A settled tool outcome (structural mirror). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface ToolExecutionResult {
   readonly value: JsonValue
   readonly content: ContentBlock[]
@@ -64,7 +57,6 @@ export interface ToolExecutionResult {
 }
 
 /** One registered tool (structural mirror of the host registration shape). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface ToolDefinition {
   readonly name: string
   readonly description: string
@@ -85,57 +77,46 @@ export interface ToolDefinition {
  * optional services image projection consults. Structural — the cordis
  * context is adapted onto this shape by the bridge shell.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface ToolHost {
   readonly logger: { error(message: string): void; warn(message: string): void; info(message: string): void }
   readonly tools: { register(definition: ToolDefinition): () => void }
   /** Optional service lookup; image projection degrades when absent. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   getService?(name: 'attachments' | 'llm'): unknown
 }
 
 /** Resolved options relevant to tool bridging. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export interface ToolBridgeOptions {
   enabledTools?: string[]
   disabledTools?: string[]
   startupTimeoutMs?: number
   /** Whether a registry conflict is contained or rejects this synchronization. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 export type ToolDisposers = Map<string, () => void>
 
 /**
  * DeepSeek function-name contract: at most 64 characters. Wire-protocol
  * constant, not configuration.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const MAX_PUBLIC_NAME_LENGTH = 64
 
 /** DeepSeek function-name contract: only `[A-Za-z0-9_-]` is allowed. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const INVALID_NAME_CHARS = /[^A-Za-z0-9_-]/g
 
 /** Hex chars of the SHA-256 identity hash appended on lossy normalization. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const HASH_LENGTH = 12
 
 /** Raster formats supported by the durable attachment vocabulary. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 
 /** Canonical RFC 4648 base64, excluding whitespace and URL-safe aliases. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 
 /** Raw result record: the bridge owns JSON-value validation after transport. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 const RawCallToolResultSchema = z.record(z.string(), z.unknown())
 
 /** List without mutating the SDK's per-page output-validator cache. */
@@ -267,7 +248,6 @@ export async function syncTools(client: Client, host: ToolHost, opts: ToolBridge
     // A conflict on an `mcp__<serverName>__`-qualified name means a foreign
     // registration occupies this server's namespace. Roll back so the model
     // sees either the full generation or none of it — never a partial set.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     for (const dispose of disposers.values()) dispose()
     host.logger.error(`mcp-client(${opts.serverName}): tool registration failed, no tools registered: ${String(error)}`)
     if (opts.registrationFailure === 'throw') throw error
@@ -282,7 +262,6 @@ export async function syncTools(client: Client, host: ToolHost, opts: ToolBridge
  * from an external MCP server process via JSON-RPC), so fields that the SDK
  * declares required may be absent at runtime if the server is buggy.
  */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface McpContentBlock {
   type: string
   text?: string
@@ -294,16 +273,12 @@ interface McpContentBlock {
 }
 
 /** Async rich projection staged for one exact ToolRuntime execution. */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface PreparedProjection {
   /** Canonical MCP value returned by execute before registry materialization. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   value: McpResult
   /** Synchronous output.render projection expected before finalization. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   fallback: ContentBlock[]
   /** Image-enriched or explicit-refusal projection prepared during execute. */
-  /** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
   content: ContentBlock[]
 }
 
@@ -412,12 +387,10 @@ function createExecutor(
     // object, but can be any JSON value if the model misbehaves (outputs a bare
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
     const result = await callToolUncached(client, rawName, argsObj, exec, opts)
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     if (!Array.isArray(result.content)) {
       const rendered: unknown = 'toolResult' in result ? JSON.stringify(result.toolResult) : '(no output)'
       const text = typeof rendered === 'string' ? rendered : '(no output)'
@@ -431,12 +404,10 @@ function createExecutor(
     // Trust boundary: the SDK's return type erases to `any[]` due to the
     // union of CallToolResult | CompatibilityCallToolResult; extractText
     // validates each element.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const content = result.content as unknown as JsonValue[]
     const text = extractText(content, rawName)
 
     // MCP isError → throw so ToolRuntime produces an isError result for the model.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     if (result.isError === true) {
       throw new Error(text)
     }
@@ -489,7 +460,6 @@ function decodeImage(block: McpContentBlock): SaveImageAttachment {
 }
 
 /** The optional model service image admission consults (structural mirror). */
-/** 中文：该注释补充对应运行时类型或配置契约的业务约束，输入输出以英文原文为准。 */
 interface LlmServiceLike {
   resolveModelInfo(provider: string, model: string, signal: AbortSignal): Promise<{ inputModalities?: string[] } | undefined>
 }
@@ -549,7 +519,6 @@ async function prepareImageProjection(host: ToolHost, exec: ToolExecution, conte
       decoded.push(decodeImage(value as unknown as McpContentBlock))
     } catch (error: unknown) {
       // decodeImage owns every throw above and always produces Error.
-      // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
       validationErrors.set(index, (error as Error).message)
     }
   }
@@ -565,7 +534,6 @@ async function prepareImageProjection(host: ToolHost, exec: ToolExecution, conte
     attachments = await resolveImageAdmission(host, exec)
   } catch (error: unknown) {
     // resolveImageAdmission contains provider failures and throws Error only.
-    // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
     const reason = (error as Error).message
     return projectContent(content, toolName, block => ({ type: 'text', text: imageDiagnostic(block, reason) }))
   }
@@ -604,7 +572,6 @@ function extractText(mcpContent: JsonValue[], toolName: string): string {
   const content = projectContent(mcpContent, toolName)
   // The default image projector below also returns text, so this local call
   // cannot produce a core image block.
-  // 中文：这里补充该实现约束对运行时业务流程的影响，避免误改边界行为。
   return content.map(block => (block as Extract<ContentBlock, { type: 'text' }>).text).join('\n')
 }
 
