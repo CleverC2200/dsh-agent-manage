@@ -89,7 +89,12 @@ it('selected inventory Sessions hide Cube without a current identity and diagnos
   expect(names).not.toContain('mcp__gea-gateway__query_business_data')
   expect(names).not.toContain('gea_page')
   const diagnostic = await f.execute('gea_runtime_diagnose', agent)
-  expect(JSON.parse(String(diagnostic.value))).toMatchObject({ consumerCode: 'base-safety-stock', pageBound: false, businessAuthorization: 'not-checked' })
+  expect(JSON.parse(String(diagnostic.value))).toMatchObject({
+    consumerCode: 'base-safety-stock',
+    mcpAccess: { error: 'GEA_IDENTITY_REQUIRED' },
+    pageBound: false,
+    businessAuthorization: 'not-checked'
+  })
   expect(JSON.stringify(await f.execute('gea_page', agent))).toContain('PAGE_NOT_BOUND')
   expect(JSON.stringify(await f.execute('gea_page'))).toContain('CALLING_AGENT_MISSING')
   expect(f.calls).toEqual([])

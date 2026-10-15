@@ -12,4 +12,4 @@ GEA Host 保留登录、凭据和业务授权。Manage 在当前登录代际中�
 
 GEA 通过 `geaMcp.identitySignal()` 投影当前身份代际。同身份资源刷新先准备新结果，期间保留现有 Schema。Core 的串行创建事件与公开提示组装 interface 等待 Schema 发布，覆盖业务首轮请求。身份变化先取消旧调用并退役其 Schema，再重新发现；资源刷新不重建业务 Session。
 
-个人 Agent 可选择一个可信的已安装 Cube 引用。Host 沿实际 Core 预设 revision 反查 owner 与 Consumer，仅授予上述两项 Cube 工具。缺失、停用、删除或撤销的来源不能回退到其他 Consumer。见[可信引用](../../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.zh.md#可信-cube-引用)。
+个人 Agent 可选择一个可信的已安装 Cube 引用。Host 沿实际 Core 预设 revision 反查 owner 与 Consumer，沿同一 Consumer 发布上述两项 Cube 工具及 `weknora_list_knowledge_bases`、`weknora_ask`，执行仍以当前服务端授权为准；不授予业务 profile、写入或页面动作。缺失、停用、删除或撤销的来源不能回退到其他 Consumer。见[可信引用](../../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.zh.md#可信-cube-引用)。

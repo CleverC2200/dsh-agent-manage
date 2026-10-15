@@ -10,7 +10,7 @@ Status: implemented
 
 GEA Host 继续独占登录、凭据与 Consumer 权威。当前 v2 发现与执行合同见 [GEA Cube-New MCP](../../../../docs/guides/gea-mcp.zh.md)；[原生业务资源](2026-10-04-selected-business-resources.zh.md#可信-cube-引用)持有个人 Agent 的可信引用规则。
 
-Manage 发布服务端 schema 与受限工具；GEA 从实际 Core Session 的已启用业务来源或可信 Cube 引用反查 Consumer。个人配置不能指定 Consumer、网关或登录 Token。个人引用仅授予 Cube inspect/query 两项工具，并按身份/来源撤销和子 Agent 工具过滤交集执行。早期可选 v1 transport 服务与单一 `gea-readonly` 配置已退出。
+Manage 发布服务端 schema 与受限工具；GEA 从实际 Core Session 的已启用业务来源或可信 Cube 引用反查 Consumer。个人配置不能指定 Consumer、网关或登录 Token。个人引用沿同一 Consumer 发布 Cube inspect/query 及[知识目录/问答工具](2026-10-15-gea-knowledge-tools.zh.md)，仍受服务端授权、身份/来源撤销和子 Agent 工具过滤交集约束。早期可选 v1 transport 服务与单一 `gea-readonly` 配置已退出。
 
 退出、环境切换、过期和 owner 卸载中止旧调用并拒绝迟到结果；网关凭据不写入外部 MCP 配置。普通个人 Agent 配置不依赖 GEA。
 
