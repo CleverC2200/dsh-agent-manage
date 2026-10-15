@@ -16,7 +16,7 @@ export const agentSkills = z.array(z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('reference'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), provider: z.string().min(1), path: z.string().optional(), enabled: z.boolean(), content: z.string().trim().min(1).max(96000).optional() }),
   z.object({ kind: z.literal('personal'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), description: z.string().trim().min(1).max(1000), content: z.string().trim().min(1).max(96000), enabled: z.boolean() })
 ])).max(200).refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length, 'DUPLICATE_AGENT_SKILL')
-const savedAgent = z.object({ ...fields, id: z.uuid(), skills: agentSkills.default([]), revision: z.number().int().positive() })
+const savedAgent = z.object({ ...fields, id: z.uuid(), skills: agentSkills.default([]), revision: z.number().int().positive(), deletedAt: z.iso.datetime().optional() })
 const saveAgent = z.object({ ...fields, id: z.uuid().optional() })
 const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) })
 
@@ -31,6 +31,7 @@ export class UserAgents {
   private errors = new Map<string, string>()
   private pending: Promise<unknown> = Promise.resolve()
   private closed = false
+  private readonly listeners = new Set<() => void>()
 
   constructor(
     private readonly ctx: Pick<Context, 'agentPresets' | 'skills'>,
@@ -46,7 +47,15 @@ export class UserAgents {
     }
     // During Host activation only register, never await the whole Loader tree.
     // Actual availability is audited by list/select after the Host has settled.
-    for (const agent of this.agents) if (agent.enabled) await this.publish(agent, false)
+    for (const agent of this.agents) if (agent.enabled && !agent.deletedAt) await this.publish(agent, false)
+  }
+
+  /** Observe committed lifecycle/configuration changes; listeners may start async reads.
+   * Notifications are synchronous signals and are never awaited inside the write queue.
+   */
+  watch(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
   }
 
   async list(): Promise<UserAgentView[]> {
@@ -104,6 +113,33 @@ export class UserAgents {
     })
   }
 
+  /** Retire only the personal configuration. Core owns all Sessions and drafts. */
+  remove(id: string): Promise<UserAgentView> {
+    return this.write(async () => {
+      const previous = this.find(id)
+      const agent = { ...previous, enabled: false, deletedAt: new Date().toISOString() }
+      const next = this.agents.map(row => row.id === id ? agent : row)
+      await this.persist(next)
+      this.agents = next
+      await this.withdraw(id)
+      return this.view(agent)
+    })
+  }
+
+  /** Restore configuration only; enabling its capabilities is a separate user action. */
+  restore(id: string): Promise<UserAgentView> {
+    return this.write(async () => {
+      const deleted = this.find(id, true)
+      if (!deleted.deletedAt) throw Error('USER_AGENT_NOT_DELETED')
+      const { deletedAt: _deletedAt, ...previous } = deleted
+      const agent = { ...previous, enabled: false }
+      const next = this.agents.map(row => row.id === id ? agent : row)
+      await this.persist(next)
+      this.agents = next
+      return this.view(agent)
+    })
+  }
+
   async select(id: string): Promise<{ preset: string }> {
     await this.pending
     const view = await this.view(this.find(id))
@@ -115,18 +151,23 @@ export class UserAgents {
     this.closed = true
     await this.pending
     for (const id of this.releases.keys()) await this.withdraw(id)
+    this.listeners.clear()
   }
 
-  private find(id: string): UserAgentConfig {
+  private find(id: string, includeDeleted = false): UserAgentConfig {
     const agent = this.agents.find(row => row.id === id)
     if (!agent) throw Error('USER_AGENT_NOT_FOUND')
+    if (agent.deletedAt && !includeDeleted) throw Error('USER_AGENT_DELETED: restore configuration before enabling')
     return agent
   }
 
   private write<T>(action: () => Promise<T>): Promise<T> {
     const result = this.pending.then(() => {
       if (this.closed) throw Error('USER_AGENTS_DISPOSED')
-      return action()
+      return action().then(value => {
+        for (const listener of this.listeners) listener()
+        return value
+      })
     })
     this.pending = result.catch(() => {})
     return result
@@ -200,6 +241,6 @@ export class UserAgents {
         error = failure instanceof Error ? failure.message : String(failure)
       }
     }
-    return { ...agent, origin: 'user', preset: this.preset(agent.id), publication: !agent.enabled ? 'disabled' : error ? 'failed' : 'ready', ...(error ? { error } : {}) }
+    return { ...agent, origin: 'user', preset: this.preset(agent.id), publication: agent.deletedAt ? 'deleted' : !agent.enabled ? 'disabled' : error ? 'failed' : 'ready', defaultUnavailable: this.ctx.agentPresets.defaultId === this.preset(agent.id) && (!agent.enabled || !!error || !!agent.deletedAt), ...(error ? { error } : {}) }
   }
 }

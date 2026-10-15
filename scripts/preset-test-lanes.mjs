@@ -10,6 +10,7 @@ export const presetLanes = {
   },
   client: {
     'tests/standard-preset-draft.test.ts': 1,
+    'tests/user-agent-retirement-draft.test.ts': 1,
     'tests/preset-catalog-client.test.ts': 1,
     'tests/skill-preset-client.test.ts': 1,
     'tests/base-preset-client.test.ts': 1,

@@ -2,6 +2,7 @@ import React, { useEffect, useState, type FormEvent } from 'react'
 import type { Translate } from './index.js'
 import { userAgentApi, type SaveUserAgent, type UserAgentView } from './user-agent-api.js'
 import { AgentSkills } from './AgentSkills.js'
+import { AgentRecovery } from './AgentRecovery.js'
 import css from './user-agents.module.css'
 
 export interface UserAgentWorkspaceProps {
@@ -66,18 +67,19 @@ export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
   return <section className={css.workspace}>
     {selected ? <>
       <button type="button" className={css.back} disabled={busy} onClick={() => { setSelected(undefined); setError(''); setMessage('') }}>{t('agentBack')}</button>
-      <header className={css.heading}><div className={css.icon}>{agentIcon}</div><div className={css.title}><h2>{selected.name}</h2><p>{t('agentPersonal')}</p></div>{enable(selected)}</header>
-      <nav className={css.tabs} aria-label={t('agentConfiguration')}>
+      <header className={css.heading}><div className={css.icon}>{agentIcon}</div><div className={css.title}><h2>{selected.name}</h2><p>{t('agentPersonal')}</p></div>{!selected.deletedAt && enable(selected)}</header>
+      <AgentRecovery key={selected.id} agent={selected} t={t} onChanged={agent => { setSelected(agent); setDraft(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} onChooseAnother={() => setSelected(undefined)} />
+      {selected.error && <p role="alert" className={css.error}>{selected.error}</p>}
+      {!selected.deletedAt && <><nav className={css.tabs} aria-label={t('agentConfiguration')}>
         {(['prompt', 'skill', 'mcp'] as const).map(value => <button type="button" key={value} disabled={busy} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{t(value === 'prompt' ? 'agentPrompt' : value === 'skill' ? 'agentSkill' : 'agentMcp')}</button>)}
       </nav>
-      {selected.error && <p role="alert" className={css.error}>{selected.error}</p>}
-      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => edit(selected)}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : <p className={css.muted}>{t('agentNotDelivered')}</p>}
+      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => edit(selected)}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : <p className={css.muted}>{t('agentNotDelivered')}</p>}</>}
     </> : <>
       <header className={css.heading}><div className={css.title}><h2>{t('agentConfiguration')}</h2></div><button type="button" disabled={busy} aria-label={t('refresh')} onClick={() => void run(refresh)}>↻</button><button className={css.primary} type="button" disabled={busy} onClick={() => { setDraft(blank()); setAdding(true); setMessage('') }}>{t('agentAdd')}</button></header>
-      <p className={css.sectionTitle}>{t('agentCurrent')} <span>{agents.length}</span></p>
+      <p className={css.sectionTitle}>{t('agentCurrent')} <span>{agents.filter(agent => !agent.deletedAt).length}</span></p>
       {agents.map(agent => <article className={css.row} key={agent.id}>
-        <button className={css.identity} type="button" disabled={busy} onClick={() => edit(agent)}><span className={css.icon}>{agentIcon}</span><span><strong>{agent.name}</strong><span className={css.description}>{agent.description || t('agentPersonal')}{agent.publication === 'failed' ? ` · ${t('agentUnavailable')}` : ''}</span></span></button>
-        <button type="button" disabled={busy || agent.publication !== 'ready'} onClick={() => start(agent)}>{t('agentStart')}</button>{enable(agent)}
+        <button className={css.identity} type="button" disabled={busy} onClick={() => edit(agent)}><span className={css.icon}>{agentIcon}</span><span><strong>{agent.name}</strong><span className={css.description}>{agent.description || t('agentPersonal')}{agent.publication === 'deleted' ? ` · ${t('agentDeleted')}` : agent.publication === 'failed' ? ` · ${t('agentUnavailable')}` : ''}</span></span></button>
+        <button type="button" disabled={busy || agent.publication !== 'ready'} onClick={() => start(agent)}>{t('agentStart')}</button>{!agent.deletedAt && enable(agent)}
       </article>)}
       {!agents.length && !adding && <p className={css.muted}>{t('agentEmpty')}</p>}
       {adding && <form className={css.inline} onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => setAdding(false)}>{t('cancel')}</button><button className={css.primary} type="submit" disabled={busy}>{t('save')}</button></footer></form>}

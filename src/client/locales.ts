@@ -7,6 +7,19 @@ export type Dictionary = Record<string, string>
 /** Chinese is the source-of-truth key set; English is checked against it below. */
 /** 中文字典是键集合的事实来源，英文集合在文件末尾做一致性校验。 */
 export const zh = {
+  agentDeleted: '已删除，可恢复',
+  agentRecovery: '配置恢复',
+  agentDelete: '删除个人 Agent',
+  agentDeleteConfirm: '确认删除',
+  agentDeleteConfirmation: '此 Agent 将从新任务中撤下。历史会话、草稿和可恢复配置会保留。',
+  agentRestore: '恢复配置',
+  agentEnableRecovery: '启用并检查依赖',
+  agentChooseAnother: '返回列表，选择其他 Agent',
+  agentDefaultUnavailable: '新任务默认值仍指向此 Agent。请恢复此配置，或在宿主设置中显式选择其他默认 Agent。',
+  agentDeletedRecovery: '此 Agent 已删除。先恢复配置，再检查依赖并启用，才能恢复原会话。',
+  agentDisabledRecovery: '此 Agent 已停用。历史会话和草稿保留；冷启动恢复前须显式启用。',
+  agentDependencyRecovery: '配置依赖暂不可用。请按上方错误恢复来源或修正配置，再检查并启用；也可另选 Agent 新建对话。',
+  agentColdRecoveryLimit: '运行中的会话保留原修订。重启恢复使用保留的当前配置，无法还原过去的修订；不会自动更换历史会话的 Agent。',
   agentConfiguration: 'Agent 配置',
   agentAdd: '＋ 添加 Agent',
   agentCurrent: '当前 Agent',
@@ -369,6 +382,19 @@ export const zh = {
 export type LocaleKey = keyof typeof zh
 
 export const en: Record<LocaleKey, string> = {
+  agentDeleted: 'Deleted, recoverable',
+  agentRecovery: 'Configuration recovery',
+  agentDelete: 'Delete personal Agent',
+  agentDeleteConfirm: 'Confirm deletion',
+  agentDeleteConfirmation: 'This Agent will be removed from new tasks. History, drafts and recoverable configuration remain.',
+  agentRestore: 'Restore configuration',
+  agentEnableRecovery: 'Enable and check dependencies',
+  agentChooseAnother: 'Back to list, choose another Agent',
+  agentDefaultUnavailable: 'The new-task default still points to this Agent. Restore it or explicitly choose another default in host settings.',
+  agentDeletedRecovery: 'This Agent was deleted. Restore its configuration, then check dependencies and enable it to recover the original conversation.',
+  agentDisabledRecovery: 'This Agent is disabled. History and drafts remain; explicitly enable it before cold recovery.',
+  agentDependencyRecovery: 'A dependency is unavailable. Restore the source or edit the configuration using the error above, then check and enable it; or choose another Agent for a new conversation.',
+  agentColdRecoveryLimit: 'Live conversations keep their original revision. After restart, recovery uses the retained current configuration; older revisions cannot be reconstructed. Historical conversations never switch Agent automatically.',
   agentConfiguration: 'Agent configuration',
   agentAdd: '+ Add Agent',
   agentCurrent: 'Current Agents',
