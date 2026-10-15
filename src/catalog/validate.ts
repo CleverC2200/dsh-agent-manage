@@ -32,6 +32,7 @@ interface Ajv2020Like {
 const Ajv2020Class = Ajv2020Default as unknown as { new (options?: Record<string, unknown>): Ajv2020Like }
 
 export const PLUGIN_SCHEMA_ID = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
+export const USER_MCP_SCHEMA_ID = 'urn:dsh-agent-manage:user-mcp'
 export const MCP_SCHEMA_ID = 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json'
 
 let ajvPromise: Promise<Ajv2020Like> | undefined
@@ -43,7 +44,17 @@ async function ajv(): Promise<Ajv2020Like> {
     const instance = new Ajv2020Class({ strict: false })
     for (const name of ['plugin.schema.json', 'mcp.schema.json'] as const) {
       const schemaText = await readFile(join(SCHEMAS_DIR, name), 'utf8')
-      instance.addSchema(JSON.parse(schemaText))
+      const schema = JSON.parse(schemaText)
+      instance.addSchema(schema)
+      if (name === 'mcp.schema.json') {
+        // Personal configuration uses the same known-field validation. Only portable
+        // plugin path rules and extension rejection differ from the bundled schema.
+        const userSchema = structuredClone(schema)
+        userSchema.$id = USER_MCP_SCHEMA_ID
+        for (const kind of ['stdioServer', 'streamableHttpServer', 'sseServer', 'oauth']) userSchema.$defs[kind].additionalProperties = true
+        delete userSchema.$defs.stdioServer.properties.cwd.pattern
+        instance.addSchema(userSchema)
+      }
     }
     return instance
   })()

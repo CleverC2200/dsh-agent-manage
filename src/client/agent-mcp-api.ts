@@ -6,5 +6,7 @@ export const agentMcpApi = {
   list: (agentId: string) => request<AgentMcpView[]>(AGENT_MCP_ROUTES.mcpList, { agentId }),
   save: (input: SaveAgentMcp) => request<AgentMcpView>(AGENT_MCP_ROUTES.mcpSave, input),
   setEnabled: (agentId: string, connectionId: string, enabled: boolean) => request<AgentMcpView[]>(AGENT_MCP_ROUTES.mcpEnabled, { agentId, connectionId, enabled }),
+  reauthorize: (agentId: string, connectionId: string) => request<AgentMcpView[]>(AGENT_MCP_ROUTES.mcpReauthorize, { agentId, connectionId }),
+  cancelAuthorization: (agentId: string, connectionId: string) => request<AgentMcpView[]>(AGENT_MCP_ROUTES.mcpCancelAuthorization, { agentId, connectionId }),
   remove: (agentId: string, connectionId: string) => request<AgentMcpView[]>(AGENT_MCP_ROUTES.mcpRemove, { agentId, connectionId })
 }

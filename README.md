@@ -6,6 +6,8 @@ Version metadata is declared in [package.json](package.json); past changes are r
 
 Personal Agent MCP connections use the Agent configuration MCP tab. Display names and stable server identifiers are separate; each Agent can select, disable or remove its own association. Shared definitions, credentials and connections remain managed by Catalog.runtime; removing one association keeps other Agents working.
 
+The same MCP editor supports Streamable HTTP, SSE and stdio. For stdio, command, arguments, working directory and environment variables remain separate; personal definitions allow absolute paths and retain unknown extension fields. OAuth uses the existing host credential record and browser flow. Saving can return while browser approval is pending; cancellation and failure remain visible until reauthorization. Cancelling or replacing a connection closes its pending callback and rejects late token writes.
+
 **A plugin marketplace and agent capability workspace for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).**
 
 Reuse supported content from Claude Code, Codex, Cursor, Kimi and other recognized layouts. Manage your own skills, commands, agent personas, MCP services and LSP servers in the DSH Web GUI. Supported layouts are read in place, without converting manifests or manually copying files into DSH. See the capability matrix for format-specific limits.

@@ -104,3 +104,13 @@ describe('service configuration editing', () => {
     expect(restoreRedactedConfig({ args: ['--token', '[redacted]'], url: 'https://example.test?token=[redacted]' }, original)).toEqual(original)
   })
 })
+
+it('preserves user MCP extension fields and separate absolute process configuration across edits', async () => {
+  const { root, catalog } = await setup()
+  await catalog.runtime.addMcpServer('personal', { type: 'stdio', command: process.execPath, args: ['argument with spaces'], cwd: root, env: { TOKEN: 'private' }, custom: { nested: [true, 2] } })
+  const id = 'plugin:@user-mcp/user-mcp/personal'
+  const detail = await catalog.runtime.serverConfig('mcp', id)
+  expect(detail.config).toMatchObject({ command: process.execPath, args: ['argument with spaces'], cwd: root, env: { TOKEN: '[redacted]' }, custom: { nested: [true, 2] } })
+  await catalog.runtime.saveServerConfig('mcp', id, { ...detail.config, args: ['new argument'] })
+  expect((await catalog.runtime.serverConfig('mcp', id)).config).toMatchObject({ args: ['new argument'], custom: { nested: [true, 2] } })
+})

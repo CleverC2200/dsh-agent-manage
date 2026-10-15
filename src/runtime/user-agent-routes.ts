@@ -36,6 +36,8 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
               else if (path === 'mcpSave') result = await agents.mcp!.save(input)
               else if (path === 'mcpAssociate') result = await agents.mcp!.associate(input)
               else if (path === 'mcpEnabled') result = await agents.mcp!.setEnabled(input)
+              else if (path === 'mcpReauthorize') result = await agents.mcp!.reauthorize(input)
+              else if (path === 'mcpCancelAuthorization') result = await agents.mcp!.cancelAuthorization(input)
               else if (path === 'mcpRemove') result = await agents.mcp!.remove(input)
               else if (path === 'save') result = await agents.save(input)
               else if (path === 'skills') {

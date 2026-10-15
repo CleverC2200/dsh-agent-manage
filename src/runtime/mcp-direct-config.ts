@@ -2,7 +2,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { MCP_SCHEMA_ID, validateAgainstSchema, validateMcpJson } from '../catalog/validate.js'
+import { MCP_SCHEMA_ID, USER_MCP_SCHEMA_ID, validateAgainstSchema, validateMcpJson } from '../catalog/validate.js'
 import type { McpSuiteConfig, Suite } from '../model/types.js'
 
 export const USER_MCP_SOURCE = '@user-mcp'
@@ -36,12 +36,12 @@ export async function loadUserMcpSuite(dataRoot: string): Promise<Suite> {
 
 /** 先过 JSON Schema，再复用 MCP 目录校验器，确保用户配置失败关闭。 */
 async function validateUserMcp(dataRoot: string, raw: unknown, roots: Record<string, string> = {}): Promise<McpSuiteConfig> {
-  const errors = await validateAgainstSchema(MCP_SCHEMA_ID, raw)
+  const errors = await validateAgainstSchema(USER_MCP_SCHEMA_ID, raw)
   if (errors.length > 0) throw new Error(`invalid MCP configuration: ${errors.join('; ')}`)
   const document = raw as { mcpServers: Record<string, unknown> }
   const servers: McpSuiteConfig['servers'] = {}
   for (const [key, config] of Object.entries(document.mcpServers)) {
-    const result = await validateMcpJson(roots[key] ?? dataRoot, { $schema: MCP_SCHEMA_ID, mcpServers: { [key]: config } })
+    const result = await validateMcpJson(roots[key] ?? dataRoot, { $schema: MCP_SCHEMA_ID, mcpServers: { [key]: config } }, { strict: false, pathMode: 'project' })
     if (result.config === undefined || result.errors.length > 0) throw new Error(result.errors.join('; '))
     Object.assign(servers, result.config.servers)
   }

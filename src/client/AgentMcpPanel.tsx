@@ -23,6 +23,23 @@ export function AgentMcpPanel({ agentId, t }: { agentId: string; t: Translate })
     void Promise.all([agentMcpApi.list(agentId), agentMcpApi.available(agentId)]).then(([value, candidates]) => { if (active) { setRows(value); setAvailable(candidates) } }).catch(reason => { if (active) setError(String(reason)) })
     return () => { active = false }
   }, [agentId])
+  const pending = rows.some(row => row.state === 'connecting' || row.state === 'awaiting-authorization')
+  useEffect(() => {
+    if (!pending) return
+    let active = true
+    let timer: ReturnType<typeof setTimeout>
+    const poll = async () => {
+      try {
+        const next = await agentMcpApi.list(agentId)
+        if (active) setRows(next)
+      } catch (reason) {
+        if (active) setError(reason instanceof Error ? reason.message : String(reason))
+      }
+      if (active) timer = setTimeout(() => void poll(), 1000)
+    }
+    timer = setTimeout(() => void poll(), 1000)
+    return () => { active = false; clearTimeout(timer) }
+  }, [agentId, pending])
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true); setError('')
     try { await action(); await refresh() } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
@@ -43,7 +60,9 @@ export function AgentMcpPanel({ agentId, t }: { agentId: string; t: Translate })
   return <div>
     <header className={css.heading}><h3 className={css.title}>{t('agentMcpUsed')}</h3><button type="button" disabled={busy} onClick={() => void run(refresh)}>{t('refresh')}</button><button type="button" disabled={busy} onClick={() => edit()}>{t('agentMcpAdd')}</button></header>
     {rows.map(row => <article className={css.row} key={row.connectionId}>
-      <div className={css.title}><strong>{row.name}</strong><p className={css.description}>{row.serverId} · {t(row.owner === 'user' ? 'agentMcpUser' : 'agentMcpPlugin')} · {t(`agentMcpState_${row.state}`)}</p>{row.reason && <p role="status" className={css.error}>{row.reason}</p>}</div>
+      <div className={css.title}><strong>{row.name}</strong><p role="status" className={css.description}>{row.serverId} · {t(row.owner === 'user' ? 'agentMcpUser' : 'agentMcpPlugin')} · {t(`agentMcpState_${row.state}`)}</p>{row.reason && <p role="status" className={css.error}>{row.reason}</p>}</div>
+      {row.state === 'awaiting-authorization' && <button type="button" disabled={busy} onClick={() => void run(() => agentMcpApi.cancelAuthorization(agentId, row.connectionId))}>{t('agentMcpCancelAuthorization')}</button>}
+      {row.canReauthorize && row.state !== 'awaiting-authorization' && <button type="button" disabled={busy} onClick={() => void run(() => agentMcpApi.reauthorize(agentId, row.connectionId))}>{t('mcpReauthorize')}</button>}
       {row.allowedOps.includes('edit') && <button type="button" disabled={busy} onClick={() => edit(row)}>{t('panelEditTitle')}</button>}
       {row.allowedOps.includes('remove') && <button type="button" disabled={busy} onClick={() => void run(() => agentMcpApi.remove(agentId, row.connectionId))}>{t('agentMcpRemove')}</button>}
       {row.allowedOps.includes('toggle') && <button type="button" role="switch" aria-label={t('agentEnabled', { name: row.name })} aria-checked={row.enabled} disabled={busy} className={row.enabled ? css.switchOn : css.switchOff} onClick={() => void run(() => agentMcpApi.setEnabled(agentId, row.connectionId, !row.enabled))}><span /></button>}
