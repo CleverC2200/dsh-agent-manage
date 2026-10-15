@@ -29,6 +29,8 @@ export interface McpStatusEntry {
   /** The current backend and credential service support resetting this server's OAuth grant. */
   /** 中文：当前后端和凭据服务支持重置该服务器的 OAuth 授权。 */
   canReauthorize?: boolean
+  /** Current supervised connection; zero advertised tools can still be connected. */
+  connectionState?: 'connecting' | 'connected' | 'failed'
   state: McpStatusState
   source?: string
   suiteId?: string

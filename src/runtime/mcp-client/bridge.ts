@@ -22,7 +22,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { resolveReconnectPolicy, startConnection } from './connection.js'
+import { resolveReconnectPolicy, startConnection, type ConnectionHandle } from './connection.js'
 import { validateConfig } from './config.js'
 import type { Config } from './config.js'
 import type { ToolHost } from './tools.js'
@@ -40,6 +40,12 @@ export const inject = ['tools']
  * shadowing. The mount registry deduplicates too; this is the last line of
  * defense for direct programmatic loads.
  */
+const connections = new WeakMap<Context, Map<string, ConnectionHandle>>()
+/** Read the supervisor's current generation, including legitimate zero-tool servers. */
+export function connectionState(root: Context, serverName: string) {
+  return connections.get(root)?.get(serverName)?.state()
+}
+
 const activeServerNames = new WeakMap<Context, Set<string>>()
 
 /** Tolerantly read an optional service from the cordis context. */
@@ -131,8 +137,14 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const credentials = optionalService(ctx, 'credentials')
   const connection = startConnection(host, config, reconnect, credentials)
 
+  let active = connections.get(ctx.root)
+  if (!active) { active = new Map(); connections.set(ctx.root, active) }
+  active.set(config.serverName, connection)
   ctx.effect(() => {
-    return () => connection.dispose()
+    return async () => {
+      await connection.dispose()
+      active.delete(config.serverName)
+    }
   }, 'market-mcp-client.connection')
 
   // Block plugin activation on the initial connection + tool discovery so

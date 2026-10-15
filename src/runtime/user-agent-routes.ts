@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import { AGENT_MCP_ROUTES } from '../contracts/agent-mcp.js'
 import { USER_AGENT_ROUTES } from '../contracts/user-agents.js'
 import { readJsonRequest, RequestBodyTooLarge } from './request-body.js'
 import type { UserAgents } from './user-agents.js'
@@ -8,7 +9,7 @@ import type { UserAgents } from './user-agents.js'
 export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'>, agents: UserAgents): void {
   const action = z.object({ id: z.uuid(), enabled: z.boolean() })
   const selection = z.object({ id: z.uuid() }).strict()
-  for (const [path, method] of Object.entries(USER_AGENT_ROUTES)) {
+  for (const [path, method] of Object.entries({ ...USER_AGENT_ROUTES, ...AGENT_MCP_ROUTES })) {
     const mutation = !['list', 'skillCatalog', 'skillRead'].includes(path)
     host.effect(() =>
       host.connection.fetch.register({
@@ -29,7 +30,14 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
             }
             else {
               const input = await readJsonRequest(request)
-              if (path === 'save') result = await agents.save(input)
+              if (path.startsWith('mcp') && !agents.mcp) throw Error('AGENT_MCP_RUNTIME_UNAVAILABLE')
+              if (path === 'mcpAvailable') result = agents.mcp!.available(z.object({ agentId: z.uuid() }).strict().parse(input).agentId)
+              else if (path === 'mcpList') result = await agents.mcp!.list(z.object({ agentId: z.uuid() }).strict().parse(input).agentId)
+              else if (path === 'mcpSave') result = await agents.mcp!.save(input)
+              else if (path === 'mcpAssociate') result = await agents.mcp!.associate(input)
+              else if (path === 'mcpEnabled') result = await agents.mcp!.setEnabled(input)
+              else if (path === 'mcpRemove') result = await agents.mcp!.remove(input)
+              else if (path === 'save') result = await agents.save(input)
               else if (path === 'skills') {
                 const value = z.object({ id: z.uuid(), skills: z.unknown() }).parse(input)
                 result = await agents.saveSkills(value.id, value.skills)

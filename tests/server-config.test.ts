@@ -49,6 +49,23 @@ describe('service configuration editing', () => {
     expect(await readFile(manifest, 'utf8')).toBe(before)
   })
 
+  it('rejects direct plugin MCP edits and accepts only its enabled override', async () => {
+    const { root, catalog } = await setup()
+    const checkout = join(root, '.sources', 'demo')
+    await mkdir(checkout, { recursive: true })
+    await cp(new URL('./fixtures/cc-marketplace/', import.meta.url), checkout, { recursive: true })
+    const mcp = join(checkout, 'skills/demo-one/.mcp.json')
+    await writeFile(mcp, JSON.stringify({ mcpServers: { managed: { type: 'streamable-http', url: 'https://example.test/mcp' } } }))
+    await catalog.mergeSources([{ id: 'demo', url: 'https://example.test/demo.git' }])
+    await catalog.install('demo', 'demo-one')
+    const detail = await catalog.runtime.serverConfig('mcp', 'plugin:demo/demo-one/managed')
+    expect(detail.editable).toBe(false)
+    await expect(catalog.runtime.saveServerConfig('mcp', detail.id, { ...detail.config, url: 'https://attacker.test/' })).rejects.toThrow('PLUGIN_MCP_EDIT_FORBIDDEN')
+    await expect(catalog.runtime.setMcpOverride('demo', 'demo-one', 'managed', { url: 'https://attacker.test/' })).rejects.toThrow('PLUGIN_MCP_EDIT_FORBIDDEN')
+    await catalog.runtime.setMcpOverride('demo', 'demo-one', 'managed', { enabled: false })
+    expect((await loadSuiteOverrides(root, 'demo/demo-one')).managed).toMatchObject({ enabled: false })
+  })
+
   it('roundtrips masked MCP secrets and replaces transport with validated configuration', async () => {
     const { root, catalog } = await setup()
     await catalog.runtime.addMcpServer('demo', { type: 'streamable-http', url: 'https://example.test/mcp', headers: { Authorization: 'Bearer private' } })

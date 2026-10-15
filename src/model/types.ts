@@ -182,6 +182,8 @@ export interface McpSuiteConfig {
   /** Native project commands resolve from the project, not the agent configuration directory. */
   /** 中文：原生项目命令从项目目录解析，而不是从 agent 配置目录解析。 */
   root?: string
+  /** Host-owned roots for imported personal definitions; never accepted from HTTP config. */
+  serverRoots?: Record<string, string>
   schema: string
   servers: Record<string, McpServer>
 }

@@ -4,6 +4,8 @@ Version metadata is declared in [package.json](package.json); past changes are r
 
 # dsh-agent-manage
 
+Personal Agent MCP connections use the Agent configuration MCP tab. Display names and stable server identifiers are separate; each Agent can select, disable or remove its own association. Shared definitions, credentials and connections remain managed by Catalog.runtime; removing one association keeps other Agents working.
+
 **A plugin marketplace and agent capability workspace for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness).**
 
 Reuse supported content from Claude Code, Codex, Cursor, Kimi and other recognized layouts. Manage your own skills, commands, agent personas, MCP services and LSP servers in the DSH Web GUI. Supported layouts are read in place, without converting manifests or manually copying files into DSH. See the capability matrix for format-specific limits.
