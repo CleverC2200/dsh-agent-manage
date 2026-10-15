@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { Catalog } from '../src/application/catalog.js'
+import { SuiteSkillProvider } from '../src/runtime/skills-provider.js'
 import { AgentSources } from '../src/runtime/agent-sources.js'
 import { UserAgents } from '../src/runtime/user-agents.js'
 import { agentOn, completion, presetHarness, turn } from './core-preset-harness.js'
@@ -28,7 +29,19 @@ it('imports a discovered source Agent, publishes a native Session and preserves 
   const sources = new AgentSources(catalog, agents)
   const discovered = await sources.acquire({ url: source, kind: 'local' })
   expect(discovered.candidates).toContainEqual(expect.objectContaining({ resourceKey: 'agent:helper', name: 'Team helper' }))
-  const imported = await sources.import({ sourceId: discovered.id, suiteId: 'team', resourceKey: 'agent:helper' })
+  const { mountAgentSourceRoutes } = await import('../src/runtime/agent-source-routes.js')
+  const { AGENT_SOURCE_ROUTES } = await import('../src/contracts/agent-sources.js')
+  mountAgentSourceRoutes(ctx, sources)
+  const handler = ctx.connection.createSharedFetchHandler('/api')
+  const imported = await (
+    await handler.fetch(
+      new Request(`http://localhost${AGENT_SOURCE_ROUTES.import}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'http://localhost' },
+        body: JSON.stringify({ sourceId: discovered.id, suiteId: 'team', resourceKey: 'agent:helper' })
+      })
+    )
+  ).json()
   expect(imported).toMatchObject({
     origin: 'user',
     prompt: 'SOURCE_PERSONA',
@@ -132,4 +145,40 @@ it('imports Git and archive configurations through the same discovery and retain
     await agents.dispose()
     await new Promise<void>(resolve => server.close(() => resolve()))
   }
+})
+
+it('imports complete source Skills with reference assets and keeps personal Skill changes out of the checkout', async () => {
+  const { ctx, home } = await presetHarness()
+  const root = join(home, 'skill-source')
+  await mkdir(join(root, '.claude-plugin'), { recursive: true })
+  const skillRoot = join(root, 'skills/source-skill')
+  await mkdir(join(skillRoot, 'references'), { recursive: true })
+  await writeFile(join(root, '.claude-plugin/plugin.json'), JSON.stringify({ name: 'source-suite', systemPrompt: 'Use the selected source skill.' }))
+  const original = '---\nname: source-skill\ndescription: Source instructions\n---\nRead [source details](references/details.md).'
+  await writeFile(join(skillRoot, 'SKILL.md'), original)
+  await writeFile(join(skillRoot, 'references/details.md'), 'SOURCE_REFERENCE')
+  const catalog = new Catalog({ userRoot: join(home, 'catalog'), dataRoot: join(home, 'data'), onChanged: () => {} })
+  await catalog.load()
+  ctx.skills.registerProvider(() => new SuiteSkillProvider(catalog))
+  const agents = new UserAgents(ctx, join(home, 'agents.json'))
+  await agents.load()
+  const sources = new AgentSources(catalog, agents)
+  const source = await sources.acquire({ url: root, kind: 'local' })
+  const imported = await sources.import({ sourceId: source.id, suiteId: 'source-suite', resourceKey: 'suite' })
+  expect(imported.publication).toBe('ready')
+  expect(imported.skills).toEqual([{ kind: 'reference', name: 'source-skill', provider: 'agent-plugin', path: join(skillRoot, 'SKILL.md'), enabled: true }])
+  const session = await agentOn(ctx, 'imported-skill', imported.preset, undefined, home)
+  const loaded = await ctx.skills.get('source-skill', { scope: session, cwd: home })
+  expect(loaded?.resourceBase).toEqual({ kind: 'directory', path: skillRoot })
+  expect(loaded?.content).toContain('references/details.md')
+  const changed = await agents.saveSkills(
+    imported.id,
+    imported.skills.map(skill => ({ ...skill, content: 'CUSTOM_SKILL_BODY' }))
+  )
+  expect(changed.customized).toBe(true)
+  expect(changed.source?.base.skills).toEqual(imported.skills)
+  expect(await readFile(join(skillRoot, 'SKILL.md'), 'utf8')).toBe(original)
+  const entry = (await catalog.readUserCatalog()).suites[0]
+  expect(entry.activeSurfaces).toEqual({ skills: true, mcp: false, hooks: false, commands: false, agents: false, lsp: false })
+  await agents.dispose()
 })

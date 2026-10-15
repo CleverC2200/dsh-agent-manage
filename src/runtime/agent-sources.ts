@@ -4,6 +4,7 @@ import { componentPath, defaultMarkdownResources, resourceText } from '../catalo
 import { canonicalGitUrl } from '../catalog/scan-resolvers.js'
 import { expandHome } from '../catalog/paths.js'
 import type { AgentSourceBaseline, AgentSourceCandidate, AgentSourceView } from '../contracts/agent-sources.js'
+import type { UserAgentSkill } from '../contracts/user-agents.js'
 import { resolveSourceKind, type Suite } from '../model/types.js'
 import { parseAgentRole } from './agent-role-router.js'
 import type { UserAgents } from './user-agents.js'
@@ -69,15 +70,32 @@ export class AgentSources {
   async import(input: unknown, signal?: AbortSignal) {
     const value = selection.parse(input)
     signal?.throwIfAborted()
+    const existing = (await this.agents.list()).find(
+      agent => agent.source?.sourceId === value.sourceId && agent.source?.suiteId === value.suiteId && agent.source?.resourceKey === value.resourceKey
+    )
+    if (existing) return existing
     const source = (await this.list()).find(row => row.id === value.sourceId)
     if (!source) throw Error('AGENT_SOURCE_NOT_FOUND')
     const suite = (await this.catalog.readUserCatalog()).suites.find(row => row.sourceId === source.id && row.id === value.suiteId)
     if (!suite) throw Error('AGENT_SOURCE_SUITE_NOT_FOUND')
     const candidate = (await this.discover(suite)).find(row => row.resourceKey === value.resourceKey)
     if (!candidate?.base) throw Error(candidate?.error ?? 'AGENT_SOURCE_CONFIGURATION_NOT_FOUND')
+    const skills: UserAgentSkill[] = []
+    if (suite.skills.length) {
+      const card = (await this.catalog.overview()).suites.find(row => row.sourceId === suite.sourceId && row.suiteId === suite.id)!
+      if (card.installed && (!card.enabled || card.surfaceToggles?.skills === false)) throw Error('AGENT_SOURCE_SKILLS_DISABLED')
+      if (!card.installed) await this.catalog.install(suite.sourceId, suite.id, { skills: true, mcp: false, hooks: false, commands: false, agents: false, lsp: false })
+      const available = await this.agents.skillCatalog()
+      for (const skill of suite.skills) {
+        const reference = available.find(row => row.name === skill.name && row.provider === 'agent-plugin' && row.path === skill.file)
+        if (!reference) throw Error(`AGENT_SOURCE_SKILL_UNAVAILABLE: ${skill.name}`)
+        skills.push({ kind: 'reference', name: reference.name, provider: reference.provider, path: reference.path, enabled: true })
+      }
+    }
+    const base = { ...candidate.base, skills }
     signal?.throwIfAborted()
     return this.agents.importSource(
-      { ...candidate.base, enabled: true },
+      { ...base, enabled: true },
       {
         sourceId: source.id,
         suiteId: suite.id,
@@ -86,7 +104,7 @@ export class AgentSources {
         kind: source.kind,
         ...(source.lockCommit ? { lockCommit: source.lockCommit } : {}),
         ...(suite.manifest.version ? { version: suite.manifest.version } : {}),
-        base: candidate.base
+        base
       }
     )
   }
@@ -99,13 +117,13 @@ export class AgentSources {
     const common = { suiteId: suite.id, name: suite.manifest.name, description: suite.manifest.description ?? '' }
     if (suite.errors.length) return [{ ...common, resourceKey: 'suite', error: suite.errors.join('; ') }]
     const result: Discovered[] = []
-    const unsupported =
-      suite.surfaces.mcp || suite.surfaces.skills
-        ? 'AGENT_SOURCE_MEMBERS_REQUIRE_IMPORT_SUPPORT'
-        : suite.surfaces.hooks || suite.surfaces.commands || suite.surfaces.lsp
-          ? 'AGENT_SOURCE_UNSUPPORTED_COMPONENTS'
-          : undefined
-    if (suite.systemPrompt?.trim()) result.push({ ...common, resourceKey: 'suite', base: { name: common.name, description: common.description, prompt: suite.systemPrompt } })
+    const unsupported = suite.surfaces.mcp
+      ? 'AGENT_SOURCE_MEMBERS_REQUIRE_IMPORT_SUPPORT'
+      : suite.surfaces.hooks || suite.surfaces.commands || suite.surfaces.lsp
+        ? 'AGENT_SOURCE_UNSUPPORTED_COMPONENTS'
+        : undefined
+    if (suite.systemPrompt?.trim())
+      result.push({ ...common, resourceKey: 'suite', base: { name: common.name, description: common.description, prompt: suite.systemPrompt, skills: [] } })
     const resources = suite.resources?.agents ?? (await defaultMarkdownResources(suite.root, 'agents'))
     for (const resource of resources) {
       const entry = { ...common, resourceKey: `agent:${resource.name}`, name: resource.name }
@@ -117,7 +135,7 @@ export class AgentSources {
         if (role.model || role.provider || role.reasoningEffort || role.tools || role.disallowedTools) throw Error('AGENT_SOURCE_ROLE_RESTRICTIONS_REQUIRE_MANUAL_CONFIGURATION')
         if (role.disabled) throw Error('AGENT_SOURCE_ROLE_DISABLED')
         if (!role.content.trim()) throw Error('AGENT_SOURCE_PROMPT_EMPTY')
-        const base = { name: role.title ?? resource.name, description: role.description ?? common.description, prompt: role.content.trim() }
+        const base = { name: role.title ?? resource.name, description: role.description ?? common.description, prompt: role.content.trim(), skills: [] }
         result.push({ ...entry, name: base.name, description: base.description, base })
       } catch (error) {
         result.push({ ...entry, error: error instanceof Error ? error.message : String(error) })

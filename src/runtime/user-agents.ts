@@ -13,10 +13,28 @@ const fields = {
   prompt: z.string().trim().min(1).max(48_000),
   enabled: z.boolean()
 }
-export const agentSkills = z.array(z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('reference'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), provider: z.string().min(1), path: z.string().optional(), enabled: z.boolean(), content: z.string().trim().min(1).max(96000).optional() }),
-  z.object({ kind: z.literal('personal'), name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), description: z.string().trim().min(1).max(1000), content: z.string().trim().min(1).max(96000), enabled: z.boolean() })
-])).max(200).refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length, 'DUPLICATE_AGENT_SKILL')
+export const agentSkills = z
+  .array(
+    z.discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('reference'),
+        name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+        provider: z.string().min(1),
+        path: z.string().optional(),
+        enabled: z.boolean(),
+        content: z.string().trim().min(1).max(96000).optional()
+      }),
+      z.object({
+        kind: z.literal('personal'),
+        name: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+        description: z.string().trim().min(1).max(1000),
+        content: z.string().trim().min(1).max(96000),
+        enabled: z.boolean()
+      })
+    ])
+  )
+  .max(200)
+  .refine(skills => new Set(skills.map(skill => skill.name)).size === skills.length, 'DUPLICATE_AGENT_SKILL')
 const sourceBaseline = z.object({
   sourceId: z.string(),
   suiteId: z.string(),
@@ -25,7 +43,9 @@ const sourceBaseline = z.object({
   kind: z.enum(['git', 'local', 'archive']),
   lockCommit: z.string().optional(),
   version: z.string().optional(),
-  base: z.object({ name: fields.name, description: fields.description, prompt: fields.prompt })
+  importPending: z.boolean().optional(),
+  mcpReferences: z.array(z.object({ serverKey: z.string(), serverId: z.string(), connectionId: z.uuid() })).optional(),
+  base: z.object({ name: fields.name, description: fields.description, prompt: fields.prompt, skills: agentSkills.default([]) })
 })
 const savedAgent = z.object({ ...fields, id: z.uuid(), skills: agentSkills.default([]), revision: z.number().int().positive(), source: sourceBaseline.optional() })
 const saveAgent = z.object({ ...fields, id: z.uuid().optional() })
@@ -69,6 +89,7 @@ export class UserAgents {
     const value = saveAgent.parse(input)
     return this.write(async () => {
       const previous = value.id ? this.find(value.id) : undefined
+      if (previous?.source?.importPending && value.enabled) throw Error('AGENT_SOURCE_IMPORT_INCOMPLETE')
       const agent: UserAgentConfig = {
         ...value,
         skills: previous?.skills ?? [],
@@ -87,14 +108,17 @@ export class UserAgents {
 
   /** Imports only Host-discovered configuration; repeat imports preserve user customization. */
   importSource(input: unknown, source: AgentSourceBaseline): Promise<UserAgentView> {
-    const value = saveAgent.omit({ id: true }).parse(input)
+    const value = saveAgent
+      .omit({ id: true })
+      .extend({ skills: agentSkills.default([]) })
+      .parse(input)
     const provenance = sourceBaseline.parse(source)
     return this.write(async () => {
       const existing = this.agents.find(
         agent => agent.source?.sourceId === source.sourceId && agent.source?.suiteId === source.suiteId && agent.source?.resourceKey === source.resourceKey
       )
       if (existing) return this.view(existing)
-      const agent: UserAgentConfig = { ...value, skills: [], id: randomUUID(), revision: 1, source: provenance }
+      const agent: UserAgentConfig = { ...value, id: randomUUID(), revision: 1, source: provenance }
       const next = [...this.agents, agent]
       await this.persist(next)
       this.agents = next
@@ -103,8 +127,24 @@ export class UserAgents {
     })
   }
 
+  /** Complete a multi-resource import only after its external MCP associations exist. */
+  finishSourceImport(id: string, mcpReferences: NonNullable<AgentSourceBaseline['mcpReferences']>): Promise<UserAgentView> {
+    return this.write(async () => {
+      const previous = this.find(id)
+      if (!previous.source?.importPending) throw Error('AGENT_SOURCE_IMPORT_NOT_PENDING')
+      const source = sourceBaseline.parse({ ...previous.source, importPending: false, mcpReferences })
+      const agent = { ...previous, source, enabled: true }
+      const next = this.agents.map(row => (row.id === id ? agent : row))
+      await this.persist(next)
+      this.agents = next
+      await this.publish(agent, true)
+      return this.view(agent)
+    })
+  }
+
   async skillCatalog(cwd?: string, signal?: AbortSignal): Promise<UserAgentSkillOption[]> {
-    return (await this.ctx.skills.list({ cwd, signal })).filter(skill => skill.invocation.userInvocable || skill.invocation.modelInvocable)
+    return (await this.ctx.skills.list({ cwd, signal }))
+      .filter(skill => skill.invocation.userInvocable || skill.invocation.modelInvocable)
       .map(({ name, description, provider, path }) => ({ name, description, provider, ...(path ? { path } : {}) }))
   }
 
@@ -119,7 +159,7 @@ export class UserAgents {
     return this.write(async () => {
       const previous = this.find(id)
       const agent = { ...previous, skills, revision: previous.revision + 1 }
-      const next = this.agents.map(row => row.id === id ? agent : row)
+      const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
       if (agent.enabled) await this.publish(agent, true)
@@ -130,6 +170,7 @@ export class UserAgents {
   setEnabled(id: string, enabled: boolean): Promise<UserAgentView> {
     return this.write(async () => {
       const agent = { ...this.find(id), enabled }
+      if (enabled && agent.source?.importPending) throw Error('AGENT_SOURCE_IMPORT_INCOMPLETE')
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
@@ -227,7 +268,7 @@ export class UserAgents {
   }
 
   private async view(agent: UserAgentConfig): Promise<UserAgentView> {
-    let error = this.errors.get(agent.id)
+    let error = agent.source?.importPending ? 'AGENT_SOURCE_IMPORT_INCOMPLETE' : this.errors.get(agent.id)
     if (agent.enabled && !error) {
       try {
         await this.assertReady(agent.id)
@@ -237,7 +278,9 @@ export class UserAgents {
     }
     return {
       ...agent,
-      customized: agent.source !== undefined && (['name', 'description', 'prompt'] as const).some(key => agent[key] !== agent.source!.base[key]),
+      customized:
+        (agent.source !== undefined && (['name', 'description', 'prompt'] as const).some(key => agent[key] !== agent.source!.base[key])) ||
+        (agent.source !== undefined && JSON.stringify(agent.skills) !== JSON.stringify(agent.source.base.skills)),
       origin: 'user',
       preset: this.preset(agent.id),
       publication: !agent.enabled ? 'disabled' : error ? 'failed' : 'ready',

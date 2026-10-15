@@ -7,9 +7,11 @@ export interface AgentSourceBaseline {
   resourceKey: string
   url: string
   kind: 'git' | 'local' | 'archive'
+  importPending?: boolean
+  mcpReferences?: Array<{ serverKey: string; serverId: string; connectionId: string }>
   lockCommit?: string
   version?: string
-  base: Pick<UserAgentConfig, 'name' | 'description' | 'prompt'>
+  base: Pick<UserAgentConfig, 'name' | 'description' | 'prompt' | 'skills'>
 }
 export interface AgentSourceCandidate {
   suiteId: string
