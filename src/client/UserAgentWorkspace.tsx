@@ -69,8 +69,8 @@ export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
     {selected ? <>
       <button type="button" className={css.back} disabled={busy} onClick={() => { setSelected(undefined); setError(''); setMessage('') }}>{t('agentBack')}</button>
       <header className={css.heading}><div className={css.icon}>{agentIcon}</div><div className={css.title}><h2>{selected.name}</h2><p>{t('agentPersonal')}</p></div>{!selected.deletedAt && enable(selected)}</header>
-      <AgentRecovery key={selected.id} agent={selected} t={t} onChanged={agent => { setSelected(agent); setDraft(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} onChooseAnother={() => setSelected(undefined)} />
       {selected.error && <p role="alert" className={css.error}>{selected.error}</p>}
+      <AgentRecovery key={selected.id} agent={selected} t={t} onChanged={agent => { setSelected(agent); setDraft(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} onChooseAnother={() => setSelected(undefined)} />
       {!selected.deletedAt && <><nav className={css.tabs} aria-label={t('agentConfiguration')}>
         {(['prompt', 'skill', 'mcp'] as const).map(value => <button type="button" key={value} disabled={busy} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{t(value === 'prompt' ? 'agentPrompt' : value === 'skill' ? 'agentSkill' : 'agentMcp')}</button>)}
       </nav>

@@ -32,6 +32,7 @@ it('withdraws a personal Agent, retains live history and restores a deleted conf
   await turn(ctx, live, 'Preserve this conversation')
   const history = live.session.snapshotEvents()
   const blank = await ctx.sessionController.create({ cwd: home, sessionId: SessionId('retired-blank-session'), agentPreset: saved.preset })
+  await ctx.sessions.flush(ctx.agents.get(blank.sessionId)!.session)
   await ctx.settings.update('agent-preset-registry', { selectedDefault: saved.preset })
   expect((await post(ctx, USER_AGENT_ROUTES.enabled, { id: saved.id, enabled: false })).status).toBe(200)
   expect((await ctx.agentPresets.list()).map(row => row.id)).not.toContain(saved.preset)
@@ -55,6 +56,7 @@ it('withdraws a personal Agent, retains live history and restores a deleted conf
   expect(cold.agentPresets.defaultId).toBe(saved.preset)
   await expect(cold.sessionController.create({ cwd: home, sessionId: created.sessionId })).rejects.toThrow(saved.preset)
   await expect(cold.sessionController.create({ cwd: home, sessionId: blank.sessionId })).rejects.toThrow(saved.preset)
+  await expect(cold.sessionController.create({ cwd: home, sessionId: blank.sessionId, agentPreset: 'standard' })).rejects.toThrow(saved.preset)
   const stored = await cold.sessionPersistence.open(created.sessionId, 'read')
   try {
     expect((await stored.read()).events).toEqual(history)

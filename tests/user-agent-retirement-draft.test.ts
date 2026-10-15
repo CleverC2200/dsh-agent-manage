@@ -4,7 +4,8 @@ import { expect, it, onTestFinished } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { resolve } from 'node:path'
+import { resolve, join } from 'node:path'
+import { writeFile } from 'node:fs/promises'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { TestSessions } from '../../../official-latest-standard/packages/test-support/client-runtime/src/sessions.ts'
 import { InputHub } from '../../../official-latest-standard/packages/client/ui-conversation/src/client/input/hub.ts'
@@ -45,4 +46,19 @@ it('preserves the official conversation draft through Agent retirement and cold 
   expect(stdout).toContain('1 passed')
   expect(hub.for(retained.binding.ctx).state.getSnapshot().draft).toBe('保留尚未发送的原会话草稿')
   expect(localStorage.getItem(key)).toBe(stored)
+  if (process.env.PRESET_EVIDENCE_DIR)
+    await writeFile(
+      join(process.env.PRESET_EVIDENCE_DIR, 'user-agent-draft-preservation.json'),
+      JSON.stringify(
+        {
+          scope: 'official client InputHub plus independent real Core Host retirement/restart test',
+          sessionId: id,
+          draftPreserved: true,
+          storedDraftPreserved: true,
+          installedClient: false
+        },
+        null,
+        2
+      ) + '\n'
+    )
 })
