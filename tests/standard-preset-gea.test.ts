@@ -190,7 +190,7 @@ it('revokes business execution when its resource owner is withdrawn or its capab
   f.business.setCapabilities(f.capabilities)
   await f.releaseResource()
   const missing = await f.query()
-  expect(JSON.stringify(missing)).toContain('GEA_AGENT_RESOURCE_MISSING')
+  expect(JSON.stringify(missing)).toContain('GEA MCP requires')
   const general = await f.execute('todo_write', { todos: [] })
   expect(JSON.stringify(general)).toContain('GEA_AGENT_RESOURCE_MISSING')
   expect(f.network.filter(row => row.body.method === 'tools/call')).toEqual([])

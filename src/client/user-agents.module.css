@@ -70,3 +70,5 @@
 .conflictValues { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .conflictValues pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; font: inherit; }
 @media (max-width: 700px) { .conflictValues { grid-template-columns: 1fr; } }
+.pluginRow { flex-wrap: wrap; }
+.pluginRow .title { min-width: 0; flex-basis: 160px; overflow-wrap: anywhere; }

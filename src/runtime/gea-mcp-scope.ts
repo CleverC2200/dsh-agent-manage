@@ -25,7 +25,7 @@ function isGatewayTool(name: string): boolean {
 
 /** Keep live and newly created agents masked, including preset switches and login refreshes. */
 /** 安装工具守卫并同步现有 Agent 的 schema 屏蔽；返回一次性释放函数。 */
-export function restrictGeaMcp(host: GeaScopeHost, permits: (agent: GeaScopeAgent) => boolean): () => void {
+export function restrictGeaMcp(host: GeaScopeHost, permits: (agent: GeaScopeAgent) => boolean, watch?: (listener: () => void) => () => void): () => void {
   const masks = new Map<GeaScopeAgent, { key: string; dispose: () => void }>()
   let updating = false
   let closed = false
@@ -33,7 +33,7 @@ export function restrictGeaMcp(host: GeaScopeHost, permits: (agent: GeaScopeAgen
   const allowed = (agent: GeaScopeAgent | undefined): boolean => agent !== undefined && permits(agent)
   const unguard = host.tools.guard(exec =>
     isGatewayTool(exec.name) && !allowed(exec.agent)
-      ? 'GEA MCP requires an enabled business Agent and current GEA identity / GEA MCP 需要已启用的业务 Agent 与当前 GEA 身份'
+      ? 'GEA MCP requires an enabled business Agent and current GEA identity / GEA MCP 需要当前 GEA 身份、已启用的 Cube 引用与可用插件来源'
       : undefined
   )
   /** 根据当前 Agent 和工具 schema 快照刷新每个 Agent 的 GEA 工具屏蔽。 */
@@ -68,6 +68,7 @@ export function restrictGeaMcp(host: GeaScopeHost, permits: (agent: GeaScopeAgen
     }
   }
   const listeners = ['tools/change', 'agent/created', 'agent/disposed', 'agent-preset/selected'].map(event => host.on(event, sync))
+  if (watch) listeners.push(watch(sync))
   try {
     sync()
   } catch (error) {

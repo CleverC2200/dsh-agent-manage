@@ -123,7 +123,11 @@ export function mountGeaMcp(ctx: Context): void {
     const service = (host as unknown as { geaMcp: GeaMcpService }).geaMcp
     if (service.version !== 2) throw Error('Unsupported GEA MCP service version')
     host.effect(() => {
-      const stopScope = restrictGeaMcp(host as unknown as GeaScopeHost, agent => typeof agent.id === 'string' && service.allows(agent.id))
+      const stopScope = restrictGeaMcp(
+        host as unknown as GeaScopeHost,
+        agent => typeof agent.id === 'string' && service.allows(agent.id),
+        listener => service.watch(listener)
+      )
       const registry = (host as unknown as ToolHost).tools
       const login = followGeaLogin(
         service,

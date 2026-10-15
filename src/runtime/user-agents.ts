@@ -6,6 +6,7 @@ import { z } from 'zod'
 import type { AgentSourceBaseline } from '../contracts/agent-sources.js'
 import type { UserAgentConfig, UserAgentView, UserAgentSkillOption } from '../contracts/user-agents.js'
 import type { RuntimeManagement } from '../application/runtime-management.js'
+import type {} from './user-agent-cube.js'
 import { AgentMcp } from './agent-mcp.js'
 import { composeStandardPreset } from './standard-preset.js'
 
@@ -51,10 +52,12 @@ const sourceBaseline = z.object({
     .optional(),
   base: z.object({ name: fields.name, description: fields.description, prompt: fields.prompt, skills: agentSkills.default([]) })
 })
+const cubeReference = z.object({ sourceRef: z.string().regex(/^[a-z][a-z0-9-]*$/), enabled: z.boolean() }).strict()
 const savedAgent = z.object({
   ...fields,
   id: z.uuid(),
   skills: agentSkills.default([]),
+  cube: cubeReference.optional(),
   revision: z.number().int().positive(),
   source: sourceBaseline.optional(),
   deletedAt: z.iso.datetime().optional()
@@ -68,6 +71,7 @@ const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) }
  */
 export class UserAgents {
   private agents: UserAgentConfig[] = []
+  private readonly cubeGrants = new Map<string, { generation: string; sourceRef: string; signal: AbortSignal; controller: AbortController }>()
   private releases = new Map<string, () => Promise<void>>()
   private retiredReleases = new Set<() => Promise<void>>()
   private published = new Map<string, UserAgentConfig>()
@@ -93,6 +97,7 @@ export class UserAgents {
     } catch (error) {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     }
+    this.syncCubeGrants()
     await this.mcp?.load(this.agents)
     // During Host activation only register, never await the whole Loader tree.
     // Actual availability is audited by list/select after the Host has settled.
@@ -120,6 +125,7 @@ export class UserAgents {
       const agent: UserAgentConfig = {
         ...value,
         skills: previous?.skills ?? [],
+        ...(previous?.cube ? { cube: previous.cube } : {}),
         id: previous?.id ?? randomUUID(),
         revision: (previous?.revision ?? 0) + 1,
         ...(previous?.source ? { source: previous.source } : {})
@@ -127,6 +133,7 @@ export class UserAgents {
       const next = previous ? this.agents.map(row => (row.id === agent.id ? agent : row)) : [...this.agents, agent]
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       if (agent.enabled) await this.publish(agent, true)
       else await this.withdraw(agent.id)
@@ -150,6 +157,7 @@ export class UserAgents {
       const next = [...this.agents, agent]
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       if (agent.enabled) await this.publish(agent, true)
       return this.view(agent)
@@ -166,6 +174,7 @@ export class UserAgents {
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       await this.publish(agent, true)
       return this.view(agent)
@@ -179,7 +188,7 @@ export class UserAgents {
     return this.write(async () => {
       const previous = this.find(id)
       if (previous.revision !== expectedRevision) throw Error('AGENT_SOURCE_PREVIEW_STALE')
-      const agent = { ...value, id, revision: previous.revision + 1, enabled: previous.enabled, source: sourceBaseline.parse(source) }
+      const agent = { ...value, cube: previous.cube, id, revision: previous.revision + 1, enabled: previous.enabled, source: sourceBaseline.parse(source) }
       const next = this.agents.map(row => (row.id === id ? agent : row))
       let swapped = false
       try {
@@ -213,6 +222,7 @@ export class UserAgents {
         signal?.throwIfAborted()
         await this.persist(next)
         this.agents = next
+        this.syncCubeGrants()
         if (agent.enabled) this.published.set(id, agent)
         this.errors.delete(id)
         await this.mcp?.agentsChanged(next)
@@ -229,6 +239,66 @@ export class UserAgents {
     })
   }
 
+  /** Resolves the declaration retained by Core, then applies current revocation. */
+  cubeFor(agent: { ctx: Context }): { sourceRef: string; signal: AbortSignal; generation: string } | undefined {
+    const declaration = this.ctx.agentPresets.serviceFor(agent, 'userAgentCube')
+    if (!declaration) return undefined
+    const grant = this.cubeGrants.get(declaration.id)
+    if (this.closed || !grant || grant.signal.aborted || grant.generation !== declaration.generation || grant.sourceRef !== declaration.sourceRef) return undefined
+    return grant
+  }
+  private syncCubeGrants(): void {
+    let revoked = false
+    for (const [id, grant] of this.cubeGrants) {
+      const agent = this.agents.find(row => row.id === id)
+      if (!this.closed && !agent?.deletedAt && agent?.enabled && agent.cube?.enabled && agent.cube.sourceRef === grant.sourceRef) continue
+      grant.controller.abort()
+      this.cubeGrants.delete(id)
+      revoked = true
+    }
+    for (const agent of this.agents)
+      if (!this.closed && !agent.deletedAt && agent.enabled && agent.cube?.enabled && !this.cubeGrants.has(agent.id)) {
+        const controller = new AbortController()
+        this.cubeGrants.set(agent.id, { sourceRef: agent.cube.sourceRef, generation: randomUUID(), controller, signal: controller.signal })
+      }
+    // Persisted revocation closes schemas before publication/release can await Core.
+    if (revoked) for (const listener of this.listeners) listener()
+  }
+  saveCube(id: string, input: unknown): Promise<UserAgentView> {
+    const cube = input === null ? undefined : cubeReference.parse(input)
+    return this.write(async () => {
+      const previous = this.find(id)
+      if (cube && !this.ctx.agentResources.cubeCatalog().some(row => row.sourceRef === cube.sourceRef)) throw Error('CUBE_SOURCE_UNAVAILABLE')
+      const agent: UserAgentConfig = { ...previous, cube, revision: previous.revision + 1 }
+      const next = this.agents.map(row => (row.id === id ? agent : row))
+      await this.persist(next)
+      this.agents = next
+      this.syncCubeGrants()
+      if (agent.enabled) await this.publish(agent, true)
+      return this.view(agent)
+    })
+  }
+  cubeSources() {
+    return this.ctx.agentResources.cubeCatalog()
+  }
+  setPluginCubeEnabled(sourceRef: string, enabled: boolean) {
+    return this.ctx.agentResources.setCubeEnabled(sourceRef, enabled)
+  }
+  async copyPlugin(sourceRef: string): Promise<UserAgentView> {
+    const copy = await this.ctx.agentResources.copyable(sourceRef)
+    const value = saveAgent.parse({ name: copy.name, description: copy.description, prompt: copy.prompt, enabled: true })
+    const skills = agentSkills.parse(copy.skills)
+    return this.write(async () => {
+      const agent: UserAgentConfig = { ...value, id: randomUUID(), revision: 1, skills, ...(copy.cube ? { cube: copy.cube } : {}) }
+      const next = [...this.agents, agent]
+      await this.persist(next)
+      this.agents = next
+      this.syncCubeGrants()
+      await this.mcp?.agentsChanged(this.agents)
+      await this.publish(agent, true)
+      return this.view(agent)
+    })
+  }
   async skillCatalog(cwd?: string, signal?: AbortSignal): Promise<UserAgentSkillOption[]> {
     return (await this.ctx.skills.list({ cwd, signal }))
       .filter(skill => skill.invocation.userInvocable || skill.invocation.modelInvocable)
@@ -249,6 +319,7 @@ export class UserAgents {
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       if (agent.enabled) await this.publish(agent, true)
       return this.view(agent)
@@ -262,6 +333,7 @@ export class UserAgents {
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       if (enabled) await this.publish(agent, true)
       else await this.withdraw(id)
@@ -277,6 +349,7 @@ export class UserAgents {
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       await this.withdraw(id)
       return this.view(agent)
@@ -293,6 +366,7 @@ export class UserAgents {
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
       this.agents = next
+      this.syncCubeGrants()
       await this.mcp?.agentsChanged(this.agents)
       return this.view(agent)
     })
@@ -307,6 +381,7 @@ export class UserAgents {
 
   async dispose(): Promise<void> {
     this.closed = true
+    this.syncCubeGrants()
     await this.pending
     await this.mcp?.dispose()
     for (const id of this.releases.keys()) await this.withdraw(id)
@@ -349,6 +424,7 @@ export class UserAgents {
 
   private async register(agent: UserAgentConfig, presetId = this.preset(agent.id)): Promise<() => Promise<void>> {
     for (const skill of agent.skills) if (skill.kind === 'reference' && skill.enabled) await this.readSkill(skill.name, skill.provider, undefined, undefined, skill.path)
+    const grant = this.cubeGrants.get(agent.id)
     return this.ctx.agentPresets.register(
       await composeStandardPreset(
         this.ctx.agentPresets,
@@ -364,7 +440,20 @@ export class UserAgents {
               id: 'user-agent-skills',
               name: 'dsh-agent-manage/user-agent-skills',
               config: { skills: agent.skills, sourceMcpConnections: agent.source?.mcpReferences?.filter(row => !row.removed).map(row => row.connectionId) ?? [] }
-            }
+            },
+            ...(agent.cube?.enabled && grant
+              ? [
+                  {
+                    id: 'user-agent-cube-scope',
+                    name: 'cordis:group',
+                    group: true as const,
+                    isolate: { userAgentCube: true as const },
+                    config: [
+                      { id: 'user-agent-cube', name: 'dsh-agent-manage/user-agent-cube', config: { id: agent.id, sourceRef: agent.cube.sourceRef, generation: grant.generation } }
+                    ]
+                  }
+                ]
+              : [])
           ]
         }
       )

@@ -3,7 +3,18 @@ import type { AgentSourceBaseline } from './agent-sources.js'
 export type UserAgentSkill =
   | { kind: 'reference'; name: string; provider: string; path?: string; enabled: boolean; content?: string }
   | { kind: 'personal'; name: string; description: string; content: string; enabled: boolean }
-export interface UserAgentSkillOption { name: string; description: string; provider: string; path?: string }
+export interface TrustedCubeSource {
+  sourceRef: string
+  name: string
+  enabled: boolean
+  available: boolean
+}
+export interface UserAgentSkillOption {
+  name: string
+  description: string
+  provider: string
+  path?: string
+}
 
 /** Complete personal Agent configuration; distinct from a reusable subagent role. */
 export interface UserAgentConfig {
@@ -17,6 +28,7 @@ export interface UserAgentConfig {
   /** Soft deletion keeps the stable preset identity and dependency configuration. */
   deletedAt?: string
   skills: UserAgentSkill[]
+  cube?: { sourceRef: string; enabled: boolean }
 }
 
 export interface UserAgentView extends UserAgentConfig {
@@ -38,5 +50,9 @@ export const USER_AGENT_ROUTES = {
   restore: '/api/agent-manage/agents/restore',
   skillCatalog: '/api/agent-manage/agents/skills/catalog',
   skillRead: '/api/agent-manage/agents/skills/read',
-  skills: '/api/agent-manage/agents/skills/save'
+  skills: '/api/agent-manage/agents/skills/save',
+  cubeSources: '/api/agent-manage/agents/cube/sources',
+  cubeSave: '/api/agent-manage/agents/cube/save',
+  cubeEnabled: '/api/agent-manage/agents/cube/enabled',
+  pluginCopy: '/api/agent-manage/agents/plugin/copy'
 } as const

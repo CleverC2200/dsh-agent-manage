@@ -167,6 +167,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     // Wait on that initialization fiber, never the parent Host tree.
     await standardInitialization
     const userAgents = new UserAgents(host, resolve(dataRoot, 'user-agents.json'), catalog.runtime)
+    host.provide('userAgents', userAgents)
     await userAgents.load()
     host.effect(() => () => userAgents.dispose())
     mountUserAgentRoutes(host, userAgents)

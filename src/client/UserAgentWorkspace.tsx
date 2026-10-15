@@ -3,6 +3,7 @@ import type { Translate } from './index.js'
 import { userAgentApi, type SaveUserAgent, type UserAgentView } from './user-agent-api.js'
 import { AgentSources } from './AgentSources.js'
 import { AgentSkills } from './AgentSkills.js'
+import { TrustedCubePanel, TrustedPluginAgents } from './TrustedCubePanel.js'
 import { AgentRecovery } from './AgentRecovery.js'
 import { AgentMcpPanel } from './AgentMcpPanel.js'
 import css from './user-agents.module.css'
@@ -76,7 +77,7 @@ export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
       {!selected.deletedAt && <><nav className={css.tabs} aria-label={t('agentConfiguration')}>
         {(['prompt', 'skill', 'mcp'] as const).map(value => <button type="button" key={value} disabled={busy} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{t(value === 'prompt' ? 'agentPrompt' : value === 'skill' ? 'agentSkill' : 'agentMcp')}</button>)}
       </nav>
-      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => edit(selected)}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : <AgentMcpPanel key={selected.id} agentId={selected.id} t={t} />}</>}
+      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => edit(selected)}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : <><TrustedCubePanel key={`${selected.id}-cube`} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /><AgentMcpPanel key={selected.id} agentId={selected.id} t={t} /></>}</>}
     </> : <>
       <header className={css.heading}><div className={css.title}><h2>{t('agentConfiguration')}</h2></div><button type="button" disabled={busy} aria-label={t('refresh')} onClick={() => void run(refresh)}>↻</button><button type="button" aria-expanded={showSources} onClick={() => setShowSources(value => !value)}>{t('agentSources')}</button><button className={css.primary} type="button" disabled={busy} onClick={() => { setDraft(blank()); setAdding(true); setMessage('') }}>{t('agentAdd')}</button></header>
       {showSources && <AgentSources t={t} agents={agents} onImported={refresh} />}
@@ -85,6 +86,7 @@ export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
         <button className={css.identity} type="button" disabled={busy} onClick={() => edit(agent)}><span className={css.icon}>{agentIcon}</span><span><strong>{agent.name}</strong><span className={css.description}>{agent.source ? `${agent.source.suiteId} · ${t(agent.customized ? 'agentSourceCustomized' : 'agentSourceUnmodified')}` : agent.description || t('agentPersonal')}{agent.publication === 'deleted' ? ` · ${t('agentDeleted')}` : agent.publication === 'failed' ? ` · ${t('agentUnavailable')}` : ''}</span></span></button>
         <button type="button" disabled={busy || agent.publication !== 'ready'} onClick={() => start(agent)}>{t('agentStart')}</button>{!agent.deletedAt && enable(agent)}
       </article>)}
+      <TrustedPluginAgents t={t} startAgent={startAgent} onCopied={agent => { setAgents(rows => [...rows, agent]); edit(agent) }} />
       {!agents.length && !adding && <p className={css.muted}>{t('agentEmpty')}</p>}
       {adding && <form className={css.inline} onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => setAdding(false)}>{t('cancel')}</button><button className={css.primary} type="submit" disabled={busy}>{t('save')}</button></footer></form>}
     </>}
