@@ -21,7 +21,10 @@ it('previews source conflicts without changing live configuration, then publishe
   const manifest = join(root, '.claude-plugin/plugin.json')
   await writeFile(manifest, JSON.stringify({ name: 'sync-source', systemPrompt: 'ORIGINAL_SOURCE' }))
   const git = promisify(execFile)
-  const commit = async () => { await git('git', ['-C', root, 'add', '.']); await git('git', ['-C', root, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '-m', 'source']) }
+  const commit = async () => {
+    await git('git', ['-C', root, 'add', '.'])
+    await git('git', ['-C', root, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '-m', 'source'])
+  }
   await git('git', ['init', root])
   await commit()
   const catalog = new Catalog({ userRoot: join(home, 'catalog'), dataRoot: home, onChanged: () => {} })
