@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import type { AgentSourceBaseline } from '../contracts/agent-sources.js'
 import type { UserAgentConfig, UserAgentView } from '../contracts/user-agents.js'
 import { composeStandardPreset } from './standard-preset.js'
 
@@ -12,7 +13,17 @@ const fields = {
   prompt: z.string().trim().min(1).max(48_000),
   enabled: z.boolean()
 }
-const savedAgent = z.object({ ...fields, id: z.uuid(), revision: z.number().int().positive() })
+const sourceBaseline = z.object({
+  sourceId: z.string(),
+  suiteId: z.string(),
+  resourceKey: z.string(),
+  url: z.string(),
+  kind: z.enum(['git', 'local', 'archive']),
+  lockCommit: z.string().optional(),
+  version: z.string().optional(),
+  base: z.object({ name: fields.name, description: fields.description, prompt: fields.prompt })
+})
+const savedAgent = z.object({ ...fields, id: z.uuid(), revision: z.number().int().positive(), source: sourceBaseline.optional() })
 const saveAgent = z.object({ ...fields, id: z.uuid().optional() })
 const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) })
 
@@ -54,12 +65,35 @@ export class UserAgents {
     const value = saveAgent.parse(input)
     return this.write(async () => {
       const previous = value.id ? this.find(value.id) : undefined
-      const agent: UserAgentConfig = { ...value, id: previous?.id ?? randomUUID(), revision: (previous?.revision ?? 0) + 1 }
+      const agent: UserAgentConfig = {
+        ...value,
+        id: previous?.id ?? randomUUID(),
+        revision: (previous?.revision ?? 0) + 1,
+        ...(previous?.source ? { source: previous.source } : {})
+      }
       const next = previous ? this.agents.map(row => (row.id === agent.id ? agent : row)) : [...this.agents, agent]
       await this.persist(next)
       this.agents = next
       if (agent.enabled) await this.publish(agent, true)
       else await this.withdraw(agent.id)
+      return this.view(agent)
+    })
+  }
+
+  /** Imports only Host-discovered configuration; repeat imports preserve user customization. */
+  importSource(input: unknown, source: AgentSourceBaseline): Promise<UserAgentView> {
+    const value = saveAgent.omit({ id: true }).parse(input)
+    const provenance = sourceBaseline.parse(source)
+    return this.write(async () => {
+      const existing = this.agents.find(
+        agent => agent.source?.sourceId === source.sourceId && agent.source?.suiteId === source.suiteId && agent.source?.resourceKey === source.resourceKey
+      )
+      if (existing) return this.view(existing)
+      const agent: UserAgentConfig = { ...value, id: randomUUID(), revision: 1, source: provenance }
+      const next = [...this.agents, agent]
+      await this.persist(next)
+      this.agents = next
+      if (agent.enabled) await this.publish(agent, true)
       return this.view(agent)
     })
   }
@@ -170,6 +204,13 @@ export class UserAgents {
         error = failure instanceof Error ? failure.message : String(failure)
       }
     }
-    return { ...agent, origin: 'user', preset: this.preset(agent.id), publication: !agent.enabled ? 'disabled' : error ? 'failed' : 'ready', ...(error ? { error } : {}) }
+    return {
+      ...agent,
+      customized: agent.source !== undefined && (['name', 'description', 'prompt'] as const).some(key => agent[key] !== agent.source!.base[key]),
+      origin: 'user',
+      preset: this.preset(agent.id),
+      publication: !agent.enabled ? 'disabled' : error ? 'failed' : 'ready',
+      ...(error ? { error } : {})
+    }
   }
 }

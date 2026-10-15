@@ -7,6 +7,20 @@ export type Dictionary = Record<string, string>
 /** Chinese is the source-of-truth key set; English is checked against it below. */
 /** 中文字典是键集合的事实来源，英文集合在文件末尾做一致性校验。 */
 export const zh = {
+  agentSources: '配置来源',
+  agentSourcesHelp: '从 Git、本地目录或配置包读取 Agent，导入后可独立定制。',
+  agentSourceAdd: '添加配置来源',
+  agentSourceKind: '来源类型',
+  agentSourceAddress: '地址或目录',
+  agentSourceBranch: '分支（可选）',
+  agentSourceRead: '读取配置',
+  agentSourceReading: '正在读取…',
+  agentSourceImport: '导入 Agent',
+  agentSourceImported: 'Agent 已导入，可在列表中配置和使用。',
+  agentSourceNoAgents: '此来源未发现可导入的提示词或 Agent。',
+  agentSourceCustomized: '有个人修改',
+  agentSourceUnmodified: '与导入版本一致',
+
   agentConfiguration: 'Agent 配置',
   agentAdd: '＋ 添加 Agent',
   agentCurrent: '当前 Agent',
@@ -359,6 +373,20 @@ export const zh = {
 export type LocaleKey = keyof typeof zh
 
 export const en: Record<LocaleKey, string> = {
+  agentSources: 'Configuration sources',
+  agentSourcesHelp: 'Read Agents from Git, a local directory or an archive. Imported Agents can be customized independently.',
+  agentSourceAdd: 'Add configuration source',
+  agentSourceKind: 'Source type',
+  agentSourceAddress: 'Address or directory',
+  agentSourceBranch: 'Branch (optional)',
+  agentSourceRead: 'Read configuration',
+  agentSourceReading: 'Reading…',
+  agentSourceImport: 'Import Agent',
+  agentSourceImported: 'Agent imported. Configure and use it from the list.',
+  agentSourceNoAgents: 'No importable prompts or Agents found in this source.',
+  agentSourceCustomized: 'Customized',
+  agentSourceUnmodified: 'Matches imported version',
+
   agentConfiguration: 'Agent configuration',
   agentAdd: '+ Add Agent',
   agentCurrent: 'Current Agents',

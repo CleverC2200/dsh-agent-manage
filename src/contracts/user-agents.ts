@@ -1,3 +1,4 @@
+import type { AgentSourceBaseline } from './agent-sources.js'
 /** Complete personal Agent configuration; distinct from a reusable subagent role. */
 export interface UserAgentConfig {
   id: string
@@ -6,9 +7,11 @@ export interface UserAgentConfig {
   prompt: string
   enabled: boolean
   revision: number
+  source?: AgentSourceBaseline
 }
 
 export interface UserAgentView extends UserAgentConfig {
+  customized: boolean
   origin: 'user'
   preset: string
   publication: 'ready' | 'disabled' | 'failed'

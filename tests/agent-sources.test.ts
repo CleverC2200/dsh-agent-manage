@@ -1,0 +1,135 @@
+import { execFile } from 'node:child_process'
+import { createServer } from 'node:http'
+import { promisify } from 'node:util'
+import { zipSync } from 'fflate'
+import { listenLoopback } from './helpers/http-fixture.js'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { expect, it } from 'vitest'
+import { Catalog } from '../src/application/catalog.js'
+import { AgentSources } from '../src/runtime/agent-sources.js'
+import { UserAgents } from '../src/runtime/user-agents.js'
+import { agentOn, completion, presetHarness, turn } from './core-preset-harness.js'
+
+it('imports a discovered source Agent, publishes a native Session and preserves the source baseline across customization and restart', async () => {
+  const { ctx, home, start } = await presetHarness()
+  const source = join(home, 'team-config')
+  await mkdir(join(source, '.claude-plugin'), { recursive: true })
+  await mkdir(join(source, 'agents'))
+  await writeFile(join(source, '.claude-plugin/plugin.json'), JSON.stringify({ name: 'team', origin: 'plugin', consumerCode: 'admin' }))
+  const original = '---\nname: Team helper\ndescription: Imported agent\norigin: plugin\nconsumerCode: admin\n---\nSOURCE_PERSONA'
+  const card = join(source, 'agents/helper.md')
+  await writeFile(card, original)
+  const catalog = new Catalog({ userRoot: join(home, 'catalog'), dataRoot: join(home, 'data'), onChanged: () => {} })
+  await catalog.load()
+  const file = join(home, 'user-agents.json')
+  const agents = new UserAgents(ctx, file)
+  await agents.load()
+  const sources = new AgentSources(catalog, agents)
+  const discovered = await sources.acquire({ url: source, kind: 'local' })
+  expect(discovered.candidates).toContainEqual(expect.objectContaining({ resourceKey: 'agent:helper', name: 'Team helper' }))
+  const imported = await sources.import({ sourceId: discovered.id, suiteId: 'team', resourceKey: 'agent:helper' })
+  expect(imported).toMatchObject({
+    origin: 'user',
+    prompt: 'SOURCE_PERSONA',
+    publication: 'ready',
+    source: { sourceId: discovered.id, base: { prompt: 'SOURCE_PERSONA' } },
+    customized: false
+  })
+  expect((await sources.import({ sourceId: discovered.id, suiteId: 'team', resourceKey: 'agent:helper' })).id).toBe(imported.id)
+  expect((await sources.acquire({ url: source, kind: 'local' })).id).toBe(discovered.id)
+  const requests = await completion(ctx)
+  const session = await agentOn(ctx, 'imported-source-agent', (await agents.select(imported.id)).preset)
+  await turn(ctx, session, 'Identify your instructions')
+  expect(JSON.stringify(requests)).toContain('SOURCE_PERSONA')
+  const customized = await agents.save({ ...imported, prompt: 'USER_PERSONA' })
+  expect(customized.customized).toBe(true)
+  expect(customized.source?.base.prompt).toBe('SOURCE_PERSONA')
+  expect(await readFile(card, 'utf8')).toBe(original)
+  await agents.dispose()
+  await ctx.fiber.dispose()
+  const restored = new UserAgents(await start(), file)
+  await restored.load()
+  expect(await restored.list()).toContainEqual(
+    expect.objectContaining({
+      id: imported.id,
+      prompt: 'USER_PERSONA',
+      customized: true,
+      source: expect.objectContaining({ base: expect.objectContaining({ prompt: 'SOURCE_PERSONA' }) })
+    })
+  )
+  await restored.dispose()
+})
+
+it('routes configuration imports through authenticated Host operations and rejects forged identity, cancellation and missing dependencies', async () => {
+  const { mountAgentSourceRoutes } = await import('../src/runtime/agent-source-routes.js')
+  const { AGENT_SOURCE_ROUTES } = await import('../src/contracts/agent-sources.js')
+  const { ctx, home } = await presetHarness()
+  const root = join(home, 'invalid-config')
+  await mkdir(join(root, '.claude-plugin'), { recursive: true })
+  await mkdir(join(root, 'agents'))
+  await writeFile(join(root, '.claude-plugin/plugin.json'), JSON.stringify({ name: 'missing', mcpServers: './absent.json' }))
+  await writeFile(join(root, 'agents/helper.md'), 'Cannot publish incomplete configuration')
+  const catalog = new Catalog({ userRoot: join(home, 'catalog'), dataRoot: join(home, 'data'), onChanged: () => {} })
+  await catalog.load()
+  const agents = new UserAgents(ctx, join(home, 'agents.json'))
+  await agents.load()
+  const sources = new AgentSources(catalog, agents)
+  mountAgentSourceRoutes(ctx, sources)
+  const handler = ctx.connection.createSharedFetchHandler('/api')
+  const post = (path: string, value: unknown, origin = 'http://localhost') =>
+    handler.fetch(new Request(`http://localhost${path}`, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body: JSON.stringify(value) }))
+  expect((await post(AGENT_SOURCE_ROUTES.acquire, { url: root, kind: 'local' }, 'https://other.test')).status).toBe(403)
+  expect((await post(AGENT_SOURCE_ROUTES.acquire, { url: root, kind: 'local', origin: 'plugin', consumerCode: 'admin' })).status).toBe(400)
+  const source = await sources.acquire({ url: root, kind: 'local' })
+  expect(source.candidates[0].error).toContain('absent.json')
+  await expect(sources.import({ sourceId: source.id, suiteId: 'missing', resourceKey: source.candidates[0].resourceKey })).rejects.toThrow('absent.json')
+  const controller = new AbortController()
+  controller.abort()
+  await expect(sources.acquire({ url: root, kind: 'local' }, controller.signal)).rejects.toThrow()
+  expect(await agents.list()).toEqual([])
+  expect((await post(AGENT_SOURCE_ROUTES.acquire, { url: join(home, 'not-found'), kind: 'local' })).status).toBe(400)
+  expect((await handler.fetch(new Request(`http://localhost${AGENT_SOURCE_ROUTES.list}`))).status).toBe(200)
+  await agents.dispose()
+})
+
+it('imports Git and archive configurations through the same discovery and retains acquisition locks', async () => {
+  const { ctx, home } = await presetHarness()
+  const upstream = join(home, 'upstream')
+  await mkdir(join(upstream, '.claude-plugin'), { recursive: true })
+  const manifest = JSON.stringify({ name: 'locked', systemPrompt: 'LOCKED_PERSONA' })
+  await writeFile(join(upstream, '.claude-plugin/plugin.json'), manifest)
+  const git = promisify(execFile)
+  await git('git', ['init', upstream])
+  await git('git', ['-C', upstream, 'add', '.'])
+  await git('git', ['-C', upstream, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '-m', 'config'])
+  const payload = zipSync({ 'bundle/.claude-plugin/plugin.json': Buffer.from(manifest) })
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { 'content-type': 'application/zip' })
+    response.end(payload)
+  })
+  await listenLoopback(server)
+  const address = server.address()
+  if (!address || typeof address === 'string') throw Error('Missing archive fixture address')
+  const catalog = new Catalog({ userRoot: join(home, 'catalog'), dataRoot: join(home, 'data'), git: { allowHttpArchives: true }, onChanged: () => {} })
+  await catalog.load()
+  const agents = new UserAgents(ctx, join(home, 'agents.json'))
+  await agents.load()
+  try {
+    const sources = new AgentSources(catalog, agents)
+    for (const input of [
+      { url: upstream, kind: 'git' as const },
+      { url: `http://127.0.0.1:${address.port}/config.zip`, kind: 'archive' as const }
+    ]) {
+      const source = await sources.acquire(input)
+      const agent = await sources.import({ sourceId: source.id, suiteId: 'locked', resourceKey: 'suite' })
+      expect(agent.publication).toBe('ready')
+      expect(agent.source?.kind).toBe(input.kind)
+      expect(agent.source?.lockCommit).toBeTruthy()
+      expect(agent.prompt).toBe('LOCKED_PERSONA')
+    }
+  } finally {
+    await agents.dispose()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
+})
