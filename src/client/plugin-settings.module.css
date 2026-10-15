@@ -1,0 +1,220 @@
+/* Host plugin settings card and its shared switch. */
+
+.switchOn,
+.switchOff {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+
+/* ON rides the primary button fill (brand → dark in the platform theme),
+   the same track color every other plugin toggle and native control uses —
+   not state-success green, which reads as off-convention beside them. */
+.switchOn {
+  background: var(--dsw-alias-button-primary-fill, var(--workbench-brand));
+}
+
+.switchOff {
+  background: var(--dsw-alias-label-dimmed, rgb(225, 229, 238));
+}
+
+.switchOn:disabled,
+.switchOff:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.switchThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: left 0.15s ease;
+  pointer-events: none;
+}
+
+.switchOn .switchThumb {
+  left: 19px;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .switchOn, .switchOff, .switchThumb { transition: none; }
+}
+
+.pluginCard {
+  container: market-config / inline-size;
+  list-style: none;
+  border: 1px solid var(--workbench-border);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-3, #fff);
+  transition: border-color 0.16s, background 0.16s;
+}
+
+.pluginCard:hover {
+  border-color: var(--dsw-alias-label-dimmed, #c8ccd4);
+}
+
+.pluginCardOpen {
+  background: var(--workbench-subtle);
+  border-color: var(--dsw-alias-label-dimmed, #c8ccd4);
+}
+
+.pluginCard[data-busy='true'] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.pluginCardHeader {
+  width: 100%;
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+
+.pluginCardHeader:focus-visible {
+  outline: 2px solid var(--workbench-brand);
+  outline-offset: -2px;
+}
+
+.pluginCardBody {
+  border-top: 1px solid var(--workbench-border);
+  margin: 0 16px;
+  padding: 4px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pluginCardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0 4px;
+}
+
+.pluginCardText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pluginCardTitle {
+  color: var(--workbench-text);
+  font-size: calc(var(--workbench-font-size) * 15 / 14);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.pluginCardDesc {
+  color: var(--workbench-muted);
+  font-size: calc(var(--workbench-font-size) * 13 / 14);
+  line-height: 1.5;
+}
+
+.pluginCardRowLabel {
+  font-size: calc(var(--workbench-font-size) * 13 / 14);
+  line-height: 20px;
+  font-weight: 500;
+}
+
+@container market-config (max-width: 320px) {
+  .pluginCardRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .pluginCardText {
+    width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .regionSeg {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}
+
+/* The plugin settings card shares ui/ToggleSwitch. */
+
+.pluginCardError {
+  color: var(--dsw-alias-state-error-primary, #dc2626);
+  font-size: calc(var(--workbench-font-size) * 12 / 14);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.pluginChevron {
+  flex: none;
+  color: var(--workbench-muted);
+  transition: transform 0.16s;
+  display: inline-flex;
+}
+
+.pluginChevronOpen {
+  transform: rotate(180deg);
+}
+
+/* Region segmented control, mirroring dshmarket's setSeg chrome. */
+.regionSeg {
+  flex: none;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--workbench-border);
+  border-radius: 8px;
+}
+
+.regionSegBtn {
+  appearance: none;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--workbench-body);
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: calc(var(--workbench-font-size) * 12 / 14);
+  line-height: 18px;
+}
+
+.regionSegOn {
+  appearance: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: calc(var(--workbench-font-size) * 12 / 14);
+  line-height: 18px;
+  background: var(--workbench-subtle);
+  color: var(--workbench-text);
+  font-weight: 600;
+}
+
+.regionSegBtn:disabled,
+.regionSegOn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

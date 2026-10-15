@@ -20,6 +20,6 @@ Status: implemented
 
 ## Consequences
 
-本决定部分更新[工作区标签](../feature/2026-09-06-workspace-tabs-user-panels.zh.md)中的入口位置，保留一个工作区与六个标签的决定；更新[市场交互](../feature/2026-09-02-market-card-platform-affordances.zh.md)中共享资源的提供方，从定制 ui-theme 构建改为 Workbench 插件 CSS。Catalog、安装启用、MCP transport 与业务资源仍由已有 module 管理。
+本决定部分更新[工作区标签](../feature/2026-09-06-workspace-tabs-user-panels.zh.md)中的入口位置，保留统一工作区；[Agent 配置](../feature/2026-10-04-selected-business-resources.zh.md#已退役的配置入口)替代六页签决定；更新[市场交互](../feature/2026-09-02-market-card-platform-affordances.zh.md)中共享资源的提供方，从定制 ui-theme 构建改为 Workbench 插件 CSS。Catalog、安装启用、MCP transport 与业务资源仍由已有 module 管理。
 
 入口测试验证公开贡献、标题和样式释放。类型检查与客户端构建验证代码候选；同一实际宿主显示由规格41另记证据。

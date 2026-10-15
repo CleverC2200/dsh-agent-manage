@@ -35,7 +35,7 @@ npm 包包含构建后的 `lib/` 和 `client/`。GitHub 安装通过 `prepare` �
 
 ## 配置市场源
 
-发布包不预置来源。以下仅为你自己的 profile 可选配置示例。
+随包销售计划配置源可供显式导入 Agent。以下是为自己的 profile 添加其他配置来源的可选种子示例。
 
 源持久化在 `~/.dsh/agent-plugins/state.json`，也可用 cordis 配置预置（也是“持久种子”，启动时自动补齐缺失源）：
 
@@ -50,25 +50,9 @@ npm 包包含构建后的 `lib/` 和 `client/`。GitHub 安装通过 `prepare` �
 
 `local: true` 的源原地读取本地目录。外部目录保留；托管 `.sources/<id>` checkout 只在移除来源时明确勾选删除文件后删除。扫描结果会缓存最多 30 秒，并在安装/启用/面板切换等操作间复用，因此本地源的工作树改动会在下一次缓存刷新时可见（任何源变更、刷新按钮，或 30 秒 TTL 到期）。启动挂载和用户技能枚举只扫描包含已启用安装的源；浏览市场仍发现全部配置源。并发读取共享扫描任务。启动不会拉取 Git 更新，来源刷新需显式触发。`archive` 源下载 HTTPS 压缩包（`.zip` / `.tar.gz` / `.tgz` / `.tar`，256 MiB 上限，可选 `sha256` 完整性校验）并解压为 checkout。
 
-### 手动克隆、收编与网络调优
+### 来源获取
 
-界面上克隆超时？你可以自己把仓库克隆到 checkout 根（`~/.dsh/agent-plugins/.sources/<id>/`）——市场页会在「未登记的本地仓库」中列出它，并提供一键**收编**：原样登记、不重新克隆、不改名；只有你之后删除该源并勾选「同时删除市场目录」时，目录才会被删除。在 UI 里添加 URL 时，若已存在 `origin` 匹配的 checkout，也会自动收编而不是二次克隆。收编源在界面上与普通源完全一致，不带额外徽标。
-
-市场页顶部的源胶囊是等宽网格：默认折到两行、底部渐隐，鼠标悬停或键盘聚焦时以浮层展开，卡片区不会跳动；选中某个源后立即折回。选中的源会移到 `全部` 之后，折叠状态下依然可见，其余源保持 id 顺序。
-
-git/压缩包获取可通过宿主配置调优：
-
-```yaml
-- id: dsh-agent-manage
-  config:
-    git:
-      proxy: 'http://127.0.0.1:7890' # 以 git http/https 代理注入
-      insteadOf: { 'https://github.com/': 'https://mirror.example/https://github.com/' }
-      timeoutMs: 300000 # 每次 git 调用超时（默认 120000）
-      cloneRetry: true # 失败自动重试一次（默认开）
-      fallbackTarball: false # github.com 克隆失败时回退为 codeload tarball 下载
-      allowHttpArchives: false # 允许明文 http 压缩包地址（内网镜像）
-```
+在 Agent 列表的**配置来源**获取 Git、本地目录或配置包，再导入 Agent。Catalog 继续识别已有 checkout、保留外部目录、缓存扫描和维护来源锁。同步比较 Agent 基线与个人修改；取消预览不写配置。
 
 ## 存储与发现
 
@@ -125,11 +109,11 @@ Git 获取通过 `execFile` 执行，不经过 shell；刷新使用 shallow fetc
 
 工作区 Tab 共用持久化的卡片/列表偏好，搜索与筛选按资源独立。新增、刷新统一位于页头。MCP 新增入口校验 JSON 服务配置，写入 `~/.dsh/agent-plugins/data/mcp-servers.json`，再通过插件自己的 bridge 挂载；非法配置和重名服务会被拒绝。宿主自行管理的 MCP 服务仍只读观察。
 
-### 资源详情编辑
+### Agent 详情编辑
 
-详情使用统一宽屏窗口，最大 1120px，并受视口宽高约束。Markdown 预览将 YAML frontmatter 与渲染正文分开展示；原文编辑保留未知字段和注释。MCP 表单包含传输协议、命令、参数、工作目录、环境变量、URL、请求头及 OAuth；LSP 表单包含命令、参数、环境变量、扩展名映射、初始化选项和配置。非法 JSON 与未完成的键值行保留为可修改草稿，但不能保存。
+统一编辑器提供提示词、Skill、MCP 三个页签。提示词和 Skill 的修改保存为个人配置，不直接写受管源。MCP 表单保留未知 JSON 字段并拒绝未完成的值；移除关联保留共享定义，插件 MCP 成员归来源所有。旧市场、服务、LSP 和用户面板通用写路由已停止注册；Agent 操作通过认证 Host Fetch 路由处理。
 
-`GET /api/agent-plugins/server-config?kind=mcp|lsp&id=...` 获取完整可编辑配置；`POST /api/agent-plugins/server-config/save` 替换对应服务配置。插件 MCP 配置写入已有覆盖文件，插件 LSP 配置写入 `data/lsp-overrides.json`，不会修改 checkout。未修改的 `[redacted]` 字段保留原凭据。配置修改通过插件运行时重新挂载。宿主自行管理的 MCP 服务保持只读。`POST /api/agent-plugins/lsp-servers/add` 独立新增一个服务，不覆盖其他服务。
+旧插件连接覆盖保留原文件供恢复，仅启停生效。运行状态以 `PLUGIN_MCP_OVERRIDE_RETIRED` 标明保留路径。个人 MCP 配置、凭据引用、OAuth 和有序释放继续生效。
 
 ## 格式细节与开发
 

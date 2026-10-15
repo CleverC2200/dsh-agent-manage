@@ -35,7 +35,7 @@ If managing the profile manually, install the package and include `dsh-agent-man
 
 ## Configure marketplace sources
 
-The published bundle does not preconfigure sources. The following is an optional example for your own profile.
+The bundle exposes the sales-plan configuration source for explicit Agent import. The following optional profile seeds add other configuration sources.
 
 Sources persist in `~/.dsh/agent-plugins/state.json`; cordis config seeds them (and re-adds missing ids on every boot):
 
@@ -50,25 +50,9 @@ Sources persist in `~/.dsh/agent-plugins/state.json`; cordis config seeds them (
 
 A `local: true` source reads the directory in place. External local directories are preserved; a managed `.sources/<id>` checkout is deleted only with the removal dialog’s explicit delete-files choice. Discovery results are cached for up to 30 seconds and reused across install/enable/panel actions, so working-tree edits of local sources appear on the next cache refresh (any source mutation, the refresh button, or the 30 s TTL). Startup mounts and user skill listing scan only sources containing enabled installs; browsing the market still discovers all configured sources. Concurrent reads share discovery work. Startup does not fetch Git updates; source refresh is explicit. An `archive` source downloads an HTTPS `.zip` / `.tar.gz` / `.tgz` / `.tar` payload (256 MiB cap, optional `sha256` integrity pin) and extracts it as the checkout.
 
-### Manual clones, adoption, and network tuning
+### Source acquisition
 
-Cloning from the UI times out on a restricted network? Clone the repository yourself into the checkout root (`~/.dsh/agent-plugins/.sources/<id>/`) — the market page lists it under **unregistered local checkouts** with a one-click **adopt** action that registers it in place, no re-clone and no rename. The directory itself is removed only if you later delete the source and tick the delete-files option. Adding a URL whose checkout already exists with a matching `origin` remote adopts it automatically instead of cloning a second copy. Adopted sources are ordinary sources in the UI — they carry no extra badge.
-
-The source strip at the top of the market page is an equal-width grid of pills: it folds to two rows with a bottom fade and expands as an overlay on hover or keyboard focus, so the card grid never moves; picking a source folds it again right away. The picked source moves next to `全部` so it stays visible while folded, and the rest keep their id order.
-
-Git/archive acquisition is tunable through the host config:
-
-```yaml
-- id: dsh-agent-manage
-  config:
-    git:
-      proxy: 'http://127.0.0.1:7890' # injected as git http/https proxy
-      insteadOf: { 'https://github.com/': 'https://mirror.example/https://github.com/' }
-      timeoutMs: 300000 # per git invocation (default 120000)
-      cloneRetry: true # one automatic retry (default)
-      fallbackTarball: false # retry a failed github.com clone as a codeload tarball download
-      allowHttpArchives: false # permit plain-http archive URLs (intranet mirrors)
-```
+Use **Configuration sources** in the Agent list to acquire Git, local or archive inputs and import an Agent. Catalog still recognizes existing checkouts, preserves external directories, caches scans and keeps source locks. Synchronization uses the Agent's baseline and personal changes; cancelled previews do not write configuration.
 
 ## Storage and discovery
 
@@ -123,13 +107,11 @@ For vulnerability reports, follow the [security policy](../../SECURITY.md).
 
 The `feedbackEnabled` setting defaults to `true`. When the host provides tools and SettingsForms, it enables the model-facing `report_market_issue` tool. With `GITHUB_TOKEN` or `GH_TOKEN`, submissions create issues in this plugin's GitHub repository; otherwise they are saved under `data/feedback/`. Submissions have a 60-second cooldown. Disable the setting in the plugin configuration card to unregister the tool.
 
-The workspace tabs share a saved grid/list preference; search and filters remain resource-specific. Add and refresh are header actions. MCP Add validates a JSON server declaration and persists it under `~/.dsh/agent-plugins/data/mcp-servers.json`, then mounts it through the plugin bridge. Invalid declarations and duplicate names are rejected. Existing host-owned MCP services remain observation-only.
+### Agent detail editing
 
-### Resource detail editing
+The shared Agent editor has Prompt, Skill and MCP tabs. Prompt and Skill changes are personal configuration, never writes into managed source files. MCP forms retain unknown JSON fields and reject incomplete values. Association removal preserves shared definitions, and plugin MCP membership remains source-owned. The retired generic market/server/LSP/user-panel write routes are no longer mounted; Agent actions use authenticated Host Fetch routes.
 
-Details use a shared 1120px maximum-width dialog, constrained to the viewport. Markdown preview separates YAML frontmatter from the rendered body; raw editing preserves unknown keys and comments. MCP forms cover transport, command, arguments, working directory, environment, URL, headers and OAuth; LSP forms cover command, arguments, environment, extension mapping, initialization options and configuration. Invalid JSON and incomplete map rows remain editable but cannot be saved.
-
-`GET /api/agent-plugins/server-config?kind=mcp|lsp&id=...` returns the full editable configuration; `POST /api/agent-plugins/server-config/save` replaces that service config. Plugin MCP replacements persist in its existing override file; plugin LSP replacements persist in `data/lsp-overrides.json`. Checkouts stay untouched. Unchanged `[redacted]` fields preserve original secrets. Modified config remounts through the plugin runtime. Host-observed MCP remains read-only. `POST /api/agent-plugins/lsp-servers/add` creates one named direct service without replacing others.
+Existing plugin connection overrides remain on disk for recovery, but only enablement applies. Runtime status reports `PLUGIN_MCP_OVERRIDE_RETIRED` and the preserved path. Personal MCP configuration, credential references, OAuth and ordered release remain active.
 
 ## Format details and development
 
@@ -137,7 +119,7 @@ Details use a shared 1120px maximum-width dialog, constrained to the viewport. M
 
 Visual feedback waits 200 ms, then stays visible for at least 400 ms. A 100 ms settling window bridges consecutive requests. Interaction locks immediately, including during the invisible delay; short operations therefore finish without a flash.
 
-Workspace requests and credential/settings writes share `withBusyOperation` (`src/client/ui/busy-operation.ts`). Wrap a complete workflow when it also refreshes data afterward; nested leases keep the mask until every operation settles. A single body-level `BusyOverlay` tracks the active dialog rectangle, marks it inert, blocks backdrop/keyboard interaction and restores focus afterward. Tips rotate every 3.2 seconds; reduced-motion preferences disable the scrolling transition. Source-progress, model-catalog background loading and automatic LSP polling remain silent. The mask never occupies a row in the resource list and does not fabricate percentage progress.
+Workspace requests and credential/settings writes share `withBusyOperation` (`src/client/ui/busy-operation.ts`). Wrap a complete workflow when it also refreshes data afterward; nested leases keep the mask until every operation settles. A single body-level `BusyOverlay` tracks the active dialog rectangle, marks it inert, blocks backdrop/keyboard interaction and restores focus afterward. Tips rotate every 3.2 seconds; reduced-motion preferences disable the scrolling transition. Model catalog background reads remain silent. The mask never occupies a row in the resource list and does not fabricate percentage progress.
 
 A source may contain multiple layout dialects. Suite manifests and Marketplace catalogs follow the [same layout priority](../../README.md#layout-detection-precedence). Manifest selection uses the first existing file; invalid manifests produce diagnostics without trying a lower-priority manifest. Catalog scanning uses the first catalog that produces suites, with supported supplemental discovery; invalid or empty catalogs allow later candidates. Root `marketplace.json` is the final shared fallback. Remote-reference cards are not directly installable: add their repository as a source first.
 

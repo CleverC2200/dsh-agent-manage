@@ -11,7 +11,16 @@ import type { McpMountDiagnostic } from '../runtime/mcp-mounts.js'
 import { buildLspStatus } from '../runtime/lsp-status.js'
 import { loadLspServers, saveLspServers } from '../runtime/lsp-direct-config.js'
 import { loadDisabledLspServers, saveDisabledLspServers } from '../runtime/lsp-server-state.js'
-import { applyOverride, loadSuiteOverrides, mergeOverridePatch, saveSuiteOverrides, type McpServerOverride, type McpSuiteOverrides } from '../runtime/mcp-overrides.js'
+import {
+  effectiveSuiteOverrides,
+  suiteOverridePath,
+  applyOverride,
+  loadSuiteOverrides,
+  mergeOverridePatch,
+  saveSuiteOverrides,
+  type McpServerOverride,
+  type McpSuiteOverrides
+} from '../runtime/mcp-overrides.js'
 import { applyLspOverrides, lspConfig, restoreRedactedConfig, saveLspOverride, validateServerLsp, validateServerMcp } from '../runtime/server-config.js'
 import { probeHostMcpClient, type HostMcpClientProbe, type McpBackend } from '../runtime/mcp-backend.js'
 import { resolveRegion, type DownloadRegionSetting, type EffectiveRegion } from '../runtime/regions.js'
@@ -160,7 +169,16 @@ export class RuntimeManagement {
   async mcpStatus(): Promise<McpStatusPayload> {
     const suitesSnapshot = await this.catalog.suites()
     const suites = [...suitesSnapshot, await loadUserMcpSuite(this.dataRoot)]
-    const payload = buildMcpStatus(suites, this.mcpDiagnostics, this.host?.tools() ?? [], await this.allMcpOverrides(suites))
+    const storedOverrides = new Map(
+      await Promise.all(
+        suites.map(async suite => {
+          const key = qualifiedSuiteId(suite.sourceId, suite.id)
+          return [key, await loadSuiteOverrides(this.dataRoot, key)] as const
+        })
+      )
+    )
+    const overrides = new Map([...storedOverrides].map(([key, stored]) => [key, effectiveSuiteOverrides(key, stored)]))
+    const payload = buildMcpStatus(suites, this.mcpDiagnostics, this.host?.tools() ?? [], overrides)
     for (const entry of payload.entries)
       if (entry.suiteId === `${USER_MCP_SOURCE}/${USER_MCP_SUITE}`) {
         entry.kind = 'direct'
@@ -170,6 +188,13 @@ export class RuntimeManagement {
     for (const entry of payload.entries) {
       if (this.host) entry.connectionState = connectionState(this.host.ctx.root, entry.name)
       if (entry.connectionState === 'connected' && !['disabled', 'foreign', 'orphaned'].includes(entry.state)) entry.state = 'connected'
+      if (entry.kind === 'plugin' && entry.suiteId && entry.serverKey) {
+        const stored = storedOverrides.get(entry.suiteId)?.[entry.serverKey]
+        if (stored && Object.keys(stored).some(key => key !== 'enabled')) {
+          const diagnostic = `PLUGIN_MCP_OVERRIDE_RETIRED: connection edits are preserved at ${suiteOverridePath(this.dataRoot, entry.suiteId)}; create a personal Agent connection to customize them`
+          entry.reason = entry.reason ? `${entry.reason}; ${diagnostic}` : diagnostic
+        }
+      }
       const auth = entry.config?.auth as { enabled?: boolean } | undefined
       entry.canReauthorize =
         oauthBackend &&
@@ -222,7 +247,7 @@ export class RuntimeManagement {
         for (const [key, server] of Object.entries(suite.mcp?.servers ?? {})) {
           if (id !== `plugin:${suiteKey}/${key}`) continue
           const overrides = await loadSuiteOverrides(this.dataRoot, suiteKey)
-          return { key, suiteKey, root: suite.mcp?.serverRoots?.[key] ?? suite.root, value: { ...applyOverride(server, overrides[key]) } }
+          return { key, suiteKey, root: suite.mcp?.serverRoots?.[key] ?? suite.root, value: { ...applyOverride(server, effectiveSuiteOverrides(suiteKey, overrides)[key]) } }
         }
       } else {
         for (const [key, server] of Object.entries(suite.lsp?.servers ?? {})) {
@@ -398,7 +423,7 @@ export class RuntimeManagement {
     for (const suite of suites ?? (await this.catalog.suites())) {
       const suiteKey = qualifiedSuiteId(suite.sourceId, suite.id)
       const overrides = await loadSuiteOverrides(this.dataRoot, suiteKey)
-      if (Object.keys(overrides).length > 0) map.set(suiteKey, overrides)
+      if (Object.keys(overrides).length > 0) map.set(suiteKey, effectiveSuiteOverrides(suiteKey, overrides))
     }
     return map
   }

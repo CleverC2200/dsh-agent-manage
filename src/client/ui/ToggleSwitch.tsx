@@ -1,7 +1,7 @@
 /** Shared switch control (ON = primary button fill, like every host toggle). */
 /** 文件作用：提供可复用的开关按钮外观和无障碍语义，具体启停业务由 onChange 回调处理。 */
 import { createElement as h, type ReactNode } from 'react'
-import css from '../market.module.css'
+import css from '../plugin-settings.module.css'
 
 export interface ToggleSwitchProps {
   on: boolean

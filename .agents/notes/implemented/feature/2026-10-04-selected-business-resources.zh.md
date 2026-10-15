@@ -79,3 +79,19 @@ Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取�
 个人配置最多持久保存一个 `{ sourceRef, enabled }` 引用。原生预设挂载隔离的 `userAgentCube` 声明，Core 公开 `serviceFor(actualAgent, ...)` 读取实际 Session 保留的 revision，子 Agent 继承相同声明。UserAgents 按当前启停、删除和引用状态撤销授权，沿已有生命周期 watch 通知。提示词或 Skill 更新保留旧会话引用；移除或停用立即中止旧授权，重新添加也不会恢复旧授权。
 
 GEA 按当前身份反查来源 owner 与 Consumer。发现和调用在异步步骤前后复核相同归属，身份、关联或 owner 信号撤销在途调用；替换来源即使 Consumer 相同也拒绝旧结果。v2 bridge 保留服务端原始 schema 与首轮 publication 就绪等待；生命周期和来源变化立即刷新 schema mask。个人引用只授予两项 Cube 工具，子 Agent 继续受 Core 工具过滤交集约束，不注册业务 profile。源码及 Core 测试不证明实际客户端或真实业务验收。
+
+## 已退役的配置入口
+
+统一 Agent 编辑器替代[原工作区](2026-09-06-workspace-tabs-user-panels.zh.md)的六页签、市场安装交互、hash 导航及命令/LSP 编辑器，无调用方的客户端适配随之删除。Host HTTP 仅保留模型目录和 MCP 后端读取；Agent 变更通过认证配置路由。PanelResources 继续提供运行时读取，但直接调用更新或删除插件源也会被拒。个人修改归 Agent 配置所有者。
+
+Catalog 获取、发现、缓存、锁、导入/同步及安装状态保留。MCP 传输、凭据/OAuth、命令/LSP/Hook/项目运行、子 Agent、原业务资产、原生 standard 组合，以及 Core Session、草稿与历史归属均保留。退休查询 fixture 与日期失败证据保持原件。
+
+旧插件 MCP 连接补丁保留原覆盖文件。运行时仅应用启停，使用插件声明的连接输入，并以 `PLUGIN_MCP_OVERRIDE_RETIRED` 标明保留路径。需要定制时显式创建个人 Agent 连接；启动不改写或删除旧补丁。个人 Agent 的 MCP 定义仍可完整校验编辑。
+
+| 旧覆盖                               | 当前行为覆盖                                                                                                                 |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| 市场安装/取消和旧页签                | `user-agent-workspace.test.ts`、`agent-source-panel.test.ts`：内联取消、显式导入、三页签                                     |
+| 受管源直接写入                       | `panel-resources.test.ts`、`user-agent-skills-client.test.ts`、`user-agent-skills.test.ts`：源不变与个人修改                 |
+| 全局 MCP 详情/授权 HTTP 操作         | `agent-mcp.test.ts`、`agent-mcp-transports.test.ts`、`runtime-management.test.ts`：关联、真实传输、OAuth 取消/重试与归属释放 |
+| 通用路由与旧可写策略                 | `routes.test.ts`、`mcp-overrides.test.ts`：旧路径未注册，旧补丁不生效且可诊断                                                |
+| 市场卡片/筛选计数/网格状态及详情适配 | 随退役组件删除，已无对应产品操作                                                                                             |

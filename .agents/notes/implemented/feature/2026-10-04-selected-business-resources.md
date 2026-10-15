@@ -81,3 +81,19 @@ Only GEA Host registration may mark an installed BusinessResources entry as Cube
 Personal configurations persist at most one `{ sourceRef, enabled }` Cube reference. The official preset mounts an isolated `userAgentCube` declaration; Core's public `serviceFor(actualAgent, ...)` resolves the revision actually retained by that Session and inherited by its children. UserAgents applies current enable/delete/reference revocation and signals through its existing lifecycle watch. Prompt or Skill edits keep the prior Session reference; removing or disabling it aborts old grants, and re-adding it never revives those grants.
 
 GEA alone resolves the source owner and Consumer against current identity. Cube discovery and dispatch use that same resolution before and after awaits; identity, association and owner signals cancel in-flight calls and reject late results even if the replacement Consumer is identical. The v2 bridge retains server schemas and first-request publication readiness. Schema masks refresh on lifecycle/source changes as well as tool changes. Personal references grant only the two Cube methods and preserve Core tool-filter intersections; they never install a business profile. Source/Core tests do not establish installed-client or real business acceptance.
+
+## Retired configuration entries
+
+The shared Agent editor replaces [the former workspace](2026-09-06-workspace-tabs-user-panels.md)'s six tabs, market installation dialogs, hash navigation and command/LSP editors. Their unused client adapters are removed. Host HTTP retains only model-catalog and MCP-backend reads; Agent mutations use authenticated configuration routes. PanelResources still supplies runtime reads, but rejects source-owned update/delete requests even from direct callers. Personal changes use the Agent configuration owner.
+
+Catalog acquisition, discovery, cache, locks, import/sync and installed state remain. MCP transport/credentials/OAuth, commands/LSP/hooks/project runtimes, subagents, original business assets, native standard composition and Core Session/draft/history owners remain. Retired-query fixtures and dated failure evidence remain unchanged.
+
+Old plugin MCP connection patches remain in their original override files. Runtime selection applies only enablement, reports `PLUGIN_MCP_OVERRIDE_RETIRED` with the preserved path and uses the plugin declaration for connection inputs. Desired custom connections require explicit personal Agent configuration; startup never rewrites or deletes preserved patches. User-owned Agent MCP definitions retain full validated edits.
+
+| Retired coverage | Current behavior coverage |
+| --- | --- |
+| Market installation/cancel and old tab rendering | `user-agent-workspace.test.ts`, `agent-source-panel.test.ts` (inline cancellation, explicit import, three tabs) |
+| Resource editor writes into managed sources | `panel-resources.test.ts`, `user-agent-skills-client.test.ts`, `user-agent-skills.test.ts` (source immutability and personal changes) |
+| Global MCP detail/authorization HTTP actions | `agent-mcp.test.ts`, `agent-mcp-transports.test.ts`, `runtime-management.test.ts` (association, real transport, OAuth cancellation/retry and owned release) |
+| Generic route and old writable-policy assertions | `routes.test.ts`, `mcp-overrides.test.ts` (retired routes absent; retained patches inactive and diagnostic) |
+| Market cards/filter counts/grid state and detail request adapters | Removed with their retired components; these no longer describe a supported user action |

@@ -5,8 +5,6 @@
  * 中文：本文件将用户自建资源与已安装 suite 提供的 skills、commands、agents 合并成统一面板清单。
  * 编辑和删除使用服务端已解析的资源 id，不信任 HTTP 调用方直接提供的文件路径。
  */
-import { realpath, unlink, writeFile } from 'node:fs/promises'
-import { isAbsolute, relative } from 'node:path'
 import { z } from 'zod'
 import type { UserPanelEntryWire, UserPanelKind } from '../contracts/market.js'
 import { defaultMarkdownResources, resourceText } from '../catalog/component-files.js'
@@ -26,9 +24,9 @@ export interface PanelResourceStore {
   get(id: string): Promise<UserPanelEntryWire | undefined>
   /** 在用户资源区创建一个新条目。 */
   create(name: string, text: string): Promise<UserPanelEntryWire>
-  /** 更新用户资源，或在安全路径边界内更新受管插件资源。 */
+  /** 更新用户资源；插件资源只读。 */
   update(id: string, text: string): Promise<void>
-  /** 删除用户资源，或在安全路径边界内删除受管插件资源。 */
+  /** 删除用户资源；插件资源只读。 */
   remove(id: string): Promise<void>
 }
 
@@ -113,32 +111,14 @@ class PanelResources implements PanelResourceStore {
     return this.catalog.changePanelResources(() => this.users.create(name, text))
   }
 
-  /** 将插件资源 id 解析为可写真实路径，拒绝内联 JSON、外部源和符号链越界。 */
-  private async pluginPath(id: string): Promise<string> {
-    const entry = await this.get(id)
-    if (entry?.origin !== 'plugin') throw new Error('Unknown installed plugin resource')
-    if (entry.path.endsWith('.json')) throw new Error('Inline manifest resources are read-only; edit their source manifest')
-    const root = await realpath(this.users.root())
-    const path = await realpath(entry.path)
-    const rel = relative(root, path)
-    if (rel === '..' || rel.startsWith('../') || isAbsolute(rel)) throw new Error('External source files are read-only; create a user resource to customize them')
-    return path
-  }
-
-  /** 验证新 frontmatter 后更新资源；普通 id 走用户存储，复合 id 走受管插件路径。 */
+  /** Source-owned resources are customized through Agent configuration, never edited in place. */
   async update(id: string, text: string): Promise<void> {
-    await this.catalog.changePanelResources(async () => {
-      if (!id.startsWith('[')) return this.users.update(id, text)
-      parseFrontmatterRecord(text)
-      await writeFile(await this.pluginPath(id), text, 'utf8')
-    })
+    if (id.startsWith('[')) throw Error('PLUGIN_RESOURCE_READ_ONLY')
+    await this.catalog.changePanelResources(() => this.users.update(id, text))
   }
 
-  /** 删除资源；普通 id 交给用户存储，插件资源则先经过路径安全校验。 */
   async remove(id: string): Promise<void> {
-    await this.catalog.changePanelResources(async () => {
-      if (!id.startsWith('[')) return this.users.remove(id)
-      await unlink(await this.pluginPath(id))
-    })
+    if (id.startsWith('[')) throw Error('PLUGIN_RESOURCE_READ_ONLY')
+    await this.catalog.changePanelResources(() => this.users.remove(id))
   }
 }

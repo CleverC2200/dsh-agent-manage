@@ -17,6 +17,8 @@ import { dirname, join } from 'node:path'
 import { isSensitiveKey } from './mcp-redaction.js'
 import type { McpServerSse, McpServerStreamableHttp, McpServerStdio } from '../model/types.js'
 
+import { USER_MCP_SOURCE, USER_MCP_SUITE } from './mcp-direct-config.js'
+
 /** HTTP-shaped server sources (url + headers carriers) overrides can edit. */
 type McpServerHttp = McpServerStreamableHttp | McpServerSse
 
@@ -40,6 +42,14 @@ export type McpServerOverride = {
 
 /** Overrides for one suite, keyed by mcp.json server key. */
 export type McpSuiteOverrides = Record<string, McpServerOverride>
+
+/** Retired plugin connection edits stay on disk for recovery; only enablement remains effective.
+ * User connection definitions still accept their validated, Agent-owned configuration.
+ */
+export function effectiveSuiteOverrides(suiteId: string, stored: McpSuiteOverrides): McpSuiteOverrides {
+  if (suiteId === `${USER_MCP_SOURCE}/${USER_MCP_SUITE}`) return stored
+  return Object.fromEntries(Object.entries(stored).map(([key, value]) => [key, value.enabled === undefined ? {} : { enabled: value.enabled }]))
+}
 
 /** The overrides directory under the plugin data root. */
 /** 返回 MCP 覆盖配置目录路径。 */

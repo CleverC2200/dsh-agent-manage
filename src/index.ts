@@ -358,7 +358,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
 
   ctx.inject(['webServer', 'loader'], hostCtx => {
     // 中文：把 Catalog 和资源仓库接入市场 HTTP 路由，效果销毁时卸载路由。
-    hostCtx.effect(() => mountSuiteRoutes(hostCtx, catalog, resources), 'dsh-agent-plugins-market: http routes')
+    hostCtx.effect(() => mountSuiteRoutes(hostCtx, catalog), 'dsh-agent-plugins-market: http routes')
   })
 
   ctx.effect(

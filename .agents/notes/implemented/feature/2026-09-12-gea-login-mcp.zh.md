@@ -8,9 +8,11 @@ Status: implemented
 
 ## Decision
 
-可选的 `geaMcp` v1 服务提供登录观察和进程内传输能力。GEA 插件负责创建业务会话、注入完整可信的 `params._meta`；市场插件负责 MCP SDK 连接和工具注册。两个插件必须加载在同一 Cordis 作用域。默认 Consumer 为 GEA 插件配置的分析 Agent，也可显式指定已注册的 AGENT 或 CLIENT_APP；不会虚构新的注册编码。
+GEA Host 继续独占登录、凭据与 Consumer 权威。当前 v2 发现与执行合同见 [GEA Cube-New MCP](../../../../docs/guides/gea-mcp.zh.md)；[原生业务资源](2026-10-04-selected-business-resources.zh.md#可信-cube-引用)持有个人 Agent 的可信引用规则。
 
-退出、环境切换、登录所有者发现凭证过期以及插件卸载都会中止旧请求。协调器串行清理挂载，丢弃晚到的发现结果。网关不会写入 suite 或直接 MCP 配置。普通市场功能不依赖 GEA。
+Manage 发布服务端 schema 与受限工具；GEA 从实际 Core Session 的已启用业务来源或可信 Cube 引用反查 Consumer。个人配置不能指定 Consumer、网关或登录 Token。个人引用仅授予 Cube inspect/query 两项工具，并按身份/来源撤销和子 Agent 工具过滤交集执行。早期可选 v1 transport 服务与单一 `gea-readonly` 配置已退出。
+
+退出、环境切换、过期和 owner 卸载中止旧调用并拒绝迟到结果；网关凭据不写入外部 MCP 配置。普通个人 Agent 配置不依赖 GEA。
 
 ## Alternatives considered
 
@@ -20,16 +22,8 @@ Status: implemented
 
 ## Consequences
 
-仅发现所选 Consumer 获授权的工具。使用此挂载的宿主对话共享当前登录代际的网关业务会话，不等于每个 DSH 对话独立建会话。认证/会话失败需重新登录，不会自动重复建会话或重放工具调用。现有桥接保留服务端授权和宿主确认处理。本次实现不代表生产验收。
+来源发现、原生发布、模型可见 schema 和真实业务成功分别留证。本 Note 保留登录归属理由，v2 与个人引用合同替代原 transport 和单预设方案。[原 ADR](../../../../docs/history/decision-snapshots/2026-09-12-gea-mcp-login-owner.md)保留早期输入。
 
-此前没有活动 Agent Note 覆盖 GEA 登录集成，无需替代既有决策。
-
-## Runtime acceptance
+## Runtime acceptance (2026-09-12)
 
 真实实例最初加载的是已安装的旧市场包，而非本工作区。实例补丁停用旧入口并插入本地构建，热加载保留 GEA 登录。网关成功注册五个工具，并通过实际宿主工具运行时完成 2026 年 9 月只读查询。这验证了该实例，不代表 npm 发布。
-
-仅观测到的服务不展示市场自有配置编辑器。详情页展示中性的归属说明和已发现工具，避免请求无法解析其配置的接口。
-
-GEA MCP 的工具可见性及调用仅限本地 DSH `gea-readonly` 预设（需求预测入口）。可在 Consumer 字段旁通过 `geaMcp.agentPreset` 指定其他本地预设；服务端 Consumer 授权与本地预设限制是两个独立边界。其他预设及不携带 Agent 的调用均被拒绝；登录刷新、已有和新建 Agent、空会话切换预设均维持此限制。继承相同预设的子 Agent 同样拥有访问权。宿主 MCP 状态页仍保留连接信息用于诊断。宿主缺少 `agents` 或 `agentPresets` 服务时不挂载此集成。
-
-同一预设限制也覆盖旧的 `gea_sales_plan_read` 工具，标准预设不获得 GEA 业务查询能力。

@@ -71,7 +71,7 @@ describe('installed and user panel resources', () => {
     }
   })
 
-  it('projects installed resources, preserves structured metadata and applies edits/deletion to the registered file', async () => {
+  it('projects installed resources and rejects edits and deletion of source-owned files', async () => {
     const root = await mkdtemp(join(tmpdir(), 'market-panels-'))
     try {
       for (const id of ['active', 'unused']) {
@@ -102,16 +102,13 @@ describe('installed and user panel resources', () => {
       const plugin = rows.find(row => row.origin === 'plugin')!
       expect(plugin.metadata).toMatchObject({ tools: ['read', 'search'], metadata: { team: 'core' } })
       const changed = plugin.rawText.replace('vendor/model', 'vendor/new-model')
-      await panels.agents.update(plugin.id!, changed)
-      expect(await readFile(plugin.path, 'utf8')).toBe(changed)
-      expect((await panels.agents.get(plugin.id!))?.metadata.model).toBe('vendor/new-model')
-      await expect(panels.agents.update(plugin.id!, '---\nmodel: [\n---\ntext')).rejects.toThrow()
-      expect(await readFile(plugin.path, 'utf8')).toBe(changed)
+      await expect(panels.agents.update(plugin.id!, changed)).rejects.toThrow('PLUGIN_RESOURCE_READ_ONLY')
+      await expect(panels.agents.remove(plugin.id!)).rejects.toThrow('PLUGIN_RESOURCE_READ_ONLY')
+      expect(await readFile(plugin.path, 'utf8')).toBe(plugin.rawText)
+      expect((await panels.agents.get(plugin.id!))?.metadata.model).toBe('vendor/model')
       await catalog.setSurface('active', 'v1-suite', 'agents', false)
       expect((await panels.agents.get(plugin.id!))?.disabled).toBe(true)
-      await panels.agents.remove(plugin.id!)
-      expect(await panels.agents.list()).toHaveLength(1)
-      await expect(panels.agents.update('["../../etc"]', 'x')).rejects.toThrow('Unknown installed')
+      await expect(panels.agents.update('["../../etc"]', 'x')).rejects.toThrow('PLUGIN_RESOURCE_READ_ONLY')
       expect((await panels.skills.list()).some(row => row.origin === 'plugin')).toBe(true)
     } finally {
       await rm(root, { recursive: true, force: true })
