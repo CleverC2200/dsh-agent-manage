@@ -1,6 +1,7 @@
 import React, { useEffect, useState, type FormEvent } from 'react'
 import type { Translate } from './index.js'
 import { userAgentApi, type SaveUserAgent, type UserAgentView } from './user-agent-api.js'
+import { AgentMcpPanel } from './AgentMcpPanel.js'
 import css from './user-agents.module.css'
 
 export interface UserAgentWorkspaceProps {
@@ -70,7 +71,7 @@ export function UserAgentWorkspace({ t, startAgent }: UserAgentWorkspaceProps) {
         {(['prompt', 'skill', 'mcp'] as const).map(value => <button type="button" key={value} disabled={busy} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{t(value === 'prompt' ? 'agentPrompt' : value === 'skill' ? 'agentSkill' : 'agentMcp')}</button>)}
       </nav>
       {selected.error && <p role="alert" className={css.error}>{selected.error}</p>}
-      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => edit(selected)}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : <p className={css.muted}>{t('agentNotDelivered')}</p>}
+      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => edit(selected)}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'mcp' ? <AgentMcpPanel key={selected.id} agentId={selected.id} t={t} /> : <p className={css.muted}>{t('agentNotDelivered')}</p>}
     </> : <>
       <header className={css.heading}><div className={css.title}><h2>{t('agentConfiguration')}</h2></div><button type="button" disabled={busy} aria-label={t('refresh')} onClick={() => void run(refresh)}>↻</button><button className={css.primary} type="button" disabled={busy} onClick={() => { setDraft(blank()); setAdding(true); setMessage('') }}>{t('agentAdd')}</button></header>
       <p className={css.sectionTitle}>{t('agentCurrent')} <span>{agents.length}</span></p>

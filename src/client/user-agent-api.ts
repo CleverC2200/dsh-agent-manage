@@ -1,7 +1,7 @@
 import { USER_AGENT_ROUTES, type SaveUserAgent, type UserAgentView } from '../contracts/user-agents.js'
 export type { UserAgentView, SaveUserAgent }
 
-async function request<T>(path: string, value?: unknown): Promise<T> {
+export async function request<T>(path: string, value?: unknown): Promise<T> {
   const response = await fetch(path, {
     method: value === undefined ? 'GET' : 'POST', credentials: 'same-origin', cache: 'no-store',
     ...(value === undefined ? {} : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) })

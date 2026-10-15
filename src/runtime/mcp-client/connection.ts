@@ -108,6 +108,7 @@ export interface ConnectionHandle {
    * whether a failed startup is fatal via `failOnStartupError`.
    */
   ready: Promise<ConnectionOutcome>
+  state(): 'connecting' | 'connected' | 'failed'
   /**
    * Stop reconnection, close the live client, wait for the in-flight attempt
    * and queued tool syncs to quiesce, then unregister every tool this server
@@ -395,6 +396,7 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
 
   return {
     ready,
+    state: () => connectedAt !== undefined && client !== undefined ? 'connected' : client !== undefined || reconnectTimer !== undefined ? 'connecting' : 'failed',
     /** 取消重连计时器并关闭当前连接，释放所有工具注册。 */
     async dispose(): Promise<void> {
       disposed = true

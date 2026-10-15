@@ -7,6 +7,24 @@ export type Dictionary = Record<string, string>
 /** Chinese is the source-of-truth key set; English is checked against it below. */
 /** 中文字典是键集合的事实来源，英文集合在文件末尾做一致性校验。 */
 export const zh = {
+  agentMcpExisting: '使用已有连接',
+  agentMcpNew: '创建新连接',
+  'agentMcpUsed': '使用的 MCP',
+  'agentMcpAdd': '添加 MCP',
+  'agentMcpUser': '用户添加',
+  'agentMcpPlugin': '插件提供',
+  'agentMcpRemove': '移除关联',
+  'agentMcpEmpty': '尚未关联 MCP',
+  'agentMcpName': '显示名称',
+  'agentMcpServerId': '服务标识',
+  'agentMcpCredentials': '密钥使用 DSH 凭据引用，例如 ${API_TOKEN}。编辑共享连接会更新所有引用；移除仅影响当前 Agent。',
+  'agentMcpState_saved': '已保存，未连接',
+  'agentMcpState_connecting': '连接中',
+  'agentMcpState_connected': '已连接',
+  'agentMcpState_failed': '连接失败',
+  'agentMcpState_disabled': '已停用',
+  'agentMcpState_needs-credentials': '需要凭据',
+
   agentConfiguration: 'Agent 配置',
   agentAdd: '＋ 添加 Agent',
   agentCurrent: '当前 Agent',
@@ -359,6 +377,24 @@ export const zh = {
 export type LocaleKey = keyof typeof zh
 
 export const en: Record<LocaleKey, string> = {
+  agentMcpExisting: 'Use an existing connection',
+  agentMcpNew: 'Create a connection',
+  'agentMcpUsed': 'Selected MCP servers',
+  'agentMcpAdd': 'Add MCP',
+  'agentMcpUser': 'User connection',
+  'agentMcpPlugin': 'Plugin connection',
+  'agentMcpRemove': 'Remove association',
+  'agentMcpEmpty': 'No MCP servers selected',
+  'agentMcpName': 'Display name',
+  'agentMcpServerId': 'Server identifier',
+  'agentMcpCredentials': 'Use DSH credential references such as ${API_TOKEN}. Editing a shared connection updates every reference; removing affects only this Agent.',
+  'agentMcpState_saved': 'Saved, disconnected',
+  'agentMcpState_connecting': 'Connecting',
+  'agentMcpState_connected': 'Connected',
+  'agentMcpState_failed': 'Connection failed',
+  'agentMcpState_disabled': 'Disabled',
+  'agentMcpState_needs-credentials': 'Credentials required',
+
   agentConfiguration: 'Agent configuration',
   agentAdd: '+ Add Agent',
   agentCurrent: 'Current Agents',

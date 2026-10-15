@@ -32,6 +32,10 @@ export async function validateServerMcp(root: string, key: string, config: unkno
   const result = await validateMcpJson(root, document)
   const server = result.config?.servers[key]
   if (server === undefined || result.errors.length > 0) throw new Error(`invalid MCP configuration: ${result.errors.join('; ')}`)
+  if (server.type !== 'stdio' && !server.url.includes('${')) {
+    const url = new URL(server.url)
+    if (!['http:', 'https:'].includes(url.protocol)) throw Error('INVALID_MCP_URL')
+  }
   return server
 }
 
