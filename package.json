@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
   "description": "Configure personal Agents, Skills and MCP connections for DeepSeek Harness, publish native presets, and preserve source import, synchronization and host-owned runtime capabilities.",
-  "version": "0.6.3-company.14",
+  "version": "0.6.3-company.15",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

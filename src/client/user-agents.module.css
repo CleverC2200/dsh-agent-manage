@@ -93,3 +93,7 @@
 @media (max-width: 700px) { .conflictValues { grid-template-columns: 1fr; } }
 
 .workspace .iconButton { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; padding: 0; border: 0; color: var(--workbench-muted, #69717c); }
+
+.sourceInfo { margin: 6px; font-size: 12px; color: var(--workbench-muted, #69717c); }
+.sourceInfo summary { cursor: pointer; font-size: 13px; }
+.sourceInfo dd { margin: 0 0 8px; overflow-wrap: anywhere; }

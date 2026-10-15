@@ -90,6 +90,8 @@ export const zh = {
   'agentMcpState_authorization-failed': '授权失败，请重新授权',
   agentMcpCancelAuthorization: '取消授权',
 
+  agentSourceInfo: '来源信息',
+  agentSourceVersion: '配置版本',
   agentMore: '更多操作',
   agentMcpExternal: '外部 MCP',
   agentStateEnabled: '已启用',
@@ -266,6 +268,8 @@ export const en: Record<LocaleKey, string> = {
   'agentMcpState_authorization-failed': 'Authorization failed; re-authorize to continue',
   agentMcpCancelAuthorization: 'Cancel authorization',
 
+  agentSourceInfo: 'Source information',
+  agentSourceVersion: 'Configuration revision',
   agentMore: 'More actions',
   agentMcpExternal: 'External MCP',
   agentStateEnabled: 'Enabled',

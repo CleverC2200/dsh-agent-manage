@@ -25,7 +25,7 @@ let element: HTMLDivElement
 let root: ReturnType<typeof createRoot>
 const click = async (label: string) =>
   act(async () => {
-    const button = [...element.querySelectorAll('button')].find(row => row.textContent === label)
+    const button = [...element.querySelectorAll('button')].find(row => row.textContent === label || row.getAttribute('aria-label') === label)
     if (!button) throw Error(`Missing button: ${label}`)
     button.click()
   })
@@ -90,4 +90,38 @@ it('opens the new Agent form above all Agent rows and focuses its name', async (
   const firstRow = element.querySelector('article')!
   expect(form.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
   expect(document.activeElement).toBe(form.querySelector('input'))
+})
+
+it('keeps source revision information in a disclosure instead of cluttering Agent rows', async () => {
+  const info = element.querySelector('details details') as HTMLDetailsElement
+  expect(info).not.toBeNull()
+  await act(async () => info.querySelector('summary')!.click())
+  expect(info.open).toBe(true)
+  expect(info.textContent).toContain('gea-readonly')
+  expect(info.textContent).toContain('internal-revision')
+})
+it('closes the add form when an imported Agent update opens configuration sources', async () => {
+  await click(zh.agentBack)
+  const imported = {
+    ...plugin,
+    id: 'personal-import',
+    origin: 'user' as const,
+    source: {
+      sourceId: 'team',
+      suiteId: 'helper',
+      resourceKey: 'suite',
+      kind: 'local' as const,
+      url: '/team',
+      base: { name: plugin.name, description: '', prompt: plugin.prompt, skills: [] }
+    }
+  }
+  vi.mocked(userAgentApi.list).mockResolvedValue([imported])
+  vi.spyOn(agentSourceApi, 'list').mockResolvedValue([])
+  vi.spyOn(agentSourceApi, 'preview').mockResolvedValue({ changed: false, token: 'unchanged-preview', agentId: imported.id, conflicts: [] })
+  vi.spyOn(agentSourceApi, 'cancel').mockResolvedValue({ cancelled: true })
+  await click(zh.refresh)
+  await click(zh.agentAdd)
+  await click(zh.agentSourceSync)
+  expect(element.querySelectorAll('form')).toHaveLength(1)
+  expect(element.querySelector('fieldset')).not.toBeNull()
 })
