@@ -68,7 +68,7 @@ Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取�
 
 导入 Skill 引用持久保存选中正文，用户覆盖与旧 live preset 作用域不随 checkout 刷新而改正文。资源目录和参考资产仍是动态依赖，不快照整个来源树。来源 MCP 变更使用独立连接身份，原始 config 继续作为 Host 基线，个人修改沿既有 runtime override 保存。Agent 列表及来源元数据只保存引用，MCP 冲突预览经过脱敏。
 
-`UserAgents.syncSource` 先校验并审计候选声明，再替换稳定的可选身份并持久保存。发布或持久写失败恢复旧声明和原持久配置。候选释放失败保留句柄，下次同步或卸载继续清理。旧 live Core revision 保留原来源连接；停用、删除 Agent 或明确移除来源仍撤销 schema 和 dispatch。默认选择、Session 和草稿继续归 Core。重启发布已提交的当前配置；精确历史 revision 冷恢复仍受上一节的 Core 合同限制。
+`UserAgents.syncSource` 先解析声明、校验依赖，再注册并 resolve 稳定身份后持久保存。Core 没有原子替换操作，替换失败沿补偿恢复，不发布独立候选身份。发布或持久写失败恢复旧声明和原持久配置。声明释放失败保留句柄，补偿、重试或卸载时继续清理。旧 live Core revision 保留原来源连接；停用、删除 Agent 或明确移除来源仍撤销 schema 和 dispatch。默认选择、Session 和草稿继续归 Core。重启发布已提交的当前配置；精确历史 revision 冷恢复仍受上一节的 Core 合同限制。
 
 ## 可信 Cube 引用
 

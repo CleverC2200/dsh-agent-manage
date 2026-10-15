@@ -183,6 +183,23 @@ it('merges source Skill and MCP conflicts without exposing secrets and retains o
 
 it('rejects stale or cancelled syncs and preserves the durable usable revision through publication, persistence and release failures', async () => {
   const { ctx, home } = await presetHarness()
+  const register = ctx.agentPresets.register.bind(ctx.agentPresets)
+  let failNextRelease = false
+  let retainedReleaseAttempts = 0
+  const fail = vi.spyOn(ctx.agentPresets, 'register').mockImplementation(async definition => {
+    const release = await register(definition)
+    let failed = false
+    return async () => {
+      if (failNextRelease) {
+        failNextRelease = false
+        failed = true
+        retainedReleaseAttempts++
+        throw Error('CONTROLLED_RELEASE_FAILURE')
+      }
+      if (failed) retainedReleaseAttempts++
+      await release()
+    }
+  })
   const root = join(home, 'failure-source')
   await mkdir(join(root, '.claude-plugin'), { recursive: true })
   const manifest = join(root, '.claude-plugin/plugin.json')
@@ -206,12 +223,10 @@ it('rejects stale or cancelled syncs and preserves the durable usable revision t
   controller.abort()
   await expect(sources.commit({ token: plan.token }, controller.signal)).rejects.toThrow()
   expect(await readFile(file, 'utf8')).toBe(durable)
-  const register = ctx.agentPresets.register.bind(ctx.agentPresets)
-  const fail = vi.spyOn(ctx.agentPresets, 'register').mockRejectedValueOnce(Error('CONTROLLED_PUBLICATION_FAILURE'))
+  fail.mockRejectedValueOnce(Error('CONTROLLED_PUBLICATION_FAILURE'))
   await expect(sources.commit({ token: plan.token })).rejects.toThrow('CONTROLLED_PUBLICATION_FAILURE')
   expect(await readFile(file, 'utf8')).toBe(durable)
   expect((await agents.list())[0]).toMatchObject({ revision: previous.revision, publication: 'ready', prompt: 'GOOD_OLD_REVISION' })
-  fail.mockImplementation(register)
   const { rename, rm } = await import('node:fs/promises')
   await rename(file, `${file}.backup`)
   await mkdir(file)
@@ -219,14 +234,7 @@ it('rejects stale or cancelled syncs and preserves the durable usable revision t
   expect((await agents.list())[0]).toMatchObject({ revision: previous.revision, publication: 'ready' })
   await rm(file, { recursive: true })
   await rename(`${file}.backup`, file)
-  let retainedReleaseAttempts = 0
-  fail.mockImplementationOnce(async definition => {
-    const release = await register(definition)
-    return async () => {
-      if (++retainedReleaseAttempts === 1) throw Error('CONTROLLED_RELEASE_FAILURE')
-      await release()
-    }
-  })
+  failNextRelease = true
   await expect(sources.commit({ token: plan.token })).rejects.toThrow('CONTROLLED_RELEASE_FAILURE')
   expect((await agents.list())[0]).toMatchObject({ revision: previous.revision, publication: 'ready' })
   const [committed, repeated] = await Promise.allSettled([sources.commit({ token: plan.token }), sources.commit({ token: plan.token })])
@@ -235,6 +243,7 @@ it('rejects stale or cancelled syncs and preserves the durable usable revision t
   const updated = committed.value
   expect(repeated).toMatchObject({ status: 'rejected', reason: Error('AGENT_SOURCE_PREVIEW_EXPIRED') })
   expect(retainedReleaseAttempts).toBe(2)
+  expect((await ctx.agentPresets.list()).filter(row => row.id.startsWith(agent.preset)).map(row => row.id)).toEqual([agent.preset])
   expect(updated).toMatchObject({ prompt: 'NEW_REVISION', publication: 'ready' })
   fail.mockRestore()
   await agents.dispose()

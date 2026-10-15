@@ -73,7 +73,6 @@ export class UserAgents {
   private agents: UserAgentConfig[] = []
   private readonly cubeGrants = new Map<string, { generation: string; sourceRef: string; signal: AbortSignal; controller: AbortController }>()
   private releases = new Map<string, () => Promise<void>>()
-  private retiredReleases = new Set<() => Promise<void>>()
   private published = new Map<string, UserAgentConfig>()
   private errors = new Map<string, string>()
   private pending: Promise<unknown> = Promise.resolve()
@@ -193,29 +192,14 @@ export class UserAgents {
       let swapped = false
       try {
         signal?.throwIfAborted()
-        for (const release of this.retiredReleases) {
-          await release()
-          this.retiredReleases.delete(release)
-        }
-        // The registry rejects duplicate ids. Audit the complete candidate under a
-        // temporary identity before replacing the selectable stable identity.
-        if (agent.enabled) {
-          const candidateId = `${this.preset(id)}-candidate`
-          const release = await this.register(agent, candidateId)
-          this.retiredReleases.add(release)
-          try {
-            const candidate = await this.ctx.agentPresets.resolve(candidateId)
-            if (candidate.broken) throw Error(candidate.broken)
-          } finally {
-            await release()
-            this.retiredReleases.delete(release)
-          }
-        } else for (const skill of agent.skills) if (skill.kind === 'reference' && skill.enabled) await this.readSkill(skill.name, skill.provider, undefined, signal, skill.path)
+        // Core has no hidden staging/atomic replace operation. Prepare the complete
+        // declaration and its dependencies before replacing the stable identity.
+        const definition = await this.prepare(agent)
         signal?.throwIfAborted()
         if (agent.enabled) {
           swapped = true
           await this.withdraw(id)
-          this.releases.set(id, await this.register(agent))
+          this.releases.set(id, await this.ctx.agentPresets.register(definition))
           const candidate = await this.ctx.agentPresets.resolve(this.preset(id))
           if (candidate.broken) throw Error(candidate.broken)
         }
@@ -385,10 +369,6 @@ export class UserAgents {
     await this.pending
     await this.mcp?.dispose()
     for (const id of this.releases.keys()) await this.withdraw(id)
-    for (const release of this.retiredReleases) {
-      await release()
-      this.retiredReleases.delete(release)
-    }
     this.listeners.clear()
   }
 
@@ -422,41 +402,43 @@ export class UserAgents {
     return `user-agent-${id}`
   }
 
-  private async register(agent: UserAgentConfig, presetId = this.preset(agent.id)): Promise<() => Promise<void>> {
+  private async register(agent: UserAgentConfig): Promise<() => Promise<void>> {
+    return this.ctx.agentPresets.register(await this.prepare(agent))
+  }
+
+  private async prepare(agent: UserAgentConfig) {
     for (const skill of agent.skills) if (skill.kind === 'reference' && skill.enabled) await this.readSkill(skill.name, skill.provider, undefined, undefined, skill.path)
     const grant = this.cubeGrants.get(agent.id)
-    return this.ctx.agentPresets.register(
-      await composeStandardPreset(
-        this.ctx.agentPresets,
-        {
-          id: presetId,
-          name: agent.name,
-          description: agent.description
-        },
-        {
-          personaPrefix: agent.prompt,
-          plugins: [
-            {
-              id: 'user-agent-skills',
-              name: 'dsh-agent-manage/user-agent-skills',
-              config: { skills: agent.skills, sourceMcpConnections: agent.source?.mcpReferences?.filter(row => !row.removed).map(row => row.connectionId) ?? [] }
-            },
-            ...(agent.cube?.enabled && grant
-              ? [
-                  {
-                    id: 'user-agent-cube-scope',
-                    name: 'cordis:group',
-                    group: true as const,
-                    isolate: { userAgentCube: true as const },
-                    config: [
-                      { id: 'user-agent-cube', name: 'dsh-agent-manage/user-agent-cube', config: { id: agent.id, sourceRef: agent.cube.sourceRef, generation: grant.generation } }
-                    ]
-                  }
-                ]
-              : [])
-          ]
-        }
-      )
+    return composeStandardPreset(
+      this.ctx.agentPresets,
+      {
+        id: this.preset(agent.id),
+        name: agent.name,
+        description: agent.description
+      },
+      {
+        personaPrefix: agent.prompt,
+        plugins: [
+          {
+            id: 'user-agent-skills',
+            name: 'dsh-agent-manage/user-agent-skills',
+            config: { skills: agent.skills, sourceMcpConnections: agent.source?.mcpReferences?.filter(row => !row.removed).map(row => row.connectionId) ?? [] }
+          },
+          ...(agent.cube?.enabled && grant
+            ? [
+                {
+                  id: 'user-agent-cube-scope',
+                  name: 'cordis:group',
+                  group: true as const,
+                  isolate: { userAgentCube: true as const },
+                  config: [
+                    { id: 'user-agent-cube', name: 'dsh-agent-manage/user-agent-cube', config: { id: agent.id, sourceRef: agent.cube.sourceRef, generation: grant.generation } }
+                  ]
+                }
+              ]
+            : [])
+        ]
+      }
     )
   }
 
