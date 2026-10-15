@@ -8,6 +8,8 @@ Status: implemented
 
 ## Decision
 
+用户原销售主提示词与问数 Skill 作为独立 Catalog 配置源随包保存在 `business-resources/sales-plan`。启动只发现来源，不导入、启用或绑定个人 Agent；显式导入复用 Agent 卡片和 Skill 引用。完整提示词超过套件 systemPrompt 的字节限制，因此使用既有 Agent 卡片，不截断原文或提高限额。正文仅修正个人可信 Cube 身份合同，Cube 查询参考原样保留。源基线和个人修改分开保存，原 `gea-readonly` profile 及四个预测 Skill 保持。[来源记录](../../../../business-resources/sales-plan/README.md)列明已有与缺失资产。真实 Core 首轮用例只替换外部 Gateway 响应；客户端装载、模型与真实业务验收分别留证。
+
 Manage 持有唯一的资源interface与已启用包资源的官方Skill Provider。Catalog继续持有Suite源、安装与启用事实。当前包在自己的effect下登记私有文件引用；浏览器选用稳定资源标识并传入原生工作区绝对路径上下文，不传资源文件路径或Consumer覆盖。目录只返回轻量摘要；Prompt 正文在选用时或已启用包 owner 明确启用 `publishPreset` 时装载，Skill 正文仍在选用时装载。原文件与用户草稿不覆盖。
 
 Skill 和 Prompt 选用均确认官方 Registry resolve 未返回 broken 后才提交选中身份。Skill 激活失败沿现有预设释放句柄回滚，已保留的挂载也重新核对可用性；释放失败保留句柄供显式重试。恢复已选 Skill 时，broken 预设使 load 拒绝，原恢复索引保持不变。
@@ -61,7 +63,6 @@ Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取�
 `UserAgents.watch` 在配置及生命周期提交后发出通知。能力消费者读取同一配置并 reconcile，不另建状态权威。写队列不等待监听器，监听器应安排异步读取且不抛错。这是配置生命周期，不拥有 Session 或业务授权。恢复后来源仍缺失时，发布与冷恢复继续拒绝，恢复操作不重建被撤销的授权。
 
 固定官方 Core 能为运行中 Session 保留 revision，但没有独立的可选标记或持久历史 revision 注册。撤下后冷恢复会明确失败，直到用户显式恢复、启用保留配置并补齐依赖。此后恢复组合保留的当前配置，持久空白 Session 复用也核原 preset；不承诺编辑后重建过去的 revision。精确历史修订需要由 Core 提供持久 revision/可用性 interface，Manage 不增加 Session sidecar、不替换为 standard、不修改保护中的 Core。测试覆盖认证配置操作、真实 Core 持久化与重启，以及官方客户端草稿输入；实际客户端装载和外部模型验收分别处理。
-
 
 ## 可信 Cube 引用
 

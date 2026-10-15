@@ -53,6 +53,16 @@ it('registers all four sales Skills at empty-home startup and selects the origin
   }
   const { agentOn, completion, presetHarness } = await import('./core-preset-harness.js')
   const { ctx } = await presetHarness({ fullManage: true, home: isolatedHome })
+  const sources = await ctx.connection.createSharedFetchHandler('/api').fetch(new Request('http://localhost/api/agent-manage/agent-sources'))
+  expect(await sources.json()).toContainEqual(
+    expect.objectContaining({
+      id: 'bundled-sales-plan',
+      kind: 'local',
+      errors: [],
+      candidates: [expect.objectContaining({ suiteId: 'sales-plan', resourceKey: 'agent:sales-plan', name: '销售计划助手' })]
+    })
+  )
+  expect(await ctx.userAgents.list()).toEqual([])
   const root = resolve('../dsh-gea-plugin')
   const policy = JSON.parse(await readFile(join(root, 'presets/prompt-policy.json'), 'utf8'))
   const profile = policy.profiles['gea-readonly']

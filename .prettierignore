@@ -22,3 +22,7 @@ src/inventory-compute/dealer-config/
 
 # Fixed sales assets retain SOURCE.json hashes; bundled-sales-skills.test.ts checks every file.
 business-resources/sinian-demand-forecast/
+
+# User sales instructions retain their original prose and formatting.
+business-resources/sales-plan/agents/
+business-resources/sales-plan/skills/

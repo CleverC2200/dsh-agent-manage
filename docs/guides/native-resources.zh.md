@@ -60,6 +60,8 @@ Skill 资源会话使用当前官方标准组合，保留通用工具与压缩�
 
 ## Agent 配置来源
 
+“配置来源”自动显示随包的 `bundled-sales-plan`，此时不创建 Agent。显式导入“销售计划助手”后，在个人 Agent 的 MCP 页选择已启用的销售 Cube。[源资产](../../business-resources/sales-plan/README.md)保留用户完整主提示词、问数 Skill 与 Cube 参考；提示词提及的其他任务 Skill 尚未附带。导入不授予 Consumer、页面动作或业务写入，不改原销售预设、已有 Session 或用户默认。
+
 Agent 页的“配置来源”面板沿用 Catalog 的 Git、本地目录和压缩包获取能力。发现复用既有套件 manifest、系统提示词和 Agent Markdown 卡片。导入创建稳定的个人 Agent；来源声明的 origin、owner 或 Consumer 不授予插件或 GEA 身份。无法支持的角色限制、缺失或无效组件会明确拒绝导入。
 
 `AgentSources` 持有获取与导入编排，`UserAgents` 在 `user-agents.json` 中分别保存导入基线和可编辑字段。提示词或 Skill 定制不写源 checkout；重复导入保留原 Agent 和个人修改。Skill 引用保留实际 provider、源路径及其参考目录。首次安装来源依赖时，同一次 Catalog 变更只开启 Skill surface；已安装但停用的 Skill 依赖需用户明确决定后恢复。
