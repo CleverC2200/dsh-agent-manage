@@ -128,7 +128,6 @@ it('merges source Skill and MCP conflicts without exposing secrets and retains o
     const sources = new AgentSources(catalog, agents)
     const source = await sources.acquire({ url: root, kind: 'local' })
     let agent = await sources.import({ sourceId: source.id, suiteId: 'capability-source', resourceKey: 'suite' })
-    agent = await agents.saveSkills(agent.id, [{ ...agent.skills[0], content: 'LOCAL_SKILL' }])
     const connection = (await agents.mcp!.list(agent.id))[0]
     await agents.mcp!.save({
       agentId: agent.id,
@@ -137,6 +136,8 @@ it('merges source Skill and MCP conflicts without exposing secrets and retains o
       name: connection.name,
       config: config('local', 'LOCAL_SECRET')
     })
+    expect((await agents.list())[0].customized).toBe(true)
+    agent = await agents.saveSkills(agent.id, [{ ...agent.skills[0], content: 'LOCAL_SKILL' }])
     const old = await agentOn(ctx, 'old-source-connections', agent.preset)
     expect((await ctx.skills.get('source-skill', { scope: old }))?.content).toBe('LOCAL_SKILL')
     expect(ctx.tools.schemas(old).some(row => row.name.endsWith('__echo_local'))).toBe(true)

@@ -6,8 +6,10 @@ import { agentSourceApi } from './agent-source-api.js'
 import css from './user-agents.module.css'
 
 /** Config sources share Catalog acquisition without installing executable plugins. */
-export function AgentSources({ t, onImported, agents = [] }: { t: Translate; onImported: () => Promise<void>; agents?: UserAgentView[] }) {
+export function AgentSources({ t, onImported, agents = [], initialSyncId }: { t: Translate; onImported: () => Promise<void>; agents?: UserAgentView[]; initialSyncId?: string }) {
   const explain = (failure: string) => {
+    if (['AGENT_SOURCE_PREVIEW_STALE', 'AGENT_SOURCE_PREVIEW_EXPIRED'].includes(failure)) return t('agentSourcePreviewStale')
+    if (failure.startsWith('AGENT_SOURCE_CONFLICT_UNRESOLVED')) return t('agentSourceResolveAll')
     if (failure === 'AGENT_SOURCE_IMPORT_INCOMPLETE') return t('agentSourceIncomplete')
     if (failure === 'AGENT_SOURCE_SKILLS_DISABLED') return t('agentSourceSkillDisabled')
     if (failure === 'AGENT_SOURCE_UNSUPPORTED_COMPONENTS') return t('agentSourceUnsupported')
@@ -57,7 +59,7 @@ export function AgentSources({ t, onImported, agents = [] }: { t: Translate; onI
   const acquire = (event: FormEvent) => {
     event.preventDefault()
     void run(async () => {
-      const acquired = await agentSourceApi.acquire({ url, kind, ...(kind === 'git' && branch.trim() ? { branch: branch.trim() } : {}) })
+      const acquired = await agentSourceApi.acquire({ url, kind, ...(kind === 'git' && branch.trim() ? { branch: branch.trim() } : {}) }, operation.current?.signal)
       setSources(await agentSourceApi.list())
       setUrl('')
       setBranch('')
@@ -76,6 +78,7 @@ export function AgentSources({ t, onImported, agents = [] }: { t: Translate; onI
     if (!result.conflicts.length) await updated(await agentSourceApi.commit({ token: result.token, resolutions: {} }, operation.current?.signal))
     else { setPreview(result); setResolutions({}); setManual({}) }
   })
+  useEffect(() => { if (initialSyncId) sync(initialSyncId) }, [initialSyncId])
   const commit = (event: FormEvent) => {
     event.preventDefault()
     if (!preview) return
@@ -139,7 +142,7 @@ export function AgentSources({ t, onImported, agents = [] }: { t: Translate; onI
                   void run(async () => {
                     let agent
                     try {
-                      agent = await agentSourceApi.import({ sourceId: source.id, suiteId: candidate.suiteId, resourceKey: candidate.resourceKey })
+                      agent = await agentSourceApi.import({ sourceId: source.id, suiteId: candidate.suiteId, resourceKey: candidate.resourceKey }, operation.current?.signal)
                     } finally {
                       await onImported()
                     }

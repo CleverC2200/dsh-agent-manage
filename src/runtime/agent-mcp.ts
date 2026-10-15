@@ -1,6 +1,7 @@
 import { standingMountFor } from '@deepseek-ai/dsh-agent-preset-registry'
 import type { Context } from '@deepseek-ai/cordis'
 import { randomUUID } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -15,13 +16,14 @@ import { validateServerMcp } from './server-config.js'
 const definition = z
   .object({ connectionId: z.uuid(), serverId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/), name: z.string().trim().min(1).max(160), sourceAgentId: z.uuid().optional() })
   .strict()
-const association = z.object({ agentId: z.uuid(), connectionId: z.uuid(), enabled: z.boolean(), retired: z.boolean().optional() }).strict()
-const stored = z.object({ version: z.literal(1), definitions: z.array(definition), associations: z.array(association) }).strict()
+const association = z.object({ agentId: z.uuid(), connectionId: z.uuid(), enabled: z.boolean() }).strict()
+const storedAssociation = association.extend({ retired: z.boolean().optional() })
+const stored = z.object({ version: z.literal(1), definitions: z.array(definition), associations: z.array(storedAssociation) }).strict()
 const save = definition.omit({ connectionId: true, sourceAgentId: true }).extend({ agentId: z.uuid(), connectionId: z.uuid().optional(), config: z.unknown() }).strict()
 const target = association.omit({ enabled: true }).strict()
 const suiteId = USER_MCP_SUITE
 type Definition = z.infer<typeof definition>
-type Association = z.infer<typeof association>
+type Association = z.infer<typeof storedAssociation>
 
 /** Personal MCP membership, persistence and scoped execution share this owner.
  * Definitions use Catalog.runtime; every managed namespace is masked before tools register. A mutation
@@ -98,11 +100,11 @@ export class AgentMcp {
     this.syncMasks()
   }
 
-  async list(agentId: string): Promise<AgentMcpView[]> {
+  async list(agentId: string, includeRetired = false): Promise<AgentMcpView[]> {
     const agent = this.requireAgent(agentId)
     const status = await this.runtime.mcpStatus()
     return this.associations
-      .filter(row => row.agentId === agentId && !row.retired)
+      .filter(row => row.agentId === agentId && (includeRetired || !row.retired))
       .map(row => {
         const connection = this.find(row.connectionId)
         const entry = status.entries.find(item => item.id === this.runtimeId(connection))
@@ -148,12 +150,13 @@ export class AgentMcp {
     name: string
     config: unknown
     source: { sourceId: string; suiteId: string; serverKey: string; root: string }
+    staged?: boolean
   }): Promise<AgentMcpView> {
-    const { source, ...value } = input
-    return this.saveDefinition(save.parse(value), source.root, input.agentId)
+    const { source, staged, ...value } = input
+    return this.saveDefinition(save.parse(value), source.root, input.agentId, staged)
   }
 
-  private saveDefinition(value: z.infer<typeof save>, sourceRoot?: string, sourceAgentId?: string): Promise<AgentMcpView> {
+  private saveDefinition(value: z.infer<typeof save>, sourceRoot?: string, sourceAgentId?: string, staged = false): Promise<AgentMcpView> {
     return this.write(async () => {
       this.requireAgent(value.agentId)
       const previous = value.connectionId ? this.associated(value.agentId, value.connectionId) : undefined
@@ -168,7 +171,9 @@ export class AgentMcp {
         ...(sourceAgentId ? { sourceAgentId } : previous?.sourceAgentId ? { sourceAgentId: previous.sourceAgentId } : {})
       }
       const definitions = previous ? this.definitions.map(row => (row.connectionId === connection.connectionId ? connection : row)) : [...this.definitions, connection]
-      const associations = previous ? this.associations : [...this.associations, { agentId: value.agentId, connectionId: connection.connectionId, enabled: true }]
+      const associations = previous
+        ? this.associations
+        : [...this.associations, { agentId: value.agentId, connectionId: connection.connectionId, enabled: true, ...(staged ? { retired: true } : {}) }]
       const previousDefinitions = this.definitions
       const previousAssociations = this.associations
       // Reserve the namespace fail-closed before runtime can register its first tool.
@@ -186,8 +191,22 @@ export class AgentMcp {
       } finally {
         this.syncMasks()
       }
-      return (await this.list(value.agentId)).find(row => row.connectionId === connection.connectionId)!
+      return (await this.list(value.agentId, true)).find(row => row.connectionId === connection.connectionId)!
     })
+  }
+
+  /** Source customization includes personal membership, switches, names and effective configs. */
+  async sourceCustomized(agentId: string, references: NonNullable<AgentSourceBaseline['mcpReferences']>): Promise<boolean> {
+    await this.queue
+    const associations = this.associations.filter(row => row.agentId === agentId && !row.retired)
+    if (associations.some(row => !references.some(reference => reference.connectionId === row.connectionId && !reference.removed))) return true
+    for (const reference of references) {
+      const association = associations.find(row => row.connectionId === reference.connectionId)
+      if (reference.removed || reference.baseMissing || !association?.enabled || this.find(reference.connectionId).name !== reference.serverKey.slice(0, 160)) return true
+      const config = await this.sourceConfig(reference.connectionId)
+      if (!isDeepStrictEqual(config.base, config.local)) return true
+    }
+    return false
   }
 
   /** Raw comparison stays Host-side; the original direct definition is the upstream baseline. */
@@ -213,7 +232,9 @@ export class AgentMcp {
     return this.write(async () => {
       this.requireAgent(value.agentId)
       this.find(value.connectionId)
-      const associations = [...this.associations.filter(row => row.agentId !== value.agentId || row.connectionId !== value.connectionId), value]
+      const previous = this.associations.find(row => row.agentId === value.agentId && row.connectionId === value.connectionId)
+      const link = previous?.retired ? { ...value, retired: true } : value
+      const associations = [...this.associations.filter(row => row.agentId !== value.agentId || row.connectionId !== value.connectionId), link]
       await this.persist(this.definitions, associations)
       this.associations = associations
       this.syncMasks()

@@ -502,9 +502,18 @@ export class UserAgents {
         error = failure instanceof Error ? failure.message : String(failure)
       }
     }
+    let mcpCustomized = false
+    if (agent.source && !agent.deletedAt && this.mcp) {
+      try {
+        mcpCustomized = await this.mcp.sourceCustomized(agent.id, agent.source.mcpReferences ?? [])
+      } catch (failure) {
+        error ??= failure instanceof Error ? failure.message : String(failure)
+      }
+    }
     return {
       ...agent,
       customized:
+        mcpCustomized ||
         (agent.source !== undefined && (['name', 'description', 'prompt'] as const).some(key => agent[key] !== agent.source!.base[key])) ||
         (agent.source !== undefined && JSON.stringify(agent.skills) !== JSON.stringify(agent.source.base.skills)),
       origin: 'user',

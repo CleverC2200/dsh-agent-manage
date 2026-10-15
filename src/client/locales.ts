@@ -7,6 +7,7 @@ export type Dictionary = Record<string, string>
 /** Chinese is the source-of-truth key set; English is checked against it below. */
 /** 中文字典是键集合的事实来源，英文集合在文件末尾做一致性校验。 */
 export const zh = {
+  agentSourcePreviewStale: '配置或预览已变化。请取消本次预览，再重新检查并同步。',
   agentSourceCurrent: '配置来源没有新变化。',
   agentSourceSync: '检查并同步',
   agentSourceUpdated: '配置已更新，后续新会话将使用新版本。',
@@ -449,6 +450,7 @@ export const zh = {
 export type LocaleKey = keyof typeof zh
 
 export const en: Record<LocaleKey, string> = {
+  agentSourcePreviewStale: 'The configuration or preview changed. Cancel this preview, then check and sync again.',
   agentSourceCurrent: 'The configuration source has no new changes.',
   agentSourceSync: 'Check and sync',
   agentSourceUpdated: 'Configuration updated. New sessions will use the new revision.',

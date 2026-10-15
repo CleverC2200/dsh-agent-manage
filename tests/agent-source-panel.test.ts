@@ -40,7 +40,7 @@ it('cancels a source form without acquiring or importing and refreshes the Agent
     expect(acquire).not.toHaveBeenCalled()
     expect(imported).not.toHaveBeenCalled()
     await click(zh.agentSourceImport)
-    expect(imported).toHaveBeenCalledExactlyOnceWith({ sourceId: 'team', suiteId: 'helper', resourceKey: 'suite' })
+    expect(imported).toHaveBeenCalledExactlyOnceWith({ sourceId: 'team', suiteId: 'helper', resourceKey: 'suite' }, expect.any(AbortSignal))
     expect(onImported).toHaveBeenCalledOnce()
     expect(element.querySelector('[role=status]')?.textContent).toBe(zh.agentSourceImported)
   } finally {
@@ -78,6 +78,7 @@ it('shows three-way conflicts, cancels without a write and applies an explicit u
   ])
   vi.spyOn(agentSourceApi, 'preview').mockResolvedValue({
     token: 'preview-token',
+    changed: true,
     agentId: agent.id,
     conflicts: [{ key: 'prompt', base: 'base', local: 'local', upstream: 'upstream' }]
   })
@@ -94,8 +95,8 @@ it('shows three-way conflicts, cancels without a write and applies an explicit u
       button.click()
     })
   try {
-    await act(async () => root.render(createElement(AgentSources, { t: key => zh[key], onImported, agents: [agent] })))
-    await click(zh.agentSourceSync)
+    await act(async () => root.render(createElement(AgentSources, { t: key => zh[key], onImported, agents: [agent], initialSyncId: agent.id })))
+    expect(agentSourceApi.preview).toHaveBeenCalledWith(agent.id, expect.any(AbortSignal))
     expect(element.textContent).toContain(zh.agentSourceConflicts)
     expect([...element.querySelectorAll('pre')].map(row => row.textContent)).toEqual(['base', 'local', 'upstream'])
     await click(zh.cancel)

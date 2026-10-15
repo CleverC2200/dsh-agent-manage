@@ -307,6 +307,7 @@ export class AgentSources {
               agentId: current.id,
               serverId,
               name: selected.name,
+              staged: true,
               config: upstream.config,
               source: { sourceId: plan.source.sourceId, suiteId: plan.source.suiteId, serverKey, root: plan.root }
             })

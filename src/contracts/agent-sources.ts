@@ -8,6 +8,7 @@ export interface AgentSourceBaseline {
   url: string
   kind: 'git' | 'local' | 'archive'
   importPending?: boolean
+  /** Removed local members and absent upstream baselines remain comparable without credential snapshots. */
   mcpReferences?: Array<{ serverKey: string; serverId: string; connectionId: string; removed?: boolean; baseMissing?: boolean }>
   lockCommit?: string
   version?: string
@@ -59,7 +60,7 @@ export interface AgentSourcePreview {
   token: string
   agentId: string
   conflicts: AgentSourceConflict[]
-  changed?: boolean
+  changed: boolean
   version?: string
   lockCommit?: string
 }
