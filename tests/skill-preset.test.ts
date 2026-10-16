@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import { MINIMAL_SYSTEM_PROMPT } from '../src/runtime/standard-preset.js'
 import { BusinessResources } from '../src/runtime/business-resources.js'
 import { agentOn, completion, history, official, presetHarness, record, turn } from './core-preset-harness.js'
 
@@ -107,7 +108,9 @@ it('creates a selected Skill Session with the full standard tools and compaction
   expect(ctx.agentPresets.serviceFor(agent, 'compaction')?.constructor.name).toBe('BasicCompactionEngine')
   const standardDoc = await ctx.agentPresets.readDocument('standard')
   const skillDoc = await ctx.agentPresets.readDocument(selected.preset)
-  expect(load(skillDoc.content, { schema: entryListSchema })).toEqual(load(standardDoc.content, { schema: entryListSchema }))
+  const expected = (load(standardDoc.content, { schema: entryListSchema }) as { name: string; config?: unknown }[]).filter(row => row.name !== '@deepseek-ai/dsh-agent-instructions')
+  expected.find(row => row.name === '@deepseek-ai/dsh-persona')!.config = { prefix: MINIMAL_SYSTEM_PROMPT, suffix: '', complete: true, includeRuntimeContext: false }
+  expect(load(skillDoc.content, { schema: entryListSchema })).toEqual(expected)
   expect(await ctx.agentPresets.list()).toContainEqual({
     id: 'agent-resource-skill',
     name: 'Skill',
