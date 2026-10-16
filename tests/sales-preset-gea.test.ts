@@ -32,7 +32,12 @@ it.each(salesRoles)('$name keeps its catalog identity and complete standard capa
   expect(businessPrompt.contexts).toEqual([])
   expect(businessPrompt.sections).toHaveLength(1)
   expect(businessPrompt.sections[0].text.startsWith(MINIMAL_SYSTEM_PROMPT + '\n\n')).toBe(true)
-  expect(f.agent.session.snapshotEvents().filter(event => event.type === 'user/message').some(event => event.data.source.kind === 'runtime-context' || event.data.source.kind === 'agent-instructions')).toBe(false)
+  expect(
+    f.agent.session
+      .snapshotEvents()
+      .filter(event => event.type === 'user/message')
+      .some(event => event.data.source.kind === 'runtime-context' || event.data.source.kind === 'agent-instructions')
+  ).toBe(false)
   if (role.skill) for (const skill of f.selection.profile!.skills) expect(await f.ctx.skills.get(skill, { scope: f.agent, cwd: f.home })).toMatchObject({ name: skill })
   expect((await f.execute('todo_write', { todos: [{ content: '核对销售范围', status: 'in_progress' }] })).isError).toBe(false)
   const file = f.home + '/sales.txt'

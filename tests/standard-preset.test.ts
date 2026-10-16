@@ -220,7 +220,12 @@ it('sends only the minimal system sentence and selected user persona while retai
   const messages = agent.session.snapshotEvents().filter(event => event.type === 'system/message')
   expect(messages).toHaveLength(1)
   expect(messages[0]).toMatchObject({ data: { message: { content: [{ type: 'text', text: MINIMAL_SYSTEM_PROMPT + '\n\n用户配置的业务角色正文。' }] } } })
-  expect(agent.session.snapshotEvents().filter(event => event.type === 'user/message').some(event => event.data.source.kind === 'runtime-context' || event.data.source.kind === 'agent-instructions')).toBe(false)
+  expect(
+    agent.session
+      .snapshotEvents()
+      .filter(event => event.type === 'user/message')
+      .some(event => event.data.source.kind === 'runtime-context' || event.data.source.kind === 'agent-instructions')
+  ).toBe(false)
   expect(requests.at(-1)?.tools?.map(tool => tool.name)).toEqual(expect.arrayContaining(['skill', 'read', 'write', 'edit', 'bash']))
 })
 

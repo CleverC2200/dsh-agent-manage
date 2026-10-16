@@ -108,7 +108,9 @@ it('creates a selected Skill Session with the full standard tools and compaction
   expect(ctx.agentPresets.serviceFor(agent, 'compaction')?.constructor.name).toBe('BasicCompactionEngine')
   const standardDoc = await ctx.agentPresets.readDocument('standard')
   const skillDoc = await ctx.agentPresets.readDocument(selected.preset)
-  const expected = (load(standardDoc.content, { schema: entryListSchema }) as { name: string; config?: unknown }[]).filter(row => row.name !== '@deepseek-ai/dsh-agent-instructions')
+  const expected = (load(standardDoc.content, { schema: entryListSchema }) as { name: string; config?: unknown }[]).filter(
+    row => row.name !== '@deepseek-ai/dsh-agent-instructions'
+  )
   expected.find(row => row.name === '@deepseek-ai/dsh-persona')!.config = { prefix: MINIMAL_SYSTEM_PROMPT, suffix: '', complete: true, includeRuntimeContext: false }
   expect(load(skillDoc.content, { schema: entryListSchema })).toEqual(expected)
   expect(await ctx.agentPresets.list()).toContainEqual({
