@@ -50,6 +50,8 @@ dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 
 ## Everyday use
 
+Company presets keep the official standard tools and commands, with a complete system prompt made from the fixed assistant sentence plus the selected Agent prompt. Automatic workspace instructions and runtime-context snapshots are omitted. Tool schemas and on-demand Skill loading retain their existing behavior.
+
 The Agent list shows source, personal changes, enablement and availability. Source synchronization compares base, personal configuration and upstream, then asks for an explicit conflict resolution. A failed update keeps the previous usable preset. Disabling or deleting a personal Agent preserves recoverable configuration, Session history and drafts.
 
 Personal MCP connections support Streamable HTTP, SSE, stdio and the host credential/OAuth mechanisms. Removing an association affects only the current Agent. Plugin-provided MCP is source-owned and only supports enablement; create a personal Agent for permitted combinations. GEA Cube is a trusted plugin reference checked by the GEA Host against the current identity and Consumer.
