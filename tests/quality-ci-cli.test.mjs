@@ -47,7 +47,7 @@ test('hosted quality prepares the declared Workbench npm before peer installatio
   assert.match(workflow, /npm install --global npm@11\.11\.0/)
 })
 
-test('quality requests real flock preparation and verification; archives and audit do not', () => {
+test('quality requests the real SDK while archives prepare or verify only admitted source', () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-quality-flock-')))
   try {
     const repositories = ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin'].map(repo => {
@@ -89,6 +89,7 @@ test('quality requests real flock preparation and verification; archives and aud
         return { format: 'module', shortCircuit: true, source: \`
           const stop = (method, options) => { throw Error('SDK_BOUNDARY:' + JSON.stringify({ method, options })) };
           export const prepareOfficialSDK = options => stop('prepare', options);
+          export const prepareOfficialSource = options => stop('prepare-source', options);
           export const verifyOfficialSDK = options => stop('verify', options);
           export const verifyOfficialSource = (core, options) => stop('source', { ...options, observedCore: core });
         \` };
@@ -118,10 +119,10 @@ test('quality requests real flock preparation and verification; archives and aud
         assert.equal(result.status, 1, result.stderr)
         const boundary = JSON.parse(result.stderr.match(/SDK_BOUNDARY:(.*)/)?.[1] ?? 'null')
         assert.ok(boundary, result.stderr)
-        assert.equal(boundary.method, phase === 'audit' ? 'source' : prepare ? 'prepare' : 'verify')
+        assert.equal(boundary.method, phase === 'audit' ? 'source' : phase === 'archives' ? (prepare ? 'prepare-source' : 'source') : prepare ? 'prepare' : 'verify')
         assert.equal(boundary.options.coreHead, coreHead)
         assert.equal(boundary.options.withFlock, phase === 'quality')
-        if (phase === 'audit') assert.equal(boundary.options.observedCore, join(root, 'source', 'official-core'))
+        if (phase === 'audit' || (phase === 'archives' && !prepare)) assert.equal(boundary.options.observedCore, join(root, 'source', 'official-core'))
       }
     }
   } finally {
@@ -443,4 +444,15 @@ test('a Manage policy edit runs the static resource consumers in its own source 
     'tests/routes.test.ts'
   ])
   assert.deepEqual(plan.files, ['tests/agent-mcp.test.ts', 'tests/business-resources.test.ts', 'tests/mps-resource-reception.test.ts', 'tests/routes.test.ts'])
+})
+
+test('archive jobs retain their required Windows gate while SDK cache work is limited to quality', () => {
+  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  const source = workflow.match(/- name: Prepare owned Core source without compiling\n([\s\S]*?)\n {6}- uses:/)?.[1]
+  const restore = workflow.match(/- uses: actions\/cache\/restore@v4\n {8}id: sdk-cache\n([\s\S]*?)\n {6}- name:/)?.[1]
+  const save = workflow.match(/- name: Save verified SDK cache without delaying required checks\n([\s\S]*?)\n {6}- name:/)?.[1]
+  assert.match(source, /if: matrix\.phase == 'quality'/)
+  assert.match(restore, /if: matrix\.phase == 'quality'/)
+  assert.match(save, /if: matrix\.phase == 'quality' && success\(\)/)
+  assert.match(workflow, /QUALITY_WINDOWS_RESULT/)
 })

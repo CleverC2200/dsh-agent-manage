@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { spawnSync, execFileSync } from 'node:child_process'
-import { prepareOfficialSDK, verifyOfficialSDK, verifyOfficialSource } from './prepare-official-sdk.mjs'
+import { prepareOfficialSDK, prepareOfficialSource, verifyOfficialSDK, verifyOfficialSource } from './prepare-official-sdk.mjs'
 import { runQualityChecks } from './run-quality-checks.mjs'
 
 const { values } = parseArgs({
@@ -84,9 +84,15 @@ try {
     process.env.DSH_CORE_CHECKOUT = core
     finalGroup?.verifyUnchanged()
     if (phase === 'audit') verifyOfficialSource(resolve(values['core-source']), options)
-    else if (values['prepare-sdk']) prepareOfficialSDK({ ...options, reusePrepared: process.env.QUALITY_REUSE_SDK === 'true' })
+    else if (phase === 'archives') {
+      if (values['prepare-sdk']) prepareOfficialSource(options)
+      else {
+        verifyOfficialSource(resolve(values['core-source']), options)
+        process.env.DSH_CORE_CHECKOUT = resolve(values['core-source'])
+      }
+    } else if (values['prepare-sdk']) prepareOfficialSDK({ ...options, reusePrepared: process.env.QUALITY_REUSE_SDK === 'true' })
     else verifyOfficialSDK(options)
-    if (phase !== 'audit')
+    if (!['audit', 'archives'].includes(phase))
       run(process.execPath, [
         resolve(workbench.path, 'scripts/verify-candidate-input.mjs'),
         '--input',

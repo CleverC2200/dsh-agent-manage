@@ -5,7 +5,8 @@
  * selected but unusable (package missing, legacy SSE transport).
  */
 import { describe, expect, it, vi } from 'vitest'
-import { MCP_SETTINGS_NAMESPACE, MarketSettingsSchema, probeHostMcpClient } from '../src/runtime/mcp-backend.js'
+import { MCP_SETTINGS_NAMESPACE, probeHostMcpClient } from '../src/runtime/mcp-backend.js'
+import { MarketSettingsSchema } from '../src/runtime/manage-settings.js'
 import { McpMountRegistry } from '../src/runtime/mcp-mounts.js'
 import type { Suite } from '../src/model/types.js'
 
