@@ -23,9 +23,25 @@ export interface BusinessPresetHarnessInput {
   personalAgents?: boolean
 }
 
+export async function baseInventoryResource(): Promise<BusinessResourceDefinition> {
+  const { profileFor } = await import('preset-integration-gea/host/prompt-policy')
+  const profile = profileFor('gea-html-inventory-aqkc')!
+  return {
+    id: 'gea-html-inventory-aqkc',
+    label: '基地库存',
+    presetName: profile.presetName,
+    description: profile.description,
+    root: resolve(import.meta.dirname, '../business-resources/inventory-aqkc'),
+    prompt: 'prompt.json',
+    capability: 'capability.json',
+    profile,
+    skillFiles: Object.fromEntries(profile.skills.map(name => [name, `skills/${name === 'inventory-aqkc' ? 'aqkc' : name}/SKILL.md`]))
+  }
+}
+
 /** Other role tickets supply their actual package resource and contract; the external adapter remains shared. */
 export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {}) {
-  const { profileFor, installPromptProfile } = await import('preset-integration-gea/host/prompt-policy')
+  const { installPromptProfile } = await import('preset-integration-gea/host/prompt-policy')
   const { Business } = await import('preset-integration-gea/host/business')
   const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
   const { registerGeaTools } = await import('preset-integration-gea/host/agent-tools')
@@ -39,18 +55,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
           ? import('../src/runtime/user-agent-skills.js')
           : official(name)
   })
-  const root = resolve(import.meta.dirname, '../business-resources/inventory-aqkc')
-  const profile = profileFor('gea-html-inventory-aqkc')!
-  const resource = input.resource ?? {
-    id: 'gea-html-inventory-aqkc',
-    label: '基地库存',
-    presetName: profile.presetName,
-    description: profile.description,
-    root,
-    prompt: 'prompt.json',
-    profile,
-    skillFiles: { 'inventory-aqkc': 'skills/aqkc/SKILL.md' }
-  }
+  const resource = input.resource ?? (await baseInventoryResource())
   const resources = new BusinessResources(ctx, resolve(home, 'selected-resources.json'))
   ctx.provide('agentResources', resources)
   onTestFinished(() => resources.dispose())

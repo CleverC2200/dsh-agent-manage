@@ -8,9 +8,21 @@
   },
   "maxEffect": "view",
   "layers": ["read"],
-  "skills": ["inventory-aqkc"],
+  "skills": [
+    "inventory-aqkc",
+    "aging-stagnation-monitoring",
+    "future-aging-projection",
+    "inventory-deviation-monitoring",
+    "inventory-policy",
+    "report-templates",
+    "shortage-monitoring"
+  ],
   "routing": {
     "keywords": ["基地库存", "inventory-aqkc", "base-safety-stock", "基地缺货", "基地货龄", "基地待发订单"],
     "summary": "读取同一授权范围的基地库存和确定性风险证据，解释目标偏差、当前订单缺口及货龄风险。"
+  },
+  "resourceReferences": {
+    "skills": ["aging-stagnation-monitoring", "future-aging-projection", "inventory-deviation-monitoring", "inventory-policy", "report-templates", "shortage-monitoring"],
+    "consumers": ["sales_forecast"]
   }
 }

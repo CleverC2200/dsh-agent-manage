@@ -2,6 +2,9 @@
 /** Actual GEA hooks on the production Session; business identity is an offline adapter. */
 import { expect, it, onTestFinished } from 'vitest'
 import { agentOn, completion, history, official, presetHarness, record, turn } from './core-preset-harness.js'
+import { baseInventoryResource } from './base-inventory-harness.js'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
 it('keeps general Session tools across the GEA hooks and rejects unprofiled business execution', async () => {
   const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
@@ -35,21 +38,12 @@ it('keeps general Session tools across the GEA hooks and rejects unprofiled busi
 
 it('selects the base inventory resource into a complete standard Session without losing its persona or Skill', async () => {
   const { BusinessResources } = await import('../src/runtime/business-resources.js')
-  const { resolve } = await import('node:path')
   const { ctx, home } = await presetHarness()
   const requests = await completion(ctx)
   const resources = new BusinessResources(ctx, resolve(home, 'selected-resources.json'))
   onTestFinished(() => resources.dispose())
-  await resources.register([
-    {
-      id: 'gea-html-inventory-aqkc',
-      label: '基地库存',
-      root: resolve(import.meta.dirname, '../business-resources/inventory-aqkc'),
-      prompt: 'prompt.json',
-      profile: { label: '基地库存', consumerCode: 'base-safety-stock', skills: ['inventory-aqkc'] },
-      skillFiles: { 'inventory-aqkc': 'skills/aqkc/SKILL.md' }
-    }
-  ])
+  const resource = await baseInventoryResource()
+  await resources.register([resource])
   const selection = await resources.select('gea-html-inventory-aqkc', new AbortController().signal)
   const standard = await agentOn(ctx, 'base-reference', 'standard')
   const agent = await agentOn(ctx, 'base-inventory', selection.preset, await history(100))
@@ -66,9 +60,19 @@ it('selects the base inventory resource into a complete standard Session without
   )
   expect(ctx.commands.list(agent).map(row => row.name)).toEqual(['compact', 'goal', 'plan'])
   expect(ctx.agentPresets.serviceFor(agent, 'compaction')?.constructor.name).toBe('BasicCompactionEngine')
-  expect(await ctx.skills.get('inventory-aqkc', { scope: agent, cwd: home })).toMatchObject({ name: 'inventory-aqkc' })
+  for (const name of [
+    'inventory-aqkc',
+    'aging-stagnation-monitoring',
+    'future-aging-projection',
+    'inventory-deviation-monitoring',
+    'inventory-policy',
+    'report-templates',
+    'shortage-monitoring'
+  ])
+    expect(await ctx.skills.get(name, { scope: agent, cwd: home })).toMatchObject({ name })
   await turn(ctx, agent, 'Continue the inventory task using its standard tools.')
-  expect(JSON.stringify(requests.at(-1)?.messages)).toContain('你负责基地库存只读查询与解释')
+  const { persona } = JSON.parse(await readFile(resolve(resource.root, 'prompt.json'), 'utf8'))
+  expect(requests.at(-1)?.messages.some(message => message.content.some(block => block.text?.includes(persona)))).toBe(true)
   const compact = await ctx.commands.execute(agent, '/compact', [], new AbortController().signal)
   expect(compact?.result).toMatchObject({ kind: 'success', text: expect.stringMatching(/^Compacted/) })
   await record('base-inventory-capabilities', { selection, tools: ctx.tools.schemas(agent).map(row => row.name), commands: ctx.commands.list(agent), compact: compact?.result })
@@ -411,7 +415,8 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
   expect(nextText.includes('Original task turn 3.')).toBe(true)
   expect(nextText.includes('Keep read-only Consumer scope and preserve user decisions.')).toBe(true)
   expect(nextText.includes('Keep the original inventory decision')).toBe(true)
-  expect(nextText.includes('你负责基地库存只读查询与解释')).toBe(true)
+  const { persona } = JSON.parse(await readFile(resolve((await baseInventoryResource()).root, 'prompt.json'), 'utf8'))
+  expect(nextStep.messages.some(message => message.content.some(block => block.text?.includes(persona)))).toBe(true)
   expect(nextText.includes('42')).toBe(true)
   expect(nextText.includes('MIDDLE_30:')).toBe(false)
   expect(events.map(event => event.type)).toContain('todo/write')
