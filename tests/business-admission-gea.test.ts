@@ -61,7 +61,7 @@ it('ordinary Skill Sessions hide gated GEA tools, retain independent MCP and rep
   expect(names).toContain('mcp__cube_new_test__query_business_data')
   expect(names).not.toContain('gea_page')
   expect(names).not.toContain('mcp__gea-gateway__query_business_data')
-  expect(JSON.stringify(requests.at(-1)?.messages)).toContain('当前实际会话预设未声明 GEA 业务身份')
+  expect(JSON.stringify(requests.at(-1)?.messages)).not.toContain('当前实际会话预设未声明 GEA 业务身份')
   const diagnostic = await f.execute('gea_runtime_diagnose', agent)
   expect(JSON.parse(String(diagnostic.value))).toMatchObject({ preset: 'standard', businessProfileDeclared: false })
   expect(diagnostic.isError).toBe(false)

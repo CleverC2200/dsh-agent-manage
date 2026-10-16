@@ -1,7 +1,7 @@
 /** Required capability cases and client-owned Host helpers share one discovery policy. */
 export const presetLanes = {
   'standard-skill': {
-    'tests/standard-preset.test.ts': 11,
+    'tests/standard-preset.test.ts': 12,
     'tests/skill-preset.test.ts': 5,
     'tests/manage-cold-boot.test.ts': 6,
     'tests/manage-settings.test.ts': 1,

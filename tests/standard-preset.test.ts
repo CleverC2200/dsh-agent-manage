@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
-import { composeStandardPreset } from '../src/runtime/standard-preset.js'
+import { composeStandardPreset, MINIMAL_SYSTEM_PROMPT } from '../src/runtime/standard-preset.js'
 import { expect, it, vi } from 'vitest'
 import { agentOn, completion, history, official, presetHarness, record, turn } from './core-preset-harness.js'
 
@@ -197,11 +197,36 @@ it('retains the real standard tool-result pruner and its durable replacement beh
   expect(agent.session.snapshotEvents().at(-1)?.type).toBe('tool/result')
 })
 
-it('preserves every official declaration field including disabled expressions and isolated groups', async () => {
+it('keeps standard capabilities while replacing the company persona and automatic workspace instructions', async () => {
   const { ctx } = await presetHarness()
   const standard = await ctx.agentPresets.readDocument('standard')
   const composed = await ctx.agentPresets.readDocument('auto-negotiation')
-  expect(load(composed.content, { schema: entryListSchema })).toEqual(load(standard.content, { schema: entryListSchema }))
+  const expected = (load(standard.content, { schema: entryListSchema }) as { name: string; config?: unknown }[]).filter(row => row.name !== '@deepseek-ai/dsh-agent-instructions')
+  expected.find(row => row.name === '@deepseek-ai/dsh-persona')!.config = {
+    prefix: MINIMAL_SYSTEM_PROMPT,
+    suffix: '',
+    complete: true,
+    includeRuntimeContext: false
+  }
+  expect(load(composed.content, { schema: entryListSchema })).toEqual(expected)
+})
+
+it('sends only the minimal system sentence and selected user persona while retaining tool schemas', async () => {
+  const { ctx } = await presetHarness()
+  const requests = await completion(ctx)
+  await ctx.agentPresets.register(await composeStandardPreset(ctx.agentPresets, { id: 'minimal-business' }, { personaPrefix: '用户配置的业务角色正文。' }))
+  const agent = await agentOn(ctx, 'minimal-business-session', 'minimal-business')
+  await turn(ctx, agent, '核对当前输入。')
+  const messages = agent.session.snapshotEvents().filter(event => event.type === 'system/message')
+  expect(messages).toHaveLength(1)
+  expect(messages[0]).toMatchObject({ data: { message: { content: [{ type: 'text', text: MINIMAL_SYSTEM_PROMPT + '\n\n用户配置的业务角色正文。' }] } } })
+  expect(
+    agent.session
+      .snapshotEvents()
+      .filter(event => event.type === 'user/message')
+      .some(event => event.data.source.kind === 'runtime-context' || event.data.source.kind === 'agent-instructions')
+  ).toBe(false)
+  expect(requests.at(-1)?.tools?.map(tool => tool.name)).toEqual(expect.arrayContaining(['skill', 'read', 'write', 'edit', 'bash']))
 })
 
 it('rejects a conflicting business tool nested in a new isolated group', async () => {

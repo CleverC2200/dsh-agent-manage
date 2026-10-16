@@ -9,7 +9,7 @@ import { presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 
 // Child-process completion is the CLI seam; real client/Host lanes run separately.
 const files = {
-  'standard-skill': { 'standard-preset': 11, 'skill-preset': 5, 'manage-cold-boot': 6, 'manage-settings': 1, 'bundled-sales-skills': 2, 'manage-bundle-default': 1 },
+  'standard-skill': { 'standard-preset': 12, 'skill-preset': 5, 'manage-cold-boot': 6, 'manage-settings': 1, 'bundled-sales-skills': 2, 'manage-bundle-default': 1 },
   client: {
     'user-agent-retirement-draft': 1,
     'agent-source-sync-draft': 1,
@@ -98,7 +98,7 @@ test('capability CLI accepts complete passed required files', () => {
   )
   assert.deepEqual(
     result.receipt.phases.map(phase => phase.requiredFiles.reduce((count, file) => count + file.requiredCases, 0)),
-    [26, 11, 43]
+    [27, 11, 43]
   )
 })
 

@@ -3,6 +3,8 @@ import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { entryListProblem, type PresetDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
 import { dump, load } from 'js-yaml'
 
+export const MINIMAL_SYSTEM_PROMPT = 'You are the smartest and most useful AI assistant in the world, capable of helping users complete all tasks.'
+
 export const ORCHESTRATION_PRESET = {
   id: 'auto-negotiation',
   name: '智能编排',
@@ -12,7 +14,6 @@ export const ORCHESTRATION_PRESET = {
 
 type Plugin = PresetDefinition['plugins'][number]
 export interface StandardPresetAdditions {
-  /** Business instructions append to the standard persona without replacing its runtime context. */
   personaPrefix?: string
   /** Extra plugin rows must not duplicate an existing plugin or its entry id. */
   plugins?: readonly Plugin[]
@@ -32,7 +33,7 @@ export async function composeStandardPreset(
   const plugins = load(document.content, { schema: entryListSchema })
   const problem = entryListProblem(plugins)
   if (problem) throw Error(`INVALID_STANDARD_PRESET: ${problem}`)
-  const rows = plugins as Plugin[]
+  const rows = (plugins as Plugin[]).filter(row => row.name !== '@deepseek-ai/dsh-agent-instructions')
   const identities = new Set<string>()
   const names = new Set<string>()
   const visit = (entries: readonly Plugin[], additions = false): void => {
@@ -46,10 +47,13 @@ export async function composeStandardPreset(
     }
   }
   visit(rows)
-  if (additions.personaPrefix !== undefined) {
-    const persona = rows.find(row => row.name === '@deepseek-ai/dsh-persona')
-    if (!persona || !additions.personaPrefix.trim()) throw Error('INVALID_STANDARD_PERSONA')
-    persona.config = { ...persona.config, prefix: [persona.config?.prefix, additions.personaPrefix].filter(Boolean).join('\n\n') }
+  const persona = rows.find(row => row.name === '@deepseek-ai/dsh-persona')
+  if (!persona || (additions.personaPrefix !== undefined && !additions.personaPrefix.trim())) throw Error('INVALID_STANDARD_PERSONA')
+  persona.config = {
+    prefix: [MINIMAL_SYSTEM_PROMPT, additions.personaPrefix].filter(Boolean).join('\n\n'),
+    suffix: '',
+    complete: true,
+    includeRuntimeContext: false
   }
   for (const row of additions.plugins ?? []) {
     const invalid = entryListProblem([row])

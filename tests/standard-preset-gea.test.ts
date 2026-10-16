@@ -5,6 +5,7 @@ import { agentOn, completion, history, official, presetHarness, record, turn } f
 import { baseInventoryResource } from './base-inventory-harness.js'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { MINIMAL_SYSTEM_PROMPT } from '../src/runtime/standard-preset.js'
 
 it('keeps general Session tools across the GEA hooks and rejects unprofiled business execution', async () => {
   const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
@@ -91,12 +92,12 @@ it('retains official tools and executes general work after the GEA business call
   expect(requests.at(-1)?.tools?.map(row => row.name)).toContain('todo_write')
   const first = await f.query()
   expect(JSON.stringify(first)).toContain('42')
-  for (let i = 1; i < 20; i++) expect((await f.query()).isError).toBe(false)
-  expect(JSON.stringify(await f.query())).toContain('GEA_CALL_BUDGET')
+  for (let i = 1; i < 64; i++) expect((await f.query()).isError).toBe(false)
+  expect((await f.query()).isError).toBe(false)
   const assembled = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
   expect(assembled.tools.map(row => row.name)).toContain('todo_write')
-  expect(assembled.tools.map(row => row.name)).not.toContain('mcp__gea-gateway__query_business_data')
-  expect(assembled.tools.map(row => row.name)).not.toContain('mcp__gea-gateway__inspect_cube_model')
+  expect(assembled.tools.map(row => row.name)).toContain('mcp__gea-gateway__query_business_data')
+  expect(assembled.tools.map(row => row.name)).toContain('mcp__gea-gateway__inspect_cube_model')
   const todo = await f.execute('todo_write', { todos: [{ content: 'Deliver verified inventory', status: 'in_progress' }] })
   expect(todo.isError).toBe(false)
   const file = `${f.home}/inventory.txt`
@@ -247,22 +248,22 @@ it('automatically and manually compacts a real base inventory Session through it
   })
 })
 
-it('keeps standard tools after the independent evidence read allowance is exhausted', async () => {
+it('keeps business and standard tools after repeated evidence reads', async () => {
   const { baseInventoryHarness } = await import('./base-inventory-harness.js')
   const f = await baseInventoryHarness()
   await completion(f.ctx)
   await f.login()
-  for (let i = 0; i < 12; i++) await f.execute('gea_evidence_read', { evidenceId: 'missing-evidence' })
-  expect(JSON.stringify(await f.execute('gea_evidence_read', { evidenceId: 'missing-evidence' }))).toContain('GEA_EVIDENCE_BUDGET')
+  for (let i = 0; i < 32; i++) await f.execute('gea_evidence_read', { evidenceId: 'missing-evidence' })
+  expect(JSON.stringify(await f.execute('gea_evidence_read', { evidenceId: 'missing-evidence' }))).not.toContain('GEA_EVIDENCE_BUDGET')
   expect((await f.execute('todo_write', { todos: [] })).isError).toBe(false)
   const assembled = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
-  expect(assembled.tools.map(row => row.name)).toEqual(expect.arrayContaining(['read', 'write', 'subagent', 'workflow', 'todo_write']))
-  expect(assembled.tools.map(row => row.name)).not.toContain('gea_evidence_read')
-  expect(assembled.sections.find(row => row.name === 'gea:budget')?.text).toContain('通用文件、规划、任务和协作能力仍按官方规则可用')
+  expect(assembled.tools.map(row => row.name)).toEqual(expect.arrayContaining(['read', 'write', 'edit', 'bash', 'subagent', 'workflow', 'todo_write']))
+  expect(assembled.tools.map(row => row.name)).toContain('gea_evidence_read')
+  expect(assembled.sections.some(row => row.name.startsWith('gea:'))).toBe(false)
   await record('base-evidence-budget-general', { tools: assembled.tools.map(row => row.name), budget: assembled.sections.find(row => row.name === 'gea:budget') })
 })
 
-it('preserves the enabled official Web Host orientation and standard runtime context through business assembly', async () => {
+it('keeps the company system minimal when official Web and optional presentation providers are enabled', async () => {
   const { baseInventoryHarness } = await import('./base-inventory-harness.js')
   const f = await baseInventoryHarness()
   await completion(f.ctx)
@@ -275,21 +276,10 @@ it('preserves the enabled official Web Host orientation and standard runtime con
   const business = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
   const web = standard.sections.find(row => row.name === 'app:web-surface')
   expect(web?.text).toContain('DeepSeek Harness')
-  expect(business.sections.find(row => row.name === 'app:web-surface')).toEqual(web)
-  expect(standard.sections.some(row => row.name === 'gea:admission')).toBe(true)
-  expect(business.sections.some(row => row.name === 'gea:admission')).toBe(false)
-  for (const row of standard.sections.filter(row => row.name !== 'gea:admission')) {
-    const observed = business.sections.find(section => section.name === row.name)
-    if (row.name === 'genui:fence') {
-      expect(observed?.text).toContain('dsh-ui')
-      expect(observed?.text).toContain('render_ui 是工具行卡片通道，仅在本步实际工具清单提供时调用')
-      expect(observed?.text).toContain('简单事实或明确纯文字请求使用文字')
-      expect(row.text).toContain('Controlled optional GenUI')
-    } else if (row.name === 'deployment:persona-prefix') expect(observed?.text).toContain(row.text)
-    else expect(observed).toEqual(row)
-  }
-  expect(JSON.stringify(business.sections)).toContain('Your working directory is')
-  expect(business.sections.find(row => row.name === 'gea:facts')?.text).toContain('base-safety-stock')
+  expect(standard.sections.some(row => row.name.startsWith('gea:'))).toBe(false)
+  const resource = await baseInventoryResource()
+  const { persona } = JSON.parse(await readFile(resolve(resource.root, 'prompt.json'), 'utf8'))
+  expect(business.sections.map(row => row.text)).toEqual([MINIMAL_SYSTEM_PROMPT + '\n\n' + persona])
   await record('business-runtime-context', {
     officialSections: standard.sections,
     businessSections: business.sections,
