@@ -5,8 +5,9 @@ import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { spawnSync, execFileSync } from 'node:child_process'
-import { prepareOfficialSDK, verifyOfficialSDK, verifyOfficialSource } from './prepare-official-sdk.mjs'
+import { prepareOfficialSDK, prepareOfficialSource, verifyOfficialSDK, verifyOfficialSource } from './prepare-official-sdk.mjs'
 import { runQualityChecks } from './run-quality-checks.mjs'
+import { presetLanes, presetHostOwners } from './preset-test-lanes.mjs'
 
 const { values } = parseArgs({
   options: {
@@ -68,15 +69,20 @@ try {
       policy.validateBusinessProfileGroup(manifest.repositories)
     }
     let plan
+    const planFile = resolve(dirname(resolve(input)), 'quality-test-plan.json')
     if (phase === 'quality') {
       const { selectCiTests } = await import(pathToFileURL(resolve(workbench.path, 'scripts/ci-test-plan.mjs')))
       const baseline = JSON.parse(readFileSync('scripts/quality-peer-baseline.json'))
       plan = selectCiTests({
         repositories: manifest.repositories,
         repo: 'dsh-agent-manage',
+        testOwners: presetHostOwners,
         base: process.env.QUALITY_BASE_SHA || baseline.repositories.find(entry => entry.repo === 'dsh-agent-manage').head
       })
-      writeFileSync(resolve(dirname(resolve(input)), 'quality-test-plan.json'), JSON.stringify(plan, null, 2) + '\n')
+      for (const file of plan.files) {
+        if (Object.hasOwn(presetHostOwners, file)) refuse('CI_TEST_PLAN_UNOWNED_HOST', file)
+      }
+      writeFileSync(planFile, JSON.stringify(plan, null, 2) + '\n')
     }
 
     const core = resolve(dirname(dirname(process.cwd())), 'official-latest-standard')
@@ -84,9 +90,15 @@ try {
     process.env.DSH_CORE_CHECKOUT = core
     finalGroup?.verifyUnchanged()
     if (phase === 'audit') verifyOfficialSource(resolve(values['core-source']), options)
-    else if (values['prepare-sdk']) prepareOfficialSDK({ ...options, reusePrepared: process.env.QUALITY_REUSE_SDK === 'true' })
+    else if (phase === 'archives') {
+      if (values['prepare-sdk']) prepareOfficialSource(options)
+      else {
+        verifyOfficialSource(resolve(values['core-source']), options)
+        process.env.DSH_CORE_CHECKOUT = resolve(values['core-source'])
+      }
+    } else if (values['prepare-sdk']) prepareOfficialSDK({ ...options, reusePrepared: process.env.QUALITY_REUSE_SDK === 'true' })
     else verifyOfficialSDK(options)
-    if (phase !== 'audit')
+    if (!['audit', 'archives'].includes(phase))
       run(process.execPath, [
         resolve(workbench.path, 'scripts/verify-candidate-input.mjs'),
         '--input',
@@ -135,8 +147,17 @@ try {
               { name: 'build', execute: () => run('corepack', ['pnpm', 'build']) }
             ]
           : [
-              ...['check:static', 'check:capabilities', 'build'].map(name => ({ name, execute: () => run('corepack', ['pnpm', 'run', name]) })),
-              { name: 'required-and-affected', execute: () => run('corepack', ['pnpm', 'exec', 'vitest', 'run', ...plan.files]) }
+              { name: 'check:static', execute: () => run('corepack', ['pnpm', 'run', 'check:static']) },
+              { name: 'capabilities', execute: () => run(process.execPath, [resolve('scripts/check-preset-capabilities.mjs'), '--plan', planFile]) },
+              { name: 'build', execute: () => run('corepack', ['pnpm', 'run', 'build']) },
+              {
+                name: 'required-and-affected',
+                execute: () => {
+                  const files = plan.files.filter(file => !Object.values(presetLanes).some(lane => file in lane))
+                  if (!files.length) refuse('CI_TEST_PLAN_EMPTY_ORDINARY', 'required ordinary tests must be explicitly selected')
+                  run('corepack', ['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.ci-unit.config.ts', ...files])
+                }
+              }
             ]
       )
       writeFileSync('quality-checks.json', JSON.stringify(checks, null, 2) + '\n')
