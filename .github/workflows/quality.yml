@@ -259,6 +259,7 @@ jobs:
             candidate-group.json
             candidate/dsh-agent-manage/quality-checks.json
             quality-test-plan.json
+            quality-capabilities/
           if-no-files-found: warn
 
   security-audit:
