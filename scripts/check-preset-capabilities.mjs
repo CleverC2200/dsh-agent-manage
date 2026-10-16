@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, mkdirSync, writeFileSync, rmSync, existsSync
 import { tmpdir } from 'node:os'
 import { parseArgs } from 'node:util'
 import { dirname, join, resolve } from 'node:path'
-import { presetLanes } from './preset-test-lanes.mjs'
+import { presetLanes, presetHostOwners } from './preset-test-lanes.mjs'
 
 const { values } = parseArgs({ options: { plan: { type: 'string' } } })
 const plan = values.plan !== undefined ? JSON.parse(readFileSync(resolve(values.plan), 'utf8')) : undefined
@@ -20,6 +20,7 @@ if (
     plan.files.some(file => typeof file !== 'string' || !/^tests\/[^/]+\.test\.ts$/.test(file) || !existsSync(resolve(file))))
 )
   throw Error('CAPABILITY_PLAN_REQUIRED: expected the Manage required-and-affected test plan')
+if (plan?.files.some(file => Object.hasOwn(presetHostOwners, file))) throw Error('CAPABILITY_PLAN_UNOWNED_HOST: use the client execution owner')
 for (const file of Object.values(presetLanes).flatMap(lane => Object.keys(lane))) {
   if (!existsSync(resolve(file))) throw Error(`CAPABILITY_FILE_REQUIRED: ${file}`)
 }

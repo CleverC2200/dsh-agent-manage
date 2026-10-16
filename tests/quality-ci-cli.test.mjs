@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Buffer } from 'node:buffer'
-import { presetLanes } from '../scripts/preset-test-lanes.mjs'
+import { presetLanes, presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 
 const call = (phase, env) => spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', phase], { encoding: 'utf8', env: { ...process.env, ...env } })
 test('fork scope is rejected before preparation', () => {
@@ -383,7 +383,7 @@ async function sourceImpactFixture(t) {
       write(path, existsSync(path) ? Buffer.concat([readFileSync(path), Buffer.from('\n')]) : 'changed fixture source\n')
       entry.head = commit(entry.path)
     },
-    select: () => selectCiTests({ repositories, repo: own.repo, base })
+    select: () => selectCiTests({ repositories, repo: own.repo, base, testOwners: presetHostOwners })
   }
 }
 
@@ -471,7 +471,10 @@ function qualityExecution(t, files) {
   writeFileSync(join(own, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories }))
   writeFileSync(join(own, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: {} } }))
   writeFileSync(join(workbench, 'package.json'), JSON.stringify({ packageManager: 'npm@11.11.0' }))
-  writeFileSync(join(workbench, 'scripts/ci-test-plan.mjs'), `export const selectCiTests = () => (${JSON.stringify(plan)})`)
+  writeFileSync(
+    join(workbench, 'scripts/ci-test-plan.mjs'),
+    `export const selectCiTests = ({ testOwners }) => { if (testOwners?.['tests/base-resource-host.test.ts'] !== 'tests/base-preset-client.test.ts') throw Error('CI_TEST_OWNER_REQUIRED'); return (${JSON.stringify(plan)}) }`
+  )
   writeFileSync(
     join(workbench, 'scripts/candidate-input.mjs'),
     `export const readFinalGroup = async () => ({ manifest: ${JSON.stringify({ core: 'b'.repeat(40), repositories })}, verifyUnchanged() {} })`
@@ -499,7 +502,7 @@ function qualityExecution(t, files) {
       env: { ...process.env, GITHUB_OUTPUT: '' }
     }
   )
-  return { result, calls: JSON.parse(readFileSync(callsFile, 'utf8')), plan, own }
+  return { result, calls: existsSync(callsFile) ? JSON.parse(readFileSync(callsFile, 'utf8')) : [], plan, own }
 }
 
 test('quality executes planned capability files once and leaves the ordinary batch disjoint', t => {
@@ -621,4 +624,34 @@ test('quality refuses an empty ordinary group without launching unfiltered Vites
   const ordinary = JSON.parse(readFileSync(join(own, 'quality-checks.json'), 'utf8')).find(check => check.name === 'required-and-affected')
   assert.equal(ordinary.status, 'failed')
   assert.match(ordinary.error, /CI_TEST_PLAN_EMPTY_ORDINARY/)
+})
+
+test('a transitive Host implementation change selects its real client owner and records child execution', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('src/runtime/standard-preset.ts', fixture.own)
+  const plan = fixture.select()
+  assert.ok(plan.files.includes('tests/base-preset-client.test.ts'))
+  assert.equal(plan.files.includes('tests/base-resource-host.test.ts'), false)
+  assert.equal(plan.executedBy['tests/base-resource-host.test.ts'], 'tests/base-preset-client.test.ts')
+  assert.ok(plan.reasons['dsh-agent-manage/src/runtime/standard-preset.ts'].includes('tests/base-preset-client.test.ts'))
+  if (process.env.REVIEW_FIX_EVIDENCE) writeFileSync(join(process.env.REVIEW_FIX_EVIDENCE, 'fixture-standard-preset-plan.json'), JSON.stringify(plan, null, 2) + '\n')
+})
+
+test('quality refuses an unowned Host helper before the ordinary config can silently exclude it', t => {
+  const { result, calls } = qualityExecution(t, ['tests/routes.test.ts', 'tests/base-resource-host.test.ts'])
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /CI_TEST_PLAN_UNOWNED_HOST/)
+  assert.equal(
+    calls.some(call => call.args.includes('vitest')),
+    false
+  )
+})
+
+test('a direct client owner change runs that file once without falsely recording a merged Host helper', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('tests/base-preset-client.test.ts', fixture.own)
+  const plan = fixture.select()
+  assert.equal(plan.files.filter(file => file === 'tests/base-preset-client.test.ts').length, 1)
+  assert.equal(plan.files.includes('tests/base-resource-host.test.ts'), false)
+  assert.equal(Object.hasOwn(plan.executedBy, 'tests/base-resource-host.test.ts'), false)
 })

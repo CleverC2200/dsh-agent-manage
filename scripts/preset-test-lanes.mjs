@@ -30,10 +30,12 @@ export const presetLanes = {
 }
 
 // These execute only inside their owning client test with a request/receipt pair.
-export const presetHostHelpers = [
-  'tests/base-resource-host.test.ts',
-  'tests/skill-resource-host.test.ts',
-  'tests/sales-resource-host.test.ts',
-  'tests/inventory-family-host.test.ts',
-  'tests/preset-catalog-host.test.ts'
-]
+export const presetHostOwners = {
+  'tests/base-resource-host.test.ts': 'tests/base-preset-client.test.ts',
+  'tests/skill-resource-host.test.ts': 'tests/skill-preset-client.test.ts',
+  'tests/sales-resource-host.test.ts': 'tests/sales-preset-client.test.ts',
+  'tests/inventory-family-host.test.ts': 'tests/inventory-family-client.test.ts',
+  'tests/preset-catalog-host.test.ts': 'tests/preset-catalog-client.test.ts'
+}
+
+export const presetHostHelpers = Object.keys(presetHostOwners)
