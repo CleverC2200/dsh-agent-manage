@@ -99,7 +99,7 @@
     },
     {
       "repo": "dsh-agent-workbench",
-      "pattern": "^src/(?:resource-selection(?:\\.ts|/)|page-session-core\\.ts$|page-interaction/)",
+      "pattern": "^(?:package\\.json$|package-lock\\.json$|src/(?:resource-selection(?:\\.ts|/)|page-session-core\\.ts$|page-interaction/))",
       "tests": [
         "tests/standard-preset-draft.test.ts",
         "tests/user-agent-retirement-draft.test.ts",
@@ -113,7 +113,7 @@
     },
     {
       "repo": "dsh-gea-plugin",
-      "pattern": "^(?:src/(?:host/|capability/|shared/)|presets/|default-presets/)",
+      "pattern": "^(?:package\\.json$|pnpm-lock\\.yaml$|src/(?:host/|capability/|shared/)|presets/|default-presets/)",
       "tests": [
         "tests/sales-agent-import-gea.test.ts",
         "tests/user-agent-cube-gea.test.ts",

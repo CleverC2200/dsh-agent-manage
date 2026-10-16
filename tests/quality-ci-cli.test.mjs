@@ -575,3 +575,17 @@ test('Workbench Session preparation and registered Core inputs keep the capabili
     assert.ok(fixture.select().files.includes(expected), file)
   }
 })
+
+test('peer dependency inputs select the capabilities that consume those peers', async t => {
+  for (const [repo, expected] of [
+    ['dsh-gea-plugin', 'tests/user-agent-cube-gea.test.ts'],
+    ['dsh-agent-workbench', 'tests/base-preset-client.test.ts']
+  ]) {
+    const fixture = await sourceImpactFixture(t)
+    fixture.change(
+      'package.json',
+      fixture.repositories.find(entry => entry.repo === repo)
+    )
+    assert.ok(fixture.select().files.includes(expected), repo)
+  }
+})
