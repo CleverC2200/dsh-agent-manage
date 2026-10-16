@@ -1,20 +1,38 @@
 /** Existing Vitest lanes, one public capability check; no installation or runtime switch. */
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { parseArgs } from 'node:util'
+import { dirname, join, resolve } from 'node:path'
 import { presetLanes } from './preset-test-lanes.mjs'
 
-const persistent = process.env.PRESET_EVIDENCE_DIR
+const { values } = parseArgs({ options: { plan: { type: 'string' } } })
+const plan = values.plan !== undefined ? JSON.parse(readFileSync(resolve(values.plan), 'utf8')) : undefined
+if (
+  plan !== undefined &&
+  (!plan ||
+    plan.schemaVersion !== 1 ||
+    plan.mode !== 'required-and-affected' ||
+    plan.repo !== 'dsh-agent-manage' ||
+    !Array.isArray(plan.files) ||
+    !plan.files.length ||
+    new Set(plan.files).size !== plan.files.length ||
+    plan.files.some(file => typeof file !== 'string' || !/^tests\/[^/]+\.test\.ts$/.test(file) || !existsSync(resolve(file))))
+)
+  throw Error('CAPABILITY_PLAN_REQUIRED: expected the Manage required-and-affected test plan')
+for (const file of Object.values(presetLanes).flatMap(lane => Object.keys(lane))) {
+  if (!existsSync(resolve(file))) throw Error(`CAPABILITY_FILE_REQUIRED: ${file}`)
+}
+const selected = plan ? new Set(plan.files) : undefined
+const persistent = process.env.PRESET_EVIDENCE_DIR ?? (plan ? resolve(dirname(values.plan), 'quality-capabilities') : undefined)
 const evidence = persistent ? resolve(persistent) : mkdtempSync(join(tmpdir(), 'preset-quality-'))
 mkdirSync(evidence, { recursive: true })
-const phases = [
-  ['standard-skill', Object.keys(presetLanes['standard-skill'])],
-  ['client', ['--config', 'vitest.preset-client.config.ts']],
-  ['gea', ['--config', 'vitest.preset-integration.config.ts']]
-]
+const phases = Object.entries(presetLanes)
+  .map(([name, files]) => [name, Object.keys(files).filter(file => !selected || selected.has(file))])
+  .filter(([, files]) => files.length)
 const results = []
-for (const [name, selections] of phases) {
+for (const [name, files] of phases) {
+  const selections = [...(name === 'client' ? ['--config', 'vitest.preset-client.config.ts'] : name === 'gea' ? ['--config', 'vitest.preset-integration.config.ts'] : []), ...files]
   const report = join(evidence, `${name}-vitest.json`)
   rmSync(report, { force: true })
   const args = ['exec', 'vitest', 'run', ...selections, '--reporter=default', '--reporter=json', `--outputFile.json=${report}`]
@@ -29,7 +47,8 @@ for (const [name, selections] of phases) {
   } catch {
     /* Missing report rejects this phase. */
   }
-  const requiredFiles = Object.entries(presetLanes[name]).map(([file, cases]) => {
+  const requiredFiles = files.map(file => {
+    const cases = presetLanes[name][file]
     const matches = summary?.testResults?.filter(result => resolve(result.name) === resolve(file)) ?? []
     const assertions = matches[0]?.assertionResults ?? []
     return {
@@ -41,7 +60,14 @@ for (const [name, selections] of phases) {
     }
   })
   const passed =
-    requiredFiles.every(file => file.passed) && child.status === 0 && !child.error && summary?.success === true && summary.numPassedTests > 0 && summary.numFailedTests === 0
+    requiredFiles.every(file => file.passed) &&
+    summary?.testResults?.length === requiredFiles.length &&
+    summary.numPendingTests === 0 &&
+    child.status === 0 &&
+    !child.error &&
+    summary?.success === true &&
+    summary.numPassedTests > 0 &&
+    summary.numFailedTests === 0
   results.push({
     name,
     executable: 'corepack',
@@ -58,6 +84,9 @@ for (const [name, selections] of phases) {
 const result = {
   at: new Date().toISOString(),
   stage: 'offline-capability',
+  mode: plan ? 'required-and-affected' : 'complete',
+  selection: plan,
+  status: !phases.length ? 'not-applicable' : results.every(phase => phase.passed) ? 'passed' : 'failed',
   passed: results.every(phase => phase.passed),
   phases: results,
   native: 'not-run',

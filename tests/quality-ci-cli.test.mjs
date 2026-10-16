@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Buffer } from 'node:buffer'
+import { presetLanes } from '../scripts/preset-test-lanes.mjs'
 
 const call = (phase, env) => spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', phase], { encoding: 'utf8', env: { ...process.env, ...env } })
 test('fork scope is rejected before preparation', () => {
@@ -375,6 +376,7 @@ async function sourceImpactFixture(t) {
   const base = own.head
   return {
     own,
+    repositories,
     change(file, entry = workbench) {
       const path = join(entry.path, file)
       write(path, existsSync(path) ? Buffer.concat([readFileSync(path), Buffer.from('\n')]) : 'changed fixture source\n')
@@ -436,11 +438,154 @@ test('a Manage policy edit runs the static resource consumers in its own source 
   const fixture = await sourceImpactFixture(t)
   fixture.change('scripts/ci-test-policy.json', fixture.own)
   const plan = fixture.select()
-  assert.deepEqual(plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'], [
-    'tests/agent-mcp.test.ts',
-    'tests/business-resources.test.ts',
-    'tests/mps-resource-reception.test.ts',
-    'tests/routes.test.ts'
-  ])
-  assert.deepEqual(plan.files, ['tests/agent-mcp.test.ts', 'tests/business-resources.test.ts', 'tests/mps-resource-reception.test.ts', 'tests/routes.test.ts'])
+  assert.deepEqual(
+    plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'],
+    [
+      ...Object.values(presetLanes).flatMap(lane => Object.keys(lane)),
+      'tests/agent-mcp.test.ts',
+      'tests/business-resources.test.ts',
+      'tests/mps-resource-reception.test.ts',
+      'tests/routes.test.ts'
+    ].sort()
+  )
+  assert.deepEqual(plan.files, plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'])
+})
+
+test('quality executes planned capability files once and leaves the ordinary batch disjoint', t => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-quality-selection-')))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const repositories = ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin'].map(repo => {
+    const path = join(root, 'candidate', repo)
+    mkdirSync(join(path, 'scripts'), { recursive: true })
+    return { repo, path, head: 'a'.repeat(40) }
+  })
+  const own = repositories.find(entry => entry.repo === 'dsh-agent-manage').path
+  const workbench = repositories.find(entry => entry.repo === 'dsh-agent-workbench').path
+  const plan = {
+    schemaVersion: 1,
+    mode: 'required-and-affected',
+    repo: 'dsh-agent-manage',
+    files: ['tests/routes.test.ts', 'tests/standard-preset.test.ts', 'tests/standard-preset-draft.test.ts', 'tests/user-agent-cube-gea.test.ts']
+  }
+  writeFileSync(join(own, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories }))
+  writeFileSync(join(own, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: {} } }))
+  writeFileSync(join(workbench, 'package.json'), JSON.stringify({ packageManager: 'npm@11.11.0' }))
+  writeFileSync(join(workbench, 'scripts/ci-test-plan.mjs'), `export const selectCiTests = () => (${JSON.stringify(plan)})`)
+  writeFileSync(
+    join(workbench, 'scripts/candidate-input.mjs'),
+    `export const readFinalGroup = async () => ({ manifest: ${JSON.stringify({ core: 'b'.repeat(40), repositories })}, verifyUnchanged() {} })`
+  )
+  const callsFile = join(root, 'calls.json')
+  const hook = join(root, 'quality-boundary.mjs')
+  writeFileSync(
+    hook,
+    `import cp from 'node:child_process'; import { registerHooks, syncBuiltinESMExports } from 'node:module'; import { writeFileSync } from 'node:fs';
+    const calls = [];
+    cp.spawnSync = (command, args) => { calls.push({ command, args }); writeFileSync(${JSON.stringify(callsFile)}, JSON.stringify(calls)); return { status: 0 }; };
+    cp.execFileSync = () => '11.11.0';
+    syncBuiltinESMExports();
+    registerHooks({ load(url, context, next) {
+      if (url !== ${JSON.stringify(pathToFileURL(resolve('scripts/prepare-official-sdk.mjs')).href)}) return next(url, context);
+      return { format: 'module', shortCircuit: true, source: 'export const verifyOfficialSDK = () => {}; export const prepareOfficialSDK = () => {}; export const verifyOfficialSource = () => {}' };
+    } });`
+  )
+  const result = spawnSync(
+    process.execPath,
+    ['--import', hook, resolve('scripts/run-quality-ci.mjs'), '--phase', 'quality', '--input', join(root, 'input.json'), '--final-group-sha256', 'a'.repeat(64)],
+    {
+      cwd: own,
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_OUTPUT: '' }
+    }
+  )
+  assert.equal(result.status, 0, result.stderr)
+  const calls = JSON.parse(readFileSync(callsFile, 'utf8'))
+  const capabilities = calls.filter(call => call.args.includes('check:capabilities') || call.args.some(arg => arg.endsWith('check-preset-capabilities.mjs')))
+  assert.equal(capabilities.length, 1)
+  const capability = capabilities[0]
+  const planIndex = capability.args.indexOf('--plan')
+  assert.notEqual(planIndex, -1)
+  assert.deepEqual(JSON.parse(readFileSync(capability.args[planIndex + 1], 'utf8')), plan)
+  const ordinary = calls.filter(call => call.args.includes('vitest'))
+  assert.equal(ordinary.length, 1)
+  assert.deepEqual(
+    ordinary[0].args.filter(arg => arg.startsWith('tests/')),
+    ['tests/routes.test.ts']
+  )
+})
+
+test('Core preparation and lane configuration changes select their real capability contracts', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('scripts/prepare-official-sdk.mjs', fixture.own)
+  const plan = fixture.select()
+  for (const file of ['tests/standard-preset.test.ts', 'tests/standard-preset-draft.test.ts', 'tests/standard-preset-gea.test.ts', 'tests/manage-bundle-default.test.ts']) {
+    assert.ok(plan.files.includes(file), file)
+  }
+})
+
+test('client Host helper changes select the owning draft lifecycle instead of a standalone helper', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('tests/base-resource-host.test.ts', fixture.own)
+  const plan = fixture.select()
+  assert.ok(plan.files.includes('tests/base-preset-client.test.ts'))
+  assert.equal(plan.files.includes('tests/base-resource-host.test.ts'), false)
+})
+
+test('GEA authorization and Workbench resource selection changes retain their real capability lanes', async t => {
+  for (const [repo, file, expected] of [
+    ['dsh-gea-plugin', 'src/host/business-identity.ts', 'tests/standard-preset-gea.test.ts'],
+    ['dsh-agent-workbench', 'src/resource-selection.ts', 'tests/base-preset-client.test.ts']
+  ]) {
+    const fixture = await sourceImpactFixture(t)
+    fixture.change(
+      file,
+      fixture.repositories.find(entry => entry.repo === repo)
+    )
+    const plan = fixture.select()
+    assert.ok(plan.files.includes(expected), file)
+    assert.equal(plan.files.includes('tests/manage-cold-boot.test.ts'), false)
+  }
+})
+
+test('dynamic inventory resources keep the inventory Session and GEA contracts', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('business-resources/inventory-qll/prompt.json', fixture.own)
+  const plan = fixture.select()
+  assert.ok(plan.files.includes('tests/inventory-family-client.test.ts'))
+  assert.ok(plan.files.includes('tests/inventory-family-preset.test.ts'))
+  assert.equal(plan.files.includes('tests/manage-cold-boot.test.ts'), false)
+})
+
+test('unrelated CI input writer changes keep the required floor without fixed capability batches', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('scripts/write-ci-input.mjs', fixture.own)
+  assert.deepEqual(fixture.select().files, ['tests/agent-mcp.test.ts', 'tests/routes.test.ts'])
+})
+
+test('Workbench Session preparation and registered Core inputs keep the capability consumers', async t => {
+  for (const [repo, file, expected] of [
+    ['dsh-agent-workbench', 'src/page-session-core.ts', 'tests/base-preset-client.test.ts'],
+    ['dsh-gea-plugin', 'scripts/supported-cores.json', 'tests/standard-preset.test.ts']
+  ]) {
+    const fixture = await sourceImpactFixture(t)
+    fixture.change(
+      file,
+      fixture.repositories.find(entry => entry.repo === repo)
+    )
+    assert.ok(fixture.select().files.includes(expected), file)
+  }
+})
+
+test('peer dependency inputs select the capabilities that consume those peers', async t => {
+  for (const [repo, expected] of [
+    ['dsh-gea-plugin', 'tests/user-agent-cube-gea.test.ts'],
+    ['dsh-agent-workbench', 'tests/base-preset-client.test.ts']
+  ]) {
+    const fixture = await sourceImpactFixture(t)
+    fixture.change(
+      'package.json',
+      fixture.repositories.find(entry => entry.repo === repo)
+    )
+    assert.ok(fixture.select().files.includes(expected), repo)
+  }
 })

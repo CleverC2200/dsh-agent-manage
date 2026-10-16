@@ -5,6 +5,59 @@
   "rules": [
     {
       "repo": "dsh-agent-manage",
+      "pattern": "^(?:cordis\\.patch\\.yml|package\\.json|pnpm-lock\\.yaml|tsconfig[^/]*|vitest\\.config\\.ts|\\.github/workflows/quality\\.yml|scripts/(?:prepare-official-sdk\\.mjs|sdk-artifact-cache\\.mjs|preset-test-lanes\\.mjs|check-preset-capabilities\\.mjs|run-quality-ci\\.mjs|ci-test-policy\\.json|quality-peer-baseline\\.json))$",
+      "tests": [
+        "tests/standard-preset*.test.ts",
+        "tests/skill-preset*.test.ts",
+        "tests/manage-cold-boot.test.ts",
+        "tests/manage-settings.test.ts",
+        "tests/bundled-sales-skills.test.ts",
+        "tests/manage-bundle-default.test.ts",
+        "tests/user-agent-retirement-draft.test.ts",
+        "tests/agent-source-sync-draft.test.ts",
+        "tests/preset-catalog-client.test.ts",
+        "tests/base-preset-client.test.ts",
+        "tests/sales-preset-client.test.ts",
+        "tests/inventory-family-client.test.ts",
+        "tests/sales-agent-import-gea.test.ts",
+        "tests/user-agent-cube-gea.test.ts",
+        "tests/business-admission-gea.test.ts",
+        "tests/sales-preset-gea.test.ts",
+        "tests/inventory-family-preset.test.ts"
+      ]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^tests/preset-catalog-host\\.test\\.ts$",
+      "tests": ["tests/preset-catalog-client.test.ts"],
+      "exclusive": true
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^tests/inventory-family-host\\.test\\.ts$",
+      "tests": ["tests/inventory-family-client.test.ts"],
+      "exclusive": true
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^tests/sales-resource-host\\.test\\.ts$",
+      "tests": ["tests/sales-preset-client.test.ts"],
+      "exclusive": true
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^tests/skill-resource-host\\.test\\.ts$",
+      "tests": ["tests/skill-preset-client.test.ts"],
+      "exclusive": true
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^tests/base-resource-host\\.test\\.ts$",
+      "tests": ["tests/base-preset-client.test.ts"],
+      "exclusive": true
+    },
+    {
+      "repo": "dsh-agent-manage",
       "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|tsconfig|vitest|\\.github/|scripts/)",
       "tests": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
       "exclusive": true
@@ -43,6 +96,98 @@
       "repo": "dsh-gea-plugin",
       "pattern": "^(?:src|scripts|presets|default-presets)/",
       "tests": ["tests/routes.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-workbench",
+      "pattern": "^(?:package\\.json$|package-lock\\.json$|src/(?:resource-selection(?:\\.ts|/)|page-session-core\\.ts$|page-interaction/))",
+      "tests": [
+        "tests/standard-preset-draft.test.ts",
+        "tests/user-agent-retirement-draft.test.ts",
+        "tests/agent-source-sync-draft.test.ts",
+        "tests/preset-catalog-client.test.ts",
+        "tests/skill-preset-client.test.ts",
+        "tests/base-preset-client.test.ts",
+        "tests/sales-preset-client.test.ts",
+        "tests/inventory-family-client.test.ts"
+      ]
+    },
+    {
+      "repo": "dsh-gea-plugin",
+      "pattern": "^(?:package\\.json$|pnpm-lock\\.yaml$|src/(?:host/|capability/|shared/)|presets/|default-presets/)",
+      "tests": [
+        "tests/sales-agent-import-gea.test.ts",
+        "tests/user-agent-cube-gea.test.ts",
+        "tests/business-admission-gea.test.ts",
+        "tests/standard-preset-gea.test.ts",
+        "tests/skill-preset-gea.test.ts",
+        "tests/sales-preset-gea.test.ts",
+        "tests/inventory-family-preset.test.ts"
+      ]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^vitest\\.preset-(?:client|host)\\.config\\.ts$",
+      "tests": [
+        "tests/standard-preset-draft.test.ts",
+        "tests/user-agent-retirement-draft.test.ts",
+        "tests/agent-source-sync-draft.test.ts",
+        "tests/preset-catalog-client.test.ts",
+        "tests/skill-preset-client.test.ts",
+        "tests/base-preset-client.test.ts",
+        "tests/sales-preset-client.test.ts",
+        "tests/inventory-family-client.test.ts"
+      ]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^vitest\\.preset-integration\\.config\\.ts$",
+      "tests": [
+        "tests/sales-agent-import-gea.test.ts",
+        "tests/user-agent-cube-gea.test.ts",
+        "tests/business-admission-gea.test.ts",
+        "tests/standard-preset-gea.test.ts",
+        "tests/skill-preset-gea.test.ts",
+        "tests/sales-preset-gea.test.ts",
+        "tests/inventory-family-preset.test.ts"
+      ]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^business-resources/inventory-",
+      "tests": ["tests/inventory-family-client.test.ts", "tests/inventory-family-preset.test.ts", "tests/business-admission-gea.test.ts", "tests/standard-preset-gea.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^business-resources/inventory-aqkc/",
+      "tests": ["tests/base-preset-client.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^business-resources/(?:inventory-apsplan|aps-analysis|sales-plan)/",
+      "tests": ["tests/sales-preset-client.test.ts", "tests/sales-preset-gea.test.ts", "tests/sales-agent-import-gea.test.ts"]
+    },
+    {
+      "repo": "dsh-gea-plugin",
+      "pattern": "^scripts/(?:supported-cores\\.(?:mjs|json)|current-core\\.json|ci-core-policy\\.(?:mjs|json)|quality-prepared-inputs\\.mjs)$",
+      "tests": [
+        "tests/standard-preset*.test.ts",
+        "tests/skill-preset*.test.ts",
+        "tests/manage-cold-boot.test.ts",
+        "tests/manage-settings.test.ts",
+        "tests/bundled-sales-skills.test.ts",
+        "tests/manage-bundle-default.test.ts",
+        "tests/user-agent-retirement-draft.test.ts",
+        "tests/agent-source-sync-draft.test.ts",
+        "tests/preset-catalog-client.test.ts",
+        "tests/base-preset-client.test.ts",
+        "tests/sales-preset-client.test.ts",
+        "tests/inventory-family-client.test.ts",
+        "tests/sales-agent-import-gea.test.ts",
+        "tests/user-agent-cube-gea.test.ts",
+        "tests/business-admission-gea.test.ts",
+        "tests/sales-preset-gea.test.ts",
+        "tests/inventory-family-preset.test.ts"
+      ]
     }
   ]
 }
