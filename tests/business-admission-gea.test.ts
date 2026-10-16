@@ -3,6 +3,7 @@ import { expect, it, onTestFinished } from 'vitest'
 import { resolve } from 'node:path'
 import { agentOn, completion, official, presetHarness, record, turn } from './core-preset-harness.js'
 import { BusinessResources } from '../src/runtime/business-resources.js'
+import { baseInventoryResource } from './base-inventory-harness.js'
 
 async function fixture() {
   const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
@@ -12,16 +13,7 @@ async function fixture() {
   const resources = new BusinessResources(ctx, resolve(home, 'selected-resources.json'))
   ctx.provide('agentResources', resources)
   onTestFinished(() => resources.dispose())
-  await resources.register([
-    {
-      id: 'gea-html-inventory-aqkc',
-      label: '基地库存',
-      root: resolve('business-resources/inventory-aqkc'),
-      prompt: 'prompt.json',
-      profile: { label: '基地库存', consumerCode: 'base-safety-stock', skills: ['inventory-aqkc'] },
-      skillFiles: { 'inventory-aqkc': 'skills/aqkc/SKILL.md' }
-    }
-  ])
+  await resources.register([await baseInventoryResource()])
   const calls: string[] = []
   for (const name of ['gea_page', 'gea_visible_workbench_context', 'mcp__gea-gateway__query_business_data', 'mcp__cube_new_test__query_business_data'])
     onTestFinished(
