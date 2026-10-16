@@ -471,13 +471,18 @@ function qualityExecution(t, files) {
   writeFileSync(join(own, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories }))
   writeFileSync(join(own, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: {} } }))
   writeFileSync(join(workbench, 'package.json'), JSON.stringify({ packageManager: 'npm@11.11.0' }))
+  writeFileSync(join(workbench, 'scripts/quality-fixture.json'), JSON.stringify({ plan, manifest: { core: 'b'.repeat(40), repositories } }))
   writeFileSync(
     join(workbench, 'scripts/ci-test-plan.mjs'),
-    `export const selectCiTests = ({ testOwners }) => { if (testOwners?.['tests/base-resource-host.test.ts'] !== 'tests/base-preset-client.test.ts') throw Error('CI_TEST_OWNER_REQUIRED'); return (${JSON.stringify(plan)}) }`
+    `import { readFileSync } from 'node:fs';
+    const { plan } = JSON.parse(readFileSync(new URL('./quality-fixture.json', import.meta.url), 'utf8'));
+    export const selectCiTests = ({ testOwners }) => { if (testOwners?.['tests/base-resource-host.test.ts'] !== 'tests/base-preset-client.test.ts') throw Error('CI_TEST_OWNER_REQUIRED'); return plan }`
   )
   writeFileSync(
     join(workbench, 'scripts/candidate-input.mjs'),
-    `export const readFinalGroup = async () => ({ manifest: ${JSON.stringify({ core: 'b'.repeat(40), repositories })}, verifyUnchanged() {} })`
+    `import { readFileSync } from 'node:fs';
+    const { manifest } = JSON.parse(readFileSync(new URL('./quality-fixture.json', import.meta.url), 'utf8'));
+    export const readFinalGroup = async () => ({ manifest, verifyUnchanged() {} })`
   )
   const callsFile = join(root, 'calls.json')
   const hook = join(root, 'quality-boundary.mjs')
