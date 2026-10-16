@@ -148,16 +148,11 @@ try {
               { name: 'build', execute: () => run('corepack', ['pnpm', 'run', 'build']) },
               {
                 name: 'required-and-affected',
-                execute: () =>
-                  run('corepack', [
-                    'pnpm',
-                    'exec',
-                    'vitest',
-                    'run',
-                    '--config',
-                    'vitest.ci-unit.config.ts',
-                    ...plan.files.filter(file => !Object.values(presetLanes).some(lane => file in lane))
-                  ])
+                execute: () => {
+                  const files = plan.files.filter(file => !Object.values(presetLanes).some(lane => file in lane))
+                  if (!files.length) refuse('CI_TEST_PLAN_EMPTY_ORDINARY', 'required ordinary tests must be explicitly selected')
+                  run('corepack', ['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.ci-unit.config.ts', ...files])
+                }
               }
             ]
       )

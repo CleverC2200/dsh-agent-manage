@@ -452,7 +452,7 @@ test('a Manage policy edit runs the static resource consumers in its own source 
   assert.deepEqual(plan.files, plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'])
 })
 
-test('quality executes planned capability files once and leaves the ordinary batch disjoint', t => {
+function qualityExecution(t, files) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-quality-selection-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const repositories = ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin'].map(repo => {
@@ -466,7 +466,7 @@ test('quality executes planned capability files once and leaves the ordinary bat
     schemaVersion: 1,
     mode: 'required-and-affected',
     repo: 'dsh-agent-manage',
-    files: ['tests/routes.test.ts', 'tests/standard-preset.test.ts', 'tests/standard-preset-draft.test.ts', 'tests/user-agent-cube-gea.test.ts']
+    files
   }
   writeFileSync(join(own, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories }))
   writeFileSync(join(own, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: {} } }))
@@ -487,7 +487,7 @@ test('quality executes planned capability files once and leaves the ordinary bat
     syncBuiltinESMExports();
     registerHooks({ load(url, context, next) {
       if (url !== ${JSON.stringify(pathToFileURL(resolve('scripts/prepare-official-sdk.mjs')).href)}) return next(url, context);
-      return { format: 'module', shortCircuit: true, source: 'export const verifyOfficialSDK = () => {}; export const prepareOfficialSDK = () => {}; export const verifyOfficialSource = () => {}' };
+      return { format: 'module', shortCircuit: true, source: 'export const verifyOfficialSDK = () => {}; export const prepareOfficialSDK = () => {}; export const prepareOfficialSource = () => {}; export const verifyOfficialSource = () => {}' };
     } });`
   )
   const result = spawnSync(
@@ -499,8 +499,17 @@ test('quality executes planned capability files once and leaves the ordinary bat
       env: { ...process.env, GITHUB_OUTPUT: '' }
     }
   )
+  return { result, calls: JSON.parse(readFileSync(callsFile, 'utf8')), plan, own }
+}
+
+test('quality executes planned capability files once and leaves the ordinary batch disjoint', t => {
+  const { result, calls, plan } = qualityExecution(t, [
+    'tests/routes.test.ts',
+    'tests/standard-preset.test.ts',
+    'tests/standard-preset-draft.test.ts',
+    'tests/user-agent-cube-gea.test.ts'
+  ])
   assert.equal(result.status, 0, result.stderr)
-  const calls = JSON.parse(readFileSync(callsFile, 'utf8'))
   const capabilities = calls.filter(call => call.args.includes('check:capabilities') || call.args.some(arg => arg.endsWith('check-preset-capabilities.mjs')))
   assert.equal(capabilities.length, 1)
   const capability = capabilities[0]
@@ -600,4 +609,16 @@ test('archive jobs retain their required Windows gate while SDK cache work is li
   assert.match(restore, /if: matrix\.phase == 'quality'/)
   assert.match(save, /if: matrix\.phase == 'quality' && success\(\)/)
   assert.match(workflow, /QUALITY_WINDOWS_RESULT/)
+})
+
+test('quality refuses an empty ordinary group without launching unfiltered Vitest discovery', t => {
+  const { result, calls, own } = qualityExecution(t, ['tests/standard-preset.test.ts'])
+  assert.equal(result.status, 1)
+  assert.equal(
+    calls.some(call => call.args.includes('vitest')),
+    false
+  )
+  const ordinary = JSON.parse(readFileSync(join(own, 'quality-checks.json'), 'utf8')).find(check => check.name === 'required-and-affected')
+  assert.equal(ordinary.status, 'failed')
+  assert.match(ordinary.error, /CI_TEST_PLAN_EMPTY_ORDINARY/)
 })
