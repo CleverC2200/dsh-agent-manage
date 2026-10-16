@@ -2,6 +2,7 @@
 import { expect, it } from 'vitest'
 import { agentOn, completion, history, record, turn } from './core-preset-harness.js'
 import { baseInventoryHarness } from './base-inventory-harness.js'
+import { MINIMAL_SYSTEM_PROMPT } from '../src/runtime/standard-preset.js'
 import { salesRoleInput, salesRoles } from './sales-role-input.js'
 
 it.each(salesRoles)('$name keeps its catalog identity and complete standard capabilities in the actual Session', async role => {
@@ -27,15 +28,11 @@ it.each(salesRoles)('$name keeps its catalog identity and complete standard capa
   expect(f.ctx.agentPresets.serviceFor(f.agent, 'compaction')?.constructor.name).toBe('BasicCompactionEngine')
   expect(f.ctx.agentPresets.serviceFor(f.agent, 'toolResultPruner')).toBeDefined()
   expect(JSON.stringify(final.messages)).toContain(role.persona)
-  const standardPrompt = await f.ctx.systemPrompt.assemble({ scope: baseline, agent: baseline } as never)
   const businessPrompt = await f.ctx.systemPrompt.assemble({ scope: f.agent, agent: f.agent } as never)
-  expect(businessPrompt.contexts.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.contexts.map(row => row.name)))
-  expect(businessPrompt.sections.map(row => row.name)).toEqual(expect.arrayContaining(standardPrompt.sections.filter(row => row.name !== 'gea:admission').map(row => row.name)))
-  const standardDocument = await f.ctx.agentPresets.readDocument('standard')
-  expect(final.messages.some(message => message.content.some(block => block.text?.includes('Time sampled while preparing turn')))).toBe(
-    standardDocument.content.includes('@deepseek-ai/dsh-time-context')
-  )
-  expect(JSON.stringify(final.messages)).toContain(f.agent.session.header.cwd)
+  expect(businessPrompt.contexts).toEqual([])
+  expect(businessPrompt.sections).toHaveLength(1)
+  expect(businessPrompt.sections[0].text.startsWith(MINIMAL_SYSTEM_PROMPT + '\n\n')).toBe(true)
+  expect(f.agent.session.snapshotEvents().filter(event => event.type === 'user/message').some(event => event.data.source.kind === 'runtime-context' || event.data.source.kind === 'agent-instructions')).toBe(false)
   if (role.skill) for (const skill of f.selection.profile!.skills) expect(await f.ctx.skills.get(skill, { scope: f.agent, cwd: f.home })).toMatchObject({ name: skill })
   expect((await f.execute('todo_write', { todos: [{ content: '核对销售范围', status: 'in_progress' }] })).isError).toBe(false)
   const file = f.home + '/sales.txt'
