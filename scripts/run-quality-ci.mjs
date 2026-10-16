@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { prepareOfficialSDK, prepareOfficialSource, verifyOfficialSDK, verifyOfficialSource } from './prepare-official-sdk.mjs'
 import { runQualityChecks } from './run-quality-checks.mjs'
-import { presetLanes } from './preset-test-lanes.mjs'
+import { presetLanes, presetHostOwners } from './preset-test-lanes.mjs'
 
 const { values } = parseArgs({
   options: {
@@ -76,8 +76,12 @@ try {
       plan = selectCiTests({
         repositories: manifest.repositories,
         repo: 'dsh-agent-manage',
+        testOwners: presetHostOwners,
         base: process.env.QUALITY_BASE_SHA || baseline.repositories.find(entry => entry.repo === 'dsh-agent-manage').head
       })
+      for (const file of plan.files) {
+        if (Object.hasOwn(presetHostOwners, file)) refuse('CI_TEST_PLAN_UNOWNED_HOST', file)
+      }
       writeFileSync(planFile, JSON.stringify(plan, null, 2) + '\n')
     }
 

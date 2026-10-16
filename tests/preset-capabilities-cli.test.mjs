@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync, mkdirSync
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
+import { presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 
 // Child-process completion is the CLI seam; real client/Host lanes run separately.
 const files = {
@@ -50,6 +51,7 @@ function run(change = () => {}, plan, missingFile) {
     )
     mkdirSync(join(root, 'tests'))
     writeFileSync(join(root, 'tests/routes.test.ts'), '')
+    for (const file of Object.keys(presetHostOwners)) writeFileSync(join(root, file), '')
     for (const phase of Object.values(files)) for (const name of Object.keys(phase)) writeFileSync(join(root, `tests/${name}.test.ts`), '')
     if (missingFile) unlinkSync(join(root, missingFile))
     for (const [phase, report] of Object.entries(reports)) writeFileSync(join(root, `${phase}-vitest.json`), JSON.stringify(report))
@@ -207,4 +209,10 @@ test('affected capability selection refuses a missing registered test instead of
   )
   assert.notEqual(result.status, 0)
   assert.match(result.stderr, /CAPABILITY_FILE_REQUIRED/)
+})
+
+test('capability CLI refuses a Host helper left in the direct plan instead of reporting it inapplicable', () => {
+  const result = run(() => {}, { schemaVersion: 1, mode: 'required-and-affected', repo: 'dsh-agent-manage', files: ['tests/base-resource-host.test.ts'] })
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /CAPABILITY_PLAN_UNOWNED_HOST/)
 })

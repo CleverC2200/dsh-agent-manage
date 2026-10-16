@@ -28,36 +28,6 @@
     },
     {
       "repo": "dsh-agent-manage",
-      "pattern": "^tests/preset-catalog-host\\.test\\.ts$",
-      "tests": ["tests/preset-catalog-client.test.ts"],
-      "exclusive": true
-    },
-    {
-      "repo": "dsh-agent-manage",
-      "pattern": "^tests/inventory-family-host\\.test\\.ts$",
-      "tests": ["tests/inventory-family-client.test.ts"],
-      "exclusive": true
-    },
-    {
-      "repo": "dsh-agent-manage",
-      "pattern": "^tests/sales-resource-host\\.test\\.ts$",
-      "tests": ["tests/sales-preset-client.test.ts"],
-      "exclusive": true
-    },
-    {
-      "repo": "dsh-agent-manage",
-      "pattern": "^tests/skill-resource-host\\.test\\.ts$",
-      "tests": ["tests/skill-preset-client.test.ts"],
-      "exclusive": true
-    },
-    {
-      "repo": "dsh-agent-manage",
-      "pattern": "^tests/base-resource-host\\.test\\.ts$",
-      "tests": ["tests/base-preset-client.test.ts"],
-      "exclusive": true
-    },
-    {
-      "repo": "dsh-agent-manage",
       "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|tsconfig|vitest|\\.github/|scripts/)",
       "tests": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
       "exclusive": true
