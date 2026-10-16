@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { spawnSync, execFileSync } from 'node:child_process'
-import { prepareOfficialSDK, verifyOfficialSDK, verifyOfficialSource } from './prepare-official-sdk.mjs'
+import { prepareOfficialSDK, prepareOfficialSource, verifyOfficialSDK, verifyOfficialSource } from './prepare-official-sdk.mjs'
 import { runQualityChecks } from './run-quality-checks.mjs'
 import { presetLanes } from './preset-test-lanes.mjs'
 
@@ -86,9 +86,15 @@ try {
     process.env.DSH_CORE_CHECKOUT = core
     finalGroup?.verifyUnchanged()
     if (phase === 'audit') verifyOfficialSource(resolve(values['core-source']), options)
-    else if (values['prepare-sdk']) prepareOfficialSDK({ ...options, reusePrepared: process.env.QUALITY_REUSE_SDK === 'true' })
+    else if (phase === 'archives') {
+      if (values['prepare-sdk']) prepareOfficialSource(options)
+      else {
+        verifyOfficialSource(resolve(values['core-source']), options)
+        process.env.DSH_CORE_CHECKOUT = resolve(values['core-source'])
+      }
+    } else if (values['prepare-sdk']) prepareOfficialSDK({ ...options, reusePrepared: process.env.QUALITY_REUSE_SDK === 'true' })
     else verifyOfficialSDK(options)
-    if (phase !== 'audit')
+    if (!['audit', 'archives'].includes(phase))
       run(process.execPath, [
         resolve(workbench.path, 'scripts/verify-candidate-input.mjs'),
         '--input',
@@ -142,16 +148,11 @@ try {
               { name: 'build', execute: () => run('corepack', ['pnpm', 'run', 'build']) },
               {
                 name: 'required-and-affected',
-                execute: () =>
-                  run('corepack', [
-                    'pnpm',
-                    'exec',
-                    'vitest',
-                    'run',
-                    '--config',
-                    'vitest.ci-unit.config.ts',
-                    ...plan.files.filter(file => !Object.values(presetLanes).some(lane => file in lane))
-                  ])
+                execute: () => {
+                  const files = plan.files.filter(file => !Object.values(presetLanes).some(lane => file in lane))
+                  if (!files.length) refuse('CI_TEST_PLAN_EMPTY_ORDINARY', 'required ordinary tests must be explicitly selected')
+                  run('corepack', ['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.ci-unit.config.ts', ...files])
+                }
               }
             ]
       )

@@ -48,7 +48,7 @@ test('hosted quality prepares the declared Workbench npm before peer installatio
   assert.match(workflow, /npm install --global npm@11\.11\.0/)
 })
 
-test('quality requests real flock preparation and verification; archives and audit do not', () => {
+test('quality requests the real SDK while archives prepare or verify only admitted source', () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-quality-flock-')))
   try {
     const repositories = ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin'].map(repo => {
@@ -90,6 +90,7 @@ test('quality requests real flock preparation and verification; archives and aud
         return { format: 'module', shortCircuit: true, source: \`
           const stop = (method, options) => { throw Error('SDK_BOUNDARY:' + JSON.stringify({ method, options })) };
           export const prepareOfficialSDK = options => stop('prepare', options);
+          export const prepareOfficialSource = options => stop('prepare-source', options);
           export const verifyOfficialSDK = options => stop('verify', options);
           export const verifyOfficialSource = (core, options) => stop('source', { ...options, observedCore: core });
         \` };
@@ -119,10 +120,10 @@ test('quality requests real flock preparation and verification; archives and aud
         assert.equal(result.status, 1, result.stderr)
         const boundary = JSON.parse(result.stderr.match(/SDK_BOUNDARY:(.*)/)?.[1] ?? 'null')
         assert.ok(boundary, result.stderr)
-        assert.equal(boundary.method, phase === 'audit' ? 'source' : prepare ? 'prepare' : 'verify')
+        assert.equal(boundary.method, phase === 'audit' ? 'source' : phase === 'archives' ? (prepare ? 'prepare-source' : 'source') : prepare ? 'prepare' : 'verify')
         assert.equal(boundary.options.coreHead, coreHead)
         assert.equal(boundary.options.withFlock, phase === 'quality')
-        if (phase === 'audit') assert.equal(boundary.options.observedCore, join(root, 'source', 'official-core'))
+        if (phase === 'audit' || (phase === 'archives' && !prepare)) assert.equal(boundary.options.observedCore, join(root, 'source', 'official-core'))
       }
     }
   } finally {
@@ -451,7 +452,7 @@ test('a Manage policy edit runs the static resource consumers in its own source 
   assert.deepEqual(plan.files, plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'])
 })
 
-test('quality executes planned capability files once and leaves the ordinary batch disjoint', t => {
+function qualityExecution(t, files) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-quality-selection-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const repositories = ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin'].map(repo => {
@@ -465,7 +466,7 @@ test('quality executes planned capability files once and leaves the ordinary bat
     schemaVersion: 1,
     mode: 'required-and-affected',
     repo: 'dsh-agent-manage',
-    files: ['tests/routes.test.ts', 'tests/standard-preset.test.ts', 'tests/standard-preset-draft.test.ts', 'tests/user-agent-cube-gea.test.ts']
+    files
   }
   writeFileSync(join(own, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories }))
   writeFileSync(join(own, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: {} } }))
@@ -486,7 +487,7 @@ test('quality executes planned capability files once and leaves the ordinary bat
     syncBuiltinESMExports();
     registerHooks({ load(url, context, next) {
       if (url !== ${JSON.stringify(pathToFileURL(resolve('scripts/prepare-official-sdk.mjs')).href)}) return next(url, context);
-      return { format: 'module', shortCircuit: true, source: 'export const verifyOfficialSDK = () => {}; export const prepareOfficialSDK = () => {}; export const verifyOfficialSource = () => {}' };
+      return { format: 'module', shortCircuit: true, source: 'export const verifyOfficialSDK = () => {}; export const prepareOfficialSDK = () => {}; export const prepareOfficialSource = () => {}; export const verifyOfficialSource = () => {}' };
     } });`
   )
   const result = spawnSync(
@@ -498,8 +499,17 @@ test('quality executes planned capability files once and leaves the ordinary bat
       env: { ...process.env, GITHUB_OUTPUT: '' }
     }
   )
+  return { result, calls: JSON.parse(readFileSync(callsFile, 'utf8')), plan, own }
+}
+
+test('quality executes planned capability files once and leaves the ordinary batch disjoint', t => {
+  const { result, calls, plan } = qualityExecution(t, [
+    'tests/routes.test.ts',
+    'tests/standard-preset.test.ts',
+    'tests/standard-preset-draft.test.ts',
+    'tests/user-agent-cube-gea.test.ts'
+  ])
   assert.equal(result.status, 0, result.stderr)
-  const calls = JSON.parse(readFileSync(callsFile, 'utf8'))
   const capabilities = calls.filter(call => call.args.includes('check:capabilities') || call.args.some(arg => arg.endsWith('check-preset-capabilities.mjs')))
   assert.equal(capabilities.length, 1)
   const capability = capabilities[0]
@@ -588,4 +598,27 @@ test('peer dependency inputs select the capabilities that consume those peers', 
     )
     assert.ok(fixture.select().files.includes(expected), repo)
   }
+})
+
+test('archive jobs retain their required Windows gate while SDK cache work is limited to quality', () => {
+  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  const source = workflow.match(/- name: Prepare owned Core source without compiling\n([\s\S]*?)\n {6}- uses:/)?.[1]
+  const restore = workflow.match(/- uses: actions\/cache\/restore@v4\n {8}id: sdk-cache\n([\s\S]*?)\n {6}- name:/)?.[1]
+  const save = workflow.match(/- name: Save verified SDK cache without delaying required checks\n([\s\S]*?)\n {6}- name:/)?.[1]
+  assert.match(source, /if: matrix\.phase == 'quality'/)
+  assert.match(restore, /if: matrix\.phase == 'quality'/)
+  assert.match(save, /if: matrix\.phase == 'quality' && success\(\)/)
+  assert.match(workflow, /QUALITY_WINDOWS_RESULT/)
+})
+
+test('quality refuses an empty ordinary group without launching unfiltered Vitest discovery', t => {
+  const { result, calls, own } = qualityExecution(t, ['tests/standard-preset.test.ts'])
+  assert.equal(result.status, 1)
+  assert.equal(
+    calls.some(call => call.args.includes('vitest')),
+    false
+  )
+  const ordinary = JSON.parse(readFileSync(join(own, 'quality-checks.json'), 'utf8')).find(check => check.name === 'required-and-affected')
+  assert.equal(ordinary.status, 'failed')
+  assert.match(ordinary.error, /CI_TEST_PLAN_EMPTY_ORDINARY/)
 })
