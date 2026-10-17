@@ -14,11 +14,15 @@ Manage publishes the server schemas and scoped tools; GEA resolves the actual Co
 
 Logout, environment change, expiration and owner disposal abort old calls and reject late results. Gateway credentials are never persisted as external MCP configuration. Ordinary personal Agent configuration does not require GEA.
 
+Discovery availability is separate from whole-Agent admission. The linked GEA MCP guide owns readiness and input-driven recovery; Manage reuses Core's input notification, prompt assembly and tool registry while GEA retains the connection and Consumer authority.
+
 ## Alternatives considered
 
 **Persist a direct MCP URL and login token.** Rejected because the gateway requires business-session metadata, and persisted credentials would outlive the login that owns them.
 
 **Let the market inspect GEA login internals.** Rejected because it couples repositories to private state and exposes system credentials outside their owner. A fetch capability keeps the credential inside GEA.
+
+**Replace the governed bridge with the official MCP connection supervisor.** Its public configuration owns a URL or stdio connection rather than GEA's Session-to-Consumer execution. Keeping the existing service avoids moving credentials or introducing another connection and retry policy.
 
 ## Consequences
 
