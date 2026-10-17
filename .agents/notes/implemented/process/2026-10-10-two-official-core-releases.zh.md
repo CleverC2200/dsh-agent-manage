@@ -12,6 +12,8 @@ DSH 运行 peer 精确接受 `0.2.0-rc.2 || 0.2.1-alpha.1`。Cordis、Schemaster
 
 Manage 质量阶段要求 SDK 模块准备并核验真实宿主 flock，用于官方 Session writer lock。归档和审计保留各自较窄的输入要求。原预测 Session 测试在独立临时目录安装已跟踪的完整销售套件，并核对固定源哈希，不依赖 runner checkout 外的仓库。Skill 路径断言区分已安装原始源与包内 provider。
 
+CI 使用 host 构建的类型校验，避免对相同 host 项目再做一次无输出编译。client 打包不校验类型，因此 CI 单独检查该项目。构建前的版本戳校验防止生成器掩盖过期源码。独立检查保持完整，命令合同见[干净 CI](../../../../docs/clean-ci.md#gates-and-receipts--门禁与回执)。
+
 资源与 Skill 发布使用两版共同的 registry 和 provider 接口。Standard 组合读取当前 Host 的 `readDocument('standard')`，包括禁用行和用户配置，不移植另一版的声明。生产路径不增加版本分支或复制的 SDK。
 
 `DSH_CORE_CHECKOUT` 为既有能力验证 lane 选择官方输入。Host fixture 和静态 SDK 导入解析同一批公开 exports；浏览器 lane 读取该 Core 的源码映射，并将既有相对官方源码引用导向同一 Core。Native Loader 与真实 Session 继续执行，本地 completion 和受控业务 adapter 保持原有离线范围。
@@ -25,6 +27,8 @@ Manage 质量阶段要求 SDK 模块准备并核验真实宿主 flock，用于�
 **只放宽 peer，不执行两版官方输入。** 这样会接受包，却不能证明要求的行为。
 
 **增加版本分支或将 SDK 复制到 Manage。** 当前消费的资源与预设接口已在两版共用。额外运行状态和第二个 SDK 实例会削弱现有职责归属。
+
+**删除完整的独立类型检查。** 本地检查必须能在构建前独立运行。去重由现有 CI 编排承担，无须可复用通过凭证或跳过开关。
 
 ## Consequences
 

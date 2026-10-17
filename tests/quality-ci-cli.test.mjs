@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync, execFileSync } from 'node:child_process'
 import process from 'node:process'
-import { mkdtempSync, readFileSync, existsSync, rmSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs'
+import { mkdtempSync, readFileSync, existsSync, rmSync, mkdirSync, writeFileSync, realpathSync, copyFileSync, chmodSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -452,7 +452,7 @@ test('a Manage policy edit runs the static resource consumers in its own source 
   assert.deepEqual(plan.files, plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'])
 })
 
-function qualityExecution(t, files) {
+function qualityExecution(t, files, options = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-quality-selection-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const repositories = ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin'].map(repo => {
@@ -470,6 +470,49 @@ function qualityExecution(t, files) {
   }
   writeFileSync(join(own, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories }))
   writeFileSync(join(own, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: {} } }))
+  const toolsFile = join(root, 'tools.jsonl')
+  const bin = join(root, 'bin')
+  if (options.packageScripts) {
+    mkdirSync(bin)
+    mkdirSync(join(own, 'src/client'), { recursive: true })
+    copyFileSync('package.json', join(own, 'package.json'))
+    for (const file of [
+      'scripts/generate-plugin-package-version.mjs',
+      'scripts/normalize-client-banner.mjs',
+      'src/plugin-package-version.ts',
+      'tsconfig.json',
+      'tsconfig.client.json'
+    ])
+      copyFileSync(file, join(own, file))
+    const clientConfig = JSON.parse(readFileSync('tsconfig.client.json', 'utf8'))
+    clientConfig.compilerOptions.types = []
+    writeFileSync(join(own, 'tsconfig.client.json'), JSON.stringify(clientConfig))
+    writeFileSync(join(own, 'src/index.ts'), options.hostSource ?? 'export const host: number = 1\n')
+    writeFileSync(join(own, 'src/client/index.ts'), options.clientSource ?? 'export const client: number = 1\n')
+    if (options.staleStamp) writeFileSync(join(own, 'src/plugin-package-version.ts'), 'export const stale = true\n')
+    const tool = join(bin, 'tool.mjs')
+    writeFileSync(
+      tool,
+      `#!${process.execPath}
+      import { appendFileSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+      import { basename } from 'node:path';
+      import { spawnSync } from 'node:child_process';
+      const command = basename(process.argv[1]); const args = process.argv.slice(2);
+      appendFileSync(${JSON.stringify(toolsFile)}, JSON.stringify({ command, args }) + '\\n');
+      let result;
+      if (command === 'pnpm') result = spawnSync('sh', ['-c', JSON.parse(readFileSync('package.json', 'utf8')).scripts[args[0] === 'run' ? args[1] : args[0]]], { stdio: 'inherit' });
+      if (command === 'tsc') result = spawnSync(${JSON.stringify(process.execPath)}, [${JSON.stringify(process.env.MANAGE_TEST_TSC ?? resolve('node_modules/typescript/bin/tsc'))}, ...args], { stdio: 'inherit' });
+      if (command === 'node' && !(args[0] === '--test' || args[0] === 'scripts/check-agent-knowledge.mjs')) result = spawnSync(${JSON.stringify(process.execPath)}, args, { stdio: 'inherit' });
+      if (command === 'tsdown') { mkdirSync('client', { recursive: true }); writeFileSync('client/client.js', 'module.exports = {}\\n'); }
+      process.exit(result?.status ?? 0);
+    `
+    )
+    chmodSync(tool, 0o755)
+    for (const name of ['node', 'pnpm', 'tsc', 'tsdown', 'eslint', 'prettier', 'depcruise']) {
+      copyFileSync(tool, join(bin, name))
+      chmodSync(join(bin, name), 0o755)
+    }
+  }
   writeFileSync(join(workbench, 'package.json'), JSON.stringify({ packageManager: 'npm@11.11.0' }))
   writeFileSync(join(workbench, 'scripts/quality-fixture.json'), JSON.stringify({ plan, manifest: { core: 'b'.repeat(40), repositories } }))
   writeFileSync(
@@ -489,8 +532,15 @@ function qualityExecution(t, files) {
   writeFileSync(
     hook,
     `import cp from 'node:child_process'; import { registerHooks, syncBuiltinESMExports } from 'node:module'; import { writeFileSync } from 'node:fs';
-    const calls = [];
-    cp.spawnSync = (command, args) => { calls.push({ command, args }); writeFileSync(${JSON.stringify(callsFile)}, JSON.stringify(calls)); return { status: 0 }; };
+    const calls = []; const originalSpawn = cp.spawnSync;
+    cp.spawnSync = (command, args, options) => {
+      calls.push({ command, args }); writeFileSync(${JSON.stringify(callsFile)}, JSON.stringify(calls));
+      if (${Boolean(options.packageScripts)} && options.cwd === ${JSON.stringify(own)}) {
+        if (command === 'corepack' && (args[1] === 'run' || ['build', 'check:static'].includes(args[1]))) return originalSpawn(${JSON.stringify(join(bin, 'pnpm'))}, args.slice(1), options);
+        if (command === ${JSON.stringify(process.execPath)} && args[0].endsWith('generate-plugin-package-version.mjs')) return originalSpawn(command, args, options);
+      }
+      return { status: 0 };
+    };
     cp.execFileSync = () => '11.11.0';
     syncBuiltinESMExports();
     registerHooks({ load(url, context, next) {
@@ -500,15 +550,71 @@ function qualityExecution(t, files) {
   )
   const result = spawnSync(
     process.execPath,
-    ['--import', hook, resolve('scripts/run-quality-ci.mjs'), '--phase', 'quality', '--input', join(root, 'input.json'), '--final-group-sha256', 'a'.repeat(64)],
+    options.script
+      ? [join(bin, 'pnpm'), 'run', options.script]
+      : ['--import', hook, resolve('scripts/run-quality-ci.mjs'), '--phase', 'quality', '--input', join(root, 'input.json'), '--final-group-sha256', 'a'.repeat(64)],
     {
       cwd: own,
       encoding: 'utf8',
-      env: { ...process.env, GITHUB_OUTPUT: '' }
+      env: { ...process.env, GITHUB_OUTPUT: '', PATH: options.packageScripts ? `${bin}:${process.env.PATH}` : process.env.PATH }
     }
   )
-  return { result, calls: existsSync(callsFile) ? JSON.parse(readFileSync(callsFile, 'utf8')) : [], plan, own }
+  return {
+    result,
+    calls: existsSync(callsFile) ? JSON.parse(readFileSync(callsFile, 'utf8')) : [],
+    tools: existsSync(toolsFile) ? readFileSync(toolsFile, 'utf8').trim().split('\n').map(JSON.parse) : [],
+    plan,
+    own
+  }
 }
+
+test('quality checks each type project once and emits the host runtime, declarations and client bundle', t => {
+  const { result, tools, own } = qualityExecution(t, ['tests/routes.test.ts'], { packageScripts: true })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(
+    tools.filter(tool => tool.command === 'tsc').map(tool => tool.args),
+    [
+      ['-p', 'tsconfig.client.json', '--noEmit'],
+      ['-p', 'tsconfig.json']
+    ]
+  )
+  for (const file of ['lib/index.js', 'lib/types/index.d.ts', 'client/client.js']) assert.ok(existsSync(join(own, file)), file)
+})
+
+test('quality still rejects real host and client type errors', t => {
+  for (const source of ['hostSource', 'clientSource']) {
+    const { result, own } = qualityExecution(t, ['tests/routes.test.ts'], { packageScripts: true, [source]: 'export const invalid: number = "wrong"\n' })
+    assert.notEqual(result.status, 0, source)
+    assert.match(result.stdout + result.stderr, /Type 'string' is not assignable to type 'number'/)
+    const checks = JSON.parse(readFileSync(join(own, 'quality-checks.json'), 'utf8'))
+    assert.equal(checks.find(check => check.name === (source === 'hostSource' ? 'build' : 'check:static')).status, 'failed')
+  }
+})
+
+test('quality rejects a stale version stamp before the build can repair it', t => {
+  const { result, own } = qualityExecution(t, ['tests/routes.test.ts'], { packageScripts: true, staleStamp: true })
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /PLUGIN_PACKAGE_VERSION_STALE/)
+  assert.equal(readFileSync(join(own, 'src/plugin-package-version.ts'), 'utf8'), 'export const stale = true\n')
+  assert.equal(existsSync(join(own, 'lib/index.js')), false)
+})
+
+test('standalone static and typecheck commands retain both type projects and the version check', t => {
+  for (const script of ['check:static', 'typecheck']) {
+    const { result, tools } = qualityExecution(t, [], { packageScripts: true, script })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(
+      tools.filter(tool => tool.command === 'tsc').map(tool => tool.args),
+      [
+        ['-p', 'tsconfig.json', '--noEmit'],
+        ['-p', 'tsconfig.client.json', '--noEmit']
+      ]
+    )
+    const stale = qualityExecution(t, [], { packageScripts: true, script, staleStamp: true })
+    assert.notEqual(stale.result.status, 0)
+    assert.match(stale.result.stderr, /PLUGIN_PACKAGE_VERSION_STALE/)
+  }
+})
 
 test('quality executes planned capability files once and leaves the ordinary batch disjoint', t => {
   const { result, calls, plan } = qualityExecution(t, [
