@@ -27,6 +27,7 @@ interface Mount {
 /** Runtime publication state shared by login events and first-request admission. */
 export interface GeaLoginRuntime {
   readonly revision: number
+  retryDiscovery(): void
   ready(signal?: AbortSignal): Promise<void>
   dispose(): Promise<void>
 }
@@ -37,8 +38,9 @@ export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool
   let generation = new AbortController()
   let current: { mount: Mount; identity: AbortSignal } | undefined
   let revision = 0
-  let failure: Error | undefined
+  let failure: { kind: 'discovery' | 'lifecycle'; error: Error } | undefined
   let queue = Promise.resolve()
+  let pending: Promise<void> | undefined
   const retire = async (): Promise<void> => {
     if (current === undefined) return
     await current.mount.dispose()
@@ -50,7 +52,7 @@ export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool
     generation = new AbortController()
     const identity = service.identitySignal()
     const signal = AbortSignal.any([generation.signal, identity])
-    queue = queue
+    const next = queue
       .then(async () => {
         if (closed || signal.aborted) return
         if (current !== undefined && (current.identity !== identity || !service.authenticated())) await retire()
@@ -58,7 +60,16 @@ export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool
           failure = undefined
           return
         }
-        const tools = await service.listTools(signal)
+        let tools: GeaMcpTool[]
+        try {
+          tools = await service.listTools(signal)
+        } catch (error) {
+          if (!closed && !signal.aborted) {
+            if (failure?.kind !== 'lifecycle') failure = { kind: 'discovery', error: error instanceof Error ? error : Error(String(error)) }
+            warn()
+          }
+          return
+        }
         if (closed || signal.aborted || !service.authenticated()) return
         await retire()
         current = { mount: mount(tools, identity), identity }
@@ -73,10 +84,15 @@ export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool
       })
       .catch(error => {
         if (!closed && !signal.aborted) {
-          failure = error instanceof Error ? error : Error(String(error))
+          failure = { kind: 'lifecycle', error: error instanceof Error ? error : Error(String(error)) }
           warn()
         }
       })
+      .finally(() => {
+        if (pending === next) pending = undefined
+      })
+    queue = next
+    pending = next
     return queue
   }
   const unwatch = service.watch(changed)
@@ -84,6 +100,9 @@ export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool
   return {
     get revision() {
       return revision
+    },
+    retryDiscovery() {
+      if (!closed && service.authenticated() && pending === undefined && failure?.kind === 'discovery') void changed()
     },
     async ready(signal) {
       let observed: Promise<void>
@@ -105,7 +124,7 @@ export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool
       } while (observed !== queue && !closed)
       signal?.throwIfAborted()
       if (closed) throw Error('GEA_MCP_DISPOSED')
-      if (failure !== undefined) throw failure
+      if (failure?.kind === 'lifecycle') throw failure.error
     },
     async dispose() {
       closed = true
@@ -166,6 +185,9 @@ export function mountGeaMcp(ctx: Context): void {
         },
         () => host.logger?.warn('GEA MCP discovery failed; check the current login and published tool grants.')
       )
+      const stopRetry = host.on('agent/inbox/inserted', ({ agent }) => {
+        if (service.allows(agent.id)) login.retryDiscovery()
+      })
       // Core collects tool providers before its assembly waterfall. Capture that
       // publication revision, await discovery, and ask Core to assemble again only
       // when it collected an older generation. Core still owns scope, PTC and order.
@@ -186,6 +208,7 @@ export function mountGeaMcp(ctx: Context): void {
         true
       )
       return async () => {
+        stopRetry()
         stopAssembly()
         stopCapture()
         await login.dispose()

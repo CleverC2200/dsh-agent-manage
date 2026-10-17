@@ -188,6 +188,7 @@ it('contains denied discovery without blind session recreation', async () => {
   await vi.waitFor(() => expect(f.warn).toHaveBeenCalledOnce())
   expect(f.mount).not.toHaveBeenCalled()
   expect(f.service.listTools).toHaveBeenCalledOnce()
+  await expect(f.runtime.ready()).resolves.toBeUndefined()
   await f.stop()
 })
 
@@ -233,6 +234,9 @@ it('cleans a failed bridge activation and never retries the business session aut
   await vi.waitFor(() => expect(f.warn).toHaveBeenCalledOnce())
   expect(f.dispose).toHaveBeenCalledOnce()
   expect(f.service.listTools).toHaveBeenCalledOnce()
+  await expect(f.runtime.ready()).rejects.toThrow('GEA_MCP_MOUNT_FAILED')
+  f.runtime.retryDiscovery()
+  expect(f.service.listTools).toHaveBeenCalledOnce()
   await f.stop()
 })
 
@@ -247,6 +251,11 @@ it('refuses a new namespace while an old mount failed disposal', async () => {
   await vi.waitFor(() => expect(f.warn).toHaveBeenCalledOnce())
   expect(f.mount).toHaveBeenCalledOnce()
   expect(f.service.listTools).toHaveBeenCalledTimes(2)
+  await expect(f.runtime.ready()).rejects.toThrow('dispose failed')
+  vi.mocked(f.service.listTools).mockRejectedValueOnce(Error('discovery unavailable'))
+  f.login(true)
+  await vi.waitFor(() => expect(f.warn).toHaveBeenCalledTimes(2))
+  await expect(f.runtime.ready()).rejects.toThrow('dispose failed')
   await f.stop()
   expect(f.dispose).toHaveBeenCalledTimes(2)
 })
@@ -330,4 +339,93 @@ it('retires an old identity before discovering its replacement and rejects cance
   await f.runtime.ready()
   expect(f.mount).toHaveBeenCalledTimes(2)
   await f.stop()
+})
+
+it('joins a pending discovery retry and cancels only the requesting waiter', async () => {
+  const f = fixture()
+  vi.mocked(f.service.listTools).mockRejectedValueOnce(Error('discovery unavailable'))
+  f.login(true)
+  await f.runtime.ready()
+  let finish!: (tools: []) => void
+  vi.mocked(f.service.listTools).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = resolve
+      })
+  )
+  f.runtime.retryDiscovery()
+  await vi.waitFor(() => expect(f.service.listTools).toHaveBeenCalledTimes(2))
+  const signal = vi.mocked(f.service.listTools).mock.calls[1][0]
+  f.runtime.retryDiscovery()
+  const controller = new AbortController()
+  const cancelled = f.runtime.ready(controller.signal)
+  const retained = f.runtime.ready()
+  const reason = Error('caller cancelled')
+  controller.abort(reason)
+  await expect(cancelled).rejects.toBe(reason)
+  expect(signal.aborted).toBe(false)
+  expect(f.service.listTools).toHaveBeenCalledTimes(2)
+  finish([])
+  await retained
+  expect(f.mount).toHaveBeenCalledOnce()
+  await f.stop()
+})
+
+it('keeps a real Core Session running after discovery failure and recovers its tools on fresh input', async () => {
+  const { presetHarness, completion, agentOn, turn } = await import('./core-preset-harness.js')
+  const f = await presetHarness()
+  const identity = new AbortController()
+  const listeners = new Set<() => void>()
+  let healthy = false
+  const listTools = vi.fn<GeaMcpService['listTools']>(async () => {
+    if (!healthy) throw Error('discovery unavailable')
+    return [{ name: 'query_business_data', description: 'query', inputSchema: { type: 'object' } }]
+  })
+  const call = vi.fn<GeaMcpService['call']>(async () => '{"status":"completed"}')
+  const service: GeaMcpService = {
+    version: 2,
+    authenticated: () => true,
+    identitySignal: () => identity.signal,
+    watch: listener => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    allows: id => id === 'discovery-recovery',
+    listTools,
+    call
+  }
+  f.ctx.provide('geaMcp', service)
+  await f.ctx.plugin({ apply: mountGeaMcp })
+  const requests = await completion(f.ctx, 262_144, true)
+  const agent = await agentOn(f.ctx, 'discovery-recovery', 'standard')
+  await turn(f.ctx, agent, 'Continue the independent todo task while discovery is unavailable.')
+  expect(agent.session.snapshotEvents().at(-1)).toMatchObject({ type: 'turn/end', data: { reason: { kind: 'completed' } } })
+  expect(requests.length).toBeGreaterThanOrEqual(2)
+  expect(requests.at(-1)?.tools?.map(tool => tool.name)).toContain('todo_write')
+  expect(requests.at(-1)?.tools?.map(tool => tool.name)).not.toContain('mcp__gea-gateway__query_business_data')
+  expect(agent.session.snapshotEvents().find(event => event.type === 'tool/result')).toMatchObject({ data: { message: { isError: false } } })
+  expect(call).not.toHaveBeenCalled()
+  const failedAttempts = listTools.mock.calls.length
+  await f.ctx.systemPrompt.assemble({ agent, scope: agent })
+  expect(listTools).toHaveBeenCalledTimes(failedAttempts)
+
+  healthy = true
+  await turn(f.ctx, agent, 'Discover the tools again for this same Session.')
+  expect(requests.at(-1)?.tools?.map(tool => tool.name)).toContain('mcp__gea-gateway__query_business_data')
+  expect(listTools).toHaveBeenCalledTimes(failedAttempts + 1)
+  const executed = await f.ctx.tools.execute({
+    callId: 'recovered-query' as never,
+    name: 'mcp__gea-gateway__query_business_data',
+    arguments: {},
+    agent,
+    signal: new AbortController().signal
+  })
+  expect(executed.isError).toBe(false)
+  expect(executed.value).toBe('{"status":"completed"}')
+
+  healthy = false
+  for (const listener of [...listeners]) listener()
+  await turn(f.ctx, agent, 'Keep using the current authorized tools while refresh is unavailable.')
+  expect(agent.session.snapshotEvents().at(-1)).toMatchObject({ type: 'turn/end', data: { reason: { kind: 'completed' } } })
+  expect(requests.at(-1)?.tools?.map(tool => tool.name)).toContain('mcp__gea-gateway__query_business_data')
 })

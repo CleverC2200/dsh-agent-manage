@@ -14,11 +14,15 @@ Manage 发布服务端 schema 与受限工具；GEA 从实际 Core Session 的�
 
 退出、环境切换、过期和 owner 卸载中止旧调用并拒绝迟到结果；网关凭据不写入外部 MCP 配置。普通个人 Agent 配置不依赖 GEA。
 
+发现能力是否可用与整个 Agent 是否可运行分别处理。上述 GEA MCP 指南持有就绪及新输入恢复合同；Manage 复用 Core 的输入通知、提示组装和工具注册，连接与 Consumer 权威仍归 GEA。
+
 ## Alternatives considered
 
 **持久化 MCP URL 和登录凭证。** 网关需要业务会话元数据，持久化凭证也会脱离其所属登录生命周期，因此不采用。
 
 **市场插件读取 GEA 登录内部状态。** 这会让仓库耦合到私有状态，并把系统凭证暴露给登录所有者之外的代码。采用受控 fetch 能力保留凭证归属。
+
+**用官方 MCP 连接管理器替换受控桥。** 它的公开配置持有 URL 或 stdio 连接，不负责 GEA 的 Session 到 Consumer 执行合同。保留现有服务可避免迁移凭据或引入另一套连接及重试策略。
 
 ## Consequences
 
