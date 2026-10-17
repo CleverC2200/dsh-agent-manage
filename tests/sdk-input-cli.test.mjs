@@ -13,19 +13,26 @@ const supported = JSON.parse(readFileSync(new URL('../../dsh-gea-plugin/scripts/
 const alpha = supported.find(core => core.version === '0.2.1-alpha.1')
 const rc = supported.find(core => core.version === '0.2.0-rc.2')
 
-let checkout
+let checkout, selected
 before(() => {
   checkout = mkdtempSync(join(tmpdir(), 'manage-sdk-input-'))
-  const result = spawnSync('git', ['clone', '--quiet', '--no-hardlinks', '--no-checkout', resolve(process.env.DSH_CORE_CHECKOUT ?? '../../official-latest-standard'), checkout], {
+  const source = resolve(process.env.DSH_CORE_CHECKOUT ?? '../../official-latest-standard')
+  const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: source, encoding: 'utf8' })
+  assert.equal(head.status, 0, head.stderr)
+  selected = supported.find(core => core.head === head.stdout.trim())
+  assert.ok(selected, 'selected source must be registered')
+  const result = spawnSync('git', ['clone', '--quiet', '--no-hardlinks', '--no-checkout', source, checkout], {
     encoding: 'utf8'
   })
   assert.equal(result.status, 0, result.stderr)
-  assert.equal(spawnSync('git', ['checkout', '--quiet', '--detach', alpha.head], { cwd: checkout }).status, 0)
+  assert.equal(spawnSync('git', ['checkout', '--quiet', '--detach', selected.head], { cwd: checkout }).status, 0)
 })
 after(() => rmSync(checkout, { recursive: true, force: true }))
 
 test('unprepared fixed Core refuses SDK verification without creating outputs', () => {
-  const result = spawnSync(process.execPath, ['scripts/prepare-official-sdk.mjs', '--core', checkout, '--consumer', process.cwd(), '--core-head', alpha.head], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['scripts/prepare-official-sdk.mjs', '--core', checkout, '--consumer', process.cwd(), '--core-head', selected.head], {
+    encoding: 'utf8'
+  })
   assert.notEqual(result.status, 0)
   assert.match(result.stderr, /SDK_MATERIAL_REQUIRED/)
   assert.equal(existsSync(join(checkout, 'node_modules')), false)
@@ -73,7 +80,7 @@ test('registered rc.2 source is admitted only when the caller binds its matching
     assert.throws(() => verifyOfficialSource(checkout, { coreHead: '0'.repeat(40) }), /SDK_CORE_UNSUPPORTED/)
     assert.equal(existsSync(join(checkout, 'node_modules')), false)
   } finally {
-    assert.equal(spawnSync('git', ['checkout', '--quiet', '--detach', alpha.head], { cwd: checkout }).status, 0)
+    assert.equal(spawnSync('git', ['checkout', '--quiet', '--detach', selected.head], { cwd: checkout }).status, 0)
   }
 })
 
@@ -82,7 +89,7 @@ test('changed original lock is refused before consumer installation or SDK prepa
   const original = readFileSync(lock)
   try {
     writeFileSync(lock, Buffer.concat([original, Buffer.from('\n# unauthorized lock change\n')]))
-    assert.throws(() => verifyOfficialSource(checkout, { coreHead: alpha.head }), /SDK_LOCK_MISMATCH/)
+    assert.throws(() => verifyOfficialSource(checkout, { coreHead: selected.head }), /SDK_LOCK_MISMATCH/)
     assert.equal(existsSync(join(checkout, 'node_modules')), false)
   } finally {
     writeFileSync(lock, original)
@@ -94,17 +101,20 @@ test('SDK applicability follows selected Core package identity while existing pa
   mkdirSync(consumer)
   const alias = '@deepseek-ai/dsh-tool-schedule'
   const target = '../../official-latest-standard/packages/schedule/tool-schedule/lib/types/index.d.ts'
-  writeFileSync(join(consumer, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: { [alias]: [target] } } }))
-  assert.throws(() => verifyOfficialSDK({ core: checkout, consumer, coreHead: alpha.head }), /SDK_MATERIAL_REQUIRED/)
+  const presentAlias = selected.version === '0.2.1-alpha.1' ? alias : '@deepseek-ai/cordis'
+  const presentTarget = selected.version === '0.2.1-alpha.1' ? target : '../../official-latest-standard/vendor/cordis/lib/types/index.d.ts'
+  writeFileSync(join(consumer, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: { [presentAlias]: [presentTarget] } } }))
+  assert.throws(() => verifyOfficialSDK({ core: checkout, consumer, coreHead: selected.head }), /SDK_MATERIAL_REQUIRED/)
   assert.equal(spawnSync('git', ['checkout', '--quiet', '--detach', rc.head], { cwd: checkout }).status, 0)
   try {
+    writeFileSync(join(consumer, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: { [alias]: [target] } } }))
     const receipt = verifyOfficialSDK({ core: checkout, consumer, coreHead: rc.head })
     assert.deepEqual(receipt.notApplicable, [{ alias, path: target, reason: 'package absent from the selected fixed Core Git source' }])
     assert.equal(receipt.artifacts.length, 0)
     writeFileSync(join(consumer, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: { '@deepseek-ai/dsh-schedule': [target] } } }))
     assert.throws(() => verifyOfficialSDK({ core: checkout, consumer, coreHead: rc.head }), /SDK_PACKAGE_PATH_MISMATCH/)
   } finally {
-    assert.equal(spawnSync('git', ['checkout', '--quiet', '--detach', alpha.head], { cwd: checkout }).status, 0)
+    assert.equal(spawnSync('git', ['checkout', '--quiet', '--detach', selected.head], { cwd: checkout }).status, 0)
   }
 })
 
@@ -113,7 +123,7 @@ test('checkout line-ending conversion is refused rather than normalizing the ori
   const original = readFileSync(lock)
   try {
     writeFileSync(lock, original.toString().replace(/\n/g, '\r\n'))
-    assert.throws(() => verifyOfficialSource(checkout, { coreHead: alpha.head }), /SDK_LOCK_MISMATCH/)
+    assert.throws(() => verifyOfficialSource(checkout, { coreHead: selected.head }), /SDK_LOCK_MISMATCH/)
   } finally {
     writeFileSync(lock, original)
   }
@@ -144,7 +154,7 @@ test('cold SDK clone preserves lock bytes even when the runner defaults to CRLF'
     git(['clone', '--quiet', upstream, ordinary], fixture)
     assert.equal(readFileSync(join(ordinary, 'pnpm-lock.yaml'), 'utf8'), 'lockfileVersion: 9.0\r\n')
     // An unregistered source must stop before installation; its clone still exposes the checkout policy.
-    assert.throws(() => prepareOfficialSDK({ core: owned, consumer: process.cwd(), source: upstream, coreHead: alpha.head }), /SDK_COMMAND_FAILED/)
+    assert.throws(() => prepareOfficialSDK({ core: owned, consumer: process.cwd(), source: upstream, coreHead: selected.head }), /SDK_COMMAND_FAILED/)
     assert.equal(git(['config', '--local', '--get', 'core.autocrlf'], owned), 'false')
     git(['checkout', '--quiet', '--detach', head], owned)
     assert.equal(readFileSync(join(owned, 'pnpm-lock.yaml'), 'utf8'), 'lockfileVersion: 9.0\n')
@@ -174,10 +184,10 @@ test('omitted Core head selects the registered current adaptation while explicit
   const current = JSON.parse(readFileSync(new URL('../../dsh-gea-plugin/scripts/current-core.json', import.meta.url), 'utf8'))
   const defaultCore = supported.find(core => core.head === current.adaptation)
   assert.ok(defaultCore, 'current adaptation must have a registered source and toolchain')
-  assert.notEqual(defaultCore.head, alpha.head)
-  const observed = verifyOfficialSource(checkout, { coreHead: alpha.head })
-  assert.equal(observed.commit, alpha.head)
-  assert.equal(observed.packageManager, alpha.packageManager)
+  assert.notEqual(defaultCore.head, selected.head)
+  const observed = verifyOfficialSource(checkout, { coreHead: selected.head })
+  assert.equal(observed.commit, selected.head)
+  assert.equal(observed.packageManager, selected.packageManager)
   assert.throws(() => verifyOfficialSource(checkout), /SDK_CORE_MISMATCH/)
   assert.throws(() => verifyOfficialSDK({ core: checkout, consumer: process.cwd() }), /SDK_CORE_MISMATCH/)
   const owner = spawnSync('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], { cwd: checkout })
