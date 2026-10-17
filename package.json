@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
-  "description": "Configure personal Agents, Skills and MCP connections for DeepSeek Harness, publish native presets, and preserve source import, synchronization and host-owned runtime capabilities.",
-  "version": "0.6.3-company.17",
+  "description": "配置个人智能体、技能和 MCP 连接，管理原生预设与资源。",
+  "version": "0.6.3-company.18",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -42,7 +42,8 @@
     "./standard-preset": {
       "types": "./lib/types/runtime/standard-preset.d.ts",
       "default": "./lib/runtime/standard-preset.js"
-    }
+    },
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib",
@@ -54,7 +55,8 @@
     "README.zh.md",
     "business-resources",
     "src/inventory-compute",
-    "src/aps-compute"
+    "src/aps-compute",
+    "locale/"
   ],
   "scripts": {
     "typecheck": "node scripts/generate-plugin-package-version.mjs --check && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
