@@ -30,6 +30,10 @@ function run(command, args, cwd = process.cwd()) {
   if (result.error || result.status !== 0)
     refuse('QUALITY_COMMAND_FAILED', `${command} ${args.join(' ')} exited ${result.status}: ${result.error?.message ?? result.signal ?? 'no exit result'}`)
 }
+function build() {
+  run(process.execPath, [resolve('scripts/generate-plugin-package-version.mjs'), '--check'])
+  run('corepack', ['pnpm', 'run', 'build'])
+}
 try {
   if (values['final-group-sha256'] !== undefined) {
     if (!/^[a-f0-9]{64}$/.test(values['final-group-sha256'])) refuse('CANDIDATE_FINAL_GROUP_REQUIRED', 'original bytes SHA256 required')
@@ -125,7 +129,7 @@ try {
       const checks = await runQualityChecks(
         phase === 'business-profile'
           ? [
-              { name: 'static', execute: () => run('corepack', ['pnpm', 'check:static']) },
+              { name: 'static', execute: () => run('corepack', ['pnpm', 'run', 'check:static:ci']) },
               {
                 name: 'business-profile',
                 execute: () =>
@@ -144,12 +148,12 @@ try {
                 name: 'admission',
                 execute: () => run('corepack', ['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.preset-integration.config.ts', 'tests/business-admission-gea.test.ts'])
               },
-              { name: 'build', execute: () => run('corepack', ['pnpm', 'build']) }
+              { name: 'build', execute: build }
             ]
           : [
-              { name: 'check:static', execute: () => run('corepack', ['pnpm', 'run', 'check:static']) },
+              { name: 'check:static', execute: () => run('corepack', ['pnpm', 'run', 'check:static:ci']) },
               { name: 'capabilities', execute: () => run(process.execPath, [resolve('scripts/check-preset-capabilities.mjs'), '--plan', planFile]) },
-              { name: 'build', execute: () => run('corepack', ['pnpm', 'run', 'build']) },
+              { name: 'build', execute: build },
               {
                 name: 'required-and-affected',
                 execute: () => {
