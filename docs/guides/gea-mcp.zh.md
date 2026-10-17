@@ -6,10 +6,12 @@ GEA Host 保留登录、凭据和业务授权。Manage 在当前登录代际中�
 
 模型先用 `inspect_cube_model` 按业务关键词或实际模型查看说明，读取 View 的当前 `aliasMember`，再按原 Schema 调用 `query_business_data`。一次调用只查询一个底层模型；`action=query`、`response_mode=inline_complete`。Host 用原业务和传输会话读取结果制品，核原文摘要、具名数据集、行数及分页；不会改用旧 Cube、任意 SQL 或存储地址。模型接口仍只有两个方法。
 
-服务端授权与模型成员发布均以真实回执为准。`DATA_QUERY_MEMBER_NOT_PUBLISHED` 保留原码并停止本轮查询，不能把它当作参数格式错误反复修改重试。工具可发现、说明可见和真实业务查询成功分别验收。
+服务端授权与模型成员发布均以真实回执为准。`DATA_QUERY_MEMBER_NOT_PUBLISHED` 保留原码和本次失败，独立合法查询仍可执行；不能把它当作参数格式错误自动修改重试。工具可发现、说明可见和真实业务查询成功分别验收。
 
 退出、切账号及切环境时先取消旧调用再释放工具；新的登录代际重新发现。取消、拒权或发现失败不自动重建业务会话。旧 `gea_gateway_catalog`、`gea_cube_query`、`gea_module_mcp` 已退场；历史 Session、草稿和证据保留。
 
-GEA 通过 `geaMcp.identitySignal()` 投影当前身份代际。同身份资源刷新先准备新结果，期间保留现有 Schema。Core 的串行创建事件与公开提示组装 interface 等待 Schema 发布，覆盖业务首轮请求。身份变化先取消旧调用并退役其 Schema，再重新发现；资源刷新不重建业务 Session。
+GEA 通过 `geaMcp.identitySignal()` 投影当前身份代际。同身份资源刷新先准备新结果，期间保留仍获授权的 Schema。Core 公开提示组装接口等待正在进行的发布，覆盖业务首轮请求，注册成功后重新收集新 Schema。普通发现失败时不发布不可用的 GEA 方法，模型及其余工具可继续运行；旧发现错误不再否决后续组装，也不删除同身份下仍获授权的工具。
+
+发现失败后，Core 的 `agent/inbox/inserted` 新输入事件为获准 Agent 沿既有 GEA 服务重新发现元数据。并发输入与组装共用正在进行的发现，重新组装本身不触发重试；不增加后台重试定时器、次数预算或超时。调用方取消只结束自己的就绪等待，不中止共享发现。发布及清理异常保留原失败和回滚处理。身份变化先取消旧调用并退役其 Schema，再重新发现；恢复不重放业务查询，也不重建已撤销的授权。
 
 个人 Agent 可选择一个可信的已安装 Cube 引用。Host 沿实际 Core 预设 revision 反查 owner 与 Consumer，沿同一 Consumer 发布上述两项 Cube 工具及 `weknora_list_knowledge_bases`、`weknora_ask`，执行仍以当前服务端授权为准；不授予业务 profile、写入或页面动作。缺失、停用、删除或撤销的来源不能回退到其他 Consumer。见[可信引用](../../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.zh.md#可信-cube-引用)。
