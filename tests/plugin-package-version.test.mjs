@@ -13,6 +13,14 @@ const require = createRequire(import.meta.url)
 const ts = require('typescript')
 const generator = resolve('scripts/generate-plugin-package-version.mjs')
 
+test('the locale metadata candidate advances beyond the released company version', async () => {
+  const manifest = JSON.parse(await readFile('package.json', 'utf8'))
+  assert.equal(manifest.version, '0.6.3-company.19')
+
+  const source = await readFile('src/plugin-package-version.ts', 'utf8')
+  assert.match(source, /version: '0\.6\.3-company\.19'/)
+})
+
 test('compiled Host and client versions remain fixed until the next build', async t => {
   const root = await mkdtemp(join(tmpdir(), 'manage-package-version-'))
   t.after(() => rm(root, { recursive: true, force: true }))
