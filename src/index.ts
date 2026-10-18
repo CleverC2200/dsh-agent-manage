@@ -166,7 +166,12 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     // Selected identities compose the same standard declaration as orchestration.
     // Wait on that initialization fiber, never the parent Host tree.
     await standardInitialization
-    const userAgents = new UserAgents(host, resolve(dataRoot, 'user-agents.json'), catalog.runtime)
+    const userAgents = new UserAgents(
+      host,
+      resolve(dataRoot, 'user-agents.json'),
+      catalog.runtime,
+      async skill => (await catalog.readUserCatalog()).suites.find(suite => suite.skills.some(row => skill.kind === 'reference' && row.file === skill.path))?.root
+    )
     host.provide('userAgents', userAgents)
     await userAgents.load()
     host.effect(() => () => userAgents.dispose())

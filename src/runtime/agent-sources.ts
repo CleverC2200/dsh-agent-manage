@@ -44,11 +44,19 @@ const syncCommit = syncToken
       .default({})
   })
   .strict()
-type SyncEntry = { key: string; base: unknown; local: unknown; upstream: unknown; conflict: boolean }
+type SyncEntry = { key: string; base: unknown; local: unknown; upstream: unknown; conflict: boolean; localChanged: boolean; upstreamChanged: boolean }
 type SyncPlan = { agent: UserAgentConfig; source: AgentSourceBaseline; entries: SyncEntry[]; root: string; staged: Map<string, { connectionId: string; serverId: string }> }
 const same = isDeepStrictEqual
 function entry(key: string, base: unknown, local: unknown, upstream: unknown): SyncEntry {
-  return { key, base, local, upstream, conflict: !same(local, base) && !same(upstream, base) && !same(local, upstream) }
+  return {
+    key,
+    base,
+    local,
+    upstream,
+    localChanged: !same(local, base),
+    upstreamChanged: !same(upstream, base),
+    conflict: !same(local, base) && !same(upstream, base) && !same(local, upstream)
+  }
 }
 
 /** Source acquisition/discovery uses Catalog; editable snapshots and publication belong to UserAgents. */
@@ -195,15 +203,21 @@ export class AgentSources {
       const base = { ...candidate.base, skills }
       const entries: SyncEntry[] = (['name', 'description', 'prompt'] as const).map(key => entry(key, agent.source!.base[key], agent[key], base[key]))
       const skillNames = new Set([...agent.source.base.skills, ...agent.skills, ...skills].map(skill => skill.name))
-      for (const name of skillNames)
-        entries.push(
-          entry(
-            `skill:${name}`,
-            agent.source.base.skills.find(row => row.name === name) ?? null,
-            agent.skills.find(row => row.name === name) ?? null,
-            skills.find(row => row.name === name) ?? null
-          )
-        )
+      for (const name of skillNames) {
+        const baseSkill = agent.source.base.skills.find(row => row.name === name) ?? null
+        const localSkill = agent.skills.find(row => row.name === name) ?? null
+        const upstreamSkill = skills.find(row => row.name === name) ?? null
+        const [baseValue, localValue, upstreamValue] = await Promise.all([baseSkill, localSkill, upstreamSkill].map(skill => this.agents.directories.comparison(skill)))
+        entries.push({
+          key: `skill:${name}`,
+          base: baseSkill,
+          local: localSkill,
+          upstream: upstreamSkill,
+          localChanged: !same(localValue, baseValue),
+          upstreamChanged: !same(upstreamValue, baseValue),
+          conflict: !same(localValue, baseValue) && !same(upstreamValue, baseValue) && !same(localValue, upstreamValue)
+        })
+      }
       for (const key of new Set([...mcp.keys(), ...Object.keys(suite.mcp?.servers ?? {})])) {
         const old = mcp.get(key)
         const upstream = suite.mcp?.servers[key]
@@ -216,7 +230,7 @@ export class AgentSources {
       return {
         token,
         agentId: id,
-        changed: entries.some(row => !same(row.upstream, row.base)) || agent.source.lockCommit !== provenance.lockCommit || agent.source.version !== provenance.version,
+        changed: entries.some(row => row.upstreamChanged) || agent.source.lockCommit !== provenance.lockCommit || agent.source.version !== provenance.version,
         conflicts: entries
           .filter(row => row.conflict)
           .map(({ key, base, local, upstream }) => ({
@@ -257,7 +271,7 @@ export class AgentSources {
       const latest = source && (await this.discover(source)).find(row => row.resourceKey === plan.source.resourceKey)
       if (!latest?.base || latest.base.prompt !== plan.source.base.prompt) throw Error('AGENT_SOURCE_PREVIEW_STALE')
       if (
-        plan.entries.every(row => same(row.upstream, row.base)) &&
+        plan.entries.every(row => !row.upstreamChanged) &&
         current.source?.lockCommit === plan.source.lockCommit &&
         current.source?.version === plan.source.version &&
         Object.keys(resolutions).length === 0
@@ -269,13 +283,29 @@ export class AgentSources {
       for (const row of plan.entries) {
         const resolution: AgentSourceResolution | undefined = resolutions[row.key]
         if (row.conflict && !resolution) throw Error(`AGENT_SOURCE_CONFLICT_UNRESOLVED: ${row.key}`)
-        let value = same(row.local, row.base) ? row.upstream : row.local
+        let value = row.localChanged ? row.local : row.upstream
         if (resolution?.choice === 'local') value = row.local
         else if (resolution?.choice === 'upstream') value = row.upstream
         else if (resolution?.choice === 'manual') value = row.key.startsWith('mcp:') ? restoreRedactedConfig(resolution.value, row.local ?? row.base) : resolution.value
         resolved.set(row.key, value)
       }
-      const skills = agentSkills.parse([...resolved].filter(([key, value]) => key.startsWith('skill:') && value !== null).map(([, value]) => value))
+      let skills = agentSkills.parse([...resolved].filter(([key, value]) => key.startsWith('skill:') && value !== null).map(([, value]) => value))
+      for (const skill of skills) {
+        const row = plan.entries.find(row => row.key === `skill:${skill.name}`)
+        if (
+          skill.directory &&
+          ![row?.base, row?.local, row?.upstream].some(
+            value => value !== null && value !== undefined && same(z.object({ directory: z.unknown().optional() }).parse(value).directory, skill.directory)
+          )
+        )
+          throw Error('SKILL_DIRECTORY_OWNER_MISMATCH')
+      }
+      skills = skills.map(skill => {
+        const local = current.skills.find(row => row.name === skill.name)
+        return !skill.directory && local?.directory ? { ...skill, directory: local.directory } : skill
+      })
+      await this.agents.directories.preserveWork(current.skills, skills)
+      skills = await this.agents.directories.migrate(skills, current.skills)
       const references: NonNullable<AgentSourceBaseline['mcpReferences']> = []
       const oldReferences = current.source?.mcpReferences ?? []
       const oldIds = oldReferences.filter(row => !row.removed).map(row => row.connectionId)
@@ -371,7 +401,7 @@ export class AgentSources {
         content: (await this.agents.readSkill(found.name, found.provider, undefined, signal, found.path)).content
       })
     }
-    return skills
+    return this.agents.directories.migrate(skills, [], suite.root)
   }
 
   private async discover(suite: Suite): Promise<Discovered[]> {

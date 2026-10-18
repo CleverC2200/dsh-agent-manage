@@ -16,7 +16,7 @@
  */
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
-import { mkdir, open, readdir, readFile, readlink, rename, rm, stat } from 'node:fs/promises'
+import { chmod, mkdir, open, readdir, readFile, readlink, rename, rm, stat } from 'node:fs/promises'
 import { join, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { Unzip, UnzipInflate, type FlateError } from 'fflate'
@@ -396,5 +396,45 @@ export async function isDirectory(path: string): Promise<boolean> {
     return (await stat(path)).isDirectory()
   } catch {
     return false
+  }
+}
+
+export async function extractLocalZip(bytes: Uint8Array, dest: string): Promise<void> {
+  if (bytes.byteLength > ARCHIVE_MAX_BYTES) throw Error('SKILL_ARCHIVE_TOO_LARGE')
+  await mkdir(dest, { recursive: true })
+  const temporary = `${dest}.zip`
+  try {
+    const handle = await open(temporary, 'w')
+    try {
+      await handle.write(bytes)
+    } finally {
+      await handle.close()
+    }
+    await extractZip(temporary, dest)
+    await restoreZipModes(Buffer.from(bytes), dest)
+    await assertNoEscapingSymlinks(dest)
+  } finally {
+    await rm(temporary, { force: true })
+  }
+}
+
+async function restoreZipModes(bytes: Buffer, dest: string): Promise<void> {
+  let end = bytes.length - 22
+  while (end >= Math.max(0, bytes.length - 65557) && bytes.readUInt32LE(end) !== 0x06054b50) end -= 1
+  if (end < Math.max(0, bytes.length - 65557)) throw Error('INVALID_ZIP_DIRECTORY')
+  let offset = bytes.readUInt32LE(end + 16)
+  const count = bytes.readUInt16LE(end + 10)
+  for (let index = 0; index < count; index++) {
+    if (offset + 46 > bytes.length || bytes.readUInt32LE(offset) !== 0x02014b50) throw Error('INVALID_ZIP_DIRECTORY')
+    const length = bytes.readUInt16LE(offset + 28)
+    const name = bytes
+      .subarray(offset + 46, offset + 46 + length)
+      .toString('utf8')
+      .replaceAll('\\', '/')
+    assertSafeEntryName(name)
+    const mode = bytes.readUInt32LE(offset + 38) >>> 16
+    if ((mode & 0o170000) === 0o120000) throw Error('SKILL_ZIP_SYMLINK_UNSUPPORTED')
+    if (bytes[offset + 5] === 3 && (mode & 0o170000) === 0o100000) await chmod(join(dest, name), mode & 0o777)
+    offset += 46 + length + bytes.readUInt16LE(offset + 30) + bytes.readUInt16LE(offset + 32)
   }
 }

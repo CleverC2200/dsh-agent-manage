@@ -7,8 +7,9 @@ import type { AgentSourceBaseline } from '../contracts/agent-sources.js'
 import type { UserAgentConfig, UserAgentView, UserAgentSkillOption } from '../contracts/user-agents.js'
 import type { RuntimeManagement } from '../application/runtime-management.js'
 import type {} from './user-agent-cube.js'
-import { agentSkills, captureAgentSkills } from './agent-skills.js'
+import { agentSkills, captureAgentSkills, ownedSkillEdits } from './agent-skills.js'
 export { agentSkills } from './agent-skills.js'
+import { SkillDirectories } from './skill-directories.js'
 import { AgentMcp } from './agent-mcp.js'
 import { composeStandardPreset } from './standard-preset.js'
 
@@ -60,12 +61,28 @@ export class UserAgents {
   private readonly listeners = new Set<() => void>()
 
   readonly mcp?: AgentMcp
+  readonly directories: SkillDirectories
 
   constructor(
     private readonly ctx: Context,
     private readonly file: string,
-    runtime?: RuntimeManagement
+    runtime?: RuntimeManagement,
+    sourceRoot?: (skill: UserAgentConfig['skills'][number]) => Promise<string | undefined>
   ) {
+    this.directories = new SkillDirectories(
+      ctx,
+      `${file}.skills`,
+      async id => {
+        const agent = this.agents.find(row => row.id === id)
+        if (agent) return this.view(agent)
+        const plugin = (await this.pluginAgents()).find(row => row.id === id)
+        if (!plugin) throw Error('USER_AGENT_NOT_FOUND')
+        return plugin
+      },
+      (id, skills, revision) =>
+        this.agents.some(row => row.id === id) ? this.commitDirectorySkills(id, skills, revision) : this.ctx.agentResources.saveDirectorySkills(id, skills, revision),
+      sourceRoot
+    )
     if (runtime) this.mcp = new AgentMcp(ctx, dirname(file), runtime)
   }
 
@@ -76,6 +93,15 @@ export class UserAgents {
     } catch (error) {
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     }
+    for (const agent of this.agents) {
+      try {
+        agent.skills = await this.directories.migrate(agent.skills)
+        if (agent.source) agent.source.base.skills = await this.directories.migrate(agent.source.base.skills)
+      } catch (error) {
+        this.errors.set(agent.id, error instanceof Error ? error.message : String(error))
+      }
+    }
+    if (this.agents.length) await this.persist(this.agents)
     this.syncCubeGrants()
     await this.mcp?.load(this.agents)
     // During Host activation only register, never await the whole Loader tree.
@@ -260,7 +286,7 @@ export class UserAgents {
   async copyPlugin(sourceRef: string): Promise<UserAgentView> {
     const copy = await this.ctx.agentResources.copyable(sourceRef)
     const value = saveAgent.parse({ name: copy.name, description: copy.description, prompt: copy.prompt, enabled: true })
-    const skills = await captureAgentSkills(this.ctx, agentSkills.parse(copy.skills))
+    const skills = await this.directories.clone(await captureAgentSkills(this.ctx, agentSkills.parse(copy.skills)))
     return this.write(async () => {
       const agent: UserAgentConfig = { ...value, id: randomUUID(), revision: 1, skills, ...(copy.cube ? { cube: copy.cube } : {}) }
       const next = [...this.agents, agent]
@@ -285,16 +311,21 @@ export class UserAgents {
   }
 
   saveSkills(id: string, input: unknown): Promise<UserAgentView> {
+    return this.updateSkills(id, input)
+  }
+
+  private updateSkills(id: string, input: unknown): Promise<UserAgentView> {
     const parsed = agentSkills.parse(input)
     return this.write(async () => {
-      let skills = parsed
+      const previous = this.find(id)
+      let skills = ownedSkillEdits(parsed, previous.skills)
       let problem: string | undefined
       try {
-        skills = await captureAgentSkills(this.ctx, parsed)
+        skills = await this.directories.migrate(await captureAgentSkills(this.ctx, skills), previous.skills)
       } catch (error) {
+        if (!(error instanceof Error && error.message.startsWith('AGENT_SKILL_SOURCE_MISSING'))) throw error
         problem = error instanceof Error ? error.message : String(error)
       }
-      const previous = this.find(id)
       const agent = { ...previous, skills, revision: previous.revision + 1 }
       const next = this.agents.map(row => (row.id === id ? agent : row))
       await this.persist(next)
@@ -304,6 +335,39 @@ export class UserAgents {
       if (problem) this.errors.set(agent.id, problem)
       else if (agent.enabled) await this.publish(agent, true)
       return this.view(agent)
+    })
+  }
+
+  private commitDirectorySkills(id: string, skills: UserAgentConfig['skills'], expectedRevision?: number): Promise<UserAgentView> {
+    return this.write(async () => {
+      const previous = this.find(id)
+      if (expectedRevision !== undefined && previous.revision !== expectedRevision) throw Error('SKILL_EDIT_CONFLICT')
+      const agent = { ...previous, skills, revision: previous.revision + 1 }
+      const definition = await this.prepare(agent)
+      let swapped = false
+      try {
+        if (agent.enabled) {
+          swapped = true
+          await this.withdraw(id)
+          this.releases.set(id, await this.ctx.agentPresets.register(definition))
+          const candidate = await this.ctx.agentPresets.resolve(this.preset(id))
+          if (candidate.broken) throw Error(candidate.broken)
+        }
+        const next = this.agents.map(row => (row.id === id ? agent : row))
+        await this.persist(next)
+        this.agents = next
+        if (agent.enabled) this.published.set(id, agent)
+        this.errors.delete(id)
+        await this.mcp?.agentsChanged(next)
+        return this.view(agent)
+      } catch (error) {
+        if (swapped) {
+          await this.withdraw(id)
+          this.releases.set(id, await this.register(previous))
+          this.published.set(id, previous)
+        }
+        throw error
+      }
     })
   }
 
@@ -404,7 +468,7 @@ export class UserAgents {
   }
 
   private async prepare(agent: UserAgentConfig) {
-    const skills = await captureAgentSkills(this.ctx, agent.skills)
+    const skills = await this.directories.migrate(await captureAgentSkills(this.ctx, agent.skills))
     const grant = this.cubeGrants.get(agent.id)
     return composeStandardPreset(
       this.ctx.agentPresets,

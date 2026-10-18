@@ -8,7 +8,7 @@ export class RequestBodyTooLarge extends Error {
 }
 
 /** Read a Fetch stream with the same bound as the existing node:http JSON routes. */
-export async function readJsonRequest(request: Request): Promise<unknown> {
+export async function readJsonRequest(request: Request, maxBytes = MAX_JSON_BODY_BYTES): Promise<unknown> {
   request.signal.throwIfAborted()
   const reader = request.body?.getReader()
   if (!reader) throw new Error('INVALID_JSON_BODY')
@@ -20,7 +20,7 @@ export async function readJsonRequest(request: Request): Promise<unknown> {
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
-      if (size > MAX_JSON_BODY_BYTES) {
+      if (size > maxBytes) {
         await reader.cancel().catch(() => {})
         throw new RequestBodyTooLarge()
       }
