@@ -74,6 +74,8 @@ Manage 为每个选中 Skill 保留完整不可变目录版本与独立的每 Ag
 
 Skill 同步比较完整 base、local、upstream 目录的文件字节、增删与可执行属性。现有每 Skill 冲突选择保留所选完整版本。来源 checkout 刷新不能改变已发布版本或清空工作副本。来源 MCP 变更使用独立连接身份，原始 config 继续作为 Host 基线，个人修改沿既有 runtime override 保存。Agent 列表及来源元数据只保存引用，MCP 冲突预览经过脱敏。
 
+直接导入的 Git Skill 保留 URL、所选路径、commit 和完整来源基线。文件级预览与提交复用 AgentSources 的比较和冲突解析。无冲突文件变化自动合并，保留本地、采用上游和经校验的手动结果由用户选择。未应用工作副本阻止替换；仅推进本地选择的来源基线时保留原工作副本。目录和 ZIP 导入仍是个人快照。
+
 `UserAgents.syncSource` 先解析声明、校验依赖，再注册并 resolve 稳定身份后持久保存。Core 没有原子替换操作，替换失败沿补偿恢复，不发布独立候选身份。发布或持久写失败恢复旧声明和原持久配置。声明释放失败保留句柄，补偿、重试或卸载时继续清理。旧 live Core revision 保留原来源连接；停用、删除 Agent 或明确移除来源仍撤销 schema 和 dispatch。默认选择、Session 和草稿继续归 Core。重启发布已提交的当前配置；精确历史 revision 冷恢复仍受上一节的 Core 合同限制。
 
 ## 可信 Cube 引用

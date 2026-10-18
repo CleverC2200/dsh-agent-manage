@@ -5,9 +5,18 @@ export interface SkillDirectorySnapshot {
   bundle: string
   entry: string
 }
+export interface SkillGitSource {
+  kind: 'git'
+  url: string
+  branch?: string
+  path: string
+  commit: string
+  base: SkillDirectorySnapshot
+}
 export interface SkillDirectoryVersion extends SkillDirectorySnapshot {
   id: string
   previous?: SkillDirectorySnapshot
+  source?: SkillGitSource
 }
 export type UserAgentSkill =
   | { kind: 'reference'; name: string; provider: string; path?: string; enabled: boolean; content?: string; directory?: SkillDirectoryVersion }

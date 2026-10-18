@@ -1,3 +1,5 @@
+import type { AgentSourceConflict } from './agent-sources.js'
+
 export interface SkillDirectoryCandidate {
   name: string
   description: string
@@ -15,6 +17,7 @@ export interface SkillDirectoryView {
   entry: string
   revision: number
   files: Array<{ path: string; size: number; binary: boolean; executable: boolean }>
+  source?: { kind: 'git'; url: string; branch?: string; commit: string }
   changes: Array<{ path: string; kind: 'added' | 'modified' | 'deleted' }>
 }
 
@@ -29,5 +32,17 @@ export const SKILL_DIRECTORY_ROUTES = {
   delete: '/api/agent-manage/agents/skills/directory/delete',
   apply: '/api/agent-manage/agents/skills/directory/apply',
   reset: '/api/agent-manage/agents/skills/directory/reset',
-  restore: '/api/agent-manage/agents/skills/directory/restore'
+  restore: '/api/agent-manage/agents/skills/directory/restore',
+  sourcePreview: '/api/agent-manage/agents/skills/directory/source-preview',
+  sourceCommit: '/api/agent-manage/agents/skills/directory/source-commit',
+  sourceCancel: '/api/agent-manage/agents/skills/directory/source-cancel'
 } as const
+
+export interface SkillDirectorySourcePreview {
+  token: string
+  id: string
+  name: string
+  changed: boolean
+  commit: string
+  conflicts: AgentSourceConflict[]
+}

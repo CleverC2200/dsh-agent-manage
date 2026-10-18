@@ -93,7 +93,22 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
       })
     )
   }
-  for (const action of ['acquire', 'import', 'cancel', 'open', 'read', 'write', 'rename', 'delete', 'apply', 'reset', 'restore'] as const) {
+  for (const action of [
+    'acquire',
+    'import',
+    'cancel',
+    'open',
+    'read',
+    'write',
+    'rename',
+    'delete',
+    'apply',
+    'reset',
+    'restore',
+    'sourcePreview',
+    'sourceCommit',
+    'sourceCancel'
+  ] as const) {
     host.effect(() =>
       host.connection.fetch.register({
         path: SKILL_DIRECTORY_ROUTES[action],
@@ -102,7 +117,12 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
         fetch: async request => {
           try {
             if (!isSameOriginRequest(request)) return Response.json({ error: 'CROSS_ORIGIN_REQUEST' }, { status: 403 })
-            const limit = action === 'acquire' ? Math.ceil((ARCHIVE_MAX_BYTES * 4) / 3) + 65536 : action === 'write' ? Math.ceil((ARCHIVE_MAX_ENTRY_BYTES * 4) / 3) + 65536 : 65536
+            const limit =
+              action === 'acquire'
+                ? Math.ceil((ARCHIVE_MAX_BYTES * 4) / 3) + 65536
+                : action === 'write' || action === 'sourceCommit'
+                  ? Math.ceil((ARCHIVE_MAX_ENTRY_BYTES * 4) / 3) + 65536
+                  : 65536
             const input = await readJsonRequest(request, limit)
             const result = action === 'acquire' ? await agents.directories.acquire(input, request.signal) : await agents.directories[action](input)
             return Response.json(result ?? null, { headers: { 'cache-control': 'no-store' } })

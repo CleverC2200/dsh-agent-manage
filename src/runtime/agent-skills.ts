@@ -4,7 +4,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { UserAgentSkill } from '../contracts/user-agents.js'
 
 const snapshot = z.object({ root: z.string().min(1), bundle: z.string().min(1), entry: z.string() }).strict()
-const directory = snapshot.extend({ id: z.uuid(), previous: snapshot.optional() }).strict()
+const gitSource = z.object({ kind: z.literal('git'), url: z.url(), branch: z.string().optional(), path: z.string(), commit: z.string(), base: snapshot }).strict()
+const directory = snapshot.extend({ id: z.uuid(), previous: snapshot.optional(), source: gitSource.optional() }).strict()
 
 export const agentSkills = z
   .array(

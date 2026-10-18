@@ -5,13 +5,14 @@ import type { Catalog } from '../application/catalog.js'
 import { componentPath, defaultMarkdownResources, resourceText } from '../catalog/component-files.js'
 import { canonicalGitUrl } from '../catalog/scan-resolvers.js'
 import { expandHome } from '../catalog/paths.js'
-import type { AgentSourceBaseline, AgentSourceCandidate, AgentSourceView, AgentSourcePreview, AgentSourceResolution } from '../contracts/agent-sources.js'
+import type { AgentSourceBaseline, AgentSourceCandidate, AgentSourceView, AgentSourcePreview } from '../contracts/agent-sources.js'
 import type { UserAgentConfig, UserAgentSkill } from '../contracts/user-agents.js'
 import { resolveSourceKind, type Suite } from '../model/types.js'
 import { redactMcpConfig } from './mcp-redaction.js'
 import { restoreRedactedConfig } from './server-config.js'
 import { agentSkills } from './user-agents.js'
 import { parseAgentRole } from './agent-role-router.js'
+import { sourceResolutions, sourceSyncEntry as entry, resolveSourceEntry, type SourceSyncEntry as SyncEntry } from './source-sync.js'
 import type { UserAgents } from './user-agents.js'
 
 const acquisition = z
@@ -32,32 +33,11 @@ const syncTarget = z.object({ id: z.uuid() }).strict()
 const syncToken = z.object({ token: z.uuid() }).strict()
 const syncCommit = syncToken
   .extend({
-    resolutions: z
-      .record(
-        z.string(),
-        z.discriminatedUnion('choice', [
-          z.object({ choice: z.literal('local') }).strict(),
-          z.object({ choice: z.literal('upstream') }).strict(),
-          z.object({ choice: z.literal('manual'), value: z.unknown() }).strict()
-        ])
-      )
-      .default({})
+    resolutions: sourceResolutions
   })
   .strict()
-type SyncEntry = { key: string; base: unknown; local: unknown; upstream: unknown; conflict: boolean; localChanged: boolean; upstreamChanged: boolean }
 type SyncPlan = { agent: UserAgentConfig; source: AgentSourceBaseline; entries: SyncEntry[]; root: string; staged: Map<string, { connectionId: string; serverId: string }> }
 const same = isDeepStrictEqual
-function entry(key: string, base: unknown, local: unknown, upstream: unknown): SyncEntry {
-  return {
-    key,
-    base,
-    local,
-    upstream,
-    localChanged: !same(local, base),
-    upstreamChanged: !same(upstream, base),
-    conflict: !same(local, base) && !same(upstream, base) && !same(local, upstream)
-  }
-}
 
 /** Source acquisition/discovery uses Catalog; editable snapshots and publication belong to UserAgents. */
 export class AgentSources {
@@ -279,16 +259,12 @@ export class AgentSources {
         this.plans.delete(token)
         return current
       }
-      const resolved = new Map<string, unknown>()
-      for (const row of plan.entries) {
-        const resolution: AgentSourceResolution | undefined = resolutions[row.key]
-        if (row.conflict && !resolution) throw Error(`AGENT_SOURCE_CONFLICT_UNRESOLVED: ${row.key}`)
-        let value = row.localChanged ? row.local : row.upstream
-        if (resolution?.choice === 'local') value = row.local
-        else if (resolution?.choice === 'upstream') value = row.upstream
-        else if (resolution?.choice === 'manual') value = row.key.startsWith('mcp:') ? restoreRedactedConfig(resolution.value, row.local ?? row.base) : resolution.value
-        resolved.set(row.key, value)
-      }
+      const resolved = new Map(
+        plan.entries.map(row => [
+          row.key,
+          resolveSourceEntry(row, resolutions[row.key], value => (row.key.startsWith('mcp:') ? restoreRedactedConfig(value, row.local ?? row.base) : value))
+        ])
+      )
       let skills = agentSkills.parse([...resolved].filter(([key, value]) => key.startsWith('skill:') && value !== null).map(([, value]) => value))
       for (const skill of skills) {
         const row = plan.entries.find(row => row.key === `skill:${skill.name}`)

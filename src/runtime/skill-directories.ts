@@ -8,8 +8,8 @@ import { z } from 'zod'
 import { dump } from 'js-yaml'
 import { parseDocument } from 'yaml'
 import { ARCHIVE_MAX_BYTES, ARCHIVE_MAX_ENTRIES, ARCHIVE_MAX_ENTRY_BYTES, ARCHIVE_MAX_EXTRACTED_BYTES, extractLocalZip } from '../catalog/archive.js'
-import { gitClone } from '../catalog/git.js'
-import type { SkillDirectorySnapshot, UserAgentSkill, UserAgentView } from '../contracts/user-agents.js'
+import { gitClone, gitHead } from '../catalog/git.js'
+import type { SkillDirectorySnapshot, SkillGitSource, UserAgentSkill, UserAgentView } from '../contracts/user-agents.js'
 
 const sourceInput = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('local'), path: z.string().min(1) }).strict(),
@@ -22,14 +22,19 @@ const versionInput = targetInput.extend({ revision: z.number().int().nonnegative
 const fileInput = targetInput.extend({ path: z.string().min(1) }).strict()
 const stateSchema = z.object({ revision: z.number().int().nonnegative(), root: z.string() })
 
-import type { SkillDirectoryCandidate, SkillDirectoryAcquisition, SkillDirectoryView } from '../contracts/skill-directories.js'
+import { sourceResolutions, sourceSyncEntry, resolveSourceEntry, type SourceSyncEntry } from './source-sync.js'
+import type { SkillDirectoryCandidate, SkillDirectoryAcquisition, SkillDirectoryView, SkillDirectorySourcePreview } from '../contracts/skill-directories.js'
 
 type Entry = { data: Buffer; mode: number }
 type Tree = Map<string, Entry>
 
 export class SkillDirectories {
   private pending: Promise<unknown> = Promise.resolve()
-  private readonly acquisitions = new Map<string, { root: string; candidates: SkillDirectoryCandidate[] }>()
+  private readonly acquisitions = new Map<string, { root: string; candidates: SkillDirectoryCandidate[]; source?: Omit<SkillGitSource, 'path' | 'base'> }>()
+  private readonly sourcePlans = new Map<
+    string,
+    { id: string; name: string; agentRevision: number; workRevision: number; work: Tree; upstream: SkillDirectorySnapshot; source: SkillGitSource; entries: SourceSyncEntry[] }
+  >()
   constructor(
     private readonly ctx: Pick<Context, 'skills'>,
     private readonly store: string,
@@ -42,6 +47,7 @@ export class SkillDirectories {
     const value = sourceInput.parse(input)
     const token = randomUUID()
     const root = join(this.store, 'imports', token)
+    let source: Omit<SkillGitSource, 'path' | 'base'> | undefined
     try {
       signal?.throwIfAborted()
       await mkdir(dirname(root), { recursive: true })
@@ -51,8 +57,11 @@ export class SkillDirectories {
         if (bytes.length > ARCHIVE_MAX_BYTES) throw Error('SKILL_ARCHIVE_TOO_LARGE')
         await extractLocalZip(bytes, root)
       } else {
-        if (!['https:', 'ssh:', 'file:'].includes(new URL(value.url).protocol)) throw Error('SKILL_GIT_PROTOCOL_REJECTED')
+        const url = new URL(value.url)
+        if (url.password || (url.protocol === 'https:' && url.username)) throw Error('SKILL_GIT_CREDENTIAL_URL_REJECTED')
+        if (!['https:', 'ssh:', 'file:'].includes(url.protocol)) throw Error('SKILL_GIT_PROTOCOL_REJECTED')
         await gitClone(value.url, value.branch, root)
+        source = { kind: 'git', url: value.url, ...(value.branch ? { branch: value.branch } : {}), commit: await gitHead(root) }
         await rm(join(root, '.git'), { recursive: true, force: true })
       }
       signal?.throwIfAborted()
@@ -73,7 +82,7 @@ export class SkillDirectories {
       }
       await discover(root)
       if (!candidates.length) throw Error(`SKILL_DIRECTORY_INVALID: ${errors.join('; ') || 'SKILL.md not found'}`)
-      this.acquisitions.set(token, { root, candidates })
+      this.acquisitions.set(token, { root, candidates, source })
       return { token, candidates, errors }
     } catch (error) {
       await rm(root, { recursive: true, force: true })
@@ -110,7 +119,7 @@ export class SkillDirectories {
         description: definition.description,
         content: definition.content,
         enabled: true,
-        directory: { id, ...snapshot }
+        directory: { id, ...snapshot, ...(source.source ? { source: { ...source.source, path: value.path, base: snapshot } } : {}) }
       }
       const skills = [...agent.skills.filter(row => row.name !== skill.name), skill]
       await this.preserveWork(agent.skills, skills)
@@ -223,7 +232,9 @@ export class SkillDirectories {
       await mkdir(dirname(path), { recursive: true })
       const temporary = `${path}.${randomUUID()}.tmp`
       const mode = (await stat(path).catch(() => undefined))?.mode
-      await writeFile(temporary, Buffer.from(value.data, value.encoding), { mode: mode ?? 0o600 })
+      const bytes = Buffer.from(value.data, value.encoding)
+      if (bytes.length > ARCHIVE_MAX_ENTRY_BYTES) throw Error('SKILL_FILE_TOO_LARGE')
+      await writeFile(temporary, bytes, { mode: mode ?? 0o600 })
       await rename(temporary, path)
       await this.advance(target)
       return this.openTarget(value)
@@ -332,6 +343,114 @@ export class SkillDirectories {
     })
   }
 
+  sourcePreview(input: unknown): Promise<SkillDirectorySourcePreview> {
+    const value = targetInput.parse(input)
+    return this.serialize(async () => {
+      const target = await this.target(value)
+      const source = target.directory.source
+      if (!source) throw Error('SKILL_SOURCE_NOT_CONFIGURED')
+      for (const [token, plan] of this.sourcePlans)
+        if (plan.id === value.id && plan.name === value.name) {
+          this.sourcePlans.delete(token)
+          await rm(plan.upstream.bundle, { recursive: true, force: true })
+        }
+      const acquired = await this.acquire({ kind: 'git', url: source.url, ...(source.branch ? { branch: source.branch } : {}) })
+      const staged = this.acquisitions.get(acquired.token)!
+      const bundle = join(dirname(dirname(target.directory.bundle)), 'versions', randomUUID())
+      try {
+        if (!staged.candidates.some(row => row.path === source.path && row.name === value.name) || !staged.source) throw Error('SKILL_SOURCE_ENTRY_MISSING')
+        await copySafe(staged.root, join(bundle, 'tree'))
+        const upstream = snapshotFor(bundle, source.path)
+        await this.validateRoot(upstream.root, value.name, join(bundle, 'tree'))
+        const [base, local, next, work] = await Promise.all([
+          readTree(join(source.base.bundle, 'tree')),
+          readTree(join(target.directory.bundle, 'tree')),
+          readTree(join(bundle, 'tree')),
+          readTree(target.cwd)
+        ])
+        const entries = [...new Set([...base.keys(), ...local.keys(), ...next.keys()])]
+          .sort()
+          .map(path => sourceSyncEntry(`file:${path}`, serializeFile(base.get(path)), serializeFile(local.get(path)), serializeFile(next.get(path))))
+        const token = randomUUID()
+        const updatedSource = { ...source, commit: staged.source.commit, base: upstream }
+        this.sourcePlans.set(token, { ...value, agentRevision: target.agent.revision, workRevision: target.state.revision, work, upstream, source: updatedSource, entries })
+        return {
+          token,
+          ...value,
+          changed: entries.some(row => row.upstreamChanged) || updatedSource.commit !== source.commit,
+          commit: updatedSource.commit,
+          conflicts: entries.filter(row => row.conflict).map(({ key, base, local, upstream }) => ({ key, base, local, upstream }))
+        }
+      } catch (error) {
+        await rm(bundle, { recursive: true, force: true })
+        throw error
+      } finally {
+        await this.cancel({ token: acquired.token })
+      }
+    })
+  }
+
+  sourceCommit(input: unknown): Promise<SkillDirectoryView> {
+    const value = z.object({ token: z.uuid(), resolutions: sourceResolutions }).strict().parse(input)
+    return this.serialize(async () => {
+      const plan = this.sourcePlans.get(value.token)
+      if (!plan) throw Error('SKILL_SOURCE_PREVIEW_EXPIRED')
+      const target = await this.target({ id: plan.id, name: plan.name })
+      if (target.agent.revision !== plan.agentRevision || target.state.revision !== plan.workRevision || !equalTrees(await readTree(target.cwd), plan.work))
+        throw Error('SKILL_SOURCE_PREVIEW_STALE')
+      const files: Tree = new Map()
+      for (const row of plan.entries) {
+        const resolved = resolveSourceEntry(row, value.resolutions[row.key], raw => {
+          if (raw === null) return null
+          const file = z
+            .object({ data: z.string().max(ARCHIVE_MAX_ENTRY_BYTES * 2), encoding: z.enum(['utf8', 'base64']), executable: z.boolean() })
+            .strict()
+            .parse(raw)
+          const bytes = Buffer.from(file.data, file.encoding)
+          if (bytes.length > ARCHIVE_MAX_ENTRY_BYTES) throw Error('SKILL_FILE_TOO_LARGE')
+          return { data: bytes.toString('base64'), mode: file.executable ? 0o755 : 0o644 }
+        })
+        const entry = z
+          .object({ data: z.string(), mode: z.number().int().min(0).max(0o777) })
+          .nullable()
+          .parse(resolved)
+        if (entry) files.set(row.key.slice(5), { data: Buffer.from(entry.data, 'base64'), mode: entry.mode })
+      }
+      const local = await readTree(join(target.directory.bundle, 'tree'))
+      const changed = !equalTrees(local, files)
+      if (!changed && target.directory.source?.commit === plan.source.commit && !plan.entries.some(row => row.upstreamChanged)) {
+        this.sourcePlans.delete(value.token)
+        await rm(plan.upstream.bundle, { recursive: true, force: true })
+        return this.openTarget({ id: plan.id, name: plan.name })
+      }
+      const snapshot = changed ? snapshotFor(join(dirname(dirname(target.directory.bundle)), 'versions', randomUUID()), target.directory.entry) : snapshotOf(target.directory)
+      if (changed) await writeTree(files, join(snapshot.bundle, 'tree'))
+      const definition = await this.validateRoot(snapshot.root, plan.name, join(snapshot.bundle, 'tree'))
+      const directory = { ...target.directory, ...snapshot, source: plan.source, ...(changed ? { previous: snapshotOf(target.directory) } : {}) }
+      const skill = { ...target.skill, content: definition.content, ...(target.skill.kind === 'personal' ? { description: definition.description } : {}), directory }
+      const skills = target.agent.skills.map(row => (row.name === plan.name ? skill : row))
+      await this.preserveWork(target.agent.skills, skills)
+      await this.save(plan.id, skills, target.agent.revision)
+      this.sourcePlans.delete(value.token)
+      if (changed) {
+        await rm(target.cwd, { recursive: true, force: true })
+        await writeTree(files, target.cwd)
+        await this.advance({ ...target, directory })
+      }
+      return this.openTarget({ id: plan.id, name: plan.name })
+    })
+  }
+
+  sourceCancel(input: unknown): Promise<void> {
+    const { token } = z.object({ token: z.uuid() }).strict().parse(input)
+    return this.serialize(async () => {
+      const plan = this.sourcePlans.get(token)
+      if (!plan) return
+      this.sourcePlans.delete(token)
+      await rm(plan.upstream.bundle, { recursive: true, force: true })
+    })
+  }
+
   async preserveWork(previous: UserAgentSkill[], next: UserAgentSkill[]): Promise<void> {
     for (const skill of previous) {
       if (!skill.directory || next.find(row => row.name === skill.name)?.directory?.root === skill.directory.root) continue
@@ -349,7 +468,7 @@ export class SkillDirectories {
         const id = randomUUID()
         const bundle = join(this.store, id, 'versions', randomUUID())
         await copySafe(join(skill.directory.bundle, 'tree'), join(bundle, 'tree'))
-        return { ...skill, directory: { id, ...snapshotFor(bundle, skill.directory.entry) } }
+        return { ...skill, directory: { id, ...snapshotFor(bundle, skill.directory.entry), ...(skill.directory.source ? { source: skill.directory.source } : {}) } }
       })
     )
   }
@@ -403,6 +522,16 @@ export class SkillDirectories {
       entry: target.directory.entry,
       revision: target.state.revision,
       files: [...current].map(([path, entry]) => ({ path, size: entry.data.length, binary: isBinary(entry.data), executable: (entry.mode & 0o111) !== 0 })),
+      ...(target.directory.source
+        ? {
+            source: {
+              kind: target.directory.source.kind,
+              url: target.directory.source.url,
+              commit: target.directory.source.commit,
+              ...(target.directory.source.branch ? { branch: target.directory.source.branch } : {})
+            }
+          }
+        : {}),
       changes: [...new Set([...current.keys(), ...published.keys()])].sort().flatMap(path => {
         const local = current.get(path),
           base = published.get(path)
@@ -515,13 +644,23 @@ async function readTree(root: string): Promise<Tree> {
   return files
 }
 async function copySafe(from: string, to: string): Promise<void> {
-  const tree = await readTree(from)
+  await writeTree(await readTree(from), to)
+}
+async function writeTree(tree: Tree, to: string): Promise<void> {
   await mkdir(to, { recursive: true })
   for (const [path, entry] of tree) {
-    await mkdir(dirname(join(to, path)), { recursive: true })
-    await writeFile(join(to, path), entry.data, { mode: entry.mode })
-    await chmod(join(to, path), entry.mode)
+    const target = resolve(to, path)
+    if (!inside(resolve(to), target)) throw Error('SKILL_PATH_ESCAPE')
+    await mkdir(dirname(target), { recursive: true })
+    await writeFile(target, entry.data, { mode: entry.mode })
+    await chmod(target, entry.mode)
   }
+}
+function serializeFile(entry?: Entry): { data: string; mode: number } | null {
+  return entry ? { data: entry.data.toString('base64'), mode: entry.mode } : null
+}
+function equalTrees(a: Tree, b: Tree): boolean {
+  return [...new Set([...a.keys(), ...b.keys()])].every(path => equalEntry(a.get(path), b.get(path)))
 }
 async function assertLocalDependencies(root: string, definition: SkillDefinition): Promise<void> {
   if (definition.resourceBase?.kind !== 'directory') return
