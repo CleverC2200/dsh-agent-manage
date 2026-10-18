@@ -379,7 +379,14 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
     pluginSourceUntouched: true,
     installedClient: false,
     native: 'owner lane',
-    model: 'not-invoked',
+    skillDirectory: {
+      import: 'folder', manualAttachmentApplied: true, newRenameDelete: true,
+      binaryReplacement: true, invalidApplyPreserved: true, reset: true, restore: true,
+      editorSessionId: editorAgent.id, cwd: workcopy.cwd,
+      officialTools: ['read', 'write', 'skill_directory_apply'],
+      nativeNavigationPort: 'fixture; complete profile navigation remains owner lane'
+    },
+    model: 'local scripted completion through actual official Agent loop',
     geaBusiness: 'not-invoked'
   })
 }, 60_000)
