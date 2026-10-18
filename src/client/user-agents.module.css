@@ -97,3 +97,18 @@
 .sourceInfo { margin: 6px; font-size: 12px; color: var(--workbench-muted, #69717c); }
 .sourceInfo summary { cursor: pointer; font-size: 13px; }
 .sourceInfo dd { margin: 0 0 8px; overflow-wrap: anywhere; }
+.skillToolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.workspace .skillCheckbox { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.workspace .skillCheckbox input { width: auto; }
+.skillEditorGrid { display: grid; grid-template-columns: minmax(160px, 24%) minmax(0, 1fr); gap: 16px; margin: 16px 0; }
+.skillFiles { min-width: 0; max-height: 520px; overflow: auto; }
+.skillFiles ul { list-style: none; padding: 0; margin: 0; }
+.skillFiles ul ul { padding-inline-start: 12px; }
+.skillFiles summary { cursor: pointer; padding: 8px 0; overflow-wrap: anywhere; }
+.skillFiles summary:focus-visible { outline: 2px solid var(--workbench-brand, #df1732); outline-offset: 2px; }
+.skillFiles button { width: 100%; text-align: start; overflow-wrap: anywhere; margin-bottom: 4px; }
+.skillFiles button[aria-current] { color: var(--workbench-brand, #df1732); background: var(--workbench-brand-soft, #fff0f2); }
+.skillFileContent { min-width: 0; }
+.skillFileContent textarea { font-family: ui-monospace, monospace; }
+.skillComparison { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; }
+@media (max-width: 720px) { .skillEditorGrid { grid-template-columns: 1fr; } .skillFiles { max-height: 180px; } }

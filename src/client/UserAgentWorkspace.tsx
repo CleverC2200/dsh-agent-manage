@@ -9,10 +9,12 @@ import { AgentRecovery } from './AgentRecovery.js'
 import { AgentMcpPanel } from './AgentMcpPanel.js'
 import { agentIcon } from './ui/agent-icon.js'
 import css from './user-agents.module.css'
+import type { SkillEditorSession } from '../contracts/skill-editor.js'
 
 export interface UserAgentWorkspaceProps {
   t: Translate
   startAgent?: (preset: string) => Promise<void>
+  openEditor?: (session: SkillEditorSession) => Promise<void>
   surface?: 'main' | 'settings'
 }
 
@@ -20,7 +22,7 @@ const blank = (): SaveUserAgent => ({ name: '', description: '', prompt: '', ena
 type Tab = 'prompt' | 'skill' | 'mcp'
 
 /** One shared list/editor for the public main and settings seats. */
-export function UserAgentWorkspace({ t, startAgent, surface = 'main' }: UserAgentWorkspaceProps) {
+export function UserAgentWorkspace({ t, startAgent, openEditor, surface = 'main' }: UserAgentWorkspaceProps) {
   const [showSources, setShowSources] = useState(false)
   const [sourceRequest, setSourceRequest] = useState<{ id: string; request: number }>()
   const [agents, setAgents] = useState<UserAgentView[]>([])
@@ -82,7 +84,7 @@ export function UserAgentWorkspace({ t, startAgent, surface = 'main' }: UserAgen
       {!selected.deletedAt && <><nav className={css.tabs} aria-label={t('agentConfiguration')}>
         {(['prompt', 'skill', 'mcp'] as const).map(value => <button type="button" key={value} disabled={busy} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{t(value === 'prompt' ? 'agentPrompt' : value === 'skill' ? 'agentSkill' : 'agentMcp')}</button>)}
       </nav>
-      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={leaveEditor}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : selected.origin === 'plugin' ? <PluginMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => setSelected(agent)} /> : <AgentMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} />}</>}
+      {tab === 'prompt' ? <form onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={leaveEditor}>{t('cancel')}</button><button className={css.primary} disabled={busy} type="submit">{t('save')}</button></footer></form> : tab === 'skill' ? <AgentSkills key={selected.id} agent={selected} t={t} openEditor={openEditor} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} /> : selected.origin === 'plugin' ? <PluginMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => setSelected(agent)} /> : <AgentMcpPanel key={selected.id} agent={selected} t={t} onSaved={agent => { setSelected(agent); setAgents(rows => rows.map(row => row.id === agent.id ? agent : row)) }} />}</>}
     </> : <>
       <header className={css.heading}><div className={css.title}><h2>{t('agentConfiguration')}</h2></div><button type="button" disabled={busy} aria-label={t('refresh')} className={css.iconButton} title={t('refresh')} aria-busy={busy} onClick={() => void run(refresh)}><IconRefreshOutlineRegular size={18} /></button><button type="button" aria-expanded={showSources} onClick={() => { setSourceRequest(undefined); setAdding(false); setShowSources(value => !value) }}>{t('agentSources')}</button><button className={css.primary} type="button" disabled={busy} onClick={() => { setDraft(blank()); setAdding(true); setShowSources(false); setSourceRequest(undefined); setMessage('') }}>{t('agentAdd')}</button></header>
       {adding && <form className={css.inline} onSubmit={save}>{fields}<footer className={css.actions}><button type="button" disabled={busy} onClick={() => setAdding(false)}>{t('cancel')}</button><button className={css.primary} type="submit" disabled={busy}>{t('save')}</button></footer></form>}

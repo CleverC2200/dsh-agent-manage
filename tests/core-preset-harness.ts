@@ -1,7 +1,7 @@
 /** Fixed official libraries and production Loader/Session; only completion is local. */
 import { mkdtemp, mkdir, readFile, rm, writeFile, realpath, symlink } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { resolve, join } from 'node:path'
+import { homedir, tmpdir } from 'node:os'
+import { isAbsolute, relative, resolve, join } from 'node:path'
 import { onTestFinished } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { load } from 'js-yaml'
@@ -34,6 +34,13 @@ export interface PresetHarnessOptions {
 }
 
 export async function presetHarness(options: PresetHarnessOptions = {}) {
+  if (options.fullManage || options.companyBundle === 'manage') {
+    const root = process.env.DSH_HOME
+    const agentsRoot = process.env.DSH_AGENTS_HOME
+    if (!options.home || !root || !agentsRoot || resolve(root) === resolve(homedir(), '.dsh') || resolve(agentsRoot) !== resolve(root, 'agents')) throw Error('ISOLATED_MANAGE_HOME_REQUIRED')
+    const path = relative(await realpath(root), await realpath(options.home))
+    if (path === '..' || path.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(path)) throw Error('ISOLATED_MANAGE_HOME_REQUIRED')
+  }
   const home = await realpath(options.home ?? (await mkdtemp(join(tmpdir(), 'company-preset-'))))
   const manage = options.fullManage || options.companyBundle === 'manage' ? await import('../src/index.js') : undefined
   const dir = join(home, 'profiles', 'test')
@@ -235,7 +242,7 @@ export async function completion(
   contextWindow = 262_144,
   firstToolStep = false,
   pause?: Promise<void>,
-  scenario?: { tools: readonly CompletionToolStep[]; checkpoint: string }
+  scenario?: { tools: readonly CompletionToolStep[]; checkpoint: string; beforeToolStep?: (step: number) => Promise<void> }
 ) {
   const { LlmAdapter } = await official('@deepseek-ai/dsh-llm')
   const requests: { messages: { content: { type: string; text?: string }[] }[]; tools?: { name: string }[] }[] = []
@@ -250,6 +257,7 @@ export async function completion(
       await pause
       const summary = options.messages.at(-1)?.content.some(block => block.text?.includes('acting as a compaction engine'))
       if (!summary && this.nextTool < steps.length) {
+        await scenario?.beforeToolStep?.(this.nextTool)
         const tool = steps[this.nextTool++]
         yield { type: 'block-start', index: 0, blockType: 'tool-call' }
         yield {

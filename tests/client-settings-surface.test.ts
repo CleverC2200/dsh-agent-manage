@@ -7,20 +7,23 @@ vi.mock('../src/client/ui/BusyOverlay.js', () => ({ BusyOverlay: () => null }))
 import { apply, missingPrimitives } from '../src/client/index.js'
 
 describe('current settings surface', () => {
-  it('contributes its resource workspace to the public Workbench directory and retains the settings card', () => {
+  it('contributes its resource workspace to the public Workbench directory and closes settings only after native editing opens', async () => {
     Object.defineProperty(globalThis, '__dshManageClientCss', { value: '.test-style { color: red; }', configurable: true })
     const entries: Record<string, unknown>[] = []
     const dispose: Array<() => void> = []
     const pages: unknown[] = []
     const namespaces: string[] = []
+    const openAgentSession = vi.fn().mockResolvedValue(undefined)
+    const components = new Map()
     const effect = (callback: () => unknown) => {
       const result = callback()
       if (typeof result === 'function') dispose.push(result as () => void)
     }
     const slots = {
       inject: (_name: string, callback: () => unknown) => callback(),
-      register: (entry: Record<string, unknown>) => {
+      register: (entry: Record<string, unknown>, component: unknown) => {
         entries.push(entry)
+        components.set(entry.name, component)
         return () => {}
       }
     }
@@ -33,6 +36,7 @@ describe('current settings surface', () => {
         callback({
           effect,
           agentWorkbench: {
+            openAgentSession,
             register: page => {
               pages.push(page)
               return () => {
@@ -57,6 +61,15 @@ describe('current settings surface', () => {
     expect(document.querySelector('style[data-dsh-client="dsh-agent-manage"]')?.textContent).toContain('.test-style')
     expect(document.querySelector('style[data-dsh-client="dsh-agent-manage"]')?.getAttribute('data-plugin')).toBe('dsh-agent-manage')
     expect(missingPrimitives({})).toEqual(['Button', 'Input', 'Modal', 'Toast', 'Tooltip'])
+    const close = vi.fn()
+    const section = components.get('settings.section')({ close })
+    const session = { sessionId: 'editor', preset: 'skill-directory-editor', cwd: '/owned/workcopy', draft: 'Edit this Skill.' }
+    await section.props.openEditor(session)
+    expect(openAgentSession).toHaveBeenCalledWith(session)
+    expect(close).toHaveBeenCalledTimes(1)
+    openAgentSession.mockRejectedValueOnce(Error('NATIVE_SESSION_UNAVAILABLE'))
+    await expect(section.props.openEditor(session)).rejects.toThrow('NATIVE_SESSION_UNAVAILABLE')
+    expect(close).toHaveBeenCalledTimes(1)
     for (const cleanup of dispose.reverse()) cleanup()
     expect(pages).toEqual([])
     expect(document.querySelector('style[data-dsh-client="dsh-agent-manage"]')).toBeNull()

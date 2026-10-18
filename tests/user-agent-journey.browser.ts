@@ -1,6 +1,6 @@
 /** Browser UI through an authenticated temporary Core Host; no installed-client or model claim. */
 import { createServer } from 'node:http'
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { build } from 'esbuild'
 import { chromium, expect as browserExpect } from '@playwright/test'
@@ -10,7 +10,8 @@ import { BusinessResources } from '../src/runtime/business-resources.js'
 import { UserAgents } from '../src/runtime/user-agents.js'
 import { mountUserAgentRoutes } from '../src/runtime/user-agent-routes.js'
 import { USER_AGENT_ROUTES } from '../src/contracts/user-agents.js'
-import { agentOn, core, official, presetHarness, record } from './core-preset-harness.js'
+import { mountSkillEditor } from '../src/runtime/skill-editor.js'
+import { agentOn, completion, core, official, presetHarness, record, turn } from './core-preset-harness.js'
 
 it('creates and enables an Agent in the ordinary browser entry, then starts its real standard Core Session without changing existing work', async () => {
   const { ctx, home } = await presetHarness()
@@ -37,6 +38,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   const agents = new UserAgents(ctx, join(home, 'browser-user-agents.json'))
   await agents.load()
   mountUserAgentRoutes(ctx, agents)
+  await mountSkillEditor(ctx, agents)
   onTestFinished(() => agents.dispose())
   const standard = ctx.tools
     .schemas(original)
@@ -87,7 +89,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
           const response=await fetch('/api/browser-journey/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({preset})});
           if(!response.ok)throw Error('CORE_SESSION_START_FAILED');
           await response.json();
-        }});
+        },openAgentSession:async session=>{window.skillEditorSession=session}});
         ctx.provide('agentWorkbench',workbench);
         await ctx.plugin({inject:manageInject,apply:manageApply}).await();
         ctx.get('uiRenderer').mount(document.getElementById('root'));
@@ -155,9 +157,13 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   const browser = await chromium.launch({ headless: true, ...(process.env.DSH_TEST_BROWSER_CHANNEL ? { channel: process.env.DSH_TEST_BROWSER_CHANNEL } : {}) })
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' })
   const failures: string[] = []
+  let expectedApplyFailure = false
+  let observedApplyFailure = 0
   page.on('pageerror', error => failures.push(error.message))
   page.on('console', message => {
-    if (message.type() === 'error') failures.push(message.text())
+    if (message.type() !== 'error') return
+    if (expectedApplyFailure && message.location().url.endsWith('/skills/directory/apply') && message.text().includes('400')) { observedApplyFailure++; return }
+    failures.push(message.text())
   })
   onTestFinished(async () => {
     if (process.env.PRESET_EVIDENCE_DIR && !page.isClosed())
@@ -191,7 +197,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   await page.getByRole('button', { name: '‹ 返回 Agent 列表', exact: true }).click()
   const personalRow = page.locator('article').filter({ has: page.getByText('浏览器个人助手', { exact: true }) })
   await personalRow.getByRole('button', { name: /浏览器个人助手/ }).click()
-  await page.locator('summary').click()
+  await page.getByLabel('\u66f4\u591a\u64cd\u4f5c', { exact: true }).click()
   const personalStart = page.getByRole('button', { name: '开始使用', exact: true })
   await browserExpect(personalStart).toBeEnabled()
   const toggle = page.getByRole('switch', { name: '启用 浏览器个人助手', exact: true })
@@ -230,6 +236,95 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   expect(JSON.stringify(await ctx.systemPrompt.assemble({ scope: session, agent: session } as never))).toContain('BROWSER_PERSONAL_AGENT_INSTRUCTIONS')
   expect(ctx.agentPresets.defaultId).toBe(originalDefault)
   expect(JSON.stringify(original.session.snapshotEvents())).toBe(existingEvents)
+  const skillSource = join(home, 'browser-skill-input')
+  await mkdir(join(skillSource, 'references'), { recursive: true })
+  await mkdir(join(skillSource, 'assets'))
+  await writeFile(join(skillSource, 'SKILL.md'), '---\nname: browser-directory\ndescription: Browser directory fixture\n---\nBROWSER_BODY')
+  await writeFile(join(skillSource, 'references/data.txt'), 'BROWSER_REFERENCE_BEFORE')
+  await writeFile(join(skillSource, 'assets/blob.bin'), Buffer.from([0, 255, 13, 10]))
+  await page.getByRole('button', { name: 'Skill', exact: true }).click()
+  await page.getByRole('button', { name: '＋ 添加 Skill', exact: true }).click()
+  await page.getByRole('button', { name: '从文件夹导入', exact: true }).click()
+  await page.getByRole('textbox', { name: '宿主文件夹路径', exact: true }).fill(skillSource)
+  await page.getByRole('button', { name: '读取可导入 Skill', exact: true }).click()
+  await page.getByRole('button', { name: '导入所选 Skill', exact: true }).click()
+  const skillRow = page.locator('article').filter({ has: page.getByText('browser-directory', { exact: true }) })
+  await skillRow.getByRole('button', { name: '编辑', exact: true }).click()
+  const editorUI = page.getByRole('region', { name: 'Skill 目录编辑器', exact: true })
+  await editorUI.getByRole('button', { name: 'references/data.txt', exact: true }).click()
+  await editorUI.getByRole('textbox', { name: 'Skill 正文', exact: true }).fill('BROWSER_MANUAL_REFERENCE')
+  await editorUI.getByRole('button', { name: '写入文件', exact: true }).click()
+  await browserExpect(editorUI.getByRole('status')).toContainText('有未应用修改')
+  await editorUI.getByRole('button', { name: '应用修改', exact: true }).click()
+  await browserExpect(editorUI.getByText('修改已应用，新聊天将使用完整新版本。', { exact: true })).toBeVisible()
+  const afterManual = await agentOn(ctx, 'browser-skill-manual', saved.preset, undefined, home)
+  const manualSkill = await ctx.skills.get('browser-directory', { scope: afterManual, cwd: home })
+  expect(await readFile(join(manualSkill!.resourceBase!.path!, 'references/data.txt'), 'utf8')).toBe('BROWSER_MANUAL_REFERENCE')
+  await editorUI.getByRole('textbox', { name: '相对文件路径', exact: true }).fill('references/new.txt')
+  await editorUI.getByRole('button', { name: '新增文本文件', exact: true }).click()
+  await editorUI.getByRole('textbox', { name: 'Skill 正文', exact: true }).fill('NEW_UNAPPLIED_FILE')
+  await editorUI.getByRole('button', { name: '写入文件', exact: true }).click()
+  await editorUI.getByRole('textbox', { name: '相对文件路径', exact: true }).fill('references/renamed.txt')
+  await editorUI.getByRole('button', { name: '将当前文件改名为此路径', exact: true }).click()
+  await browserExpect(editorUI.getByRole('button', { name: 'references/renamed.txt', exact: true })).toBeVisible()
+  await editorUI.getByRole('button', { name: '删除文件', exact: true }).click()
+  await editorUI.getByRole('button', { name: '确认删除文件', exact: true }).click()
+  await browserExpect(editorUI.getByRole('button', { name: 'references/renamed.txt', exact: true })).toHaveCount(0)
+  await editorUI.getByRole('button', { name: 'assets/blob.bin', exact: true }).click()
+  await editorUI.getByLabel('替换二进制文件', { exact: true }).setInputFiles({ name: 'replacement.bin', mimeType: 'application/octet-stream', buffer: Buffer.from([0, 254, 1, 2]) })
+  await browserExpect(editorUI.getByRole('button', { name: '写入文件', exact: true })).toBeDisabled()
+  const workcopy = await agents.directories.open({ id: saved.id, name: 'browser-directory' })
+  expect((await agents.directories.read({ id: saved.id, name: 'browser-directory', path: 'assets/blob.bin' })).data).toBe(Buffer.from([0, 254, 1, 2]).toString('base64'))
+  await editorUI.getByRole('button', { name: 'SKILL.md', exact: true }).click()
+  await editorUI.getByRole('textbox', { name: 'Skill 正文', exact: true }).fill('invalid YAML')
+  await editorUI.getByRole('button', { name: '写入文件', exact: true }).click()
+  expectedApplyFailure = true
+  const invalidApply = page.waitForResponse(response => response.url().endsWith('/skills/directory/apply') && response.status() === 400)
+  await editorUI.getByRole('button', { name: '应用修改', exact: true }).click()
+  await invalidApply
+  await browserExpect(editorUI.getByRole('alert')).toContainText('SKILL_DIRECTORY_INVALID')
+  expectedApplyFailure = false
+  expect(observedApplyFailure).toBe(1)
+  await browserExpect(editorUI.getByRole('textbox', { name: 'Skill 正文', exact: true })).toHaveValue('invalid YAML')
+  const afterFailure = await agentOn(ctx, 'browser-invalid-apply', saved.preset, undefined, home)
+  expect((await ctx.skills.get('browser-directory', { scope: afterFailure, cwd: home }))?.content).toBe('BROWSER_BODY')
+  await editorUI.getByRole('button', { name: '放弃未应用修改', exact: true }).click()
+  await editorUI.getByRole('button', { name: '确认放弃修改', exact: true }).click()
+  await browserExpect(editorUI.getByRole('button', { name: 'references/renamed.txt', exact: true })).toHaveCount(0)
+  await editorUI.getByRole('button', { name: '让 Agent 修改', exact: true }).click()
+  await browserExpect.poll(() => page.evaluate(() => Reflect.get(window, 'skillEditorSession')?.sessionId)).toBeTruthy()
+  const browserEditor = await page.evaluate(() => Reflect.get(window, 'skillEditorSession'))
+  const editorAgent = ctx.agents.list().find(agent => agent.id === browserEditor.sessionId)!
+  expect(editorAgent.session.header.cwd).toBe(workcopy.cwd)
+  expect(browserEditor.draft).toContain('skill_directory_apply')
+  await completion(ctx, 262144, false, undefined, { tools: [
+    { name: 'read', arguments: { file_path: join(workcopy.cwd, 'SKILL.md') } },
+    { name: 'write', arguments: { file_path: join(workcopy.cwd, 'SKILL.md'), content: '---\nname: browser-directory\ndescription: Browser directory fixture\n---\nBROWSER_AGENT_BODY' } },
+    { name: 'read', arguments: { file_path: join(workcopy.cwd, 'references/data.txt') } },
+    { name: 'write', arguments: { file_path: join(workcopy.cwd, 'references/data.txt'), content: 'BROWSER_AGENT_REFERENCE' } },
+    { name: 'skill_directory_apply', arguments: {} }
+  ], checkpoint: '' })
+  await turn(ctx, editorAgent, 'Complete the explicit fixture change to this Skill and apply it.')
+  const afterAgent = await agentOn(ctx, 'browser-skill-agent', saved.preset, undefined, home)
+  const agentSkill = await ctx.skills.get('browser-directory', { scope: afterAgent, cwd: home })
+  expect(agentSkill?.content).toBe('BROWSER_AGENT_BODY')
+  expect(await readFile(join(agentSkill!.resourceBase!.path!, 'references/data.txt'), 'utf8')).toBe('BROWSER_AGENT_REFERENCE')
+  expect(await readFile(join(manualSkill!.resourceBase!.path!, 'references/data.txt'), 'utf8')).toBe('BROWSER_MANUAL_REFERENCE')
+  expect(await readFile(join(skillSource, 'assets/blob.bin'))).toEqual(Buffer.from([0, 255, 13, 10]))
+  await editorUI.getByRole('button', { name: '刷新变更', exact: true }).click()
+  await browserExpect(editorUI.getByRole('textbox', { name: 'Skill 正文', exact: true })).toHaveValue(/BROWSER_AGENT_BODY/)
+  await editorUI.getByRole('button', { name: '恢复上一可用版本', exact: true }).click()
+  await browserExpect(editorUI.getByText('已恢复上一可用的完整版本。', { exact: true })).toBeVisible()
+  const restoredBusiness = await agentOn(ctx, 'browser-restored-skill', saved.preset, undefined, home)
+  expect((await ctx.skills.get('browser-directory', { scope: restoredBusiness, cwd: home }))?.content).toBe('BROWSER_BODY')
+  await editorUI.getByRole('button', { name: 'SKILL.md', exact: true }).click()
+  if (process.env.PRESET_EVIDENCE_DIR) {
+    await page.screenshot({ path: join(process.env.PRESET_EVIDENCE_DIR, 'skill-editor-desktop.png') })
+    await page.setViewportSize({ width: 520, height: 900 })
+    await page.screenshot({ path: join(process.env.PRESET_EVIDENCE_DIR, 'skill-editor-narrow.png') })
+    await page.setViewportSize({ width: 1280, height: 800 })
+  }
+  await editorUI.getByRole('button', { name: '关闭编辑器', exact: true }).click()
   await page.getByRole('button', { name: '‹ 返回 Agent 列表', exact: true }).click()
   await page.getByRole('button', { name: /浏览器插件助手/ }).click()
   await page.getByRole('textbox', { name: '提示词', exact: true }).fill('BROWSER_PLUGIN_CUSTOMIZED')
@@ -254,7 +349,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   await page.getByRole('button', { name: '‹ 返回 Agent 列表', exact: true }).click()
   const pluginRow = page.locator('article').filter({ has: page.getByText('浏览器插件助手', { exact: true }) })
   await pluginRow.getByRole('button', { name: /浏览器插件助手/ }).click()
-  await page.locator('summary').click()
+  await page.getByLabel('\u66f4\u591a\u64cd\u4f5c', { exact: true }).click()
   await page.getByRole('button', { name: '开始使用', exact: true }).click()
   await browserExpect.poll(() => started.length).toBe(2)
   expect(ctx.agentPresets.composedPreset(started[1].ctx)).toBe('browser-plugin')

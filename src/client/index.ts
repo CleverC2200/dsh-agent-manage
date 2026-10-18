@@ -17,6 +17,8 @@ import { fetchMcpBackend } from './api.js'
 import { en, zh, type LocaleKey } from './locales.js'
 import { PluginWorkspace } from './PluginWorkspace.js'
 import { McpPluginCard } from './McpPluginCard.js'
+import type { SkillEditorSession } from '../contracts/skill-editor.js'
+import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 
 const NS = 'dsh-agent-plugins-market'
 const SETTINGS_NAMESPACE = 'dsh-agent-manage'
@@ -37,7 +39,7 @@ interface LocaleService {
 /** 中文：插件只依赖 slot 注册能力，具体页面容器由宿主提供。 */
 interface SlotsService {
   inject(slot: string, register: () => unknown): void
-  register(meta: Record<string, unknown>, component: () => unknown): unknown
+  register(meta: Record<string, unknown>, component: (props: SettingsSectionOwnerProps) => unknown): unknown
 }
 
 /** The subset of the host settings-scope service this plugin touches. */
@@ -56,7 +58,7 @@ interface SuiteClientContext {
   effect(callback: () => unknown, label?: string): void
   /** Resolve the current host's declared services within their lifetime. */
   /** 中文：在当前宿主声明的服务生命周期内接线。 */
-  inject(services: string[], callback: (resolved: { settingsScope: SettingsScopeService; slots: SlotsService; effect(callback: () => unknown): void; agentWorkbench: {register(page: {id: string; label: () => string}): () => void; startAgent(preset: string): Promise<void>} }) => void): void
+  inject(services: string[], callback: (resolved: { settingsScope: SettingsScopeService; slots: SlotsService; effect(callback: () => unknown): void; agentWorkbench: {register(page: {id: string; label: () => string}): () => void; startAgent(preset: string): Promise<void>; openAgentSession(session: SkillEditorSession): Promise<void>} }) => void): void
   locale: LocaleService
   slots: SlotsService
 }
@@ -149,20 +151,23 @@ export function apply(ctx: SuiteClientContext): void {
   })
 
   let beginAgent: ((preset: string) => Promise<void>) | undefined
+  let beginEditor: ((session: SkillEditorSession) => Promise<void>) | undefined
+  const openEditor = async (session: SkillEditorSession) => { if (!beginEditor) throw Error(t('agentHostUnavailable')); await beginEditor(session) }
   const startAgent = async (preset: string) => {
     if (!beginAgent) throw Error(t('agentHostUnavailable'))
     await beginAgent(preset)
   }
   ctx.inject(['agentWorkbench'], scoped => {
     beginAgent = preset => scoped.agentWorkbench.startAgent(preset)
-    scoped.effect(() => () => { beginAgent = undefined })
+    beginEditor = session => scoped.agentWorkbench.openAgentSession(session)
+    scoped.effect(() => () => { beginAgent = undefined; beginEditor = undefined })
     scoped.effect(() => scoped.agentWorkbench.register({id: 'agent-plugin-workspace', label: () => t('nav')}));
   });
 
   // Workbench discovers the public main entry; settings retains the same resource workspace.
   ctx.slots.inject('main', () => ctx.slots.register({
     name: 'main', key: 'agent-plugin-workspace',
-  }, () => h('section', {className: 'agent-workbench-ui', style: {height: '100%'}}, h(PluginWorkspace, {t, startAgent}))));
+  }, () => h('section', {className: 'agent-workbench-ui', style: {height: '100%'}}, h(PluginWorkspace, {t, startAgent, openEditor}))));
 
   // 中文：settings.section 是设置区工作台挂载位，由宿主声明生命周期管理。
   ctx.slots.inject('settings.section', () => {
@@ -174,9 +179,10 @@ export function apply(ctx: SuiteClientContext): void {
       label: () => t('nav'),
       locale: NS,
       inject: () => ({ t }),
-    }, () => h(PluginWorkspace, {
+    }, ({ close }) => h(PluginWorkspace, {
       t,
-      startAgent,
+      startAgent: async preset => { await startAgent(preset); close() },
+      openEditor: async session => { await openEditor(session); close() },
       surface: 'settings',
     }))
     return () => {

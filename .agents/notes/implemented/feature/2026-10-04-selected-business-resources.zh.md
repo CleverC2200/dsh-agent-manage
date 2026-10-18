@@ -58,6 +58,12 @@ Manage 为每个选中 Skill 保留完整不可变目录版本与独立的每 Ag
 
 认证目录动作核对 Agent 归属，保留插件预设身份。手动与 Core 编辑共用工作副本；写入、重命名和删除核所观察的文件版本，目录 revision 保护应用及多页面修改。应用先校验完整候选，再替换稳定预设；注册或持久写入失败沿补偿恢复。reset 放弃未应用修改，restore 发布上一完整版本。已发布目录与草稿历史继续保留，运行中 Core Session 保持原资源版本。
 
+主工作台与设置中的 Skill 页共用这些动作，支持文件夹路径、ZIP、Git 导入、文件树、二进制替换和文件级来源冲突选择。尚未写入文件的内容与已写入但未应用的修改分别显示。写入失败保留本地文本；比较入口显示当前工作副本，由用户明确采用其文件 token 作为合并基线。设置页跳转编辑聊天时，在原生导航成功后调用官方 settings.section 的 close。
+
+专用编辑预设复用官方标准工具与 Core Session 生命周期。Host 通过官方 inbox 注入和工具延迟上下文，在自有消息 source 元数据中记录 Agent、Skill、工作副本与 revision。普通 prompt RPC 自行构造 user source，不能提供这份 Host source。元数据只是持久事实记录，目录归属及当前状态仍由目录服务确定。绑定的 apply 工具不接受目标参数，仅在自身应用成功后推进基线。Core 重启从这些已知事件恢复绑定，不建立 Session sidecar 或未知自定义事件。
+
+官方文件与 shell 工具读取编辑 Session 的 workspace-write 策略。该官方策略也允许平台临时目录，不能据此声称严格只有 cwd 可写。编辑入口额外核 write/edit 目标的规范路径归属，并拒绝扩大权限。文件和 shell 变更调用在目录服务核 revision 的同一队列中完成，手动写入不能插到核对与 Agent 写入之间。普通业务 Agent 策略保持原样。共享 full-Manage 测试入口在装载前拒绝缺失或不匹配的隔离 home。
+
 `skill-directories.test.ts` 沿公开 UserAgents、Host Fetch 及既有 Core fixture 加载 Skill、读取参考文件并执行受控脚本。UI 与实际客户端验收分别留证。
 
 ## 个人 Agent 停用、删除与恢复
