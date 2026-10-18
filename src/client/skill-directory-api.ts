@@ -4,7 +4,7 @@ import { SKILL_EDITOR_ROUTE, type SkillEditorSession } from '../contracts/skill-
 import type { UserAgentView } from '../contracts/user-agents.js'
 import { request } from './user-agent-api.js'
 
-type Target = Pick<SkillDirectoryView, 'id' | 'name'>
+type Target = { id: string; name: string }
 type Version = Target & Pick<SkillDirectoryView, 'revision'>
 export interface SkillDirectoryFile { path: string; data: string; encoding: 'utf8' | 'base64'; fileVersion: string }
 export const skillDirectoryApi = {

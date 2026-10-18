@@ -162,7 +162,10 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   page.on('pageerror', error => failures.push(error.message))
   page.on('console', message => {
     if (message.type() !== 'error') return
-    if (expectedApplyFailure && message.location().url.endsWith('/skills/directory/apply') && message.text().includes('400')) { observedApplyFailure++; return }
+    if (expectedApplyFailure && message.location().url.endsWith('/skills/directory/apply') && message.text().includes('400')) {
+      observedApplyFailure++
+      return
+    }
     failures.push(message.text())
   })
   onTestFinished(async () => {
@@ -297,13 +300,19 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   const editorAgent = ctx.agents.list().find(agent => agent.id === browserEditor.sessionId)!
   expect(editorAgent.session.header.cwd).toBe(workcopy.cwd)
   expect(browserEditor.draft).toContain('skill_directory_apply')
-  await completion(ctx, 262144, false, undefined, { tools: [
-    { name: 'read', arguments: { file_path: join(workcopy.cwd, 'SKILL.md') } },
-    { name: 'write', arguments: { file_path: join(workcopy.cwd, 'SKILL.md'), content: '---\nname: browser-directory\ndescription: Browser directory fixture\n---\nBROWSER_AGENT_BODY' } },
-    { name: 'read', arguments: { file_path: join(workcopy.cwd, 'references/data.txt') } },
-    { name: 'write', arguments: { file_path: join(workcopy.cwd, 'references/data.txt'), content: 'BROWSER_AGENT_REFERENCE' } },
-    { name: 'skill_directory_apply', arguments: {} }
-  ], checkpoint: '' })
+  await completion(ctx, 262144, false, undefined, {
+    tools: [
+      { name: 'read', arguments: { file_path: join(workcopy.cwd, 'SKILL.md') } },
+      {
+        name: 'write',
+        arguments: { file_path: join(workcopy.cwd, 'SKILL.md'), content: '---\nname: browser-directory\ndescription: Browser directory fixture\n---\nBROWSER_AGENT_BODY' }
+      },
+      { name: 'read', arguments: { file_path: join(workcopy.cwd, 'references/data.txt') } },
+      { name: 'write', arguments: { file_path: join(workcopy.cwd, 'references/data.txt'), content: 'BROWSER_AGENT_REFERENCE' } },
+      { name: 'skill_directory_apply', arguments: {} }
+    ],
+    checkpoint: ''
+  })
   await turn(ctx, editorAgent, 'Complete the explicit fixture change to this Skill and apply it.')
   const afterAgent = await agentOn(ctx, 'browser-skill-agent', saved.preset, undefined, home)
   const agentSkill = await ctx.skills.get('browser-directory', { scope: afterAgent, cwd: home })
@@ -380,9 +389,15 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
     installedClient: false,
     native: 'owner lane',
     skillDirectory: {
-      import: 'folder', manualAttachmentApplied: true, newRenameDelete: true,
-      binaryReplacement: true, invalidApplyPreserved: true, reset: true, restore: true,
-      editorSessionId: editorAgent.id, cwd: workcopy.cwd,
+      import: 'folder',
+      manualAttachmentApplied: true,
+      newRenameDelete: true,
+      binaryReplacement: true,
+      invalidApplyPreserved: true,
+      reset: true,
+      restore: true,
+      editorSessionId: editorAgent.id,
+      cwd: workcopy.cwd,
       officialTools: ['read', 'write', 'skill_directory_apply'],
       nativeNavigationPort: 'fixture; complete profile navigation remains owner lane'
     },

@@ -5,7 +5,7 @@ import type { AgentSourceResolution } from '../contracts/agent-sources.js'
 import { skillDirectoryApi } from './skill-directory-api.js'
 import css from './user-agents.module.css'
 
-export function SkillDirectorySource({ view, disabled, t, onChanged }: { view: SkillDirectoryView; disabled: boolean; t: Translate; onChanged: (view: SkillDirectoryView) => Promise<void> }) {
+export function SkillDirectorySource({ agentId, view, disabled, t, onChanged }: { agentId: string; view: SkillDirectoryView; disabled: boolean; t: Translate; onChanged: (view: SkillDirectoryView) => Promise<void> }) {
   const [preview, setPreview] = useState<SkillDirectorySourcePreview>()
   const [resolutions, setResolutions] = useState<Record<string, AgentSourceResolution>>({})
   const [busy, setBusy] = useState(false)
@@ -27,7 +27,7 @@ export function SkillDirectorySource({ view, disabled, t, onChanged }: { view: S
   return <section className={css.source}>
     <p className={css.sourceAddress}>{view.source.url}</p><p className={css.muted}>{view.source.commit}</p>
     <button type="button" disabled={disabled || busy || !!preview} onClick={() => void run(async signal => {
-      const current = await skillDirectoryApi.sourcePreview({ id: view.id, name: view.name }, signal)
+      const current = await skillDirectoryApi.sourcePreview({ id: agentId, name: view.name }, signal)
       if (signal.aborted) { void skillDirectoryApi.sourceCancel(current.token); return }
       token.current = current.token; setResolutions({}); setPreview(current)
       if (!current.changed) setMessage(t('agentSourceCurrent'))

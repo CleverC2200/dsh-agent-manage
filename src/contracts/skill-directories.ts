@@ -11,7 +11,7 @@ export interface SkillDirectoryAcquisition {
   errors: string[]
 }
 export interface SkillDirectoryView {
-  id: string
+  directoryId: string
   name: string
   cwd: string
   entry: string

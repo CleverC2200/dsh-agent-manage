@@ -311,10 +311,6 @@ export class UserAgents {
   }
 
   saveSkills(id: string, input: unknown): Promise<UserAgentView> {
-    return this.updateSkills(id, input)
-  }
-
-  private updateSkills(id: string, input: unknown): Promise<UserAgentView> {
     const parsed = agentSkills.parse(input)
     return this.write(async () => {
       const previous = this.find(id)

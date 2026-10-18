@@ -192,7 +192,7 @@ export class SkillDirectories {
     return this.serialize(() => this.openTarget(value))
   }
 
-  runEdit<T>(input: unknown, operation: () => Promise<T>): Promise<T> {
+  runEdit<T>(input: unknown, operation: () => Promise<T>, onChanged: (revision: number) => void): Promise<T> {
     const value = versionInput
       .extend({ cwd: z.string().min(1), entry: z.string() })
       .strict()
@@ -201,7 +201,22 @@ export class SkillDirectories {
       const target = await this.target(value)
       await this.check(target, value.revision)
       if (resolve(value.cwd) !== target.cwd || value.entry !== target.directory.entry) throw Error('SKILL_EDIT_TARGET_CHANGED')
-      return operation()
+      const before = await readTree(target.cwd)
+      try {
+        return await operation()
+      } finally {
+        let changed = true
+        try {
+          changed = !equalTrees(before, await readTree(target.cwd))
+        } catch {
+          changed = true
+        }
+        if (changed) {
+          const revision = target.state.revision + 1
+          await writeFile(target.stateFile, JSON.stringify({ revision, root: target.directory.root }))
+          onChanged(revision)
+        }
+      }
     })
   }
 
@@ -516,7 +531,7 @@ export class SkillDirectories {
     const current = await readTree(target.cwd)
     const published = await readTree(join(target.directory.bundle, 'tree'))
     return {
-      id: target.directory.id,
+      directoryId: target.directory.id,
       name: value.name,
       cwd: target.cwd,
       entry: target.directory.entry,

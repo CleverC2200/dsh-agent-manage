@@ -115,7 +115,7 @@ export function SkillDirectoryEditor({ agent, name, t, onSaved, onClose, openEdi
       <button type="button" disabled={busy || !view} onClick={refresh}>{t('agentSkillRefreshChanges')}</button>
       <button type="button" disabled={busy || !view || dirty || !openEditor} onClick={() => void run(async signal => { const session = await skillDirectoryApi.editor({ ...target, revision: view!.revision }, signal); signal.throwIfAborted(); await openEditor!(session) })}>{t('agentSkillAgentEdit')}</button>
     </div>
-    {view?.source && <SkillDirectorySource view={view} disabled={busy || dirty} t={t} onChanged={async current => { setView(current); setDrafts({}); setSelected(''); await refreshAgent() }} />}
+    {view?.source && <SkillDirectorySource agentId={agent.id} view={view} disabled={busy || dirty} t={t} onChanged={async current => { setView(current); setDrafts({}); setSelected(''); await refreshAgent() }} />}
     {view && <div className={css.skillEditorGrid}>
       <nav aria-label={t('agentSkillFiles')} className={css.skillFiles}><DirectoryFiles paths={paths} selected={selected} busy={busy} onRead={path => void read(path)} /></nav>
       <div className={css.skillFileContent}>

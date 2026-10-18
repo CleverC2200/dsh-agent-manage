@@ -37,7 +37,8 @@ export async function presetHarness(options: PresetHarnessOptions = {}) {
   if (options.fullManage || options.companyBundle === 'manage') {
     const root = process.env.DSH_HOME
     const agentsRoot = process.env.DSH_AGENTS_HOME
-    if (!options.home || !root || !agentsRoot || resolve(root) === resolve(homedir(), '.dsh') || resolve(agentsRoot) !== resolve(root, 'agents')) throw Error('ISOLATED_MANAGE_HOME_REQUIRED')
+    if (!options.home || !root || !agentsRoot || resolve(root) === resolve(homedir(), '.dsh') || resolve(agentsRoot) !== resolve(root, 'agents'))
+      throw Error('ISOLATED_MANAGE_HOME_REQUIRED')
     const path = relative(await realpath(root), await realpath(options.home))
     if (path === '..' || path.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(path)) throw Error('ISOLATED_MANAGE_HOME_REQUIRED')
   }

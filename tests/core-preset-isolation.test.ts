@@ -10,12 +10,15 @@ it('rejects a full Manage harness without an explicit isolated environment befor
   vi.stubEnv('DSH_AGENTS_HOME', '')
   try {
     await expect(presetHarness({ fullManage: true, home: join(tmpdir(), `missing-isolation-${randomUUID()}`, 'home') })).rejects.toThrow('ISOLATED_MANAGE_HOME_REQUIRED')
-  } finally { vi.unstubAllEnvs() }
+  } finally {
+    vi.unstubAllEnvs()
+  }
 })
 
 it('rejects mismatched Manage and Agent roots without initializing user storage', async () => {
   const home = await mkdtemp(join(tmpdir(), 'manage-isolation-guard-'))
-  await mkdir(join(home, 'one')); await mkdir(join(home, 'two'))
+  await mkdir(join(home, 'one'))
+  await mkdir(join(home, 'two'))
   vi.stubEnv('DSH_HOME', join(home, 'one'))
   vi.stubEnv('DSH_AGENTS_HOME', join(home, 'wrong-agents'))
   try {
@@ -23,5 +26,8 @@ it('rejects mismatched Manage and Agent roots without initializing user storage'
     vi.stubEnv('DSH_AGENTS_HOME', join(home, 'one', 'agents'))
     await expect(presetHarness({ fullManage: true, home: join(home, 'two') })).rejects.toThrow('ISOLATED_MANAGE_HOME_REQUIRED')
     expect(await stat(join(home, 'one', 'agent-plugins')).catch(() => undefined)).toBeUndefined()
-  } finally { vi.unstubAllEnvs(); await rm(home, { recursive: true, force: true }) }
+  } finally {
+    vi.unstubAllEnvs()
+    await rm(home, { recursive: true, force: true })
+  }
 })
