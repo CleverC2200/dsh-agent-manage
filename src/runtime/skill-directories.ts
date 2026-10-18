@@ -183,6 +183,19 @@ export class SkillDirectories {
     return this.serialize(() => this.openTarget(value))
   }
 
+  runEdit<T>(input: unknown, operation: () => Promise<T>): Promise<T> {
+    const value = versionInput
+      .extend({ cwd: z.string().min(1), entry: z.string() })
+      .strict()
+      .parse(input)
+    return this.serialize(async () => {
+      const target = await this.target(value)
+      await this.check(target, value.revision)
+      if (resolve(value.cwd) !== target.cwd || value.entry !== target.directory.entry) throw Error('SKILL_EDIT_TARGET_CHANGED')
+      return operation()
+    })
+  }
+
   async read(input: unknown): Promise<{ path: string; data: string; encoding: 'utf8' | 'base64'; fileVersion: string }> {
     const value = fileInput.parse(input)
     return this.serialize(async () => {
