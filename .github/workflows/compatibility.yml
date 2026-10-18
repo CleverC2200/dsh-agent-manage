@@ -200,16 +200,14 @@ jobs:
         working-directory: candidate/dsh-agent-manage
         shell: bash
         run: |
-          echo "store=$(corepack pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+          PNPM_STORE_PATH="$(corepack pnpm store path --silent)" node scripts/download-cache.mjs --github-paths
       - uses: actions/cache/restore@v4
         with:
-          path: |
-            ~/.npm
-            ~/.cache/node/corepack
-            ${{ steps.cache-path.outputs.store }}
+          path: ${{ steps.cache-path.outputs.paths }}
           key: downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/package-lock.json', '**/pnpm-lock.yaml') }}
           restore-keys: downloads-${{ runner.os }}-${{ runner.arch }}-
       - name: Prepare owned Core source without compiling
+        if: matrix.phase == 'quality'
         id: sdk-paths
         shell: bash
         env:
@@ -219,10 +217,12 @@ jobs:
           node "$GITHUB_WORKSPACE/candidate/dsh-agent-manage/scripts/sdk-artifact-cache.mjs" --github-paths "$GITHUB_WORKSPACE/official-latest-standard"
       - uses: actions/cache/restore@v4
         id: sdk-cache
+        if: matrix.phase == 'quality'
         with:
           path: ${{ steps.sdk-paths.outputs.paths }}
           key: sdk-${{ github.repository }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ matrix.coreHead }}-${{ hashFiles('candidate/dsh-agent-manage/scripts/prepare-official-sdk.mjs', 'candidate/dsh-agent-manage/scripts/sdk-artifact-cache.mjs', 'candidate/dsh-gea-plugin/scripts/supported-cores.json', 'source/official-core/pnpm-lock.yaml') }}
       - name: Prepare independent SDK and run all admitted group gates
+        id: quality
         env:
           QUALITY_PHASE: ${{ matrix.phase }}
           INPUT_SHA256: ${{ steps.group.outputs.input-sha256 }}
@@ -230,7 +230,7 @@ jobs:
           node --input-type=module -e "import { spawnSync } from 'node:child_process'; import { resolve } from 'node:path'; const result = spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', process.env.QUALITY_PHASE, '--input', process.env.QUALITY_CANDIDATE, '--prepare-sdk', '--core-source', resolve(process.env.GITHUB_WORKSPACE, 'source/official-core'), '--final-group-sha256', process.env.INPUT_SHA256], { stdio: 'inherit' }); if (result.error) throw result.error; process.exitCode = result.status ?? 1;"
 
       - name: Save verified SDK cache without delaying required checks
-        if: success() && steps.sdk-cache.outputs.cache-hit != 'true'
+        if: matrix.phase == 'quality' && !cancelled() && steps.quality.outputs.sdk-cache-ready == 'true' && steps.sdk-cache.outputs.cache-hit != 'true'
         continue-on-error: true
         timeout-minutes: 1
         uses: actions/cache/save@v4
@@ -247,6 +247,7 @@ jobs:
             candidate-group.json
             candidate/dsh-agent-manage/quality-checks.json
             quality-test-plan.json
+            quality-capabilities/
           if-no-files-found: warn
 
   security-audit:

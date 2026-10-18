@@ -77,6 +77,7 @@ try {
         repositories: manifest.repositories,
         repo: 'dsh-agent-manage',
         testOwners: presetHostOwners,
+        alwaysRunScripts: ['test:knowledge', 'test:ci-inputs'],
         base: process.env.QUALITY_BASE_SHA || baseline.repositories.find(entry => entry.repo === 'dsh-agent-manage').head
       })
       for (const file of plan.files) {
@@ -161,6 +162,12 @@ try {
             ]
       )
       writeFileSync('quality-checks.json', JSON.stringify(checks, null, 2) + '\n')
+      if (process.env.GITHUB_OUTPUT) {
+        // Downstream consumer failures do not invalidate a separately verified SDK.
+        finalGroup.verifyUnchanged()
+        verifyOfficialSDK({ ...options, withArtifactReceipt: true })
+        appendFileSync(process.env.GITHUB_OUTPUT, 'sdk-cache-ready=true\n')
+      }
       if (checks.length !== 4 || checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')
     } else if (phase === 'archives') {
       run('corepack', ['pnpm', 'exec', 'vitest', 'run', 'tests/source-acquisition.test.ts', 'tests/zip-bomb.test.ts', 'tests/private-archive.test.ts'])

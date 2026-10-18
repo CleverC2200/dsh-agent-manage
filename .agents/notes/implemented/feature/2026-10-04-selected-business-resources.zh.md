@@ -66,6 +66,8 @@ Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取�
 
 ## 导入 Agent 同步
 
+Catalog 持有串行、无缓存的 `readSourceSnapshot`，供来源乐观更新使用。预览在 Host 内存保留完整发现套件、选中 Agent 字段和受根目录约束的 Skill 原文，以及来源登记、当前 Git 修订和 Catalog 已有的发现 generation。提交在合并前和异步 MCP 暂存后比对快照；预览返回令牌前也复核本次读取。刷新或发现 generation 变化时保守要求重新预览，即使选中提示词未变。普通目录列表继续使用缓存；该校验不获取来源，也不增加第二份持久来源状态。
+
 `AgentSources` 在 Catalog 刷新受管 checkout 前读取旧上游 MCP 定义及用户生效覆盖，按提示词字段、Skill 名称和 MCP 服务键比较基线、个人配置与新来源。冲突支持保留本地、采用上游和经校验的手动结果；预览及取消不改变已提交 Agent。预览令牌只在 Host 内存中保留，重启或替换预览后失效；Agent revision 或 MCP 关联变化时拒绝迟到提交。来源无变化不新增 revision。
 
 导入 Skill 引用持久保存选中正文，用户覆盖与旧 live preset 作用域不随 checkout 刷新而改正文。资源目录和参考资产仍是动态依赖，不快照整个来源树。来源 MCP 变更使用独立连接身份，原始 config 继续作为 Host 基线，个人修改沿既有 runtime override 保存。Agent 列表及来源元数据只保存引用，MCP 冲突预览经过脱敏。

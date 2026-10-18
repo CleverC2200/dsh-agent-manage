@@ -12,6 +12,8 @@ DSH 运行 peer 精确接受 `0.2.0-rc.2 || 0.2.1-alpha.1`。Cordis、Schemaster
 
 Manage 质量阶段要求 SDK 模块准备并核验真实宿主 flock，用于官方 Session writer lock。归档和审计保留各自较窄的输入要求。原预测 Session 测试在独立临时目录安装已跟踪的完整销售套件，并核对固定源哈希，不依赖 runner checkout 外的仓库。Skill 路径断言区分已安装原始源与包内 provider。
 
+必需静态质量独立于受影响 Vitest 选择，包含包身份的 Node 行为测试。Hosted quality 收集消费者检查后，重新核验冻结组与完整 SDK 身份、字节回执，因此消费者检查失败时仍可保存有效 SDK 缓存，质量结果保持失败。仅 main push 生产可选包下载缓存，不跟随链接，上限为 512 MiB 和 50,000 项，检查与上传分别限时一分钟；PR 只恢复。必需及兼容检查的归档都包含能力报告。缓存策略不放宽原锁、来源或工具链准入。
+
 资源与 Skill 发布使用两版共同的 registry 和 provider 接口。Standard 组合读取当前 Host 的 `readDocument('standard')`，包括禁用行和用户配置，不移植另一版的声明。生产路径不增加版本分支或复制的 SDK。
 
 `DSH_CORE_CHECKOUT` 为既有能力验证 lane 选择官方输入。Host fixture 和静态 SDK 导入解析同一批公开 exports；浏览器 lane 读取该 Core 的源码映射，并将既有相对官方源码引用导向同一 Core。Native Loader 与真实 Session 继续执行，本地 completion 和受控业务 adapter 保持原有离线范围。
@@ -25,6 +27,8 @@ Manage 质量阶段要求 SDK 模块准备并核验真实宿主 flock，用于�
 **只放宽 peer，不执行两版官方输入。** 这样会接受包，却不能证明要求的行为。
 
 **增加版本分支或将 SDK 复制到 Manage。** 当前消费的资源与预设接口已在两版共用。额外运行状态和第二个 SDK 实例会削弱现有职责归属。
+
+**等全部消费者检查通过才保存，或由 PR 上传无上限的下载目录。** 前者会因无关失败重复编译有效 SDK，后者让每个候选都承担没有体积上限的上传。独立重验 SDK、只由 main 生产有界下载缓存，保留既有独立准备与信任边界。
 
 ## Consequences
 

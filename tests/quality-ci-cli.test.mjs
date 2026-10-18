@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Buffer } from 'node:buffer'
+import { parse as parseYaml } from 'yaml'
 import { presetLanes, presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 
 const call = (phase, env) => spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', phase], { encoding: 'utf8', env: { ...process.env, ...env } })
@@ -265,7 +266,10 @@ test('joint dispatch isolates in-flight runs and retains required Windows and au
   assert.match(workflow, /path: source\/official-core/)
   assert.match(workflow, /candidate-group\.json/)
   assert.match(workflow, /dependency-review:[\s\S]*if: github.event_name == 'pull_request'/)
-  const requiredWorkflow = workflow.replace(/ {6}- name: Save verified SDK cache[\s\S]*?(?=\n {6}- name: Keep)/g, '')
+  const requiredWorkflow = workflow.replace(
+    / {6}- name: (?:Save verified SDK cache[^\n]*|Inspect bounded main download cache|Save bounded main download cache)\n[\s\S]*?(?=\n {6}- name:)/g,
+    ''
+  )
   assert.doesNotMatch(requiredWorkflow, /continue-on-error|pull_request_target/)
   assert.match(workflow, /timeout-minutes: 1\n {8}uses: actions\/cache\/save@v4/)
 })
@@ -383,7 +387,7 @@ async function sourceImpactFixture(t) {
       write(path, existsSync(path) ? Buffer.concat([readFileSync(path), Buffer.from('\n')]) : 'changed fixture source\n')
       entry.head = commit(entry.path)
     },
-    select: () => selectCiTests({ repositories, repo: own.repo, base, testOwners: presetHostOwners })
+    select: () => selectCiTests({ repositories, repo: own.repo, base, testOwners: presetHostOwners, alwaysRunScripts: ['test:knowledge', 'test:ci-inputs'] })
   }
 }
 
@@ -452,7 +456,7 @@ test('a Manage policy edit runs the static resource consumers in its own source 
   assert.deepEqual(plan.files, plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'])
 })
 
-function qualityExecution(t, files) {
+function qualityExecution(t, files, { cacheOutput = false, invalidReceipt = false } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-quality-selection-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const repositories = ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin'].map(repo => {
@@ -476,7 +480,11 @@ function qualityExecution(t, files) {
     join(workbench, 'scripts/ci-test-plan.mjs'),
     `import { readFileSync } from 'node:fs';
     const { plan } = JSON.parse(readFileSync(new URL('./quality-fixture.json', import.meta.url), 'utf8'));
-    export const selectCiTests = ({ testOwners }) => { if (testOwners?.['tests/base-resource-host.test.ts'] !== 'tests/base-preset-client.test.ts') throw Error('CI_TEST_OWNER_REQUIRED'); return plan }`
+    export const selectCiTests = ({ testOwners, alwaysRunScripts }) => {
+      if (testOwners?.['tests/base-resource-host.test.ts'] !== 'tests/base-preset-client.test.ts') throw Error('CI_TEST_OWNER_REQUIRED');
+      if (JSON.stringify(alwaysRunScripts) !== JSON.stringify(['test:knowledge', 'test:ci-inputs'])) throw Error('CI_ALWAYS_RUN_SCRIPT_REQUIRED');
+      return plan;
+    }`
   )
   writeFileSync(
     join(workbench, 'scripts/candidate-input.mjs'),
@@ -485,6 +493,7 @@ function qualityExecution(t, files) {
     export const readFinalGroup = async () => ({ manifest, verifyUnchanged() {} })`
   )
   const callsFile = join(root, 'calls.json')
+  const outputFile = join(root, 'github-output')
   const hook = join(root, 'quality-boundary.mjs')
   writeFileSync(
     hook,
@@ -495,7 +504,7 @@ function qualityExecution(t, files) {
     syncBuiltinESMExports();
     registerHooks({ load(url, context, next) {
       if (url !== ${JSON.stringify(pathToFileURL(resolve('scripts/prepare-official-sdk.mjs')).href)}) return next(url, context);
-      return { format: 'module', shortCircuit: true, source: 'export const verifyOfficialSDK = () => {}; export const prepareOfficialSDK = () => {}; export const prepareOfficialSource = () => {}; export const verifyOfficialSource = () => {}' };
+      return { format: 'module', shortCircuit: true, source: 'export const verifyOfficialSDK = options => { if (options.withArtifactReceipt && ${invalidReceipt}) throw Error("SDK_CACHE_ARTIFACT_CHANGED"); }; export const prepareOfficialSDK = () => {}; export const prepareOfficialSource = () => {}; export const verifyOfficialSource = () => {}' };
     } });`
   )
   const result = spawnSync(
@@ -504,11 +513,62 @@ function qualityExecution(t, files) {
     {
       cwd: own,
       encoding: 'utf8',
-      env: { ...process.env, GITHUB_OUTPUT: '' }
+      env: { ...process.env, GITHUB_OUTPUT: cacheOutput ? outputFile : '' }
     }
   )
-  return { result, calls: existsSync(callsFile) ? JSON.parse(readFileSync(callsFile, 'utf8')) : [], plan, own }
+  return {
+    result,
+    calls: existsSync(callsFile) ? JSON.parse(readFileSync(callsFile, 'utf8')) : [],
+    plan,
+    own,
+    output: existsSync(outputFile) ? readFileSync(outputFile, 'utf8') : ''
+  }
 }
+
+test('a failed consumer check retains the required failure while a verified SDK can be cached', t => {
+  const { result, output } = qualityExecution(t, ['tests/standard-preset.test.ts'], { cacheOutput: true })
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /QUALITY_CHECKS_FAILED/)
+  assert.match(output, /^sdk-cache-ready=true$/m)
+})
+
+test('SDK cache readiness requires a fresh complete artifact receipt after consumer checks', t => {
+  const { result, output } = qualityExecution(t, ['tests/routes.test.ts'], { cacheOutput: true, invalidReceipt: true })
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /SDK_CACHE_ARTIFACT_CHANGED/)
+  assert.doesNotMatch(output, /sdk-cache-ready/)
+})
+
+test('required static quality executes the package identity behavior regressions', () => {
+  const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts
+  for (const name of ['test:knowledge', 'test:ci-inputs']) assert.ok(scripts['check:static'].split(' && ').includes(`pnpm run ${name}`))
+  assert.ok(scripts['test:ci-inputs'].split(' ').includes('tests/plugin-package-version.test.mjs'))
+})
+
+test('download producers are main-only and bounded while both quality lanes retain capability reports', () => {
+  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  for (const name of ['Inspect bounded main download cache', 'Save bounded main download cache']) {
+    const step = workflow.match(new RegExp(`- name: ${name}\\n([\\s\\S]*?)\\n {6}- name:`))?.[1]
+    assert.match(step, /github.event_name == 'push' && github.ref == 'refs\/heads\/main' && !cancelled\(\)/)
+    assert.match(step, /continue-on-error: true\n {8}timeout-minutes: 1/)
+  }
+  for (const lane of ['quality', 'compatibility']) assert.match(readFileSync(`.github/workflows/${lane}.yml`, 'utf8'), /quality-capabilities\//)
+})
+
+test('download restore and save share one fixed path output across quality and compatibility', () => {
+  const pathReference = '${{ steps.cache-path.outputs.paths }}'
+  for (const lane of ['quality', 'compatibility']) {
+    const workflow = parseYaml(readFileSync(`.github/workflows/${lane}.yml`, 'utf8'))
+    const steps = Object.values(workflow.jobs).flatMap(job => job.steps ?? [])
+    const locate = steps.find(step => step.id === 'cache-path')
+    assert.match(locate.run, /PNPM_STORE_PATH="\$\(corepack pnpm store path --silent\)" node scripts\/download-cache\.mjs --github-paths/)
+    const restore = steps.find(step => step.uses === 'actions/cache/restore@v4' && step.with.key.startsWith('downloads-'))
+    assert.equal(restore.with.path, pathReference)
+    const save = steps.find(step => step.uses === 'actions/cache/save@v4' && step.with.key.includes('steps.download-cache.outputs'))
+    if (lane === 'quality') assert.equal(save.with.path, restore.with.path)
+    else assert.equal(save, undefined, 'compatibility only restores the main-produced download cache')
+  }
+})
 
 test('quality executes planned capability files once and leaves the ordinary batch disjoint', t => {
   const { result, calls, plan } = qualityExecution(t, [
@@ -609,14 +669,16 @@ test('peer dependency inputs select the capabilities that consume those peers', 
 })
 
 test('archive jobs retain their required Windows gate while SDK cache work is limited to quality', () => {
-  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
-  const source = workflow.match(/- name: Prepare owned Core source without compiling\n([\s\S]*?)\n {6}- uses:/)?.[1]
-  const restore = workflow.match(/- uses: actions\/cache\/restore@v4\n {8}id: sdk-cache\n([\s\S]*?)\n {6}- name:/)?.[1]
-  const save = workflow.match(/- name: Save verified SDK cache without delaying required checks\n([\s\S]*?)\n {6}- name:/)?.[1]
-  assert.match(source, /if: matrix\.phase == 'quality'/)
-  assert.match(restore, /if: matrix\.phase == 'quality'/)
-  assert.match(save, /if: matrix\.phase == 'quality' && success\(\)/)
-  assert.match(workflow, /QUALITY_WINDOWS_RESULT/)
+  for (const lane of ['quality', 'compatibility']) {
+    const workflow = readFileSync(`.github/workflows/${lane}.yml`, 'utf8')
+    const source = workflow.match(/- name: Prepare owned Core source without compiling\n([\s\S]*?)\n {6}- uses:/)?.[1]
+    const restore = workflow.match(/- uses: actions\/cache\/restore@v4\n {8}id: sdk-cache\n([\s\S]*?)\n {6}- name:/)?.[1]
+    const save = workflow.match(/- name: Save verified SDK cache without delaying required checks\n([\s\S]*?)\n {6}- name:/)?.[1]
+    assert.match(source, /if: matrix\.phase == 'quality'/)
+    assert.match(restore, /if: matrix\.phase == 'quality'/)
+    assert.match(save, /if: matrix\.phase == 'quality' && !cancelled\(\) && steps\.quality\.outputs\.sdk-cache-ready == 'true'/)
+    assert.match(workflow, /QUALITY_WINDOWS_RESULT/)
+  }
 })
 
 test('quality refuses an empty ordinary group without launching unfiltered Vitest discovery', t => {
