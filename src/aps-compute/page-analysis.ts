@@ -10,6 +10,7 @@ export function summarizePage(data: MetricData | null | undefined, busy = false,
   const available = included.map(n => metrics[n]).filter(m => m && m.value !== null && Number.isFinite(m.value))
   if (!available.length) return empty
   const format = (value: number) => value.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+  const label = (name: string) => (name === '日发货量' && data.start !== data.end ? '期间发货量' : name)
   const value = (name: string) => (included.includes(name) ? (metrics[name]?.value ?? null) : null)
   const shortage = value('订单缺货量'),
     rate = value('订单满足率'),
@@ -31,8 +32,8 @@ export function summarizePage(data: MetricData | null | undefined, busy = false,
     title = `当前库存${format(stock)}万件，需结合需求评估`
   } else {
     const first = available[0]
-    title = `${first.name}${format(first.value!)}${first.unit}`
+    title = `${label(first.name)}${format(first.value!)}${first.unit}`
   }
-  const evidence = available.map(m => `${m.name}${format(m.value!)}${m.unit}`).join('，')
+  const evidence = available.map(m => `${label(m.name)}${format(m.value!)}${m.unit}`).join('，')
   return { title, copy: `截至${data.end}，${evidence}。${action}` }
 }
