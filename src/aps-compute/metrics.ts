@@ -39,7 +39,7 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
   put(
     '预测量',
     absent ? null : sum(forecast, 'predicted') === null ? null : sum(forecast, 'predicted')! / 10000,
-    '万件',
+    '万箱',
     absent ? `${absent}条预测量缺失，已知部分不冒充完整合计` : '所选月份、所选版本的完整月度预测量（不按日摊分）'
   )
   const expectedMonths = (Number(data.end.slice(0, 4)) - Number(data.start.slice(0, 4))) * 12 + Number(data.end.slice(5, 7)) - Number(data.start.slice(5, 7)) + 1
@@ -103,7 +103,7 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
   put(
     '日发货量',
     missing(deliveries, 'missing_qty') ? null : sum(deliveries, 'actual') === null ? null : sum(deliveries, 'actual')! / 10000,
-    '万件',
+    '万箱',
     '按实际发货日的 act_dl_qty 汇总；不与 act_dl_qty_all 相加'
   )
   put(
@@ -112,17 +112,17 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
     '万元',
     '日发货源未税金额，与财务月度未税收入为不同来源，不混加'
   )
-  put('库存量', inventory === null ? null : inventory / 10000, '万件', '基地库存，所选版本与截止日前最新快照')
+  put('库存量', inventory === null ? null : inventory / 10000, '万箱', '基地库存，所选版本与截止日前最新快照')
   const invalid = missing(orders, 'invalid'),
     need = sum(orders, 'demand'),
     shortage = sum(orders, 'shortage')
-  put('订单缺货量', invalid || shortage === null ? null : shortage / 10000, '万件', invalid ? '订单存在缺失或异常字段' : '订单业务日期范围内最新快照缺货量')
+  put('订单缺货量', invalid || shortage === null ? null : shortage / 10000, '万箱', invalid ? '订单存在缺失或异常字段' : '订单业务日期范围内最新快照缺货量')
   put('订单满足率', !invalid && need !== null && need > 0 && shortage !== null ? (1 - shortage / need) * 100 : null, '%', '1 − 缺货量 / 需求量；缺失或需求为零时不计算')
   for (const [name, field] of [
     ['客户计划量', 'planned'],
     ['客户实际发货量', 'actual']
   ])
-    put(name, missing(execution, 'invalid') || sum(execution, field) === null ? null : sum(execution, field)! / 10000, '万件', '按所选业务日期的计划执行记录汇总')
+    put(name, missing(execution, 'invalid') || sum(execution, field) === null ? null : sum(execution, field)! / 10000, '万箱', '按所选业务日期的计划执行记录汇总')
   const finance = get('finance'),
     budget = get('sales-budget')
   const income = missing(finance, 'invalid') ? null : sum(finance, 'actual')

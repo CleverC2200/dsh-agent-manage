@@ -37,7 +37,7 @@ export type WorkbenchAction = {
 type Fulfillment = { scope: string; demand: number; shortage: number; rate: number }
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
-const quantity = (value: number) => `${(value / 10000).toFixed(2)}万件`
+const quantity = (value: number) => `${(value / 10000).toFixed(2)}万箱`
 const rate = (value: number) => `${value.toFixed(2)}%`
 
 function rows(data: MetricData | null | undefined, id: string) {

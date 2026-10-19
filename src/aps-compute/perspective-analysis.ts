@@ -70,7 +70,7 @@ export function analyzeProductionMatrix(metric: string, period: string, cells: M
     .sort((a, b) => (a.level === b.level ? (metric === '可发货天数' ? b.value - a.value : a.value - b.value) : a.level === '严重' ? -1 : 1))
   const ranked = risk.length ? risk : [...evaluated].sort((a, b) => (metric === '可发货天数' || metric === '库存量' ? b.value - a.value : a.value - b.value))
   const top = ranked[0],
-    unit = metric === '可发货天数' ? '天' : metric === '库存量' || metric === '订单缺货量' ? '万件' : '%'
+    unit = metric === '可发货天数' ? '天' : metric === '库存量' || metric === '订单缺货量' ? '万箱' : '%'
   const classText = definition?.classify(top.value) === null ? '库存集中度观察' : `严重${severe}个、预警${warning}个`
   return {
     title: risk.length ? `${top.scope}需要优先关注` : `${metric}组合分布已汇总`,
