@@ -90,7 +90,7 @@ description: 回答当前订单缺口、缺货对象与影响范围、缺货原�
 
 ## 默认交付
 
-> 输出结构、语言、数字、引导格式统一遵守 `inventory-policy` Skill 的 `rules/output-guide.md`：快速问数用四段式，分析类问题用「核心结论 → 关键数字 → 问题根因 → 行动建议（短/中/长期 + 责任角色）→ 风险提示 → 数据说明」，报告类按模板输出。
+> 输出结构、语言、数字、引导格式统一遵守 `inventory-policy` Skill 的 `rules/output-guide.md`。
 
 
 1. 核心结论（一句话：缺口 SKU 数、缺口总量、影响订单数）
