@@ -2,6 +2,8 @@
 
 Status: implemented
 
+The customer-inventory portion is partially superseded by [customer inventory governed read](2026-10-19-customer-inventory-governed-read.md). The decisions below remain current for the order workbench, order fulfillment and other received prototypes.
+
 ## Problem
 
 The customer, order report and fulfillment prototypes have existing pages and original Agent resources. Static pages without business resource declarations do not let users select those personas and Skills in the page's Session. Receiving the existing prototypes must preserve their mock interactions and resource text.
