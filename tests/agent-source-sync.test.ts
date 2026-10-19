@@ -248,3 +248,53 @@ it('rejects stale or cancelled syncs and preserves the durable usable revision t
   fail.mockRestore()
   await agents.dispose()
 })
+
+it('compares complete Skill files during source updates and preserves chosen local attachments', async () => {
+  const { ctx, home } = await presetHarness()
+  const root = join(home, 'directory-sync')
+  await mkdir(join(root, '.claude-plugin'), { recursive: true })
+  await mkdir(join(root, 'skills/complete/references'), { recursive: true })
+  await writeFile(join(root, '.claude-plugin/plugin.json'), JSON.stringify({ name: 'directory-sync', systemPrompt: 'Source persona' }))
+  await writeFile(join(root, 'skills/complete/SKILL.md'), '---\nname: complete\ndescription: Complete files\n---\nRead references/value.txt')
+  await writeFile(join(root, 'skills/complete/references/value.txt'), 'BASE_ATTACHMENT')
+  const catalog = new Catalog({ userRoot: join(home, 'catalog'), dataRoot: home, onChanged: () => {} })
+  await catalog.load()
+  ctx.skills.registerProvider(() => new SuiteSkillProvider(catalog))
+  const agents = new UserAgents(ctx, join(home, 'file-sync-agents.json'))
+  await agents.load()
+  const sources = new AgentSources(catalog, agents)
+  const source = await sources.acquire({ url: root, kind: 'local' })
+  const imported = await sources.import({ sourceId: source.id, suiteId: 'directory-sync', resourceKey: 'suite' })
+  const target = { id: imported.id, name: 'complete' }
+  const opened = await agents.directories.open(target)
+  const edited = await agents.directories.write({
+    ...target,
+    revision: opened.revision,
+    path: 'skills/complete/references/value.txt',
+    fileVersion: (await agents.directories.read({ ...target, path: 'skills/complete/references/value.txt' })).fileVersion,
+    data: 'LOCAL_ATTACHMENT',
+    encoding: 'utf8'
+  })
+  await agents.directories.apply({ ...target, revision: edited.revision })
+  await writeFile(join(root, 'skills/complete/references/value.txt'), 'UPSTREAM_ATTACHMENT')
+  const preview = await sources.preview({ id: imported.id })
+  expect(preview.conflicts).toContainEqual(expect.objectContaining({ key: 'skill:complete' }))
+  const draft = await agents.directories.open(target)
+  await agents.directories.write({
+    ...target,
+    revision: draft.revision,
+    path: 'skills/complete/references/draft.txt',
+    data: 'UNAPPLIED_DRAFT',
+    encoding: 'utf8',
+    fileVersion: null
+  })
+  await expect(sources.commit({ token: preview.token, resolutions: { 'skill:complete': { choice: 'upstream' } } })).rejects.toThrow('SKILL_EDIT_CONFLICT')
+  const synced = await sources.commit({ token: preview.token, resolutions: { 'skill:complete': { choice: 'local' } } })
+  expect(synced.publication).toBe('ready')
+  expect((await agents.directories.read({ ...target, path: 'skills/complete/references/draft.txt' })).data).toBe('UNAPPLIED_DRAFT')
+  const session = await agentOn(ctx, 'file-sync-session', imported.preset, undefined, home)
+  const loaded = await ctx.skills.get('complete', { scope: session, cwd: home })
+  expect(await readFile(join(loaded!.resourceBase!.path!, 'references/value.txt'), 'utf8')).toBe('LOCAL_ATTACHMENT')
+  expect(await readFile(join(root, 'skills/complete/references/value.txt'), 'utf8')).toBe('UPSTREAM_ATTACHMENT')
+  await agents.dispose()
+})

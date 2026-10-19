@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
   "description": "配置个人智能体、技能和 MCP 连接，管理原生预设与资源。",
-  "version": "0.6.3-company.20",
+  "version": "0.6.3-company.21",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -145,6 +145,7 @@
     "@deepseek-ai/dsh-llm": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-mcp-client": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-skill": "0.2.0-rc.2 || 0.2.1-alpha.1",
+    "@deepseek-ai/dsh-skill-filesystem": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-alpha.1",
     "@deepseek-ai/schemastery": "3.18.4 || 3.18.5-alpha.1"
   },
@@ -178,6 +179,7 @@
     "@deepseek-ai/dsh-llm": "link:../../official-latest-standard/packages/llm/llm",
     "@deepseek-ai/dsh-mcp-client": "link:../../official-latest-standard/packages/mcp/mcp-client",
     "@deepseek-ai/dsh-skill": "link:../../official-latest-standard/packages/skill/skill",
+    "@deepseek-ai/dsh-skill-filesystem": "link:../../official-latest-standard/packages/skill/skill-filesystem",
     "@deepseek-ai/dsh-tools": "link:../../official-latest-standard/packages/core/tools",
     "@deepseek-ai/schemastery": "link:../../official-latest-standard/vendor/schemastery",
     "@eslint/js": "^9.39.5",

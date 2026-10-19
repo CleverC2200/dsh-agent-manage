@@ -1,8 +1,26 @@
 import type { AgentSourceBaseline } from './agent-sources.js'
 /** A provider reference keeps source ownership; a content override is personal to this Agent. */
+export interface SkillDirectorySnapshot {
+  root: string
+  bundle: string
+  entry: string
+}
+export interface SkillGitSource {
+  kind: 'git'
+  url: string
+  branch?: string
+  path: string
+  commit: string
+  base: SkillDirectorySnapshot
+}
+export interface SkillDirectoryVersion extends SkillDirectorySnapshot {
+  id: string
+  previous?: SkillDirectorySnapshot
+  source?: SkillGitSource
+}
 export type UserAgentSkill =
-  | { kind: 'reference'; name: string; provider: string; path?: string; enabled: boolean; content?: string }
-  | { kind: 'personal'; name: string; description: string; content: string; enabled: boolean }
+  | { kind: 'reference'; name: string; provider: string; path?: string; enabled: boolean; content?: string; directory?: SkillDirectoryVersion }
+  | { kind: 'personal'; name: string; description: string; content: string; enabled: boolean; directory?: SkillDirectoryVersion }
 export interface TrustedCubeSource {
   sourceRef: string
   name: string

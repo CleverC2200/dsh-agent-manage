@@ -10,7 +10,7 @@ import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { TestSessions } from '../../../official-latest-standard/packages/test-support/client-runtime/src/sessions.ts'
 import { mountConversationDraft, saveConversationDraft, storedConversationDraftText } from './conversation-draft-fixture.js'
 import { InputHub } from '../../../official-latest-standard/packages/client/ui-conversation/src/client/input/hub.ts'
-import { mountNativeResourceSelection, selectResource, type NativeResourceSelection } from 'preset-client-workbench/resource-selection'
+import { mountNativeResourceSelection, openNativeAgentSession, selectResource, type NativeResourceSelection } from 'preset-client-workbench/resource-selection'
 
 it('opens a real selected Skill Session through the resource entry and preserves official drafts on conflict, cancel and re-entry', async () => {
   const cwd = await mkdtemp(join(tmpdir(), 'skill-entry-client-'))
@@ -68,6 +68,8 @@ it('opens a real selected Skill Session through the resource entry and preserves
     await client.fiber.dispose()
     for (const receipt of receipts) localStorage.removeItem(`dsh.conversation.${receipt.sessionId}`)
     localStorage.removeItem('dsh.conversation.previous-session')
+    localStorage.removeItem('dsh.conversation.empty-previous-session')
+    localStorage.removeItem('dsh.conversation.skill-directory-editor-draft')
   })
   sessions.stubCreate(async options => {
     expect(options).toEqual({ workspaceId: 'selected-workspace' })
@@ -104,6 +106,12 @@ it('opens a real selected Skill Session through the resource entry and preserves
     expect(prepared!.commands).toContain('compact')
     return Response.json(prepared!.selection)
   }
+  const emptyPrevious = SessionId('empty-previous-session')
+  await sessions.add({ id: emptyPrevious })
+  const empty = sessions.retain(emptyPrevious)
+  await empty.ready
+  holds.set(emptyPrevious, empty)
+  await mountConversationDraft(hub, empty.binding)
   const previous = SessionId('previous-session')
   saveConversationDraft(previous, '原任务未发送文字')
   await sessions.add({ id: previous })
@@ -119,6 +127,7 @@ it('opens a real selected Skill Session through the resource entry and preserves
   await current.ready
   const currentBinding = current.binding
   expect(hub.for(currentBinding.ctx).state.getSnapshot().draft).toBe('/selected-skill ')
+  expect(hub.for(empty.binding.ctx).state.getSnapshot().draft).toBe('')
   expect(opened).toEqual(['skill-entry-1'])
   const retainedBeforeReentry = holds.get(result.sessionId)!
   await native!.open(result.sessionId, undefined, new AbortController().signal)
@@ -137,6 +146,17 @@ it('opens a real selected Skill Session through the resource entry and preserves
   expect(opened).toEqual(['skill-entry-1', 'skill-entry-1'])
   expect(hub.for(old.binding.ctx).state.getSnapshot().draft).toBe('原任务未发送文字')
   expect(localStorage.getItem(`dsh.conversation.${previous}`)).toBe(previousStored)
+  const editorId = SessionId('skill-directory-editor-draft')
+  await sessions.add({ id: editorId, summary: { cwd } })
+  await sessions.setProjection(editorId, 'agentPreset', 'skill-directory-editor')
+  const draft = '请修改此 Agent 的 Skill，并调用 skill_directory_apply。\n\n需要修改的内容：'
+  await openNativeAgentSession(native!, { sessionId: editorId, preset: 'skill-directory-editor', cwd, draft }, new AbortController().signal)
+  const editor = holds.get(editorId)!
+  await editor.ready
+  await mountConversationDraft(hub, editor.binding)
+  expect(hub.for(editor.binding.ctx).state.getSnapshot().draft).toBe(draft)
+  expect(hub.for(empty.binding.ctx).state.getSnapshot().draft).toBe('')
+  expect(hub.for(old.binding.ctx).state.getSnapshot().draft).toBe('原任务未发送文字')
   if (process.env.PRESET_EVIDENCE_DIR)
     await writeFile(
       join(process.env.PRESET_EVIDENCE_DIR, 'skill-resource-client.json'),

@@ -1,5 +1,5 @@
 .workspace { color: var(--workbench-text, #202127); padding: 40px 48px; max-width: 1040px; margin: 0 auto; height: 100%; overflow-y: auto; font: 14px/1.55 var(--workbench-font-family, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif); box-sizing: border-box; }
-.settingsWorkspace { padding: 24px 0 0; max-width: none; height: auto; overflow: visible; }
+.workspace.settingsWorkspace { padding: 0; max-width: none; height: auto; overflow: visible; }
 .workspace button, .workspace input, .workspace textarea, .workspace select { font: inherit; }
 .workspace button { cursor: pointer; border: 1px solid var(--workbench-border, #dfe1e6); background: transparent; color: inherit; border-radius: 8px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
 .workspace button:hover { background: var(--workbench-hover, #f6f7f9); }
@@ -51,7 +51,7 @@
 .menuItems button { display: block; text-align: left; width: 100%; border: 0; }
 .modeTabs { display: flex; gap: 4px; margin: 0 0 12px; }
 .modeTabs button[aria-pressed=true] { background: var(--workbench-hover, #f5f6f7); }
-@media (max-width: 650px) { .workspace { padding: 24px 18px; } .workspace.settingsWorkspace { padding: 16px 0 0; } .heading, .row { gap: 10px; } .heading { flex-wrap: wrap; } .heading > .title { min-width: 120px; } .row .icon { width: 42px; height: 44px; } }
+@media (max-width: 650px) { .workspace { padding: 24px 18px; } .heading, .row { gap: 10px; } .heading { flex-wrap: wrap; } .heading > .title { min-width: 120px; } .row .icon { width: 42px; height: 44px; } }
 
 .source {
   padding: 16px 0;
@@ -97,3 +97,22 @@
 .sourceInfo { margin: 6px; font-size: 12px; color: var(--workbench-muted, #69717c); }
 .sourceInfo summary { cursor: pointer; font-size: 13px; }
 .sourceInfo dd { margin: 0 0 8px; overflow-wrap: anywhere; }
+.skillToolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.workspace .skillCheckbox { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.workspace .skillCheckbox input { width: auto; }
+.workspace .skillImportPicker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.workspace .skillImportPicker > span:first-child { flex-basis: 100%; }
+.workspace .skillImportPicker input[hidden] { display: none; }
+.workspace .skillImportPath { min-width: 0; overflow-wrap: anywhere; color: var(--workbench-text-muted, #737b89); }
+.skillEditorGrid { display: grid; grid-template-columns: minmax(160px, 24%) minmax(0, 1fr); gap: 16px; margin: 16px 0; }
+.skillFiles { min-width: 0; max-height: 520px; overflow: auto; }
+.skillFiles ul { list-style: none; padding: 0; margin: 0; }
+.skillFiles ul ul { padding-inline-start: 12px; }
+.skillFiles summary { cursor: pointer; padding: 8px 0; overflow-wrap: anywhere; }
+.skillFiles summary:focus-visible { outline: 2px solid var(--workbench-brand, #df1732); outline-offset: 2px; }
+.skillFiles button { width: 100%; text-align: start; overflow-wrap: anywhere; margin-bottom: 4px; }
+.skillFiles button[aria-current] { color: var(--workbench-brand, #df1732); background: var(--workbench-brand-soft, #fff0f2); }
+.skillFileContent { min-width: 0; }
+.skillFileContent textarea { font-family: ui-monospace, monospace; }
+.skillComparison { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; }
+@media (max-width: 720px) { .skillEditorGrid { grid-template-columns: 1fr; } .skillFiles { max-height: 180px; } }

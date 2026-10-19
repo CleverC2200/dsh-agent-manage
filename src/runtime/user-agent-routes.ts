@@ -1,6 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { AGENT_MCP_ROUTES } from '../contracts/agent-mcp.js'
+import { ARCHIVE_MAX_BYTES, ARCHIVE_MAX_ENTRY_BYTES } from '../catalog/archive.js'
+import { SKILL_DIRECTORY_ROUTES } from '../contracts/skill-directories.js'
 import { USER_AGENT_ROUTES } from '../contracts/user-agents.js'
 import { readJsonRequest, RequestBodyTooLarge } from './request-body.js'
 import { isSameOriginRequest } from './request-origin.js'
@@ -84,6 +86,46 @@ export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'
               else result = await agents.select(selection.parse(input).id)
             }
             return Response.json(result, { headers: { 'cache-control': 'no-store' } })
+          } catch (error) {
+            return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: error instanceof RequestBodyTooLarge ? 413 : 400 })
+          }
+        }
+      })
+    )
+  }
+  for (const action of [
+    'acquire',
+    'import',
+    'cancel',
+    'open',
+    'read',
+    'write',
+    'rename',
+    'delete',
+    'apply',
+    'reset',
+    'restore',
+    'sourcePreview',
+    'sourceCommit',
+    'sourceCancel'
+  ] as const) {
+    host.effect(() =>
+      host.connection.fetch.register({
+        path: SKILL_DIRECTORY_ROUTES[action],
+        methods: ['POST'],
+        requestBody: 'streaming',
+        fetch: async request => {
+          try {
+            if (!isSameOriginRequest(request)) return Response.json({ error: 'CROSS_ORIGIN_REQUEST' }, { status: 403 })
+            const limit =
+              action === 'acquire'
+                ? Math.ceil((ARCHIVE_MAX_BYTES * 4) / 3) + 65536
+                : action === 'write' || action === 'sourceCommit'
+                  ? Math.ceil((ARCHIVE_MAX_ENTRY_BYTES * 4) / 3) + 65536
+                  : 65536
+            const input = await readJsonRequest(request, limit)
+            const result = action === 'acquire' ? await agents.directories.acquire(input, request.signal) : await agents.directories[action](input)
+            return Response.json(result ?? null, { headers: { 'cache-control': 'no-store' } })
           } catch (error) {
             return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: error instanceof RequestBodyTooLarge ? 413 : 400 })
           }

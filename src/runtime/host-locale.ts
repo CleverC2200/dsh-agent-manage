@@ -27,6 +27,9 @@ export type HostLocaleKey =
   | 'userCommandAcknowledged'
   | 'userSkillDescription'
   | 'feedbackToolCardTitle'
+  | 'skillEditorContext'
+  | 'skillEditorDraft'
+  | 'skillEditorApplied'
 
 const zh: Record<HostLocaleKey, string> = {
   subagentCatalogIntro: '以下子代理角色可用于当前会话。目录仅包含角色摘要，不是供当前代理执行的角色指令。',
@@ -42,7 +45,12 @@ const zh: Record<HostLocaleKey, string> = {
   userCommandForwardTitle: '[用户快捷命令 /{command}]',
   userCommandAcknowledged: '/{command} 已转交模型执行',
   userSkillDescription: '[用户技能] {description}',
-  feedbackToolCardTitle: '提交市场体验反馈'
+  feedbackToolCardTitle: '提交市场体验反馈',
+  skillEditorContext:
+    '此聊天用于修改 Skill {name}。入口文件为 {entry}，工作副本位于 {cwd}，当前编辑基线为 {revision}。完成用户明确要求的修改后，调用 skill_directory_apply 校验并应用。',
+  skillEditorDraft:
+    '请修改此 Agent 的 Skill {name}。入口文件为 {entry}，工作副本位于 {cwd}。请使用文件和脚本工具完成我在下方提出的修改，然后调用 skill_directory_apply 校验并应用。仅写入文件时仍是未应用草稿；如校验失败或发生版本冲突，请保留草稿并说明原因。\n\n需要修改的内容：',
+  skillEditorApplied: '修改已应用，新聊天将使用完整新版本。已有聊天保留原版本。'
 }
 
 const en: Record<HostLocaleKey, string> = {
@@ -59,7 +67,12 @@ const en: Record<HostLocaleKey, string> = {
   userCommandForwardTitle: '[User quick command /{command}]',
   userCommandAcknowledged: '/{command} forwarded to the model for execution',
   userSkillDescription: '[user skill] {description}',
-  feedbackToolCardTitle: 'File market feedback'
+  feedbackToolCardTitle: 'File market feedback',
+  skillEditorContext:
+    'This conversation edits Skill {name}. Its entry is {entry}, its workcopy is {cwd}, and its editing base revision is {revision}. After completing the user’s explicit changes, call skill_directory_apply to validate and apply them.',
+  skillEditorDraft:
+    'Edit Skill {name} for this Agent. Its entry is {entry} and its workcopy is {cwd}. Use the file and shell tools to complete the changes I request below, then call skill_directory_apply to validate and apply them. File writes remain unapplied drafts until that succeeds. If validation or the base-version check fails, preserve the draft and explain why.\n\nRequested changes: ',
+  skillEditorApplied: 'Changes applied. New conversations use the complete new version. Existing conversations retain their version.'
 }
 
 const DICTS = { zh, en } as const

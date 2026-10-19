@@ -1,7 +1,7 @@
 /** Selected resources exercise production Core registry, Session and compaction. */
 import { expect, it, onTestFinished } from 'vitest'
 import { join } from 'node:path'
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { MINIMAL_SYSTEM_PROMPT } from '../src/runtime/standard-preset.js'
@@ -17,15 +17,17 @@ async function pluginFailureHarness() {
     }
   })
   const index = join(home, 'selected.json')
-  await writeFile(join(home, 'SKILL.md'), '---\nname: selected-skill\ndescription: Selected instructions\n---\nOriginal Skill body.\n')
-  await writeFile(join(home, 'prompt.json'), JSON.stringify({ persona: 'Original persona.', consumerCode: 'never-granted', skills: ['selected-skill'] }))
+  const sourceRoot = join(home, 'selected-source')
+  await mkdir(sourceRoot)
+  await writeFile(join(sourceRoot, 'SKILL.md'), '---\nname: selected-skill\ndescription: Selected instructions\n---\nOriginal Skill body.\n')
+  await writeFile(join(sourceRoot, 'prompt.json'), JSON.stringify({ persona: 'Original persona.', consumerCode: 'never-granted', skills: ['selected-skill'] }))
   const resources = new BusinessResources(ctx, index)
   onTestFinished(() => resources.dispose())
   await resources.register([
     {
       id: 'selected-owner',
       label: 'Selected owner',
-      root: home,
+      root: sourceRoot,
       prompt: 'prompt.json',
       profile: { label: 'Selected owner', consumerCode: 'never-granted', skills: ['selected-skill'] },
       skillFiles: { 'selected-skill': 'SKILL.md' }

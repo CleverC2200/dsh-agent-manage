@@ -52,9 +52,19 @@ GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/�
 
 ## 个人 Agent 的 Skill 作用域
 
-`UserAgents` 随 Agent 配置持久保存 Skill 引用和个人正文。引用保存获胜 provider 与可选源路径；来源缺失或改变时，发布与读取明确拒绝。个人定制保留原引用的资源目录，不写回受管源。`dsh-agent-manage/user-agent-skills` 在官方预设作用域内贡献配置，复用全局 provider 读取，允许选中且启用的引用，并将未选中或停用的全局 Skill 的两种调用策略设为停用。standard 声明及其原生作用域资源保留，Core 为已有 Session 保留旧 revision 作用域。
+Manage 为每个选中 Skill 保留完整不可变目录版本与独立的每 Agent 工作副本。目录投影以 `directoryId` 标识工作副本；认证目录请求使用当前 Agent 页传入的所属 Agent `id`，不从目录标识推断。已有个人正文和引用定制一次性转换，保留稳定身份、元数据、启停与来源。content 字段仅作为编辑投影，运行时通过官方公开 filesystem provider 读取已发布目录。来源原件保持不变。
 
-Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取消只丢弃本地编辑；保存失败保留表单。卸载时取消读取并忽略迟到结果。生产 Core Session 测试覆盖来源选择、作用域目录与工具实际调用，不证明已安装客户端或外部模型验收。
+目录、本地 ZIP 和 Git 先暂存，再显式选择。所选输入根限定依赖复制范围；完整复制保留共享相对引用、原始字节和可执行属性。预设适配只公开选中 Skill，使用明确扫描根及入口路径。无效元数据、缺失依赖拒绝发布。导入不运行脚本或安装依赖。
+
+认证目录动作核对 Agent 归属，保留插件预设身份。手动与 Core 编辑共用工作副本；写入、重命名和删除核所观察的文件版本，目录 revision 保护应用及多页面修改。应用先校验完整候选，再替换稳定预设；注册或持久写入失败沿补偿恢复。reset 放弃未应用修改，restore 发布上一完整版本。已发布目录与草稿历史继续保留，运行中 Core Session 保持原资源版本。
+
+主工作台与设置中的 Skill 页共用这些动作，支持文件夹路径、ZIP、Git 导入、文件树、二进制替换和文件级来源冲突选择。尚未写入文件的内容与已写入但未应用的修改分别显示。写入失败保留本地文本；比较入口显示当前工作副本，由用户明确采用其文件 token 作为合并基线。设置页跳转编辑聊天时，在原生导航成功后调用官方 settings.section 的 close。
+
+专用编辑预设复用官方标准工具与 Core Session 生命周期。Host 路由通过官方 Workspace registry 注册或复用工作副本目录，再以该 Workspace id 创建同一编辑 Session，由 Core 持有持久成员关系并启用原生输入框。Host 通过官方 inbox 注入和工具延迟上下文，在自有消息 source 元数据中记录 Agent、Skill、工作副本与 revision。普通 prompt RPC 自行构造 user source，不能提供这份 Host source。元数据只是持久事实记录，目录归属及当前状态仍由目录服务确定。绑定的 apply 工具不接受目标参数，发布成功后也会推进当前 Session 的绑定。Core 重启从这些已知事件恢复绑定，不建立 Session sidecar 或未知自定义事件。
+
+官方文件与 shell 工具读取编辑 Session 的 workspace-write 策略。该官方策略也允许平台临时目录，不能据此声称严格只有 cwd 可写。编辑入口额外核 write/edit 目标的规范路径归属，并拒绝扩大权限。文件和 shell 变更调用在目录服务核 revision 的同一队列中完成。每次实际目录变化都推进 revision，包括失败调用留下的部分修改；仅写入的 Session 获得新的持久 Host 绑定。其它 Session 和旧手动页面保留原 revision，在修改前拒绝。只读调用不推进 revision。普通业务 Agent 策略保持原样。共享 full-Manage 测试入口在装载前拒绝缺失或不匹配的隔离 home。
+
+`skill-directories.test.ts` 沿公开 UserAgents、Host Fetch 及既有 Core fixture 加载 Skill、读取参考文件并执行受控脚本。UI 与实际客户端验收分别留证。
 
 ## 个人 Agent 停用、删除与恢复
 
@@ -68,7 +78,9 @@ Skill 页通过已认证 Agent 配置路由读取目录、正文及保存。取�
 
 `AgentSources` 在 Catalog 刷新受管 checkout 前读取旧上游 MCP 定义及用户生效覆盖，按提示词字段、Skill 名称和 MCP 服务键比较基线、个人配置与新来源。冲突支持保留本地、采用上游和经校验的手动结果；预览及取消不改变已提交 Agent。预览令牌只在 Host 内存中保留，重启或替换预览后失效；Agent revision 或 MCP 关联变化时拒绝迟到提交。来源无变化不新增 revision。
 
-导入 Skill 引用持久保存选中正文，用户覆盖与旧 live preset 作用域不随 checkout 刷新而改正文。资源目录和参考资产仍是动态依赖，不快照整个来源树。来源 MCP 变更使用独立连接身份，原始 config 继续作为 Host 基线，个人修改沿既有 runtime override 保存。Agent 列表及来源元数据只保存引用，MCP 冲突预览经过脱敏。
+Skill 同步比较完整 base、local、upstream 目录的文件字节、增删与可执行属性。现有每 Skill 冲突选择保留所选完整版本。来源 checkout 刷新不能改变已发布版本或清空工作副本。来源 MCP 变更使用独立连接身份，原始 config 继续作为 Host 基线，个人修改沿既有 runtime override 保存。Agent 列表及来源元数据只保存引用，MCP 冲突预览经过脱敏。
+
+直接导入的 Git Skill 保留 URL、所选路径、commit 和完整来源基线。文件级预览与提交复用 AgentSources 的比较和冲突解析。无冲突文件变化自动合并，保留本地、采用上游和经校验的手动结果由用户选择。未应用工作副本阻止替换；仅推进本地选择的来源基线时保留原工作副本。目录和 ZIP 导入仍是个人快照。
 
 `UserAgents.syncSource` 先解析声明、校验依赖，再注册并 resolve 稳定身份后持久保存。Core 没有原子替换操作，替换失败沿补偿恢复，不发布独立候选身份。发布或持久写失败恢复旧声明和原持久配置。声明释放失败保留句柄，补偿、重试或卸载时继续清理。旧 live Core revision 保留原来源连接；停用、删除 Agent 或明确移除来源仍撤销 schema 和 dispatch。默认选择、Session 和草稿继续归 Core。重启发布已提交的当前配置；精确历史 revision 冷恢复仍受上一节的 Core 合同限制。
 

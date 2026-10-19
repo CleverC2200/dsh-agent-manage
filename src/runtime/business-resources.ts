@@ -1,7 +1,8 @@
 /** Manage owns original resource loading, native publication and selected-id recovery. */
 import { z } from 'zod'
 import type { UserAgentSkill, UserAgentView } from '../contracts/user-agents.js'
-import { agentSkills, captureAgentSkills } from './agent-skills.js'
+import { SkillDirectories } from './skill-directories.js'
+import { agentSkills, captureAgentSkills, ownedSkillEdits } from './agent-skills.js'
 import { createHash } from 'node:crypto'
 import { readFile, realpath, mkdir, writeFile, rename } from 'node:fs/promises'
 import { resolve, sep, dirname } from 'node:path'
@@ -64,6 +65,7 @@ export interface ResourceSelection {
 }
 interface Entry {
   sourceVersion?: string
+  skillSnapshot?: UserAgentSkill[]
   instructions?: string
   interpreters?: readonly string[]
   definition: BusinessResourceDefinition
@@ -107,6 +109,7 @@ declare module '@deepseek-ai/cordis' {
 
 export class BusinessResources {
   private readonly listeners = new Set<() => void>()
+  readonly directories: SkillDirectories
   private readonly customizations = new Map<string, Customization>()
   private readonly cubeDisabled = new Set<string>()
   private readonly entries = new Map<string, Entry>()
@@ -122,6 +125,17 @@ export class BusinessResources {
     private readonly ctx: Pick<Context, 'skills' | 'agentPresets'>,
     private readonly indexFile: string
   ) {
+    this.directories = new SkillDirectories(
+      ctx,
+      `${indexFile}.skills`,
+      id => this.pluginAgent(id),
+      (id, skills, revision) => this.saveDirectorySkills(id, skills, revision),
+      async skill =>
+        [...this.entries.values()].find(entry => {
+          const file = entry.definition.skillFiles?.[skill.name]
+          return file && skill.kind === 'reference' && skill.path === resolve(entry.definition.root, file)
+        })?.definition.root
+    )
     this.unregisterProvider = ctx.skills.registerProvider(control => {
       this.control = control
       return { name: 'business-resource', list: options => this.skillCandidates(options), get: (candidate, options) => this.skillBody(candidate, options) }
@@ -275,6 +289,7 @@ export class BusinessResources {
       prompt: this.customizations.get(id)?.prompt ?? entry.instructions,
       skills:
         this.customizations.get(id)?.skills ??
+        entry.skillSnapshot ??
         (await captureAgentSkills(
           this.ctx,
           d.profile.skills.map(name => {
@@ -304,6 +319,7 @@ export class BusinessResources {
     const d = entry.definition
     const skills =
       custom?.skills ??
+      entry.skillSnapshot ??
       (await captureAgentSkills(
         this.ctx,
         (await this.ctx.skills.list())
@@ -334,20 +350,44 @@ export class BusinessResources {
       .strict()
       .parse(input)
     if (!this.entries.get(value.id)?.definition.prompt) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
-    const skills = value.skills && (await captureAgentSkills(this.ctx, value.skills))
-    await this.updatePlugin(value.id, { ...(value.prompt === undefined ? {} : { prompt: value.prompt }), ...(skills ? { skills } : {}) })
+    const previous = this.customizations.get(value.id)?.skills ?? this.entries.get(value.id)?.skillSnapshot ?? []
+    const incoming = value.skills && ownedSkillEdits(value.skills, previous)
+    const revision = this.customizations.get(value.id)?.revision ?? 1
+    const skills = incoming && (await this.directories.migrate(await captureAgentSkills(this.ctx, incoming), previous, this.entries.get(value.id)!.definition.root))
+    await this.updatePlugin(value.id, { ...(value.prompt === undefined ? {} : { prompt: value.prompt }), ...(skills ? { skills } : {}) }, skills ? revision : undefined)
     return this.pluginAgent(value.id)
+  }
+  async saveDirectorySkills(id: string, skills: UserAgentSkill[], expectedRevision?: number): Promise<UserAgentView> {
+    await this.updatePlugin(id, { skills: await this.directories.migrate(skills) }, expectedRevision)
+    return this.pluginAgent(id)
   }
   async setPluginEnabled(id: string, enabled: boolean): Promise<UserAgentView> {
     await this.updatePlugin(id, { disabled: !enabled })
     return this.pluginAgent(id)
   }
-  private async updatePlugin(id: string, patch: Partial<Customization>): Promise<void> {
+  private async updatePlugin(id: string, patch: Partial<Customization>, expectedRevision?: number): Promise<void> {
     await this.serialize(async () => {
       const entry = this.entries.get(id)
       if (!entry?.definition.prompt || entry.owner.signal.aborted) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
       const previous = this.customizations.get(id)
+      if (expectedRevision !== undefined && (previous?.revision ?? 1) !== expectedRevision) throw Error('SKILL_EDIT_CONFLICT')
       this.customizations.set(id, { ...previous, ...patch, revision: (previous?.revision ?? 1) + 1 })
+      if (expectedRevision !== undefined) {
+        try {
+          if (this.customizations.get(id)?.disabled) await this.unmount(id)
+          else await this.mountPrompt(id, new AbortController().signal)
+          await this.persist()
+          this.control?.invalidate()
+          this.changed()
+          return
+        } catch (error) {
+          if (previous) this.customizations.set(id, previous)
+          else this.customizations.delete(id)
+          await this.unmount(id)
+          if (!previous?.disabled) await this.mountPrompt(id, new AbortController().signal)
+          throw error
+        }
+      }
       try {
         await this.persist()
       } catch (error) {
@@ -578,13 +618,24 @@ export class BusinessResources {
     const d = entry.definition
     const { profile, interpreters } = await this.originalProfile(entry, signal)
     const override = this.customizations.get(id)
-    const skills = await captureAgentSkills(
-      this.ctx,
-      override?.skills ??
-        (await this.ctx.skills.list())
-          .filter(skill => d.profile.skills.includes(skill.name))
-          .map(skill => ({ kind: 'reference' as const, name: skill.name, provider: skill.provider, ...(skill.path ? { path: skill.path } : {}), enabled: true }))
-    )
+    const skills = override?.skills
+      ? await this.directories.migrate(override.skills, [], d.root)
+      : (entry.skillSnapshot ??
+        (await this.directories.migrate(
+          await captureAgentSkills(
+            this.ctx,
+            (await this.ctx.skills.list())
+              .filter(skill => d.profile.skills.includes(skill.name))
+              .map(skill => ({ kind: 'reference' as const, name: skill.name, provider: skill.provider, ...(skill.path ? { path: skill.path } : {}), enabled: true }))
+          ),
+          [],
+          d.root
+        )))
+    if (!override?.skills) entry.skillSnapshot = skills
+    if (override?.skills && skills.some((skill, index) => skill.directory !== override.skills![index]?.directory)) {
+      this.customizations.set(id, { ...override, skills })
+      await this.persist()
+    }
     const version = createHash('sha256').update(JSON.stringify({ profile, override, skills })).digest('hex')
     if (this.mounted.has(id) && this.versions.get(id) === version && !entry.error) return
     await this.unmount(id)
