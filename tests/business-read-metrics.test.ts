@@ -2,8 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { productionOutputMetric, productionOutputObservation } from '../src/aps-compute/production-output.js'
 import { coveredStockComparison } from '../src/inventory-compute/covered-stock-comparison.js'
 import { stockCoverageObservation } from '../src/aps-compute/classified-stock.js'
+import { summarizePage } from '../src/aps-compute/page-analysis.js'
 
 describe('governed business read metrics', () => {
+  it('labels multi-day deliveries as period totals and excludes failed sections', () => {
+    const data = {
+      start: '2026-10-01',
+      end: '2026-10-19',
+      granularity: 'month',
+      sections: [{ id: 'delivery-daily', status: 'ready', rows: [{ actual: 20000, missing_qty: 0 }] }]
+    }
+    expect(summarizePage(data, false, ['日发货量'])).toEqual({ title: '期间发货量2万件', copy: '截至2026-10-19，期间发货量2万件。' })
+    expect(summarizePage({ ...data, start: data.end }, false, ['日发货量']).title).toBe('日发货量2万件')
+    expect(summarizePage({ ...data, sections: [{ ...data.sections[0], status: 'error' }] }).title).toBe('暂无可分析的数据')
+  })
   it('weights production quantities rather than averaging group percentages', () => {
     const rows = [
       { source_basis: 'MES_QUANTITY', records: 1, invalid: 0, planned: 10, actual: 10 },
