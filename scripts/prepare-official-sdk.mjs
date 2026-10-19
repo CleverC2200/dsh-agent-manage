@@ -178,7 +178,11 @@ function verifyFlock(core, coreHead) {
   return { ...record, status: 'prepared', loadable: true }
 }
 
-export function verifyOfficialSDK({ core, consumer, coreHead, withWeb = false, withFlock = false }) {
+function sdkArtifactIdentity(coreHead) {
+  return { ...supportedCore(coreHead), node: process.version, platform: process.platform, arch: process.arch, builder: hash(fileURLToPath(import.meta.url)) }
+}
+
+export function verifyOfficialSDK({ core, consumer, coreHead, withWeb = false, withFlock = false, withArtifactReceipt = false }) {
   core = resolve(core)
   consumer = resolve(consumer)
   const { coreCommit, coreLock, packageManager } = source(core, false, coreHead)
@@ -229,6 +233,7 @@ export function verifyOfficialSDK({ core, consumer, coreHead, withWeb = false, w
     for (const target of [manifest.main, manifest.module, manifest.types]) if (target?.startsWith('lib/')) artifacts.add(resolve(root, target))
   }
   for (const file of artifacts) if (!existsSync(file)) refuse('SDK_MATERIAL_REQUIRED', relative(core, file))
+  if (withArtifactReceipt && !verifySDKArtifacts(core, sdkArtifactIdentity(coreHead))) refuse('SDK_ARTIFACT_RECEIPT_REQUIRED', 'complete verified SDK inventory required')
   return {
     status: 'prepared',
     coreCommit,
@@ -356,7 +361,7 @@ export function prepareOfficialSDK(options) {
   // Default SDK stages exclude desktop/native products and runtime startup.
   // The declared host flock test dependency is built only when requested.
   run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], core)
-  const identity = { ...supportedCore(coreHead), node: process.version, platform: process.platform, arch: process.arch, builder: hash(fileURLToPath(import.meta.url)) }
+  const identity = sdkArtifactIdentity(coreHead)
   const reused = options.reusePrepared === true && verifySDKArtifacts(core, identity)
   if (!reused) {
     const tsc = resolve(core, 'node_modules/typescript/bin/tsc')

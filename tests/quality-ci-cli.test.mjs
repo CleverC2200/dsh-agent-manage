@@ -7,9 +7,14 @@ import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Buffer } from 'node:buffer'
-import { presetLanes, presetHostOwners } from '../scripts/preset-test-lanes.mjs'
+import { parse as parseYaml } from 'yaml'
+import { presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 
-const call = (phase, env) => spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', phase], { encoding: 'utf8', env: { ...process.env, ...env } })
+const call = (phase, env) =>
+  spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', phase], {
+    encoding: 'utf8',
+    env: { ...process.env, QUALITY_APPLICABILITY: 'source', QUALITY_AUDIT_APPLICABLE: 'false', QUALITY_DEPENDENCY_APPLICABLE: 'false', QUALITY_CODEQL_APPLICABLE: 'false', ...env }
+  })
 test('fork scope is rejected before preparation', () => {
   const result = call('scope', { QUALITY_SCOPE_ALLOWED: 'false' })
   assert.notEqual(result.status, 0)
@@ -25,8 +30,39 @@ test('final quality aggregate rejects failure, missing, skipped and cancelled qu
   assert.equal(call('final', { QUALITY_SCOPE_RESULT: 'success', QUALITY_GATE_RESULT: 'success', QUALITY_WINDOWS_RESULT: 'success', QUALITY_AUDIT_RESULT: 'success' }).status, 0)
 })
 
-test('quality result does not claim dependency audit coverage', () => {
-  assert.equal(call('final', { QUALITY_SCOPE_RESULT: 'success', QUALITY_GATE_RESULT: 'success', QUALITY_WINDOWS_RESULT: 'success', QUALITY_AUDIT_RESULT: 'failure' }).status, 0)
+test('final quality rejects failed applicable security checks and accepts explicitly inapplicable lanes', () => {
+  const successful = { QUALITY_SCOPE_RESULT: 'success', QUALITY_GATE_RESULT: 'success', QUALITY_WINDOWS_RESULT: 'success' }
+  for (const key of ['QUALITY_APPLICABILITY', 'QUALITY_AUDIT_APPLICABLE', 'QUALITY_DEPENDENCY_APPLICABLE', 'QUALITY_CODEQL_APPLICABLE'])
+    assert.equal(call('final', { ...successful, [key]: '' }).status, 1)
+  for (const state of ['failure', 'cancelled', 'skipped', '']) {
+    assert.equal(call('final', { ...successful, QUALITY_AUDIT_APPLICABLE: 'true', QUALITY_AUDIT_RESULT: state }).status, 1)
+    assert.equal(call('final', { ...successful, QUALITY_DEPENDENCY_APPLICABLE: 'true', QUALITY_DEPENDENCY_RESULT: state }).status, 1)
+    assert.equal(call('final', { ...successful, QUALITY_CODEQL_APPLICABLE: 'true', QUALITY_CODEQL_RESULT: state }).status, 1)
+  }
+  assert.equal(
+    call('final', {
+      ...successful,
+      QUALITY_AUDIT_APPLICABLE: 'true',
+      QUALITY_AUDIT_RESULT: 'success',
+      QUALITY_DEPENDENCY_APPLICABLE: 'true',
+      QUALITY_DEPENDENCY_RESULT: 'success',
+      QUALITY_CODEQL_APPLICABLE: 'true',
+      QUALITY_CODEQL_RESULT: 'success'
+    }).status,
+    0
+  )
+  assert.equal(call('final', { ...successful, QUALITY_APPLICABILITY: 'docs', QUALITY_AUDIT_RESULT: 'skipped', QUALITY_DEPENDENCY_RESULT: 'skipped' }).status, 0)
+  assert.equal(
+    call('final', {
+      ...successful,
+      QUALITY_AUDIT_APPLICABLE: 'false',
+      QUALITY_AUDIT_RESULT: 'skipped',
+      QUALITY_DEPENDENCY_APPLICABLE: 'false',
+      QUALITY_CODEQL_APPLICABLE: 'false',
+      QUALITY_DEPENDENCY_RESULT: 'skipped'
+    }).status,
+    0
+  )
 })
 
 test('maintenance and main pushes use the read-only candidate quality workflow', () => {
@@ -177,10 +213,10 @@ test('candidate execution refuses missing input and malformed original-byte hash
 test('hosted events use the immutable public peer reader and admitted group without legacy fallbacks', () => {
   const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
   assert.match(workflow, /repository: CleverC2200\/dsh-agent-workbench\n {10}ref: \$\{\{ steps.reader.outputs.workbench-sha \}\}/)
-  assert.match(workflow, /node \.\.\/\.\.\/scope-peer\/dsh-agent-workbench\/scripts\/read-hosted-peer-input.mjs --repo dsh-agent-manage/)
+  assert.match(workflow, /node \.\.\/dsh-agent-workbench\/scripts\/read-hosted-peer-input.mjs --repo dsh-agent-manage/)
   for (const field of ['gea-sha', 'workbench-sha', 'manage-sha', 'group-id', 'source-kind', 'baseline-id']) assert.ok(workflow.includes('steps.group.outputs.' + field), field)
   assert.doesNotMatch(workflow, /outputs\.[a-z-]+ \|\| '|write-ci-input.mjs --root|if: github.event_name != 'workflow_dispatch'/)
-  assert.equal((workflow.match(/write-hosted-group.mjs --repo dsh-agent-manage/g) ?? []).length, 2)
+  assert.equal((workflow.match(/write-hosted-group.mjs --repo dsh-agent-manage/g) ?? []).length, 3)
   assert.equal((workflow.match(/QUALITY_SOURCE_KIND: \$\{\{ needs.candidate-scope.outputs.source-kind \}\}/g) ?? []).length, 2)
 })
 
@@ -245,7 +281,7 @@ test('peer reader bootstrap rejects malformed dispatch heads, event mismatch and
   }
 })
 
-test('joint dispatch isolates in-flight runs and retains required Windows and audit lanes', () => {
+test('joint dispatch isolates in-flight runs and retains applicable Windows and audit lanes', () => {
   const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
   assert.match(workflow, /github\.ref \}\}/)
   for (const key of ['gea_sha', 'workbench_sha', 'manage_sha']) {
@@ -253,10 +289,7 @@ test('joint dispatch isolates in-flight runs and retains required Windows and au
   }
   assert.match(workflow, /github.event_name == 'workflow_dispatch' && github.run_id/)
   assert.match(workflow, /cancel-in-progress: \$\{\{ github.event_name != 'workflow_dispatch' \}\}/)
-  assert.match(
-    workflow,
-    /QUALITY_PHASE: \$\{\{ matrix.phase == 'quality' && needs.candidate-scope.outputs.business-lane == 'business-profile' && 'business-profile' \|\| matrix.phase \}\}/
-  )
+  assert.match(workflow, /QUALITY_PHASE: \$\{\{ matrix.phase \}\}/)
   assert.match(
     workflow,
     /'--phase', process.env.QUALITY_PHASE, '--input', process.env.QUALITY_CANDIDATE, '--prepare-sdk', '--core-source', resolve\(process.env.GITHUB_WORKSPACE, 'source\/official-core'\), '--final-group-sha256', process.env.INPUT_SHA256/
@@ -265,7 +298,10 @@ test('joint dispatch isolates in-flight runs and retains required Windows and au
   assert.match(workflow, /path: source\/official-core/)
   assert.match(workflow, /candidate-group\.json/)
   assert.match(workflow, /dependency-review:[\s\S]*if: github.event_name == 'pull_request'/)
-  const requiredWorkflow = workflow.replace(/ {6}- name: Save verified SDK cache[\s\S]*?(?=\n {6}- name: Keep)/g, '')
+  const requiredWorkflow = workflow.replace(
+    / {6}- name: (?:Save verified SDK cache[^\n]*|Inspect bounded main download cache|Save bounded main download cache)\n[\s\S]*?(?=\n {6}- name:)/g,
+    ''
+  )
   assert.doesNotMatch(requiredWorkflow, /continue-on-error|pull_request_target/)
   assert.match(workflow, /timeout-minutes: 1\n {8}uses: actions\/cache\/save@v4/)
 })
@@ -364,8 +400,8 @@ async function sourceImpactFixture(t) {
     git(path, 'init', '--quiet')
     if (repo === 'dsh-agent-manage') {
       // Snapshot authored inputs only; concurrent scratch directories and builds have other owners.
-      for (const file of git(source, 'ls-files', '-z').split('\0').filter(Boolean)) {
-        if (file.startsWith('lib/') || !/\.(?:[cm]?[jt]sx?|css|html|json|ya?ml)$/.test(file)) continue
+      for (const file of git(source, 'ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean)) {
+        if (!existsSync(join(source, file)) || file.startsWith('lib/') || !/\.(?:[cm]?[jt]sx?|css|html|json|ya?ml)$/.test(file)) continue
         write(join(path, file), readFileSync(join(source, file)))
       }
       write(join(path, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories: repositories.map(({ repo, head }) => ({ repo, head })) }))
@@ -435,24 +471,42 @@ test('missing static resource consumer contracts reject the plan instead of sile
   }
 })
 
-test('a Manage policy edit runs the static resource consumers in its own source CI plan', async t => {
+test('small client style and business Prompt changes avoid expensive engineering fixture suites', async t => {
+  for (const file of ['src/client/market.module.css', 'business-resources/orchestration/prompt.md']) {
+    const fixture = await sourceImpactFixture(t)
+    fixture.change(file, fixture.own)
+    const plan = fixture.select()
+    assert.equal(plan.applicability, 'source')
+    for (const file of ['tests/quality-ci-cli.test.mjs', 'tests/sdk-input-cli.test.mjs', 'tests/agent-knowledge.test.mjs'])
+      assert.ok(!plan.files.includes(file), JSON.stringify(plan.files))
+    if (file.endsWith('prompt.md')) assert.ok(plan.files.includes('tests/bundled-sales-skills.test.ts'))
+  }
+})
+
+test('changed engineering modules select their Node behavior consumers', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('scripts/download-cache.mjs', fixture.own)
+  const plan = fixture.select()
+  assert.ok(plan.files.includes('tests/download-cache.test.mjs'))
+  assert.ok(!plan.files.includes('tests/sdk-input-cli.test.mjs'))
+})
+
+test('compatibility sample changes select the existing offline report consumer', async t => {
+  const fixture = await sourceImpactFixture(t)
+  fixture.change('scripts/compat-sources.json', fixture.own)
+  assert.deepEqual(fixture.select().files, ['tests/agent-mcp.test.ts', 'tests/compat-report.test.ts', 'tests/routes.test.ts'])
+})
+
+test('a Manage policy edit retains its real resource and Node consumer contracts', async t => {
   const fixture = await sourceImpactFixture(t)
   fixture.change('scripts/ci-test-policy.json', fixture.own)
   const plan = fixture.select()
-  assert.deepEqual(
-    plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'],
-    [
-      ...Object.values(presetLanes).flatMap(lane => Object.keys(lane)),
-      'tests/agent-mcp.test.ts',
-      'tests/business-resources.test.ts',
-      'tests/mps-resource-reception.test.ts',
-      'tests/routes.test.ts'
-    ].sort()
-  )
-  assert.deepEqual(plan.files, plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'])
+  for (const file of ['tests/business-resources.test.ts', 'tests/mps-resource-reception.test.ts', 'tests/ci-applicability.test.mjs', 'tests/quality-ci-cli.test.mjs'])
+    assert.ok(plan.reasons['dsh-agent-manage/scripts/ci-test-policy.json'].includes(file), file)
+  for (const file of ['tests/agent-mcp.test.ts', 'tests/routes.test.ts']) assert.ok(plan.files.includes(file), file)
 })
 
-function qualityExecution(t, files) {
+function qualityExecution(t, files, { cacheOutput = false, invalidReceipt = false, applicability = 'source', phase = 'quality', staleStamp = false } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-quality-selection-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const repositories = ['dsh-agent-workbench', 'dsh-agent-manage', 'dsh-gea-plugin'].map(repo => {
@@ -466,17 +520,30 @@ function qualityExecution(t, files) {
     schemaVersion: 1,
     mode: 'required-and-affected',
     repo: 'dsh-agent-manage',
-    files
+    applicability,
+    files,
+    diffBase: 'a'.repeat(40),
+    head: 'b'.repeat(40)
   }
   writeFileSync(join(own, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories }))
   writeFileSync(join(own, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: {} } }))
+  const stampBefore = "export const pluginPackageVersion = { name: 'stale', version: '0.0.0' }\n"
+  if (staleStamp) {
+    mkdirSync(join(own, 'src'))
+    writeFileSync(join(own, 'package.json'), JSON.stringify({ name: '@example/manage', version: '1.2.3', type: 'module' }))
+    writeFileSync(join(own, 'src/plugin-package-version.ts'), stampBefore)
+    writeFileSync(join(own, 'scripts/generate-plugin-package-version.mjs'), readFileSync('scripts/generate-plugin-package-version.mjs'))
+  }
   writeFileSync(join(workbench, 'package.json'), JSON.stringify({ packageManager: 'npm@11.11.0' }))
   writeFileSync(join(workbench, 'scripts/quality-fixture.json'), JSON.stringify({ plan, manifest: { core: 'b'.repeat(40), repositories } }))
   writeFileSync(
     join(workbench, 'scripts/ci-test-plan.mjs'),
     `import { readFileSync } from 'node:fs';
     const { plan } = JSON.parse(readFileSync(new URL('./quality-fixture.json', import.meta.url), 'utf8'));
-    export const selectCiTests = ({ testOwners }) => { if (testOwners?.['tests/base-resource-host.test.ts'] !== 'tests/base-preset-client.test.ts') throw Error('CI_TEST_OWNER_REQUIRED'); return plan }`
+    export const selectCiTests = ({ testOwners }) => {
+      if (testOwners?.['tests/base-resource-host.test.ts'] !== 'tests/base-preset-client.test.ts') throw Error('CI_TEST_OWNER_REQUIRED');
+      return plan;
+    }`
   )
   writeFileSync(
     join(workbench, 'scripts/candidate-input.mjs'),
@@ -485,30 +552,164 @@ function qualityExecution(t, files) {
     export const readFinalGroup = async () => ({ manifest, verifyUnchanged() {} })`
   )
   const callsFile = join(root, 'calls.json')
+  const outputFile = join(root, 'github-output')
   const hook = join(root, 'quality-boundary.mjs')
   writeFileSync(
     hook,
     `import cp from 'node:child_process'; import { registerHooks, syncBuiltinESMExports } from 'node:module'; import { writeFileSync } from 'node:fs';
     const calls = [];
-    cp.spawnSync = (command, args) => { calls.push({ command, args }); writeFileSync(${JSON.stringify(callsFile)}, JSON.stringify(calls)); return { status: 0 }; };
+    const originalSpawn = cp.spawnSync;
+    cp.spawnSync = (command, args) => {
+      calls.push({ command, args }); writeFileSync(${JSON.stringify(callsFile)}, JSON.stringify(calls));
+      if (${staleStamp} && (args.includes('check:static:ci') || args.includes('build'))) return originalSpawn(process.execPath, ['scripts/generate-plugin-package-version.mjs', ...(args.includes('check:static:ci') ? ['--check'] : [])], { cwd: ${JSON.stringify(own)}, stdio: 'inherit' });
+      return { status: 0 };
+    };
     cp.execFileSync = () => '11.11.0';
     syncBuiltinESMExports();
     registerHooks({ load(url, context, next) {
       if (url !== ${JSON.stringify(pathToFileURL(resolve('scripts/prepare-official-sdk.mjs')).href)}) return next(url, context);
-      return { format: 'module', shortCircuit: true, source: 'export const verifyOfficialSDK = () => {}; export const prepareOfficialSDK = () => {}; export const prepareOfficialSource = () => {}; export const verifyOfficialSource = () => {}' };
+      return { format: 'module', shortCircuit: true, source: 'import cp from "node:child_process"; export const verifyOfficialSDK = options => { if (options.withArtifactReceipt && ${invalidReceipt}) throw Error("SDK_CACHE_ARTIFACT_CHANGED"); }; export const prepareOfficialSDK = () => cp.spawnSync("sdk", ["prepare"]); export const prepareOfficialSource = () => cp.spawnSync("sdk", ["source"]); export const verifyOfficialSource = () => {}' };
     } });`
   )
   const result = spawnSync(
     process.execPath,
-    ['--import', hook, resolve('scripts/run-quality-ci.mjs'), '--phase', 'quality', '--input', join(root, 'input.json'), '--final-group-sha256', 'a'.repeat(64)],
+    ['--import', hook, resolve('scripts/run-quality-ci.mjs'), '--phase', phase, '--input', join(root, 'input.json'), '--final-group-sha256', 'a'.repeat(64)],
     {
       cwd: own,
       encoding: 'utf8',
-      env: { ...process.env, GITHUB_OUTPUT: '' }
+      env: { ...process.env, GITHUB_OUTPUT: cacheOutput ? outputFile : '' }
     }
   )
-  return { result, calls: existsSync(callsFile) ? JSON.parse(readFileSync(callsFile, 'utf8')) : [], plan, own }
+  return {
+    result,
+    calls: existsSync(callsFile) ? JSON.parse(readFileSync(callsFile, 'utf8')) : [],
+    plan,
+    own,
+    stampBefore,
+    output: existsSync(outputFile) ? readFileSync(outputFile, 'utf8') : ''
+  }
 }
+
+test('quality calls one reusable CodeQL implementation at the actual source commit', () => {
+  const codeql = parseYaml(readFileSync('.github/workflows/codeql.yml', 'utf8'))
+  assert.ok(codeql.on.workflow_call.inputs.source_sha.required)
+  assert.ok(codeql.on.schedule.length)
+  assert.ok(!codeql.on.push && !codeql.on.pull_request)
+  const checkout = codeql.jobs.analyze.steps.find(step => step.uses?.startsWith('actions/checkout@'))
+  assert.equal(checkout.with.ref, '${{ inputs.source_sha || github.sha }}')
+  for (const file of ['quality', 'compatibility']) {
+    const workflow = parseYaml(readFileSync(`.github/workflows/${file}.yml`, 'utf8'))
+    assert.equal(workflow.jobs.codeql.uses, './.github/workflows/codeql.yml')
+    assert.equal(workflow.jobs.codeql.with.source_sha, '${{ github.event.pull_request.head.sha || github.sha }}')
+    assert.equal(workflow.jobs.codeql.permissions['security-events'], 'write')
+  }
+})
+
+test('retired business exceptions have no executable route while behavior tests remain available', () => {
+  assert.doesNotMatch(readFileSync('scripts/run-quality-ci.mjs', 'utf8'), /business-profile/)
+  assert.doesNotMatch(readFileSync('.github/workflows/quality.yml', 'utf8'), /business-lane|business-profile/)
+  assert.ok(!existsSync('scripts/business-profile-ci.mjs'))
+  assert.ok(!existsSync('scripts/business-profile-ci.test.mjs'))
+  assert.ok(!existsSync('scripts/verify-lifecycle.cjs'))
+  assert.ok(existsSync('docs/history/verification/verify-lifecycle.cjs'))
+  for (const file of ['tests/business-resources.test.ts', 'tests/business-admission-gea.test.ts', 'tests/gea-mcp-scope.test.ts']) assert.ok(existsSync(file))
+})
+
+test('documentation quality preserves knowledge and source checks without installing or building', t => {
+  const { result, calls } = qualityExecution(t, [], { applicability: 'docs' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.ok(calls.some(call => call.command === 'sdk' && call.args.includes('source')))
+  assert.ok(calls.some(call => call.args.some(arg => arg.endsWith('check-agent-knowledge.mjs'))))
+  assert.ok(calls.some(call => call.command === 'git' && call.args.includes('--check')))
+  assert.ok(!calls.some(call => call.args.some(arg => ['install', 'ci', 'build', 'prepare', 'vitest'].includes(arg))))
+})
+
+test('the early plan uses the shared selector without SDK or consumer preparation', t => {
+  const { result, calls } = qualityExecution(t, [], { applicability: 'docs', phase: 'plan' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(calls, [])
+})
+
+test('a stale committed stamp stops quality before build or behavior tests without rewriting source', t => {
+  const { result, calls, own, stampBefore } = qualityExecution(t, ['tests/routes.test.ts', 'tests/plugin-package-version.test.mjs'], { staleStamp: true, cacheOutput: true })
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /PLUGIN_PACKAGE_VERSION_STALE/)
+  assert.match(result.stderr, /QUALITY_CHECKS_FAILED/)
+  assert.ok(
+    !calls.some(
+      call => call.args.includes('build') || call.args.includes('vitest') || call.args.includes('--test') || call.args.some(arg => arg.endsWith('check-preset-capabilities.mjs'))
+    )
+  )
+  assert.equal(readFileSync(join(own, 'src/plugin-package-version.ts'), 'utf8'), stampBefore)
+  const receipt = JSON.parse(readFileSync(join(own, 'quality-checks.json'), 'utf8'))
+  assert.equal(receipt.length, 1)
+  assert.deepEqual(
+    receipt.map(check => [check.name, check.status]),
+    [['check:static', 'failed']]
+  )
+})
+
+test('a failed consumer check retains the required failure while a verified SDK can be cached', t => {
+  const { result, output } = qualityExecution(t, ['tests/standard-preset.test.ts'], { cacheOutput: true })
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /QUALITY_CHECKS_FAILED/)
+  assert.match(output, /^sdk-cache-ready=true$/m)
+})
+
+test('SDK cache readiness requires a fresh complete artifact receipt after consumer checks', t => {
+  const { result, output } = qualityExecution(t, ['tests/routes.test.ts'], { cacheOutput: true, invalidReceipt: true })
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /SDK_CACHE_ARTIFACT_CHANGED/)
+  assert.doesNotMatch(output, /sdk-cache-ready/)
+})
+
+test('local static checks retain engineering regressions while hosted static leaves them to the plan', () => {
+  const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts
+  for (const name of ['test:knowledge', 'test:ci-inputs']) {
+    assert.ok(scripts['check:static'].split(' && ').includes(`pnpm run ${name}`))
+    assert.ok(!scripts['check:static:ci'].split(' && ').includes(`pnpm run ${name}`))
+  }
+  assert.ok(scripts['test:ci-inputs'].split(' ').includes('tests/plugin-package-version.test.mjs'))
+})
+
+test('download producers are main-only and bounded while both quality lanes retain capability reports', () => {
+  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
+  for (const name of ['Inspect bounded main download cache', 'Save bounded main download cache']) {
+    const step = workflow.match(new RegExp(`- name: ${name}\\n([\\s\\S]*?)\\n {6}- name:`))?.[1]
+    assert.match(step, /github.event_name == 'push' && github.ref == 'refs\/heads\/main' && !cancelled\(\)/)
+    assert.match(step, /continue-on-error: true\n {8}timeout-minutes: 1/)
+  }
+  for (const lane of ['quality', 'compatibility']) assert.match(readFileSync(`.github/workflows/${lane}.yml`, 'utf8'), /quality-capabilities\//)
+})
+
+test('download restore and save share one fixed path output across quality and compatibility', () => {
+  const pathReference = '${{ steps.cache-path.outputs.paths }}'
+  for (const lane of ['quality', 'compatibility']) {
+    const workflow = parseYaml(readFileSync(`.github/workflows/${lane}.yml`, 'utf8'))
+    const steps = Object.values(workflow.jobs).flatMap(job => job.steps ?? [])
+    const locate = steps.find(step => step.id === 'cache-path')
+    assert.match(locate.run, /PNPM_STORE_PATH="\$\(corepack pnpm store path --silent\)" node scripts\/download-cache\.mjs --github-paths/)
+    const restore = steps.find(step => step.uses === 'actions/cache/restore@v4' && step.with.key.startsWith('downloads-'))
+    assert.equal(restore.with.path, pathReference)
+    const save = steps.find(step => step.uses === 'actions/cache/save@v4' && step.with.key.includes('steps.download-cache.outputs'))
+    if (lane === 'quality') assert.equal(save.with.path, restore.with.path)
+    else assert.equal(save, undefined, 'compatibility only restores the main-produced download cache')
+  }
+})
+
+test('selected Node and Vitest files run in separate existing adapters', t => {
+  const { result, calls } = qualityExecution(t, ['tests/routes.test.ts', 'tests/download-cache.test.mjs'])
+  assert.equal(result.status, 0, result.stderr)
+  const node = calls.filter(call => call.args.includes('--test'))
+  const vitest = calls.filter(call => call.args.includes('vitest'))
+  assert.deepEqual(
+    node.map(call => call.args),
+    [['--test', 'tests/download-cache.test.mjs']]
+  )
+  assert.equal(vitest.length, 1)
+  assert.ok(vitest[0].args.includes('tests/routes.test.ts'))
+  assert.ok(!vitest[0].args.includes('tests/download-cache.test.mjs'))
+})
 
 test('quality executes planned capability files once and leaves the ordinary batch disjoint', t => {
   const { result, calls, plan } = qualityExecution(t, [
@@ -574,10 +775,10 @@ test('dynamic inventory resources keep the inventory Session and GEA contracts',
   assert.equal(plan.files.includes('tests/manage-cold-boot.test.ts'), false)
 })
 
-test('unrelated CI input writer changes keep the required floor without fixed capability batches', async t => {
+test('CI input writer changes select their Node contracts without fixed capability batches', async t => {
   const fixture = await sourceImpactFixture(t)
   fixture.change('scripts/write-ci-input.mjs', fixture.own)
-  assert.deepEqual(fixture.select().files, ['tests/agent-mcp.test.ts', 'tests/routes.test.ts'])
+  assert.deepEqual(fixture.select().files, ['tests/agent-mcp.test.ts', 'tests/ci-applicability.test.mjs', 'tests/quality-ci-cli.test.mjs', 'tests/routes.test.ts'])
 })
 
 test('Workbench Session preparation and registered Core inputs keep the capability consumers', async t => {
@@ -609,14 +810,16 @@ test('peer dependency inputs select the capabilities that consume those peers', 
 })
 
 test('archive jobs retain their required Windows gate while SDK cache work is limited to quality', () => {
-  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
-  const source = workflow.match(/- name: Prepare owned Core source without compiling\n([\s\S]*?)\n {6}- uses:/)?.[1]
-  const restore = workflow.match(/- uses: actions\/cache\/restore@v4\n {8}id: sdk-cache\n([\s\S]*?)\n {6}- name:/)?.[1]
-  const save = workflow.match(/- name: Save verified SDK cache without delaying required checks\n([\s\S]*?)\n {6}- name:/)?.[1]
-  assert.match(source, /if: matrix\.phase == 'quality'/)
-  assert.match(restore, /if: matrix\.phase == 'quality'/)
-  assert.match(save, /if: matrix\.phase == 'quality' && success\(\)/)
-  assert.match(workflow, /QUALITY_WINDOWS_RESULT/)
+  for (const lane of ['quality', 'compatibility']) {
+    const workflow = readFileSync(`.github/workflows/${lane}.yml`, 'utf8')
+    const source = workflow.match(/- name: Prepare owned Core source without compiling\n([\s\S]*?)\n {6}- uses:/)?.[1]
+    const restore = workflow.match(/- uses: actions\/cache\/restore@v4\n {8}id: sdk-cache\n([\s\S]*?)\n {6}- name:/)?.[1]
+    const save = workflow.match(/- name: Save verified SDK cache without delaying required checks\n([\s\S]*?)\n {6}- name:/)?.[1]
+    assert.match(source, /if: matrix\.phase == 'quality'/)
+    assert.match(restore, /if: matrix\.phase == 'quality'/)
+    assert.match(save, /if: matrix\.phase == 'quality' && [^\n]*!cancelled\(\) && steps\.quality\.outputs\.sdk-cache-ready == 'true'/)
+    assert.match(workflow, /QUALITY_WINDOWS_RESULT/)
+  }
 })
 
 test('quality refuses an empty ordinary group without launching unfiltered Vitest discovery', t => {

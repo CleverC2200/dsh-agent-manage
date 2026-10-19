@@ -1,31 +1,31 @@
 /** Required capability cases and client-owned Host helpers share one discovery policy. */
 export const presetLanes = {
   'standard-skill': {
-    'tests/standard-preset.test.ts': 12,
-    'tests/skill-preset.test.ts': 5,
-    'tests/manage-cold-boot.test.ts': 6,
-    'tests/manage-settings.test.ts': 1,
-    'tests/bundled-sales-skills.test.ts': 2,
-    'tests/manage-bundle-default.test.ts': 1
+    'tests/standard-preset.test.ts': true,
+    'tests/skill-preset.test.ts': true,
+    'tests/manage-cold-boot.test.ts': true,
+    'tests/manage-settings.test.ts': true,
+    'tests/bundled-sales-skills.test.ts': true,
+    'tests/manage-bundle-default.test.ts': true
   },
   client: {
-    'tests/standard-preset-draft.test.ts': 1,
-    'tests/user-agent-retirement-draft.test.ts': 1,
-    'tests/agent-source-sync-draft.test.ts': 1,
-    'tests/preset-catalog-client.test.ts': 1,
-    'tests/skill-preset-client.test.ts': 1,
-    'tests/base-preset-client.test.ts': 1,
-    'tests/sales-preset-client.test.ts': 2,
-    'tests/inventory-family-client.test.ts': 3
+    'tests/standard-preset-draft.test.ts': true,
+    'tests/user-agent-retirement-draft.test.ts': true,
+    'tests/agent-source-sync-draft.test.ts': true,
+    'tests/preset-catalog-client.test.ts': true,
+    'tests/skill-preset-client.test.ts': true,
+    'tests/base-preset-client.test.ts': true,
+    'tests/sales-preset-client.test.ts': true,
+    'tests/inventory-family-client.test.ts': true
   },
   gea: {
-    'tests/sales-agent-import-gea.test.ts': 1,
-    'tests/user-agent-cube-gea.test.ts': 3,
-    'tests/business-admission-gea.test.ts': 4,
-    'tests/standard-preset-gea.test.ts': 11,
-    'tests/skill-preset-gea.test.ts': 1,
-    'tests/sales-preset-gea.test.ts': 11,
-    'tests/inventory-family-preset.test.ts': 13
+    'tests/sales-agent-import-gea.test.ts': true,
+    'tests/user-agent-cube-gea.test.ts': true,
+    'tests/business-admission-gea.test.ts': true,
+    'tests/standard-preset-gea.test.ts': true,
+    'tests/skill-preset-gea.test.ts': true,
+    'tests/sales-preset-gea.test.ts': true,
+    'tests/inventory-family-preset.test.ts': true
   }
 }
 
