@@ -4,10 +4,8 @@
 
 这里只附带用户提供的问数 Skill。主提示词中提及的提报建议、草稿调整、审批预审核和版本对比 Skill 尚未提供，不视为已经配置。问数不提供审批结论或业务写入；缺少实时过程、知识或页面能力时按原规则说明缺口。
 
-原始输入来自用户的 `Downloads/主提示词-测试版（粘贴用）.txt`、`Downloads/skills/sales-plan-qa/SKILL.md` 及其 `references/cube-query.md`，输入文件保持原位。迁入包内时仅作以下接线调整：
+当前主提示词来自用户的 `Downloads/主提示词-V2优化版.md`。包内去除文档标题和代码围栏，保留围栏中的完整提示词，并添加 Agent 发现元数据。问数 Skill 及五份模板、V1 备份来自 `Downloads/skills/sales-plan-qa/`；模板与备份逐字节保留。
 
-- 主提示词增加 Agent 卡片元数据，身份说明补充个人 Agent 的可信 Cube 引用。正文业务规则保持。
-- Skill 的身份段改为真实 Session、可信 Cube 来源与当前 GEA 授权合同，明确引用不附带页面动作和写入。
-- Cube 查询约定原样保留。工具名、参数、行数与字节限制继续使用实际授权 Schema。
+接入只调整模板路径的 Markdown 链接，并在问数 Skill 中保留当前 GEA 身份边界与原 [Cube 查询约定](skills/sales-plan-qa/references/cube-query.md)。服务端 Schema 负责实际工具参数、容量和授权；模板不增加工具或业务写入能力。原始输入文件保持原位。
 
-首次发现不导入 Agent、不绑定 Cube、不改默认选择。重复导入保留已有个人定制；后续来源变化走配置来源的显式同步与冲突处理。原 `gea-readonly`、四个销售预测 Skill、用户 Session 与草稿不迁写。
+首次发现不导入 Agent、不绑定 Cube、不改默认选择。重复导入保留已有个人定制；后续来源变化走配置来源的显式同步与冲突处理。已有个人 Agent 不自动覆盖，原 `gea-readonly`、四个销售预测 Skill、用户 Session 与草稿保持。

@@ -1,4 +1,5 @@
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { composeStandardPreset, MINIMAL_SYSTEM_PROMPT } from '../src/runtime/standard-preset.js'
@@ -203,10 +204,13 @@ it('keeps standard capabilities while replacing the company persona and automati
   const composed = await ctx.agentPresets.readDocument('auto-negotiation')
   const expected = (load(standard.content, { schema: entryListSchema }) as { name: string; config?: unknown }[]).filter(row => row.name !== '@deepseek-ai/dsh-agent-instructions')
   expected.find(row => row.name === '@deepseek-ai/dsh-persona')!.config = {
-    prefix: MINIMAL_SYSTEM_PROMPT,
+    prefix: MINIMAL_SYSTEM_PROMPT + '\n\n' + (await readFile('business-resources/orchestration/prompt.md', 'utf8')),
     suffix: '',
     complete: true,
     includeRuntimeContext: false
+  }
+  expected.find(row => row.name === '@deepseek-ai/dsh-skill-filesystem')!.config = {
+    customSkillDirs: [fileURLToPath(new URL('../business-resources/orchestration/skills/', import.meta.url))]
   }
   expect(load(composed.content, { schema: entryListSchema })).toEqual(expected)
 })
