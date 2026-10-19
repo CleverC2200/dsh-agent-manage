@@ -8,7 +8,7 @@ import { join, resolve, dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Buffer } from 'node:buffer'
 import { parse as parseYaml } from 'yaml'
-import { presetLanes, presetHostOwners } from '../scripts/preset-test-lanes.mjs'
+import { presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 
 const call = (phase, env) =>
   spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', phase], {
