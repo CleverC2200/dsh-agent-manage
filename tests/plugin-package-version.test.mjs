@@ -13,6 +13,12 @@ const require = createRequire(import.meta.url)
 const ts = require('typescript')
 const generator = resolve('scripts/generate-plugin-package-version.mjs')
 
+test('the committed package stamp matches the current manifest without rewriting it', async () => {
+  const source = await readFile('src/plugin-package-version.ts', 'utf8')
+  execFileSync(process.execPath, [generator, '--check'], { stdio: 'pipe' })
+  assert.equal(await readFile('src/plugin-package-version.ts', 'utf8'), source)
+})
+
 test('compiled Host and client versions remain fixed until the next build', async t => {
   const root = await mkdtemp(join(tmpdir(), 'manage-package-version-'))
   t.after(() => rm(root, { recursive: true, force: true }))

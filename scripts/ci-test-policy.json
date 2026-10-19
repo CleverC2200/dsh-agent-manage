@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
-  "tests": ["tests/*.test.ts"],
+  "tests": ["tests/*.test.ts", "tests/*.test.mjs"],
   "rules": [
     {
       "repo": "dsh-agent-manage",
@@ -28,9 +28,14 @@
     },
     {
       "repo": "dsh-agent-manage",
-      "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|tsconfig|vitest|\\.github/|scripts/)",
+      "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|tsconfig|vitest)",
       "tests": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
       "exclusive": true
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/compat-sources\\.json$",
+      "tests": ["tests/compat-report.test.ts"]
     },
     {
       "repo": "dsh-agent-manage",
@@ -158,6 +163,31 @@
         "tests/sales-preset-gea.test.ts",
         "tests/inventory-family-preset.test.ts"
       ]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|scripts/(?:generate-plugin-package-version|normalize-client-banner)\\.mjs|src/(?:index|client/index|plugin-package-version)\\.ts)$",
+      "tests": ["tests/plugin-package-version.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-workbench",
+      "pattern": "^scripts/(?:ci-test-plan|candidate-input|read-hosted-peer-input|write-hosted-group)\\.mjs$",
+      "tests": ["tests/quality-ci-cli.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-workbench",
+      "pattern": "^scripts/check-agent-knowledge\\.mjs$",
+      "tests": ["tests/agent-knowledge.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:package\\.json|scripts/ci-test-policy\\.json|\\.github/workflows/(?:quality|compatibility)\\.yml)$",
+      "tests": ["tests/quality-ci-cli.test.mjs", "tests/ci-applicability.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/(?:business-profile-ci(?:\\.test)?\\.mjs|verify-lifecycle\\.cjs)$",
+      "tests": ["tests/quality-ci-cli.test.mjs"]
     }
   ]
 }

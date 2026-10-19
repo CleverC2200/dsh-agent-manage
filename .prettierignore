@@ -32,3 +32,5 @@ business-resources/inventory-aqkc/skills/
 business-resources/orchestration/skills/
 
 business-resources/orchestration/prompt.md
+
+docs/history/verification/verify-lifecycle.cjs
