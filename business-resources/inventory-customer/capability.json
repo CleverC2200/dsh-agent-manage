@@ -1,17 +1,21 @@
 {
   "id": "inventory-customer",
-  "label": "客户库存(开发中)",
+  "label": "客户库存",
   "data": {
     "consumerCode": "customer-inventory-preview",
-    "tables": [],
-    "rules": ["模拟数据；原型业务角色不表示登录或业务授权；不调用真实查询/写入工具。"],
-    "mock": true
+    "tables": ["agents_scm_cust_jxc_ai_daliy_d", "agents_dim_dealer_data_d"],
+    "rules": [
+      "只读最新客户库存日快照；业务身份、行列权限和凭据由GEA Host执行。",
+      "缺失字段保留未知；不得把结构分、大日期、临期、缺货、城市或负责人补成零或样例。",
+      "页面不得直连数据库或持有数据库凭据。",
+      "城市筛选使用经销商卸货地址中的城市成员关系；一个客户可以属于多个卸货城市，城市结果展示相关客户整体库存，不可跨城市相加。"
+    ]
   },
   "maxEffect": "view",
   "layers": ["read"],
   "skills": ["inventory-customer"],
   "routing": {
     "keywords": ["客户库存", "inventory-customer"],
-    "summary": "客户库存开发中原型，仅本地模拟交互。"
+    "summary": "按当前GEA授权范围读取最新客户库存并解释库存、动销、正常库存和周转。"
   }
 }
