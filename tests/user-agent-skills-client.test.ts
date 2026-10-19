@@ -3,10 +3,67 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { expect, it, vi } from 'vitest'
 import { AgentSkills } from '../src/client/AgentSkills.js'
+import { SkillDirectoryImport } from '../src/client/SkillDirectoryImport.js'
 import { userAgentApi, type UserAgentView } from '../src/client/user-agent-api.js'
 import { zh } from '../src/client/locales.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+it('keeps a folder choice on cancellation, surfaces picker failures, and invalidates candidates on a new choice', async () => {
+  const pick = vi.fn().mockResolvedValueOnce('/first').mockResolvedValueOnce(null).mockRejectedValueOnce(Error('Chooser failed')).mockResolvedValueOnce('/second')
+  vi.stubGlobal('__DSH_DIRECTORY_PICKER__', { pick })
+  const fetch = vi.fn().mockResolvedValue(Response.json({ token: 'selection', candidates: [{ name: 'first', path: '.', description: 'First' }], errors: [] }))
+  vi.stubGlobal('fetch', fetch)
+  const element = document.createElement('div')
+  document.body.append(element)
+  const root = createRoot(element)
+  const agent: UserAgentView = { id: 'a', name: 'A', description: '', prompt: '', enabled: true, revision: 1, origin: 'user', preset: 'a', publication: 'ready', skills: [] }
+  const click = async (label: string) => act(async () => { const button = [...element.querySelectorAll('button')].find(row => row.textContent === label); if (!button) throw Error(label); button.click() })
+  try {
+    await act(async () => root.render(createElement(SkillDirectoryImport, { agent, kind: 'local', t: key => zh[key], onSaved: vi.fn(), onClose: vi.fn() })))
+    await click(zh.agentSkillPickFolder)
+    await click(zh.agentSkillAcquire)
+    expect(element.querySelector('select')).not.toBeNull()
+    await click(zh.agentSkillPickFolder)
+    expect(element.textContent).toContain('/first')
+    expect(element.querySelector('select')).not.toBeNull()
+    await click(zh.agentSkillPickFolder)
+    expect(element.querySelector('[role=alert]')?.textContent).toBe('Chooser failed')
+    await click(zh.agentSkillPickFolder)
+    expect(element.textContent).toContain('/second')
+    expect(element.querySelector('select')).toBeNull()
+    expect(fetch).toHaveBeenCalledOnce()
+  } finally {
+    await act(async () => root.unmount())
+    element.remove()
+    vi.unstubAllGlobals()
+  }
+})
+it('opens the ZIP chooser from its named button and acquires the selected file bytes', async () => {
+  const fetch = vi.fn().mockResolvedValue(Response.json({ token: 'zip-selection', candidates: [], errors: [] }))
+  vi.stubGlobal('fetch', fetch)
+  const element = document.createElement('div')
+  document.body.append(element)
+  const root = createRoot(element)
+  const agent: UserAgentView = { id: 'a', name: 'A', description: '', prompt: '', enabled: true, revision: 1, origin: 'user', preset: 'a', publication: 'ready', skills: [] }
+  try {
+    await act(async () => root.render(createElement(SkillDirectoryImport, { agent, kind: 'zip', t: key => zh[key], onSaved: vi.fn(), onClose: vi.fn() })))
+    const input = element.querySelector<HTMLInputElement>('input[type=file]')!
+    expect(input.hidden).toBe(true)
+    const open = vi.spyOn(input, 'click')
+    await act(async () => [...element.querySelectorAll('button')].find(row => row.textContent === zh.agentSkillPickZip)!.click())
+    expect(open).toHaveBeenCalledOnce()
+    Object.defineProperty(input, 'files', { value: [new File(['zip-bytes'], '验收.zip', { type: 'application/zip' })] })
+    await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })))
+    expect(element.textContent).toContain('验收.zip')
+    await act(async () => { [...element.querySelectorAll('button')].find(row => row.textContent === zh.agentSkillAcquire)!.click(); await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce()) })
+    expect(JSON.parse(String(fetch.mock.calls[0][1].body))).toEqual({ kind: 'zip', data: btoa('zip-bytes') })
+  } finally {
+    await act(async () => root.unmount())
+    element.remove()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  }
+})
 it('previews Git file conflicts and commits the user’s explicit local choice', async () => {
   const agent: UserAgentView = {
     id: 'b575551f-6614-4e1b-813a-640d881631c8',
@@ -83,6 +140,8 @@ it('previews Git file conflicts and commits the user’s explicit local choice',
   }
 })
 it('imports only the chosen folder Skill and requires an explicit duplicate replacement', async () => {
+  const pick = vi.fn().mockResolvedValue('/owned/input')
+  vi.stubGlobal('__DSH_DIRECTORY_PICKER__', { pick })
   const agent: UserAgentView = {
     id: 'b575551f-6614-4e1b-813a-640d881631c8',
     name: 'A',
@@ -126,12 +185,12 @@ it('imports only the chosen folder Skill and requires an explicit duplicate repl
     await act(async () => root.render(createElement(AgentSkills, { agent, t: key => zh[key], onSaved: vi.fn() })))
     await click(zh.agentSkillAdd)
     await click('从文件夹导入')
-    const path = element.querySelector('input[name=folderPath]')!
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(path, '/owned/input')
-      path.dispatchEvent(new Event('input', { bubbles: true }))
-    })
+    expect(element.querySelector('input[name=folderPath]')).toBeNull()
+    await click(zh.agentSkillPickFolder)
+    expect(pick).toHaveBeenCalledOnce()
+    expect(element.textContent).toContain('/owned/input')
     await click('读取可导入 Skill')
+    expect(requests.find(row => row.path.endsWith('/acquire'))?.value).toEqual({ kind: 'local', path: '/owned/input' })
     expect(requests.some(row => row.path.endsWith('/import'))).toBe(false)
     expect([...element.querySelectorAll('button')].find(row => row.textContent === '导入所选 Skill')?.disabled).toBe(true)
     await act(async () => element.querySelector<HTMLInputElement>('input[type=checkbox]')!.click())

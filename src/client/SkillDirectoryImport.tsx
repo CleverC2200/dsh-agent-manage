@@ -14,6 +14,8 @@ export function SkillDirectoryImport({ agent, kind, t, onSaved, onClose }: { age
   const [replace, setReplace] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const archiveInput = useRef<HTMLInputElement>(null)
+  const directoryPicker = (globalThis as typeof globalThis & { __DSH_DIRECTORY_PICKER__?: { pick(): Promise<string | null> } }).__DSH_DIRECTORY_PICKER__
   const token = useRef<string>()
   const lifetime = useRef<AbortController>()
   useEffect(() => {
@@ -28,6 +30,7 @@ export function SkillDirectoryImport({ agent, kind, t, onSaved, onClose }: { age
   }
   const candidate = acquisition?.candidates.find(row => row.path === selected)
   const duplicate = !!candidate && agent.skills.some(row => row.name === candidate.name)
+  const clearCandidates = () => { setAcquisition(undefined); setSelected(''); setReplace(false) }
   return <section className={css.inline} aria-label={t('agentSkillImport')}>
     <form onSubmit={event => { event.preventDefault(); void run(async signal => {
       if (token.current) { await skillDirectoryApi.cancel(token.current); token.current = undefined }
@@ -37,7 +40,16 @@ export function SkillDirectoryImport({ agent, kind, t, onSaved, onClose }: { age
       if (signal.aborted) { void skillDirectoryApi.cancel(result.token); return }
       token.current = result.token; setAcquisition(result); setSelected(result.candidates[0]?.path ?? ''); setReplace(false)
     }) }}>
-      {kind === 'zip' ? <label>{t('agentSkillZipFile')}<input type="file" accept=".zip,application/zip" required disabled={busy} onChange={event => setArchive(event.target.files?.[0])} /></label> : <label>{t(kind === 'local' ? 'agentSkillFolderPath' : 'agentSkillGitUrl')}<input name={kind === 'local' ? 'folderPath' : 'gitUrl'} required disabled={busy} value={address} onChange={event => setAddress(event.target.value)} /></label>}
+      {kind === 'zip' ? <div className={css.skillImportPicker}>
+        <span>{t('agentSkillZipFile')}</span>
+        <input ref={archiveInput} type="file" accept=".zip,application/zip" hidden disabled={busy} aria-label={t('agentSkillZipFile')} onChange={event => { const file = event.target.files?.[0]; if (file) { setArchive(file); clearCandidates() } }} />
+        <button type="button" disabled={busy} onClick={() => archiveInput.current?.click()}>{t('agentSkillPickZip')}</button>
+        <span className={css.skillImportPath}>{archive?.name ?? t('agentSkillNothingSelected')}</span>
+      </div> : kind === 'local' && directoryPicker ? <div className={css.skillImportPicker}>
+        <span>{t('agentSkillFolder')}</span>
+        <button type="button" disabled={busy} onClick={() => void run(async signal => { const path = await directoryPicker.pick(); if (!signal.aborted && path !== null) { setAddress(path); clearCandidates() } })}>{t('agentSkillPickFolder')}</button>
+        <span className={css.skillImportPath}>{address || t('agentSkillNothingSelected')}</span>
+      </div> : <label>{t(kind === 'local' ? 'agentSkillFolderPath' : 'agentSkillGitUrl')}<input name={kind === 'local' ? 'folderPath' : 'gitUrl'} required disabled={busy} value={address} onChange={event => setAddress(event.target.value)} /></label>}
       {kind === 'git' && <label>{t('agentSkillGitBranch')}<input disabled={busy} value={branch} onChange={event => setBranch(event.target.value)} /></label>}
       <footer className={css.actions}><button type="submit" disabled={busy || (kind === 'zip' ? !archive : !address)}>{t('agentSkillAcquire')}</button></footer>
     </form>
