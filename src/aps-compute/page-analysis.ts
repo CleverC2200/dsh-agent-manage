@@ -29,7 +29,7 @@ export function summarizePage(data: MetricData | null | undefined, busy = false,
   } else if (budget !== null) {
     title = `销售预算已完成${format(budget)}%`
   } else if (stock !== null) {
-    title = `当前库存${format(stock)}万件，需结合需求评估`
+    title = `当前库存${format(stock)}万箱，需结合需求评估`
   } else {
     const first = available[0]
     title = `${label(first.name)}${format(first.value!)}${first.unit}`
