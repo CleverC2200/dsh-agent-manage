@@ -215,7 +215,7 @@ export class BusinessResources {
       entry.error ||
       entry.owner.signal.aborted ||
       this.cubeDisabled.has(id) ||
-      !this.versions.has(id)
+      (entry.definition.prompt && !this.versions.has(id))
     )
       return undefined
     return { sourceRef: id, consumerCode: entry.definition.profile.consumerCode, signal: entry.cube.signal }
