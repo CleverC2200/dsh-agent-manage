@@ -20,7 +20,7 @@ export const presetLanes = {
   },
   gea: {
     'tests/sales-agent-import-gea.test.ts': 1,
-    'tests/user-agent-cube-gea.test.ts': 2,
+    'tests/user-agent-cube-gea.test.ts': 3,
     'tests/business-admission-gea.test.ts': 4,
     'tests/standard-preset-gea.test.ts': 11,
     'tests/skill-preset-gea.test.ts': 1,
