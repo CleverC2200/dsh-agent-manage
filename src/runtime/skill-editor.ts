@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
+import type {} from '@deepseek-ai/dsh-workspace'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { z } from 'zod'
@@ -147,7 +148,8 @@ export async function mountSkillEditor(host: Context, agents: UserAgents, t: Hos
           const current = await agents.directories.open({ id: input.id, name: input.name })
           if (input.revision !== current.revision) throw Error('SKILL_EDIT_CONFLICT')
           if (host.fs.sandboxMode === undefined) throw Error('SKILL_EDITOR_SANDBOX_REQUIRED')
-          const created = await host.sessionController.create({ cwd: current.cwd, agentPreset: SKILL_EDITOR_PRESET })
+          const workspace = await host.workspaceRegistry.create(current.cwd)
+          const created = await host.sessionController.create({ workspaceId: workspace.id, agentPreset: SKILL_EDITOR_PRESET })
           const resolved = await host.sessionController.resolveAgent(created.sessionId)
           if ('error' in resolved) throw resolved.error
           const agent = resolved.agent

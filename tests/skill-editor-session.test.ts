@@ -63,6 +63,8 @@ it(
       expect(response.status, JSON.stringify(result)).toBe(200)
       const editor = ctx.agents.list().find(row => row.id === result.sessionId)!
       expect(editor.session.header.cwd).toBe(opened.cwd)
+      const workspace = await ctx.workspaceRegistry.resolveByPath(opened.cwd)
+      expect(workspace?.sessionIds).toContain(result.sessionId)
       expect(ctx.sandboxPolicy.resolve({ session: editor.session })).toMatchObject({ mode: 'workspace-write', workspaceRoot: opened.cwd })
       expect(result.draft).toContain('SKILL.md')
       expect(result.draft).toContain('skill_directory_apply')
@@ -124,6 +126,7 @@ it(
       const resumed = await restarted.sessionController.resolveAgent(editor.id)
       if ('error' in resumed) throw resumed.error
       expect(resumed.agent.session.header.cwd).toBe(opened.cwd)
+      expect((await restarted.workspaceRegistry.resolveByPath(opened.cwd))?.sessionIds).toContain(editor.id)
       expect(resumed.agent.session.snapshotEvents().length).toBeGreaterThanOrEqual(previousEvents)
       expect(restarted.tools.schemas(resumed.agent).map(tool => tool.name)).toContain('skill_directory_apply')
       expect(restarted.sandboxPolicy.resolve({ session: resumed.agent.session })).toMatchObject({ mode: 'workspace-write', workspaceRoot: opened.cwd })

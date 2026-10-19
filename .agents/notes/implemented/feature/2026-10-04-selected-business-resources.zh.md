@@ -60,7 +60,7 @@ Manage 为每个选中 Skill 保留完整不可变目录版本与独立的每 Ag
 
 主工作台与设置中的 Skill 页共用这些动作，支持文件夹路径、ZIP、Git 导入、文件树、二进制替换和文件级来源冲突选择。尚未写入文件的内容与已写入但未应用的修改分别显示。写入失败保留本地文本；比较入口显示当前工作副本，由用户明确采用其文件 token 作为合并基线。设置页跳转编辑聊天时，在原生导航成功后调用官方 settings.section 的 close。
 
-专用编辑预设复用官方标准工具与 Core Session 生命周期。Host 通过官方 inbox 注入和工具延迟上下文，在自有消息 source 元数据中记录 Agent、Skill、工作副本与 revision。普通 prompt RPC 自行构造 user source，不能提供这份 Host source。元数据只是持久事实记录，目录归属及当前状态仍由目录服务确定。绑定的 apply 工具不接受目标参数，发布成功后也会推进当前 Session 的绑定。Core 重启从这些已知事件恢复绑定，不建立 Session sidecar 或未知自定义事件。
+专用编辑预设复用官方标准工具与 Core Session 生命周期。Host 路由通过官方 Workspace registry 注册或复用工作副本目录，再以该 Workspace id 创建同一编辑 Session，由 Core 持有持久成员关系并启用原生输入框。Host 通过官方 inbox 注入和工具延迟上下文，在自有消息 source 元数据中记录 Agent、Skill、工作副本与 revision。普通 prompt RPC 自行构造 user source，不能提供这份 Host source。元数据只是持久事实记录，目录归属及当前状态仍由目录服务确定。绑定的 apply 工具不接受目标参数，发布成功后也会推进当前 Session 的绑定。Core 重启从这些已知事件恢复绑定，不建立 Session sidecar 或未知自定义事件。
 
 官方文件与 shell 工具读取编辑 Session 的 workspace-write 策略。该官方策略也允许平台临时目录，不能据此声称严格只有 cwd 可写。编辑入口额外核 write/edit 目标的规范路径归属，并拒绝扩大权限。文件和 shell 变更调用在目录服务核 revision 的同一队列中完成。每次实际目录变化都推进 revision，包括失败调用留下的部分修改；仅写入的 Session 获得新的持久 Host 绑定。其它 Session 和旧手动页面保留原 revision，在修改前拒绝。只读调用不推进 revision。普通业务 Agent 策略保持原样。共享 full-Manage 测试入口在装载前拒绝缺失或不匹配的隔离 home。
 
