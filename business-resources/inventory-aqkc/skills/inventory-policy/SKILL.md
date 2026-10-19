@@ -27,7 +27,7 @@ description: 基地库存 Agent 的跨技能规范层。涉及指标口径与算
 | `rules/data-access-contract.md` | 两个只读 MCP 工具的分工、cube 查询契约（先看说明书再查数）、取数六步、权限、失败降级、溯源要求 |
 | `rules/data-boundary.md` | 必标信息、目标版本取值规则、数据缺失处理、数据质量分级 |
 | `rules/evidence-and-action-boundary.md` | 证据状态四档、AI 可与不可、P1/P2 边界、建议与执行区分、业务判断边界 |
-| `rules/output-guide.md` | 语言、数字、结构、时间锚定、引用、四档输出、引导写法、行动建议角色分工、风险提示、输出前自检 |
+| `rules/output-guide.md` | 语言、数字、结构、时间锚定、引用、引导写法、行动建议角色分工、风险提示、输出前自检 |
 
 ## 优先级
 
