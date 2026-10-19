@@ -1,4 +1,4 @@
-import { expect, it, onTestFinished } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
@@ -224,6 +224,15 @@ it(
       const target = { id: saved.id, name: 'shell-conflict' }
       const opened = await agents.directories.open(target)
       expect(opened.cwd.startsWith(join(home, 'agent-plugins', 'data') + '/')).toBe(true)
+      const shellFixture = (host: typeof ctx) => {
+        const runner = vi.spyOn(host.sandbox, 'confine').mockImplementation(async (argv, policy) => {
+          expect(policy.mode).toBe('workspace-write')
+          expect(policy.workspaceRoot).toBe(opened.cwd)
+          return { argv: [...argv], enforcement: 'partial', denialSignatures: [], runnerFailureRules: [] }
+        })
+        onTestFinished(() => runner.mockRestore())
+      }
+      shellFixture(ctx)
       const createEditor = async () => {
         const response = await ctx.connection.createSharedFetchHandler('/api').fetch(
           new Request('http://localhost/api/agent-manage/agents/skills/directory/editor', {
@@ -263,6 +272,7 @@ it(
       expect((await agents.directories.read({ ...target, path: 'references/data.txt' })).data).toBe('FIRST_DRAFT')
       await ctx.fiber.dispose()
       const restarted = await start()
+      shellFixture(restarted)
       const resumed = await restarted.sessionController.resolveAgent(first.id)
       if ('error' in resumed) throw resumed.error
       await completion(restarted, 262144, false, undefined, {
