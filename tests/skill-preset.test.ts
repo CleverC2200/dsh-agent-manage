@@ -11,6 +11,8 @@ import { agentOn, completion, history, official, presetHarness, record, turn } f
 async function pluginFailureHarness() {
   let failPersona = false
   const { ctx, home } = await presetHarness({
+    companyBundle: 'absent',
+    selectedDefault: 'minimal',
     importModule: async name => {
       if (failPersona && name === '@deepseek-ai/dsh-persona') throw Error('SELECTED_SKILL_PLUGIN_LOAD_FAILED')
       return official(name)
@@ -81,7 +83,7 @@ it('keeps rejecting a Prompt whose enabled standard plugin cannot load', async (
 })
 
 it('creates a selected Skill Session with the full standard tools and compaction and recovers its stable identity', async () => {
-  const { ctx, home } = await presetHarness()
+  const { ctx, home } = await presetHarness({ companyBundle: 'absent', selectedDefault: 'minimal' })
   const requests = await completion(ctx, 262_144, true)
   const index = join(home, 'selected.json')
   await writeFile(join(home, 'SKILL.md'), '---\nname: selected-skill\ndescription: Selected task instructions\n---\nKeep the selected task scope.\n')

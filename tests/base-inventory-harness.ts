@@ -5,7 +5,6 @@ import { onTestFinished, vi } from 'vitest'
 import type { BusinessResourceDefinition } from '../src/runtime/business-resources.js'
 import type { Deployment } from 'preset-integration-gea/host/business'
 import type { CapabilityContract } from 'preset-integration-gea/capability/contract'
-import { BusinessResources } from '../src/runtime/business-resources.js'
 import { UserAgents } from '../src/runtime/user-agents.js'
 import { mountGeaMcp } from '../src/runtime/gea-mcp.js'
 import { agentOn, presetHarness, official } from './core-preset-harness.js'
@@ -56,9 +55,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
           : official(name)
   })
   const resource = input.resource ?? (await baseInventoryResource())
-  const resources = new BusinessResources(ctx, resolve(home, 'selected-resources.json'))
-  ctx.provide('agentResources', resources)
-  onTestFinished(() => resources.dispose())
+  const resources = ctx.agentResources
   onTestFinished(installPromptProfile(resource.id, resource.profile))
   const releaseResource = await resources.register([{ ...resource, cube: true }, ...(input.additionalResources ?? [])])
   const selection = await resources.select(resource.id, new AbortController().signal, input.cwd)

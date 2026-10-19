@@ -138,6 +138,8 @@ it('binds a trusted Cube reference to the actual Core revision and revokes remov
   const { BusinessResources } = await import('../src/runtime/business-resources.js')
   const { writeFile } = await import('node:fs/promises')
   const { ctx, home } = await presetHarness({
+    companyBundle: 'absent',
+    selectedDefault: 'minimal',
     importModule: name =>
       name === 'dsh-agent-manage/user-agent-cube'
         ? import('../src/runtime/user-agent-cube.js')

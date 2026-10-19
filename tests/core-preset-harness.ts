@@ -7,6 +7,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import * as company from '../src/runtime/standard-preset.js'
+import { BusinessResources } from '../src/runtime/business-resources.js'
 import { core, officialModulePath } from './official-core-input.js'
 
 export { core }
@@ -192,7 +193,17 @@ export async function presetHarness(options: PresetHarnessOptions = {}) {
           return () => {}
         }
       } as never)
-      runtime.loader.builtins['company-presets'] = company
+      runtime.loader.builtins['company-presets'] = {
+        inject: ['agentPresets', 'loader', 'skills'],
+        async apply(host: Context) {
+          await company.waitForStandard(host)
+          const resources = new BusinessResources(host, join(home, 'selected-resources.json'))
+          await resources.load()
+          host.provide('agentResources', resources)
+          host.effect(() => () => resources.dispose())
+          await company.apply(host)
+        }
+      }
       if (manage) runtime.loader.builtins['company-manage'] = manage
       runtime.loader.internal = {
         version: 'v2',

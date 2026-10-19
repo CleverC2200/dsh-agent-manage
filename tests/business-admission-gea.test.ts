@@ -9,7 +9,7 @@ async function fixture() {
   const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
   const { createCapabilityRegistry } = await import('preset-integration-gea/capability/registry')
   const { defineTool } = await official('@deepseek-ai/dsh-tools')
-  const { ctx, home } = await presetHarness()
+  const { ctx, home } = await presetHarness({ companyBundle: 'absent', selectedDefault: 'minimal' })
   const resources = new BusinessResources(ctx, resolve(home, 'selected-resources.json'))
   ctx.provide('agentResources', resources)
   onTestFinished(() => resources.dispose())

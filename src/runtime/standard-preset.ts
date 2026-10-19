@@ -1,7 +1,6 @@
-import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import z from 'zod'
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from './business-resources.js'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { entryListProblem, type PresetDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
 import { dump, load } from 'js-yaml'
@@ -11,7 +10,7 @@ export const MINIMAL_SYSTEM_PROMPT = 'You are the smartest and most useful AI as
 export const ORCHESTRATION_PRESET = {
   id: 'auto-negotiation',
   name: '智能编排',
-  description: '通用任务的完整官方标准能力，支持上下文压缩、规划、任务和协作。',
+  description: '米面冻品全链路经营分析与运营决策，支持上下文压缩、规划、任务和协作。',
   order: 0
 } as const
 
@@ -67,28 +66,35 @@ export async function composeStandardPreset(
   return { ...metadata, plugins: rows }
 }
 
-export const inject = ['agentPresets', 'loader']
-export async function apply(ctx: Context): Promise<void> {
-  // Host rows activate concurrently. Await this declaration, never the entire
-  // Host tree: waiting on the tree from our own activation would wait on ourselves.
+export async function waitForStandard(ctx: Context): Promise<void> {
   const declaration = [...ctx.loader.entries()].find(entry => entry.options.name === '@deepseek-ai/dsh-agent-preset' && entry.options.config?.id === 'standard')
   if (declaration && !declaration.disabled) {
     if (!declaration.fiber) await declaration.init()
     await declaration.fiber?.await()
   }
-  const preset = await composeStandardPreset(ctx.agentPresets, ORCHESTRATION_PRESET, {
-    personaPrefix: await readFile(new URL('../../business-resources/orchestration/prompt.md', import.meta.url), 'utf8')
-  })
-  const filesystem = preset.plugins.find(row => row.name === '@deepseek-ai/dsh-skill-filesystem')
-  if (!filesystem) throw Error('STANDARD_SKILL_FILESYSTEM_REQUIRED')
-  const config = z
-    .object({ customSkillDirs: z.array(z.string()).default([]) })
-    .passthrough()
-    .parse(filesystem.config ?? {})
-  filesystem.config = {
-    ...config,
-    customSkillDirs: [fileURLToPath(new URL('../../business-resources/orchestration/skills/', import.meta.url)), ...config.customSkillDirs]
-  }
-  const release = await ctx.agentPresets.register(preset)
+}
+
+export async function registerOrchestration(resources: Pick<Context['agentResources'], 'register'>): Promise<() => Promise<void>> {
+  const skills = ['frozen-food-sales-operations-diagnosis', 'frozen-food-base-inventory-insight', 'prototype-html']
+  return resources.register([
+    {
+      id: ORCHESTRATION_PRESET.id,
+      label: ORCHESTRATION_PRESET.name,
+      description: ORCHESTRATION_PRESET.description,
+      order: ORCHESTRATION_PRESET.order,
+      root: fileURLToPath(new URL('../../business-resources/orchestration/', import.meta.url)),
+      prompt: 'prompt.md',
+      publishPreset: true,
+      inheritSkills: true,
+      profile: { label: ORCHESTRATION_PRESET.name, consumerCode: 'general', skills },
+      skillFiles: Object.fromEntries(skills.map(name => [name, `skills/${name}/SKILL.md`]))
+    }
+  ])
+}
+
+export const inject = ['agentPresets', 'loader', 'agentResources']
+export async function apply(ctx: Context): Promise<void> {
+  await waitForStandard(ctx)
+  const release = await registerOrchestration(ctx.agentResources)
   ctx.effect(() => release)
 }

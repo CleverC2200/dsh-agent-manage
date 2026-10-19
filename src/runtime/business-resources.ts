@@ -25,11 +25,13 @@ export interface BusinessResourceDefinition {
   label: string
   /** Agent catalog metadata; the business page keeps its separate title. */
   presetName?: string
+  order?: number
   description?: string
   root: string
   prompt?: string
   /** Publish a validated preset when the enabled package registers, without selecting it or changing user defaults. */
   publishPreset?: boolean
+  inheritSkills?: boolean
   /** Owning capability declaration, for explicit references to existing analysis Skills. */
   capability?: string
   /** A policy JSON file may contain several original profiles. */
@@ -549,7 +551,8 @@ export class BusinessResources {
   private async originalProfile(entry: Entry, signal: AbortSignal) {
     const d = entry.definition
     const file = await resourceFile(d.root, d.prompt!)
-    const raw = JSON.parse(await readFile(file, { encoding: 'utf8', signal }))
+    const content = await readFile(file, { encoding: 'utf8', signal })
+    const raw = d.prompt!.endsWith('.md') ? { ...d.profile, persona: content } : JSON.parse(content)
     const profile = d.profileKey ? raw.profiles?.[d.profileKey] : raw
     signal.throwIfAborted()
     if (
@@ -641,10 +644,13 @@ export class BusinessResources {
     await this.unmount(id)
     const definition = await composeStandardPreset(
       this.ctx.agentPresets,
-      { id, name: d.presetName ?? d.profile.label, description: promptDescription(d) },
+      { id, name: d.presetName ?? d.profile.label, description: promptDescription(d), ...(d.order === undefined ? {} : { order: d.order }) },
       {
         personaPrefix: override?.prompt ?? profile.persona,
-        plugins: [...(d.plugins ?? []), { id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills } }]
+        plugins: [
+          ...(d.plugins ?? []),
+          ...(!d.inheritSkills || override?.skills ? [{ id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills } }] : [])
+        ]
       }
     )
     signal.throwIfAborted()

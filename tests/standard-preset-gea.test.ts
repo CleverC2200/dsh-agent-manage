@@ -39,7 +39,7 @@ it('keeps general Session tools across the GEA hooks and rejects unprofiled busi
 
 it('selects the base inventory resource into a complete standard Session without losing its persona or Skill', async () => {
   const { BusinessResources } = await import('../src/runtime/business-resources.js')
-  const { ctx, home } = await presetHarness()
+  const { ctx, home } = await presetHarness({ companyBundle: 'absent', selectedDefault: 'minimal' })
   const requests = await completion(ctx)
   const resources = new BusinessResources(ctx, resolve(home, 'selected-resources.json'))
   onTestFinished(() => resources.dispose())

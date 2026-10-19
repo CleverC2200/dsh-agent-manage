@@ -1,8 +1,7 @@
 /** Independent production Host behind the resource client's offline wire adapter. */
-import { expect, it, onTestFinished } from 'vitest'
+import { expect, it } from 'vitest'
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'
-import { BusinessResources } from '../src/runtime/business-resources.js'
 import { completion, official, presetHarness } from './core-preset-harness.js'
 
 it('serves a selected Skill and materializes its real Core Session in the requested workspace', async () => {
@@ -10,8 +9,7 @@ it('serves a selected Skill and materializes its real Core Session in the reques
   const { ctx, home } = await presetHarness()
   await completion(ctx)
   await writeFile(join(home, 'SKILL.md'), '---\nname: selected-skill\ndescription: Selected task instructions\n---\nKeep the selected task scope.\n')
-  const resources = new BusinessResources(ctx, join(home, 'selected.json'))
-  onTestFinished(() => resources.dispose())
+  const resources = ctx.agentResources
   await resources.register([
     {
       id: 'selected-owner',
