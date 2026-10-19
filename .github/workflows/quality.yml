@@ -133,7 +133,7 @@ jobs:
         with:
           repository: CleverC2200/deepseek-harness
           ref: ${{ steps.cores.outputs.core-head }}
-          fetch-depth: 0
+          fetch-depth: 1
           path: source/official-core
           persist-credentials: false
       - name: Bind admitted sources before selecting preparation
@@ -208,7 +208,7 @@ jobs:
         with:
           repository: CleverC2200/deepseek-harness
           ref: ${{ matrix.coreHead }}
-          fetch-depth: 0
+          fetch-depth: ${{ needs.candidate-scope.outputs.applicability == 'docs' && 1 || 0 }}
           path: source/official-core
           persist-credentials: false
       - name: Enable declared package managers
