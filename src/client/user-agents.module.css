@@ -1,5 +1,5 @@
 .workspace { color: var(--workbench-text, #202127); padding: 40px 48px; max-width: 1040px; margin: 0 auto; height: 100%; overflow-y: auto; font: 14px/1.55 var(--workbench-font-family, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif); box-sizing: border-box; }
-.settingsWorkspace { padding: 24px 0 0; max-width: none; height: auto; overflow: visible; }
+.workspace.settingsWorkspace { padding: 0; max-width: none; height: auto; overflow: visible; }
 .workspace button, .workspace input, .workspace textarea, .workspace select { font: inherit; }
 .workspace button { cursor: pointer; border: 1px solid var(--workbench-border, #dfe1e6); background: transparent; color: inherit; border-radius: 8px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
 .workspace button:hover { background: var(--workbench-hover, #f6f7f9); }
@@ -51,7 +51,7 @@
 .menuItems button { display: block; text-align: left; width: 100%; border: 0; }
 .modeTabs { display: flex; gap: 4px; margin: 0 0 12px; }
 .modeTabs button[aria-pressed=true] { background: var(--workbench-hover, #f5f6f7); }
-@media (max-width: 650px) { .workspace { padding: 24px 18px; } .workspace.settingsWorkspace { padding: 16px 0 0; } .heading, .row { gap: 10px; } .heading { flex-wrap: wrap; } .heading > .title { min-width: 120px; } .row .icon { width: 42px; height: 44px; } }
+@media (max-width: 650px) { .workspace { padding: 24px 18px; } .heading, .row { gap: 10px; } .heading { flex-wrap: wrap; } .heading > .title { min-width: 120px; } .row .icon { width: 42px; height: 44px; } }
 
 .source {
   padding: 16px 0;
