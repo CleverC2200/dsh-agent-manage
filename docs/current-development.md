@@ -18,6 +18,8 @@ The [dual official Core decision](../.agents/notes/implemented/process/2026-10-1
 
 ## Current ownership / 当前决定归属
 
+- [Customer inventory governed read](../.agents/notes/implemented/feature/2026-10-19-customer-inventory-governed-read.md) and [中文](../.agents/notes/implemented/feature/2026-10-19-customer-inventory-governed-read.zh.md) own the current customer snapshot table, governed SQL path, derivations and unknown-field boundary. / 客户库存最新快照表、受控SQL链路、派生口径与未知字段边界归该决定。
+
 - [Resource runtime management](../.agents/notes/implemented/architecture/2026-10-15-resource-runtime-management.md) and [中文](../.agents/notes/implemented/architecture/2026-10-15-resource-runtime-management.zh.md) own runtime configuration, status, credential events, backend remounts and ordered release behind `Catalog.runtime`. / 运行配置、状态、凭据事件、后端重挂与释放顺序归 `Catalog.runtime`。
 
 - [Installed panel resources](../.agents/notes/implemented/architecture/2026-10-14-installed-panel-resources.md) and [中文](../.agents/notes/implemented/architecture/2026-10-14-installed-panel-resources.zh.md) own source-limited reads and serialized personal-resource writes with runtime notification; plugin sources are read-only. / 已安装资源按需读取，个人资源统一写入并通知运行时；插件源只读。

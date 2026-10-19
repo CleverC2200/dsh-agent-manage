@@ -2,6 +2,8 @@
 
 Status: implemented
 
+客户库存部分已由[客户库存受控读取](2026-10-19-customer-inventory-governed-read.zh.md)部分替代；下述订单工作台、订单履约及其他接收原型决定继续有效。
+
 ## Problem
 
 客户库存、订单工作台和订单履约已有原型页面与原Agent资源。只有静态页面而没有业务资源声明时，用户无法在页面的Session中选用这些Prompt和Skill。接收原型需要保留原模拟交互和资源原文。
