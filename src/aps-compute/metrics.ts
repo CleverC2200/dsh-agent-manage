@@ -1,3 +1,5 @@
+import { productionOutputMetric } from './production-output.js'
+
 type Row = Record<string, unknown>
 export type Metric = { name: string; value: number | null; unit: string; note: string }
 export type MetricData = { start: string; end: string; granularity: string; sections: { id: string; status: string; rows: Row[] }[] }
@@ -60,6 +62,16 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
     })
     return rates.every(finite) ? rates.reduce((total, value) => total + value, 0) / rates.length : null
   }
+  const accuracyGap = (id: string) => {
+    const rows = get(id)
+    const issues: string[] = []
+    const invalid = missing(rows, 'invalid')
+    if (invalid) issues.push(`${invalid}条基础数量缺失或异常`)
+    const groups = monthlyRows(rows)
+    if (groups.length && groups.some(group => sum(group, 'adjusted_plan') === 0)) issues.push('调整计划合计为0，调整准确率和达成率缺少有效分母')
+    if (groups.length && groups.some(group => sum(group, 'initial_plan') === 0)) issues.push('初始计划合计为0，初始准确率缺少有效分母')
+    return issues.length ? '；' + issues.join('；') : ''
+  }
   const attainmentRate = (id: string) => {
     const rows = get(id),
       plan = sum(rows, 'adjusted_plan'),
@@ -68,10 +80,25 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
       ? (actual / plan) * 100
       : null
   }
-  put('销售提报准确率', officialRate('sales-accuracy'), '%', '指定销售准确率表：初始与调整偏差量分别汇总÷对应计划量，两种准确率取均值；非行百分比平均，月中为源累计状态')
+  put(
+    '销售提报准确率',
+    officialRate('sales-accuracy'),
+    '%',
+    '指定销售准确率表：初始与调整偏差量分别汇总÷对应计划量，两种准确率取均值；非行百分比平均，月中为源累计状态' + accuracyGap('sales-accuracy')
+  )
   put('销售提报达成率', attainmentRate('sales-accuracy'), '%', '月度截止日实际发货量 ÷ 月度销售提报量 × 100%；健康阈值随截止日动态变化。飞书仅确认月度口径，年度不擅自推导')
-  put('需求预测准确率', officialRate('demand-accuracy'), '%', '指定需求准确率表：初始与调整偏差量分别汇总÷对应计划量，两种准确率取均值；源表为空时保持缺失，不以其他预测数据替代')
-  put('需求预测达成率', attainmentRate('demand-accuracy'), '%', '月度截止日实际发货量 ÷ 月底需求预测量 × 100%；健康阈值随截止日动态变化。飞书仅确认月度口径，年度不擅自推导')
+  put(
+    '需求预测准确率',
+    officialRate('demand-accuracy'),
+    '%',
+    '指定需求准确率表：初始与调整偏差量分别汇总÷对应计划量，两种准确率取均值；源表为空时保持缺失，不以其他预测数据替代' + accuracyGap('demand-accuracy')
+  )
+  put(
+    '需求预测达成率',
+    attainmentRate('demand-accuracy'),
+    '%',
+    '月度截止日实际发货量 ÷ 月底需求预测量 × 100%；健康阈值随截止日动态变化。飞书仅确认月度口径，年度不擅自推导' + accuracyGap('demand-accuracy')
+  )
   const deliveries = get('delivery-daily')
   put(
     '日发货量',
@@ -119,11 +146,18 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
     '%',
     '月度为未税本币销售额 ÷ 同月份、同组织完整月度预算 × 100%；年度按月度达成率取平均。仅支持完整历史月份或今天截止的月/年，日周及历史月中不计算'
   )
-  put('生产计划达成率', null, '%', '已接七日生产计划；原排产表有工厂交货量，但外协实绩缺失，且交货量不直接等于生产入库实绩')
+  const production = data.sections.find(section => section.id === 'production')
+  const productionMetric = productionOutputMetric(production?.status === 'ready' ? production.rows : [])
+  put('生产计划达成率', productionMetric.value, '%', productionMetric.note)
   const supply = get('shippable'),
     available = sum(supply, 'available'),
     daily = sum(supply, 'demand')
-  put('可发货天数', !missing(supply, 'invalid') && available !== null && daily !== null && daily > 0 ? available / daily : null, '天', '基地可用库存 ÷ 同范围计划日均需求')
+  put(
+    '可发货天数',
+    !missing(supply, 'invalid') && available !== null && daily !== null && daily > 0 ? available / daily : null,
+    '天',
+    '基地可用库存 ÷ 同范围计划日均需求' + (missing(supply, 'invalid') ? `；${missing(supply, 'invalid')}条可用库存或计划需求缺失、异常` : '')
+  )
   for (const section of data.sections)
     if (section.status === 'error') {
       const names: Record<string, string[]> = {
@@ -136,7 +170,8 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
         stock: ['库存量', '计划库存支撑天数'],
         forecast: ['预测量'],
         execution: ['客户计划量', '客户实际发货量'],
-        orders: ['订单缺货量', '订单满足率']
+        orders: ['订单缺货量', '订单满足率'],
+        production: ['生产计划达成率']
       }
       for (const name of names[section.id] || []) result[name] = { ...result[name], value: null, note: '相关数据查询失败，请在业务明细中查看错误后重试' }
     }

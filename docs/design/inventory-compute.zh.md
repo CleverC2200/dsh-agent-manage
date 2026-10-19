@@ -10,6 +10,7 @@ Manage 拥有 `src/inventory-compute`。package 的 `./inventory-compute/*` 提�
 | personal、personal-sources、daily-report | 来源值返回加权货龄、已知/部分合计、固定货龄分段、来源风险与库存对象。 |
 | full-chain-workspace-service、full-chain-category-structure、full-chain-customer-metrics、full-chain-types | 输入事实、筛选、固定时间与已收窄范围返回原公司/客户指标和趋势。传入范围本身不授予权限。 |
 | full-chain-source-rows | 原公司SQL行归一化为领域事实，保留数量、可空来源字段、日速度和零货龄批次规则，不执行IO或授予权限。 |
+| covered-stock-comparison | 按有效库存、目标与需求的交集返回差额及双方周转，附覆盖数量；缺值不补零，不生成完整范围健康结论。 |
 | dms-mock-packets | 输入数量返回三位小数字符串与 M/Z 分笔键，不含凭据、读取或写入。 |
 
 Workbench 直接引用这些公开模块。构建从声明的 `source` 导出解析源码，并在 `build-inputs.json` 记录实际消费的全部 Manage 源码、配置及 package 元数据 hash。计算随页面编译，浏览器不导入 Host runtime。Workbench 继续持有固定输入加载、来源权限裁切、页面状态、分页、取消、引用和快照生命周期。数据授权仍归 GEA。

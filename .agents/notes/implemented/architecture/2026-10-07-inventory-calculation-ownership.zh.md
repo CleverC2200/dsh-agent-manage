@@ -25,3 +25,5 @@ Status: implemented
 Manage 的类型、lint、格式和架构门禁覆盖算法。浏览器装配消费公开源码条件并记录 hash。此处只证明输入固定时的行为，不关闭原真实验收票或 Native 条件。为满足 Manage lint，删除原未使用的全链局部 `orderDemand` 和经销商 `metricLabels`。个人库存未使用的 `dailyReportTransport` 模式选择器已删除，不把 Session/旧传输路由公开为计算能力。这些语句没有当前结果消费者。全链输入获取移到 Workbench，公开计算只接数据与计算请求，不接 adapter。
 
 DMS模拟接收沿用同一归属。Manage维护输入数量校验与M/Z分笔计算；Workbench保留页面内存模拟器、原工作流投影和按会话范围恢复的选择意图。模拟回执与完成状态不恢复成业务状态权威，不新增Host执行接口。
+
+基地库存取数适配通过`covered-stock-comparison`沿用此边界：输入库存与目标的匹配集计算已覆盖差额，库存/目标/需求的共同交集计算两种周转，并返回覆盖数量。Workbench标注部分覆盖，整体风险仍保持未知；Manage不补造缺失事实，也不建立授权。
