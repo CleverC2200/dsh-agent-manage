@@ -21,3 +21,5 @@ These snapshots come from the original documentation-cleanup inputs around `2b9e
 | `docs/compat-report.md`, `docs/compat-report.json` | Generated dated report; preserve measured commits, diagnostics and shadowed verdicts. Tests/source presence does not refresh its acceptance. |
 
 The HTML design previews are authored prototype assets. Their scripts and strings are preserved. Business resource bodies, test fixtures, licenses and recorded failures are source or evidence inputs rather than editorial documentation. Frozen archived Notes retain their original bytes and outgoing links. / HTML 设计预览是原型资产，脚本与运行文案保留。业务正文、fixture、许可证及失败记录属于输入或证据。归档 Note 原字节及 outgoing links 保持。
+
+The original fixed-PID browser lifecycle probe is preserved at [verification/verify-lifecycle.cjs](history/verification/verify-lifecycle.cjs) for historical evidence only. / 原固定 PID 浏览器生命周期探针作为历史证据保留，不作为当前验收入口。

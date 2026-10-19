@@ -33,16 +33,25 @@ function run(command, args, cwd = process.cwd()) {
 try {
   if (values['final-group-sha256'] !== undefined) {
     if (!/^[a-f0-9]{64}$/.test(values['final-group-sha256'])) refuse('CANDIDATE_FINAL_GROUP_REQUIRED', 'original bytes SHA256 required')
-    if (!['quality', 'business-profile', 'archives', 'audit', 'verify-input'].includes(phase)) refuse('CANDIDATE_FINAL_GROUP_PHASE', phase)
+    if (!['quality', 'archives', 'audit', 'verify-input', 'plan'].includes(phase)) refuse('CANDIDATE_FINAL_GROUP_PHASE', phase)
   }
   if (phase === 'scope') {
     if (process.env.QUALITY_SCOPE_ALLOWED !== 'true') refuse('CANDIDATE_SCOPE_REQUIRED', 'same-repository read-only execution only')
   } else if (phase === 'final') {
-    for (const key of ['QUALITY_SCOPE_RESULT', 'QUALITY_GATE_RESULT', 'QUALITY_WINDOWS_RESULT']) {
+    if (!['docs', 'source'].includes(process.env.QUALITY_APPLICABILITY)) refuse('QUALITY_REQUIRED', 'explicit plan applicability')
+    for (const key of ['QUALITY_AUDIT_APPLICABLE', 'QUALITY_DEPENDENCY_APPLICABLE', 'QUALITY_CODEQL_APPLICABLE']) {
+      if (!['true', 'false'].includes(process.env[key])) refuse('QUALITY_REQUIRED', `${key}=missing`)
+    }
+    const docs = process.env.QUALITY_APPLICABILITY === 'docs'
+    const required = ['QUALITY_SCOPE_RESULT', 'QUALITY_GATE_RESULT', 'QUALITY_WINDOWS_RESULT']
+    if (!docs && process.env.QUALITY_AUDIT_APPLICABLE === 'true') required.push('QUALITY_AUDIT_RESULT')
+    if (!docs && process.env.QUALITY_DEPENDENCY_APPLICABLE === 'true') required.push('QUALITY_DEPENDENCY_RESULT')
+    if (!docs && process.env.QUALITY_CODEQL_APPLICABLE === 'true') required.push('QUALITY_CODEQL_RESULT')
+    for (const key of required) {
       if (process.env[key] !== 'success') refuse('QUALITY_REQUIRED', `${key}=${process.env[key] ?? 'missing'}`)
     }
   } else {
-    if (!['quality', 'business-profile', 'archives', 'audit', 'verify-input'].includes(phase)) refuse('QUALITY_PHASE_REJECTED', phase)
+    if (!['quality', 'archives', 'audit', 'verify-input', 'plan'].includes(phase)) refuse('QUALITY_PHASE_REJECTED', phase)
     if (!values['final-group-sha256']) refuse('CANDIDATE_FINAL_GROUP_REQUIRED', 'candidate execution requires explicit admitted group hash')
     const input = values.input ?? process.env.QUALITY_CANDIDATE
     if (!input) refuse('CANDIDATE_INPUT_REQUIRED', '--input <frozen group JSON>')
@@ -63,14 +72,9 @@ try {
     const manifest = finalGroup.manifest
     const workbench = manifest.repositories.find(entry => entry.repo === 'dsh-agent-workbench')
     process.env.QUALITY_POLICY_WORKBENCH = workbench.path
-    if (phase === 'business-profile') {
-      const { loadBusinessProfilePolicy } = await import('./business-profile-ci.mjs')
-      const policy = await loadBusinessProfilePolicy(workbench.path)
-      policy.validateBusinessProfileGroup(manifest.repositories)
-    }
     let plan
     const planFile = resolve(dirname(resolve(input)), 'quality-test-plan.json')
-    if (phase === 'quality') {
+    if (['quality', 'plan'].includes(phase)) {
       const { selectCiTests } = await import(pathToFileURL(resolve(workbench.path, 'scripts/ci-test-plan.mjs')))
       const baseline = JSON.parse(readFileSync('scripts/quality-peer-baseline.json'))
       plan = selectCiTests({
@@ -83,6 +87,23 @@ try {
         if (Object.hasOwn(presetHostOwners, file)) refuse('CI_TEST_PLAN_UNOWNED_HOST', file)
       }
       writeFileSync(planFile, JSON.stringify(plan, null, 2) + '\n')
+    }
+    if (phase === 'plan') {
+      if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `applicability=${plan.applicability}\n`)
+      console.log(JSON.stringify(plan))
+      process.exit(0)
+    }
+    if (plan?.applicability === 'docs') {
+      const options = { core: resolve(dirname(dirname(process.cwd())), 'official-latest-standard'), source: values['core-source'], coreHead: manifest.core }
+      prepareOfficialSource(options)
+      const checks = await runQualityChecks([
+        { name: 'knowledge', execute: () => run(process.execPath, [resolve('scripts/check-agent-knowledge.mjs')]) },
+        { name: 'whitespace', execute: () => run('git', ['diff', '--check', plan.diffBase, plan.head]) }
+      ])
+      writeFileSync('quality-checks.json', JSON.stringify(checks, null, 2) + '\n')
+      if (checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')
+      console.log(JSON.stringify({ status: 'passed', phase, applicability: 'docs', runtime: 'not-applicable' }))
+      process.exit(0)
     }
 
     const core = resolve(dirname(dirname(process.cwd())), 'official-latest-standard')
@@ -108,7 +129,7 @@ try {
         '--final-group-sha256',
         values['final-group-sha256']
       ])
-    if (['quality', 'business-profile'].includes(phase)) {
+    if (phase === 'quality') {
       const npmManager = JSON.parse(readFileSync(resolve(workbench.path, 'package.json'), 'utf8')).packageManager
       if (npmManager !== 'npm@11.11.0' || execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim() !== npmManager.slice('npm@'.length))
         refuse('QUALITY_TOOLCHAIN_REQUIRED', 'Workbench npm@11.11.0')
@@ -121,47 +142,33 @@ try {
     }
     run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'])
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'dependencies-prepared=true\n')
-    if (['quality', 'business-profile'].includes(phase)) {
-      const checks = await runQualityChecks(
-        phase === 'business-profile'
-          ? [
-              { name: 'static', execute: () => run('corepack', ['pnpm', 'check:static']) },
-              {
-                name: 'business-profile',
-                execute: () =>
-                  run('corepack', [
-                    'pnpm',
-                    'exec',
-                    'vitest',
-                    'run',
-                    'tests/business-resources.test.ts',
-                    'tests/bundled-business-tools.test.ts',
-                    'tests/gea-mcp-scope.test.ts',
-                    'tests/gea-mcp.test.ts'
-                  ])
-              },
-              {
-                name: 'admission',
-                execute: () => run('corepack', ['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.preset-integration.config.ts', 'tests/business-admission-gea.test.ts'])
-              },
-              { name: 'build', execute: () => run('corepack', ['pnpm', 'build']) }
-            ]
-          : [
-              { name: 'check:static', execute: () => run('corepack', ['pnpm', 'run', 'check:static']) },
-              { name: 'capabilities', execute: () => run(process.execPath, [resolve('scripts/check-preset-capabilities.mjs'), '--plan', planFile]) },
-              { name: 'build', execute: () => run('corepack', ['pnpm', 'run', 'build']) },
-              {
-                name: 'required-and-affected',
-                execute: () => {
-                  const files = plan.files.filter(file => !Object.values(presetLanes).some(lane => file in lane))
-                  if (!files.length) refuse('CI_TEST_PLAN_EMPTY_ORDINARY', 'required ordinary tests must be explicitly selected')
-                  run('corepack', ['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.ci-unit.config.ts', ...files])
-                }
+    if (phase === 'quality') {
+      const checks = await runQualityChecks([{ name: 'check:static', execute: () => run('corepack', ['pnpm', 'run', 'check:static:ci']) }])
+      if (checks[0].status === 'passed')
+        checks.push(
+          ...(await runQualityChecks([
+            { name: 'capabilities', execute: () => run(process.execPath, [resolve('scripts/check-preset-capabilities.mjs'), '--plan', planFile]) },
+            { name: 'build', execute: () => run('corepack', ['pnpm', 'run', 'build']) },
+            ...(plan.files.some(file => file.endsWith('.test.mjs'))
+              ? [{ name: 'node-tests', execute: () => run(process.execPath, ['--test', ...plan.files.filter(file => file.endsWith('.test.mjs'))]) }]
+              : []),
+            {
+              name: 'required-and-affected',
+              execute: () => {
+                const files = plan.files.filter(file => file.endsWith('.test.ts') && !Object.values(presetLanes).some(lane => file in lane))
+                if (!files.length) refuse('CI_TEST_PLAN_EMPTY_ORDINARY', 'required ordinary tests must be explicitly selected')
+                run('corepack', ['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.ci-unit.config.ts', ...files])
               }
-            ]
-      )
+            }
+          ]))
+        )
       writeFileSync('quality-checks.json', JSON.stringify(checks, null, 2) + '\n')
-      if (checks.length !== 4 || checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')
+      if (process.env.GITHUB_OUTPUT) {
+        finalGroup.verifyUnchanged()
+        verifyOfficialSDK({ ...options, withArtifactReceipt: true })
+        appendFileSync(process.env.GITHUB_OUTPUT, 'sdk-cache-ready=true\n')
+      }
+      if (checks.some(check => check.status !== 'passed')) refuse('QUALITY_CHECKS_FAILED', 'see quality-checks.json')
     } else if (phase === 'archives') {
       run('corepack', ['pnpm', 'exec', 'vitest', 'run', 'tests/source-acquisition.test.ts', 'tests/zip-bomb.test.ts', 'tests/private-archive.test.ts'])
     } else {

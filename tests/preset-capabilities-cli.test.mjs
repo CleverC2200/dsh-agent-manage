@@ -6,31 +6,11 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync, mkdirSync
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import process from 'node:process'
-import { presetHostOwners } from '../scripts/preset-test-lanes.mjs'
+import { presetLanes, presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 
 // Child-process completion is the CLI seam; real client/Host lanes run separately.
-const files = {
-  'standard-skill': { 'standard-preset': 12, 'skill-preset': 5, 'manage-cold-boot': 6, 'manage-settings': 1, 'bundled-sales-skills': 2, 'manage-bundle-default': 1 },
-  client: {
-    'user-agent-retirement-draft': 1,
-    'agent-source-sync-draft': 1,
-    'standard-preset-draft': 1,
-    'preset-catalog-client': 1,
-    'skill-preset-client': 1,
-    'base-preset-client': 1,
-    'sales-preset-client': 2,
-    'inventory-family-client': 3
-  },
-  gea: {
-    'sales-agent-import-gea': 1,
-    'user-agent-cube-gea': 3,
-    'business-admission-gea': 4,
-    'standard-preset-gea': 11,
-    'skill-preset-gea': 1,
-    'sales-preset-gea': 11,
-    'inventory-family-preset': 13
-  }
-}
+const files = Object.fromEntries(Object.entries(presetLanes).map(([lane, entries]) => [lane, Object.fromEntries(Object.keys(entries).map(file => [file.slice(6, -8), 1]))]))
+
 function run(change = () => {}, plan, missingFile) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'preset-cli-')))
   try {
@@ -52,6 +32,7 @@ function run(change = () => {}, plan, missingFile) {
     )
     mkdirSync(join(root, 'tests'))
     writeFileSync(join(root, 'tests/routes.test.ts'), '')
+    writeFileSync(join(root, 'tests/download-cache.test.mjs'), '')
     for (const file of Object.keys(presetHostOwners)) writeFileSync(join(root, file), '')
     for (const phase of Object.values(files)) for (const name of Object.keys(phase)) writeFileSync(join(root, `tests/${name}.test.ts`), '')
     if (missingFile) unlinkSync(join(root, missingFile))
@@ -72,7 +53,7 @@ function run(change = () => {}, plan, missingFile) {
         if (value.extraResult) value.testResults.push(value.extraResult);
         if (value.testResults) { value.numPassedTests = value.testResults.flatMap(result => result.assertionResults).filter(result => result.status === 'passed').length; }
         if (!value.noReport) writeFileSync(report, JSON.stringify(value));
-        return { status: 0, stdout: '', stderr: '' };
+        return { status: value.exitCode ?? 0, stdout: '', stderr: '' };
       }; syncBuiltinESMExports();`
     )
     const planFile = join(root, 'plan.json')
@@ -97,10 +78,6 @@ test('capability CLI accepts complete passed required files', () => {
     result.receipt.phases.map(phase => phase.requiredFiles.length),
     [6, 8, 7]
   )
-  assert.deepEqual(
-    result.receipt.phases.map(phase => phase.requiredFiles.reduce((count, file) => count + file.requiredCases, 0)),
-    [27, 11, 44]
-  )
 })
 
 test('capability CLI rejects a skipped required case even when Vitest reports success', () => {
@@ -119,9 +96,9 @@ test('capability CLI rejects a missing required file despite other passing files
   assert.equal(result.status, 1)
 })
 
-test('capability CLI rejects a missing required case inside a present file', () => {
+test('capability CLI rejects an empty case report inside a present file', () => {
   const result = run(reports => {
-    reports['standard-skill'].testResults[0].assertionResults.pop()
+    reports['standard-skill'].testResults[0].assertionResults = []
   })
   assert.equal(result.status, 1)
 })
@@ -170,6 +147,20 @@ test('affected capability CLI refuses malformed, duplicate or unknown planned fi
   }
 })
 
+test('ordinary Node files remain outside capability child execution', () => {
+  const result = run(() => {}, {
+    schemaVersion: 1,
+    mode: 'required-and-affected',
+    repo: 'dsh-agent-manage',
+    files: ['tests/download-cache.test.mjs', 'tests/standard-preset-draft.test.ts']
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(
+    result.receipt.phases.flatMap(phase => phase.requiredFiles.map(file => file.file)),
+    ['tests/standard-preset-draft.test.ts']
+  )
+})
+
 test('unrelated affected plan records non-applicability without starting a capability phase', () => {
   const result = run(() => {}, { schemaVersion: 1, mode: 'required-and-affected', repo: 'dsh-agent-manage', files: ['tests/routes.test.ts'] })
   assert.equal(result.status, 0, result.stderr)
@@ -178,7 +169,7 @@ test('unrelated affected plan records non-applicability without starting a capab
   assert.deepEqual(result.receipt.selection.files, ['tests/routes.test.ts'])
 })
 
-test('affected capability report rejects failure, skipped, unknown, extra and missing cases', () => {
+test('affected capability report rejects failure, skipped, unknown and empty cases', () => {
   const plan = { schemaVersion: 1, mode: 'required-and-affected', repo: 'dsh-agent-manage', files: ['tests/standard-preset-draft.test.ts'] }
   for (const status of ['failed', 'pending', 'unknown']) {
     const result = run(reports => {
@@ -186,10 +177,33 @@ test('affected capability report rejects failure, skipped, unknown, extra and mi
     }, plan)
     assert.equal(result.status, 1, status)
   }
-  for (const change of [report => report.assertionResults.pop(), report => report.assertionResults.push({ fullName: 'unexpected new case', status: 'passed' })]) {
+  for (const change of [
+    report => {
+      report.assertionResults = []
+    }
+  ]) {
     const result = run(reports => change(reports.client.testResults.find(file => file.name.endsWith('/standard-preset-draft.test.ts'))), plan)
     assert.equal(result.status, 1)
   }
+})
+
+test('capability reports accept additional passing behavior without updating lane metadata', () => {
+  const result = run(reports => {
+    reports.client.testResults[0].assertionResults.push({ fullName: 'additional behavior', status: 'passed' })
+  })
+  assert.equal(result.status, 0, result.stderr)
+})
+
+test('capability reports reject duplicate files and failed child processes', () => {
+  for (const change of [
+    reports => {
+      reports.client.testResults.push(reports.client.testResults[0])
+    },
+    reports => {
+      reports.client.exitCode = 7
+    }
+  ])
+    assert.equal(run(change).status, 1)
 })
 
 test('affected capability CLI rejects an extra unplanned suite in a successful report', () => {
