@@ -22,7 +22,7 @@ const files = {
   },
   gea: {
     'sales-agent-import-gea': 1,
-    'user-agent-cube-gea': 2,
+    'user-agent-cube-gea': 3,
     'business-admission-gea': 4,
     'standard-preset-gea': 11,
     'skill-preset-gea': 1,
@@ -98,7 +98,7 @@ test('capability CLI accepts complete passed required files', () => {
   )
   assert.deepEqual(
     result.receipt.phases.map(phase => phase.requiredFiles.reduce((count, file) => count + file.requiredCases, 0)),
-    [27, 11, 43]
+    [27, 11, 44]
   )
 })
 
