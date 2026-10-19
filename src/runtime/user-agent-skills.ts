@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { realpath } from 'node:fs/promises'
 import { FileSystemSkillProvider } from '@deepseek-ai/dsh-skill-filesystem'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillCandidate, SkillDefinition, SkillLookupOptions } from '@deepseek-ai/dsh-skill'
@@ -46,7 +47,8 @@ export function apply(ctx: Context, config: { skills: UserAgentSkill[] }): void 
             const directory = directories.find(row => row.name === `directory-${choice.directory!.id}`)!
             const listed = await directory.list(options)
             const entries = Array.isArray(listed) ? listed : listed.candidates
-            const entry = entries.find(row => row.name === choice.name && row.path === join(choice.directory!.bundle, 'tree', choice.directory!.entry, 'SKILL.md'))
+            const entryFile = await realpath(join(choice.directory.bundle, 'tree', choice.directory.entry, 'SKILL.md'))
+            const entry = entries.find(row => row.name === choice.name && row.path === entryFile)
             if (!entry) throw Error(`AGENT_SKILL_DIRECTORY_INVALID: ${choice.name}`)
             const index = candidates.findIndex(row => row.name === choice.name)
             if (index >= 0) candidates.splice(index, 1)
