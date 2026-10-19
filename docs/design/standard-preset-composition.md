@@ -14,4 +14,8 @@ The single-repository `test` runs Host and client preservation lanes. Cross-plug
 
 [The dual official Core decision](../../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.md) and [中文](../../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md) own runtime peer support and the `DSH_CORE_CHECKOUT` input. This contract uses the active Host's standard declaration; source or offline checks do not establish fresh installation, Native, business or model acceptance.
 
-智能编排从 `business-resources/orchestration/prompt.md` 读取任务分流提示词。该预设通过官方 filesystem provider 的 `customSkillDirs` 加载随包的产销协同诊断、基地库存诊断与交互式 HTML 三个 Skill，其他业务 Skill 保留。两个诊断 Skill 正文直接采用用户附件；页面 Skill 仅将示例路径改为 Markdown 链接，使参考文件工具可读取随包示例。新增任务使用更新后的声明，已有 Session 保留其原版本。
+智能编排的默认主提示词来自 `business-resources/orchestration/prompt.md`。它通过与其他插件 Agent 相同的 BusinessResources 目录发布，`auto-negotiation` 是“Agent 预设”与“Agent 配置”共用的唯一身份。配置页可编辑提示词、管理 Skill 和启停；个性化配置沿用已有持久化与版本发布，已有 Session 保留原版本，用户默认选择不因编辑或启停而改变。两个入口共享名称与说明，原生预设排序保留。默认继承其他可用 Skill；显式定制 Skill 列表后，新会话按该列表发布。
+
+`waitForStandard` 等待官方标准声明；`registerOrchestration` 向现有资源 owner 注册智能编排。Manage 在该 owner 创建后注册，资源面板与直接预设入口不各自维护一份提示词或配置。受控资源的 Markdown 提示词直接作为正文读取，既有 JSON 业务策略继续按原身份合同校验。
+
+随包的产销协同诊断、基地库存诊断与交互式 HTML 三个 Skill 仍采用原附件正文及引用资产，通过已有 Skill 快照机制供配置与会话使用。两个诊断 Skill 的主提示词分流按实际用途对应；页面 Skill 的示例沿原目录读取。目录引用按真实路径匹配，使符号链接目录下的 Skill 配置保持生效。其他业务资源保持原归属。

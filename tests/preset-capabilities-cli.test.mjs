@@ -1,3 +1,4 @@
+import { verifyWorkbenchClientInputs } from '../scripts/check-client-workbench.mjs'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
@@ -215,4 +216,17 @@ test('capability CLI refuses a Host helper left in the direct plan instead of re
   const result = run(() => {}, { schemaVersion: 1, mode: 'required-and-affected', repo: 'dsh-agent-manage', files: ['tests/base-resource-host.test.ts'] })
   assert.equal(result.status, 1)
   assert.match(result.stderr, /CAPABILITY_PLAN_UNOWNED_HOST/)
+})
+
+test('client preflight rejects the old Workbench interface before running capability cases', t => {
+  const root = mkdtempSync(join(tmpdir(), 'client-workbench-input-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  mkdirSync(join(root, 'src'))
+  const file = join(root, 'src/resource-selection.ts')
+  const consumer = join(root, 'consumer.ts')
+  writeFileSync(consumer, "import { openNativeAgentSession as open, type NativeResourceSelection } from 'preset-client-workbench/resource-selection'\n")
+  writeFileSync(file, 'export interface NativeResourceSelection {}\n')
+  assert.throws(() => verifyWorkbenchClientInputs(root, [consumer]), /PRESET_CLIENT_INPUT_REQUIRED:.*openNativeAgentSession.*quality-peer-baseline/)
+  writeFileSync(file, 'export interface NativeResourceSelection {}\nexport function openNativeAgentSession() {}\n')
+  assert.doesNotThrow(() => verifyWorkbenchClientInputs(root, [consumer]))
 })

@@ -1,5 +1,4 @@
 import { readFile, writeFile } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { composeStandardPreset, MINIMAL_SYSTEM_PROMPT } from '../src/runtime/standard-preset.js'
@@ -12,7 +11,7 @@ it('publishes the original intelligent orchestration identity beside all officia
   expect(await ctx.agentPresets.list()).toContainEqual({
     id: 'auto-negotiation',
     name: '智能编排',
-    description: '通用任务的完整官方标准能力，支持上下文压缩、规划、任务和协作。',
+    description: '米面冻品全链路经营分析与运营决策，支持上下文压缩、规划、任务和协作。',
     order: 0
   })
   expect((await ctx.agentPresets.list()).map(row => row.id)).toEqual(expect.arrayContaining(['standard', 'minimal', 'ptc', 'cordis']))
@@ -208,9 +207,6 @@ it('keeps standard capabilities while replacing the company persona and automati
     suffix: '',
     complete: true,
     includeRuntimeContext: false
-  }
-  expected.find(row => row.name === '@deepseek-ai/dsh-skill-filesystem')!.config = {
-    customSkillDirs: [fileURLToPath(new URL('../business-resources/orchestration/skills/', import.meta.url))]
   }
   expect(load(composed.content, { schema: entryListSchema })).toEqual(expected)
 })

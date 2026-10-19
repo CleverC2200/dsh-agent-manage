@@ -96,7 +96,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   if ('userRoot' in config || 'dataRoot' in config) throw new Error('MANAGE_STORAGE_UPGRADE_REQUIRED: legacy storage overrides require a separately authorized upgrade')
   await assertCanonicalStorageDirectories()
   const standardInitialization = ctx.inject(['agentPresets', 'loader'], async host => {
-    await host.plugin(StandardPreset)
+    await StandardPreset.waitForStandard(host)
   })
   if (config.geaMcp !== false) mountGeaMcp(ctx)
   const userRoot = resolveUserRoot()
@@ -163,6 +163,10 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     }
   })
   await catalog.load()
+  ctx.inject(['tools', 'fs'], toolHost => {
+    mountSkillReferenceReader(toolHost)
+    toolHost.effect(() => toolHost.tools.register(createForecastTool(toolHost.skills)))
+  })
   ctx.inject(['agentPresets', 'connection', 'tools', 'agents'], async host => {
     // Selected identities compose the same standard declaration as orchestration.
     // Wait on that initialization fiber, never the parent Host tree.
@@ -207,13 +211,11 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
         }
       }
     ])
+    const releaseOrchestration = await StandardPreset.registerOrchestration(businessResources)
+    host.effect(() => releaseOrchestration)
     host.effect(() => releaseBusinessSkills)
     host.effect(() => () => businessResources.dispose())
     host.provide('agentResources', businessResources)
-    host.inject(['tools', 'fs'], toolHost => {
-      mountSkillReferenceReader(toolHost)
-      toolHost.effect(() => toolHost.tools.register(createForecastTool(toolHost.skills)))
-    })
     const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'no-store' } })
     host.effect(() =>
       host.connection.fetch.register({

@@ -333,7 +333,7 @@ if (!isolatedHome) {
 
   it('edits plugin Skill directories under the original preset identity and preserves plugin source files', async () => {
     const { BusinessResources } = await import('../src/runtime/business-resources.js')
-    const { ctx, home } = await presetHarness()
+    const { ctx, home } = await presetHarness({ companyBundle: 'absent', selectedDefault: 'minimal' })
     const root = join(home, 'plugin-files')
     await mkdir(join(root, 'references'), { recursive: true })
     await writeFile(join(root, 'prompt.json'), JSON.stringify({ persona: 'Plugin persona', consumerCode: 'plugin', skills: ['plugin-skill'] }))

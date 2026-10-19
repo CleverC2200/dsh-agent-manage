@@ -64,7 +64,31 @@ it('registers all four sales Skills at empty-home startup and selects the origin
     return
   }
   const { agentOn, completion, presetHarness, turn } = await import('./core-preset-harness.js')
-  const { ctx } = await presetHarness({ fullManage: true, home: isolatedHome })
+  const fixture = await presetHarness({ fullManage: true, home: isolatedHome })
+  const { ctx } = fixture
+  const request = async (path: string, value?: unknown) => {
+    const response = await ctx.connection
+      .createSharedFetchHandler('/api')
+      .fetch(
+        new Request(
+          `http://localhost/api/agent-manage/agents${path}`,
+          value === undefined ? undefined : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) }
+        )
+      )
+    expect(response.status).toBe(200)
+    return response.json()
+  }
+  const configuration = (await request('/plugins')).find((row: { id: string }) => row.id === 'auto-negotiation')
+  const originalPrompt = await readFile('business-resources/orchestration/prompt.md', 'utf8')
+  expect(configuration).toMatchObject({ name: '智能编排', preset: 'auto-negotiation', origin: 'plugin', publication: 'ready', enabled: true, prompt: originalPrompt })
+  expect(configuration.skills.map((skill: { name: string }) => skill.name).sort()).toEqual([
+    'frozen-food-base-inventory-insight',
+    'frozen-food-sales-operations-diagnosis',
+    'prototype-html'
+  ])
+  expect(originalPrompt).toContain('`frozen-food-base-inventory-insight`技能进行基地库存诊断分析')
+  expect(originalPrompt).toContain('`frozen-food-sales-operations-diagnosis`技能进行产销协同全环节诊断分析')
+  const originalDefault = ctx.agentPresets.defaultId
   const sources = await ctx.connection.createSharedFetchHandler('/api').fetch(new Request('http://localhost/api/agent-manage/agent-sources'))
   expect(await sources.json()).toContainEqual(
     expect.objectContaining({
@@ -92,6 +116,7 @@ it('registers all four sales Skills at empty-home startup and selects the origin
   const orchestration = await agentOn(ctx, 'orchestration-skills', 'auto-negotiation', undefined, isolatedHome)
   const scopedOptions = { ...options, scope: orchestration }
   const orchestrationSkills = await ctx.skills.list(scopedOptions)
+  expect(orchestrationSkills.some(skill => skill.name === 'sinian-forecast-scope' && skill.invocation.modelInvocable)).toBe(true)
   for (const name of ['frozen-food-sales-operations-diagnosis', 'frozen-food-base-inventory-insight', 'prototype-html']) {
     expect(orchestrationSkills.filter(skill => skill.name === name)).toHaveLength(1)
     const file = resolve(`business-resources/orchestration/skills/${name}/SKILL.md`)
@@ -101,13 +126,19 @@ it('registers all four sales Skills at empty-home startup and selects the origin
         .replace(/\r\n/g, '\n')
         .trim()
     )
-    expect(skill?.resourceBase).toEqual({ kind: 'directory', path: dirname(file) })
+    expect(skill?.resourceBase?.kind).toBe('directory')
+    if (name === 'prototype-html' && skill?.resourceBase?.kind === 'directory') {
+      expect(await readFile(join(skill.resourceBase.path, 'assets/example.html'), 'utf8')).toBe(
+        await readFile(resolve('business-resources/orchestration/skills/prototype-html/assets/example.html'), 'utf8')
+      )
+    }
   }
   await turn(ctx, orchestration, '准备诊断当前范围。')
   const systemMessages = orchestration.session.snapshotEvents().filter(event => event.type === 'system/message')
   expect(JSON.stringify(systemMessages)).toContain('frozen-food-sales-operations-diagnosis')
   expect(JSON.stringify(systemMessages)).toContain('frozen-food-base-inventory-insight')
   expect(JSON.stringify(systemMessages)).toContain('prototype-html')
+  expect(JSON.stringify(systemMessages)).toContain('米面冻品行业的专属COO')
   const release = await ctx.agentResources.register([{ id: 'gea-readonly', label: profile.label, root, prompt: 'presets/prompt-policy.json', profileKey: 'gea-readonly', profile }])
   onTestFinished(release)
   const sales = (await ctx.agentResources.list(options)).find(resource => resource.id === 'gea-readonly')
@@ -147,4 +178,34 @@ it('registers all four sales Skills at empty-home startup and selects the origin
   expect(reference.isError).toBe(false)
   expect(JSON.stringify(reference)).toContain('rules-and-conflicts.md')
   expect(JSON.stringify(reference)).toContain((await readFile(resolve('business-resources/sinian-demand-forecast/references/rules-and-conflicts.md'), 'utf8')).split('\n')[0])
+  const personalizedPrompt = 'PERSONAL_ORCHESTRATION_PROMPT'
+  expect(await request('/plugin/save', { id: 'auto-negotiation', prompt: personalizedPrompt })).toMatchObject({
+    prompt: personalizedPrompt,
+    customized: true,
+    preset: 'auto-negotiation'
+  })
+  const edited = await agentOn(ctx, 'orchestration-personalized', 'auto-negotiation', undefined, isolatedHome)
+  await turn(ctx, edited, '读取当前配置。')
+  expect(JSON.stringify(edited.session.snapshotEvents())).toContain(personalizedPrompt)
+  await turn(ctx, orchestration, '继续原会话。')
+  expect(JSON.stringify(orchestration.session.snapshotEvents())).not.toContain(personalizedPrompt)
+  const savedSkills = await request('/plugin/skills', {
+    id: 'auto-negotiation',
+    skills: configuration.skills.map((skill: { name: string }) => ({ ...skill, enabled: skill.name !== 'prototype-html' }))
+  })
+  expect(savedSkills.skills.find((skill: { name: string }) => skill.name === 'prototype-html').enabled).toBe(false)
+  const scoped = await agentOn(ctx, 'orchestration-selected-skills', 'auto-negotiation', undefined, isolatedHome)
+  expect(savedSkills).toMatchObject({ publication: 'ready' })
+  await turn(ctx, scoped, '应用当前技能配置。')
+  expect((await ctx.skills.get('prototype-html', { ...options, scope: scoped }))?.invocation.modelInvocable).toBe(false)
+  expect(await request('/plugin/enabled', { id: 'auto-negotiation', enabled: false })).toMatchObject({ enabled: false, publication: 'disabled', prompt: personalizedPrompt })
+  await expect(ctx.agentPresets.resolve('auto-negotiation')).rejects.toThrow('Unknown agent preset')
+  expect(await request('/plugin/enabled', { id: 'auto-negotiation', enabled: true })).toMatchObject({ enabled: true, publication: 'ready', prompt: personalizedPrompt })
+  expect(ctx.agentPresets.defaultId).toBe(originalDefault)
+  await ctx.fiber.dispose()
+  const restarted = await fixture.start()
+  const restored = (await restarted.agentResources.pluginAgents()).find(row => row.id === 'auto-negotiation')!
+  expect(restored).toMatchObject({ name: '智能编排', preset: 'auto-negotiation', prompt: personalizedPrompt, enabled: true, publication: 'ready' })
+  expect(restored.skills.find(skill => skill.name === 'prototype-html')?.enabled).toBe(false)
+  expect(restarted.agentPresets.defaultId).toBe(originalDefault)
 })

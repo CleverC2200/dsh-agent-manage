@@ -14,7 +14,7 @@ import { mountSkillEditor } from '../src/runtime/skill-editor.js'
 import { agentOn, completion, core, official, presetHarness, record, turn } from './core-preset-harness.js'
 
 it('creates and enables an Agent in the ordinary browser entry, then starts its real standard Core Session without changing existing work', async () => {
-  const { ctx, home } = await presetHarness()
+  const { ctx, home } = await presetHarness({ companyBundle: 'absent', selectedDefault: 'minimal' })
   const original = await agentOn(ctx, 'browser-existing-task', 'standard', undefined, home)
   const existingEvents = JSON.stringify(original.session.snapshotEvents())
   const originalDefault = ctx.agentPresets.defaultId

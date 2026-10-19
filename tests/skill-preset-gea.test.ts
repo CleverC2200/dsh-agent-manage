@@ -8,7 +8,7 @@ import { agentOn, completion, presetHarness, record, turn } from './core-preset-
 it('keeps selected Skill and general tools after GEA hooks without granting a business profile', async () => {
   const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
   const { createCapabilityRegistry } = await import('preset-integration-gea/capability/registry')
-  const { ctx, home } = await presetHarness()
+  const { ctx, home } = await presetHarness({ companyBundle: 'absent', selectedDefault: 'minimal' })
   const requests = await completion(ctx, 262_144, true)
   await writeFile(join(home, 'SKILL.md'), '---\nname: selected-skill\ndescription: Selected task instructions\n---\nKeep the selected task scope.\n')
   const resources = new BusinessResources(ctx, join(home, 'selected.json'))

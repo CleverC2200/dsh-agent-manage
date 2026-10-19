@@ -28,5 +28,7 @@
 | 固定 Core、原锁、工具链与冷 runner 输入 | `sdk:verify` / `sdk:prepare`、`test:ci-inputs` 和rc.2 quality/archives 阻断门禁；alpha 为独立手动兼容检查，共用 GEA `scripts/ci-core-policy.json` |
 | 当前导航与历史缺文档反例 | `check:refactor` 串接 `check:knowledge` 与 `test:knowledge` |
 | 普通空 Home 必须发现原销售 Skill 及其完整引用资产；新任务默认智能编排并保留用户显式选择 | `check:capabilities` 的 standard-skill lane 运行 `bundled-sales-skills.test.ts` 和 `manage-bundle-default.test.ts`；quality workflow 按 `docs/clean-ci.md` 运行互不重复的静态、普通测试与能力集合 |
+| 当前包版本只由 package.json 维护，测试不固定某次发行的当前版本 | 生成器 `--check` 与 `test:package-version` 对照清单验证 Host/client 类型及实际编译后的不可变标识 |
+| 客户端能力验收使用的 Workbench 必须提供测试实际导入的接口 | `vitest.preset-client.config.ts` 调用 TypeScript 导出符号校验；`test:ci-inputs` 保留旧接口被前置拒绝的回归 |
 
 该检查证明受控源码行为。实际三包安装及官方 Loader 接收仍由 GEA 的普通交付接收入口负责，不能用离线通过替代。

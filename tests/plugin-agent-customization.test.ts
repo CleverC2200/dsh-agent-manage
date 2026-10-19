@@ -6,7 +6,7 @@ import { BusinessResources } from '../src/runtime/business-resources.js'
 import { agentOn, presetHarness } from './core-preset-harness.js'
 
 it('customizes a plugin Agent under its original preset, and separates Agent enablement from its fixed Cube switch', async () => {
-  const { ctx, home } = await presetHarness()
+  const { ctx, home } = await presetHarness({ companyBundle: 'absent', selectedDefault: 'minimal' })
   const source = join(home, 'plugin-source')
   await mkdir(source)
   const prompt = JSON.stringify({ persona: 'ORIGINAL_PLUGIN_PROMPT', consumerCode: 'trusted-reader', skills: ['plugin-skill'] })
