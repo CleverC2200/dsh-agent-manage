@@ -47,6 +47,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   const { registerGeaTools } = await import('preset-integration-gea/host/agent-tools')
   const { createGatewayMcpService } = await import('preset-integration-gea/host/gateway-mcp-service')
   const { createCapabilityRegistry } = await import('preset-integration-gea/capability/registry')
+  const { sharedAgentCapability } = await import('preset-integration-gea/host/shared-agent')
   const { ctx, home } = await presetHarness({
     importModule: name =>
       name === 'dsh-agent-manage/user-agent-cube'
@@ -64,6 +65,7 @@ export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {
   const selection = await resources.select(resource.id, new AbortController().signal, input.cwd)
   const contract = input.contract ?? JSON.parse(await readFile(resolve(resource.root, 'capability.json'), 'utf8'))
   const capabilities = createCapabilityRegistry([
+    sharedAgentCapability,
     contract,
     ...(contract.id === 'gea-workbench' ? [] : [{ id: 'gea-workbench', label: '销售计划', maxEffect: 'view' as const, layers: ['read' as const] }])
   ])
