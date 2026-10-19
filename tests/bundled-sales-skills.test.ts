@@ -1,7 +1,7 @@
 /** Cold-start production Manage registration without external marketplace/Home assets. */
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm, realpath } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
@@ -31,6 +31,18 @@ it('ships the unchanged complete sales suite and resolves its linked assets insi
   const { stdout } = await promisify(execFile)('npm', ['pack', '--dry-run', '--ignore-scripts', '--json'], { cwd: resolve('.'), maxBuffer: 4 * 1024 * 1024 })
   const packaged = new Set(JSON.parse(stdout)[0].files.map((file: { path: string }) => file.path))
   for (const file of Object.keys(source.files)) expect(packaged.has(`business-resources/sinian-demand-forecast/${file}`), file).toBe(true)
+  for (const file of (await readdir('business-resources/sales-plan', { recursive: true })).filter(file => file.endsWith('.md'))) {
+    expect(packaged.has(`business-resources/sales-plan/${file}`), file).toBe(true)
+  }
+  for (const file of [
+    'prompt.md',
+    'skills/frozen-food-sales-operations-diagnosis/SKILL.md',
+    'skills/frozen-food-base-inventory-insight/SKILL.md',
+    'skills/prototype-html/SKILL.md',
+    'skills/prototype-html/assets/example.html'
+  ]) {
+    expect(packaged.has(`business-resources/orchestration/${file}`), file).toBe(true)
+  }
 })
 
 it('registers all four sales Skills at empty-home startup and selects the original GEA role with complete standard capabilities', async () => {
@@ -51,7 +63,7 @@ it('registers all four sales Skills at empty-home startup and selects the origin
     expect(output.stdout).toContain('1 passed')
     return
   }
-  const { agentOn, completion, presetHarness } = await import('./core-preset-harness.js')
+  const { agentOn, completion, presetHarness, turn } = await import('./core-preset-harness.js')
   const { ctx } = await presetHarness({ fullManage: true, home: isolatedHome })
   const sources = await ctx.connection.createSharedFetchHandler('/api').fetch(new Request('http://localhost/api/agent-manage/agent-sources'))
   expect(await sources.json()).toContainEqual(
@@ -76,6 +88,26 @@ it('registers all four sales Skills at empty-home startup and selects the origin
     expect(skill?.content).toBe(stripFrontmatter(await readFile(file, 'utf8')))
     expect(skill?.resourceBase).toEqual({ kind: 'directory', path: dirname(file) })
   }
+  await completion(ctx)
+  const orchestration = await agentOn(ctx, 'orchestration-skills', 'auto-negotiation', undefined, isolatedHome)
+  const scopedOptions = { ...options, scope: orchestration }
+  const orchestrationSkills = await ctx.skills.list(scopedOptions)
+  for (const name of ['frozen-food-sales-operations-diagnosis', 'frozen-food-base-inventory-insight', 'prototype-html']) {
+    expect(orchestrationSkills.filter(skill => skill.name === name)).toHaveLength(1)
+    const file = resolve(`business-resources/orchestration/skills/${name}/SKILL.md`)
+    const skill = await ctx.skills.get(name, scopedOptions)
+    expect(skill?.content.replace(/\r\n/g, '\n').trim()).toBe(
+      stripFrontmatter(await readFile(file, 'utf8'))
+        .replace(/\r\n/g, '\n')
+        .trim()
+    )
+    expect(skill?.resourceBase).toEqual({ kind: 'directory', path: dirname(file) })
+  }
+  await turn(ctx, orchestration, '准备诊断当前范围。')
+  const systemMessages = orchestration.session.snapshotEvents().filter(event => event.type === 'system/message')
+  expect(JSON.stringify(systemMessages)).toContain('frozen-food-sales-operations-diagnosis')
+  expect(JSON.stringify(systemMessages)).toContain('frozen-food-base-inventory-insight')
+  expect(JSON.stringify(systemMessages)).toContain('prototype-html')
   const release = await ctx.agentResources.register([{ id: 'gea-readonly', label: profile.label, root, prompt: 'presets/prompt-policy.json', profileKey: 'gea-readonly', profile }])
   onTestFinished(release)
   const sales = (await ctx.agentResources.list(options)).find(resource => resource.id === 'gea-readonly')
@@ -83,7 +115,6 @@ it('registers all four sales Skills at empty-home startup and selects the origin
   expect(sales?.enabled).toBe(true)
   const selection = await ctx.agentResources.select('gea-readonly', options.signal, isolatedHome)
   expect(selection.profile?.consumerCode).toBe('sales_forecast')
-  await completion(ctx)
   const standard = await agentOn(ctx, 'sales-standard', 'standard', undefined, isolatedHome)
   const selected = await agentOn(ctx, 'sales-selected', selection.preset, undefined, isolatedHome)
   const tools = (agent: typeof standard) =>
@@ -96,6 +127,16 @@ it('registers all four sales Skills at empty-home startup and selects the origin
   expect(ctx.commands.list(selected)).toEqual(ctx.commands.list(standard))
   expect(ctx.commands.list(selected).map(command => command.name)).toContain('compact')
   expect(ctx.agentPresets.serviceFor(selected, 'compaction')?.constructor.name).toBe('BasicCompactionEngine')
+  expect(tools(orchestration)).toEqual(tools(standard))
+  const prototypeReference = await ctx.tools.execute({
+    callId: 'orchestration-prototype-reference' as never,
+    name: 'skill_reference_read',
+    arguments: { skill: 'prototype-html', path: 'assets/example.html', limit: 2 },
+    agent: orchestration,
+    signal: options.signal
+  })
+  expect(prototypeReference.isError).toBe(false)
+  expect(JSON.stringify(prototypeReference)).toContain('<!DOCTYPE html>')
   const reference = await ctx.tools.execute({
     callId: 'bundled-sales-reference' as never,
     name: 'skill_reference_read',

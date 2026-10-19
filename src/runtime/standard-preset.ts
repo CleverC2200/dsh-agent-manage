@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+import z from 'zod'
 import type { Context } from '@deepseek-ai/cordis'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { entryListProblem, type PresetDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
@@ -73,6 +76,19 @@ export async function apply(ctx: Context): Promise<void> {
     if (!declaration.fiber) await declaration.init()
     await declaration.fiber?.await()
   }
-  const release = await ctx.agentPresets.register(await composeStandardPreset(ctx.agentPresets, ORCHESTRATION_PRESET))
+  const preset = await composeStandardPreset(ctx.agentPresets, ORCHESTRATION_PRESET, {
+    personaPrefix: await readFile(new URL('../../business-resources/orchestration/prompt.md', import.meta.url), 'utf8')
+  })
+  const filesystem = preset.plugins.find(row => row.name === '@deepseek-ai/dsh-skill-filesystem')
+  if (!filesystem) throw Error('STANDARD_SKILL_FILESYSTEM_REQUIRED')
+  const config = z
+    .object({ customSkillDirs: z.array(z.string()).default([]) })
+    .passthrough()
+    .parse(filesystem.config ?? {})
+  filesystem.config = {
+    ...config,
+    customSkillDirs: [fileURLToPath(new URL('../../business-resources/orchestration/skills/', import.meta.url)), ...config.customSkillDirs]
+  }
+  const release = await ctx.agentPresets.register(preset)
   ctx.effect(() => release)
 }
