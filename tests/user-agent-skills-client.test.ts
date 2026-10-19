@@ -17,7 +17,12 @@ it('keeps a folder choice on cancellation, surfaces picker failures, and invalid
   document.body.append(element)
   const root = createRoot(element)
   const agent: UserAgentView = { id: 'a', name: 'A', description: '', prompt: '', enabled: true, revision: 1, origin: 'user', preset: 'a', publication: 'ready', skills: [] }
-  const click = async (label: string) => act(async () => { const button = [...element.querySelectorAll('button')].find(row => row.textContent === label); if (!button) throw Error(label); button.click() })
+  const click = async (label: string) =>
+    act(async () => {
+      const button = [...element.querySelectorAll('button')].find(row => row.textContent === label)
+      if (!button) throw Error(label)
+      button.click()
+    })
   try {
     await act(async () => root.render(createElement(SkillDirectoryImport, { agent, kind: 'local', t: key => zh[key], onSaved: vi.fn(), onClose: vi.fn() })))
     await click(zh.agentSkillPickFolder)
@@ -55,7 +60,10 @@ it('opens the ZIP chooser from its named button and acquires the selected file b
     Object.defineProperty(input, 'files', { value: [new File(['zip-bytes'], '验收.zip', { type: 'application/zip' })] })
     await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })))
     expect(element.textContent).toContain('验收.zip')
-    await act(async () => { [...element.querySelectorAll('button')].find(row => row.textContent === zh.agentSkillAcquire)!.click(); await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce()) })
+    await act(async () => {
+      ;[...element.querySelectorAll('button')].find(row => row.textContent === zh.agentSkillAcquire)!.click()
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce())
+    })
     expect(JSON.parse(String(fetch.mock.calls[0][1].body))).toEqual({ kind: 'zip', data: btoa('zip-bytes') })
   } finally {
     await act(async () => root.unmount())

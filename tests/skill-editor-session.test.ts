@@ -249,7 +249,7 @@ it(
       await completion(ctx, 262144, false, undefined, { tools: steps, checkpoint: '' })
       await turn(ctx, first, 'Write the fixture attachment drafts; preserve the partial result.')
       const changed = await agents.directories.open(target)
-      expect(changed.revision).toBe(opened.revision + 2)
+      expect(changed.revision, JSON.stringify(first.session.snapshotEvents().filter(event => event.type === 'tool/result'))).toBe(opened.revision + 2)
       expect((await agents.directories.read({ ...target, path: 'references/data.txt' })).data).toBe('FIRST_DRAFT')
       await expect(
         agents.directories.write({ ...target, revision: opened.revision, path: 'SKILL.md', data: 'STALE_MANUAL', encoding: 'utf8', fileVersion: file.fileVersion })
