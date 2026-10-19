@@ -68,7 +68,7 @@ it('imports the original sales instructions and selected Skill into a personal C
     type: 'object',
     properties: { queries: { type: 'array' } }
   })
-  expect(f.network.filter(row => row.path === '/ai/gateway/session').every(row => row.body.consumerCode === 'sales_forecast')).toBe(true)
+  expect(new Set(f.network.filter(row => row.path === '/ai/gateway/session').map(row => row.body.consumerCode))).toEqual(new Set(['sales_forecast', 'workbench']))
   expect(f.network.filter(row => row.body.method === 'tools/call').map(row => row.body.params)).toEqual([
     expect.objectContaining({ name: 'inspect_cube_model', arguments: {} }),
     expect.objectContaining({
