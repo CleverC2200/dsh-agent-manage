@@ -1,5 +1,5 @@
 /** Original user assets cross configuration import, native publication and actual GEA gates. */
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { expect, it } from 'vitest'
 import { Catalog } from '../src/application/catalog.js'
@@ -28,6 +28,9 @@ it('imports the original sales instructions and selected Skill into a personal C
   expect(imported.prompt).toContain('历史月份，仅复盘')
   const sourcePrompt = await readFile(join(root, 'agents/sales-plan.md'), 'utf8')
   const sourceSkill = await readFile(join(root, 'skills/sales-plan-qa/SKILL.md'), 'utf8')
+  expect(imported.prompt).toBe(sourcePrompt.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim())
+  const templates = (await readdir(join(root, 'skills/sales-plan-qa/templates'))).sort()
+  expect(templates).toHaveLength(5)
   const previous = await agentOn(f.ctx, 'sales-import-previous', (await agents.select(imported.id)).preset, undefined, f.home)
   const defaultId = f.ctx.agentPresets.defaultId
   await agents.save({ ...imported, prompt: imported.prompt + '\n用户定制：只看华南。' })
@@ -37,6 +40,7 @@ it('imports the original sales instructions and selected Skill into a personal C
     tools: [
       { name: 'skill', arguments: { name: 'sales-plan-qa' } },
       { name: 'skill_reference_read', arguments: { skill: 'sales-plan-qa', path: 'references/cube-query.md' } },
+      ...templates.map(file => ({ name: 'skill_reference_read', arguments: { skill: 'sales-plan-qa', path: `templates/${file}`, limit: 2 } })),
       { name: 'mcp__gea-gateway__inspect_cube_model', arguments: {} },
       {
         name: 'mcp__gea-gateway__query_business_data',
@@ -54,6 +58,10 @@ it('imports the original sales instructions and selected Skill into a personal C
   expect(transcript).toContain('用户定制：只看华南。')
   expect(transcript).toContain('逾期＝未完成全流程审批')
   expect(transcript).toContain('不硬编码旧的 8 条/1000 行约定')
+  for (const file of templates) {
+    const title = (await readFile(join(root, 'skills/sales-plan-qa/templates', file), 'utf8')).split(/\r?\n/)[0]!
+    expect(transcript).toContain(title)
+  }
   expect(transcript).toContain('42')
   expect(transcript).not.toContain('fixture-identity-secret')
   expect(f.ctx.tools.schemas(personal).find(tool => tool.name === 'mcp__gea-gateway__query_business_data')?.parameters).toEqual({
