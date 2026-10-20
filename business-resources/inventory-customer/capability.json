@@ -2,7 +2,7 @@
   "id": "inventory-customer",
   "label": "客户库存",
   "data": {
-    "consumerCode": "customer-inventory-preview",
+    "consumerCode": "customer_inventory",
     "tables": ["agents_scm_cust_jxc_ai_daliy_d", "agents_dim_dealer_data_d"],
     "rules": [
       "只读最新客户库存日快照；业务身份、行列权限和凭据由GEA Host执行。",
