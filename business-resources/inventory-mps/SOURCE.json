@@ -3,7 +3,7 @@
   "sourceCommit": "797d33881a494fd0316e3f2241440830da7954a0",
   "sourcePath": "business-resources/inventory-mps",
   "originalMcpCapabilities": ["governed-sql-read"],
-  "reception": "Mock/view resource. Current MCP capabilities are empty; obsolete preview Session presets are omitted. Current UI intent and unfinished draft recover in the Session, and derived mock results do not enter a business store.",
+  "reception": "Mock/view resource with empty MCP capabilities. Steps one and two use local inputs for demand reconciliation and shipment estimation, including manual adjustments and actual CSV downloads. File preview and download do not imply database synchronization or business persistence. Steps three through seven remain simulated. Current UI intent and unsent text recover in the Session; in-memory inputs require export before refresh. Existing Session drafts and the original intake hashes below are retained.",
   "originalFilesSha256": {
     "prompt.json": "f0ef0755d5aca303ce3a73c9e5cf3f7261f46860033f4a9483e094d64b9c50ed",
     "capability.json": "de4ffe4b1a5b206608a9262238d8455a39b682664c43cd0fa85a4de713e8a6f2",
