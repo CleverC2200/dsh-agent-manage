@@ -60,14 +60,22 @@ it('selects the received MPS persona and Skill, then withdraws only its installe
     ])
     const selected = await resources.select('gea-html-inventory-mps', new AbortController().signal)
     expect(selected.profile?.consumerCode).toBe('mps-prototype')
-    expect((presets.get(selected.preset)!.plugins[0].config as { prefix: string }).prefix).toContain(
-      '所有页面数据、调整、保存、提交、结转和导出均为模拟。只解释当前页面的模拟上下文，不宣称真实计划已写入。切页或引用失效后重新读取，不操作旧页。正式计划仍以月计划编制流程为准。'
-    )
+    const persona = (presets.get(selected.preset)!.plugins[0].config as { prefix: string }).prefix
+    expect(persona).toContain('第一步需求确认使用本地文件进行隔离核对')
+    expect(persona).toContain('CSV核对底稿是实际生成的本地文件，下载不等于业务保存')
+    expect(persona).toContain('文件预览不代表数据库同步')
     const candidate = (await provider.list({})).find(row => row.name === 'inventory-mps')
     if (!candidate) throw Error('MPS Skill missing')
     expect(candidate.path).toBe(join(root, 'skills/inventory-mps/SKILL.md'))
-    expect((await provider.get(candidate, {})).content).toContain('上下文只覆盖当前挂载步骤')
-    expect((await provider.get(candidate, {})).content).toContain('未发送文字')
+    const skill = (await provider.get(candidate, {})).content
+    expect(skill).toContain('上下文只覆盖当前挂载步骤')
+    expect(skill).toContain('未发送文字')
+    expect(skill).toContain('③至⑦仍沿用旧模拟内容')
+    expect(skill).toContain('后续月份来源、计划达成率分母与历史参数口径尚未裁决的结果保持空')
+    expect(skill).toContain('不沿用旧40/40/20权重')
+    expect(skill).toContain('评估月份对应M+1')
+    expect(persona).toContain('第二步本月预估发货支持本地输入、测算与人工调整')
+    expect(skill).toContain('保留人工负值和负库存')
     await withdraw()
     expect(await provider.get(candidate, {})).toBeUndefined()
     expect((await resources.list()).map(row => row.id)).toEqual(['gea-html-inventory-orderworkbench', 'skill:inventory-orderworkbench'])
