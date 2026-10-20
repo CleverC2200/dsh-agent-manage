@@ -1,10 +1,12 @@
-# 发版流程
+# 上游发版流程历史
 
 > 策略层（版本号规则、提交纪律）见 `docs/adr/0002-versioning-and-release-policy.md`。
 
-## 自动化现状
+本页保留上游发版方法。npm 与 Pages 工作流已从当前可执行目录退场，原件见[历史入口](../history/upstream-workflows/README.md)。本项目当前交付由 GEA 的普通打包与接收入口负责，本页步骤不用于当前发布。
 
-release-please 内嵌在 `.github/workflows/npm-publish.yml`（无独立 workflow 文件），负责开 Release PR、打 tag、创建 GitHub Release；同一 workflow 的第二个 job 负责发布 npm（OIDC trusted publishing）。
+## 上游自动化
+
+release-please 内嵌在 `docs/history/upstream-workflows/npm-publish.yml`（无独立 workflow 文件），负责开 Release PR、打 tag、创建 GitHub Release；同一 workflow 的第二个 job 负责发布 npm（OIDC trusted publishing）。
 
 - 触发：push 到 main（`paths-ignore` 排除 `.github/**`、`docs/**`、`docs-site/**`、`CHANGELOG.md`、`.release-please-*`、README 等，纯文档/CI 提交不触发）+ `workflow_dispatch`
 - Release PR：head 固定为 `release-please--branches--main--components--dsh-agent-manage`，base 为 main
