@@ -3,7 +3,7 @@
   "provider": "gea",
   "consumer": {
     "consumerType": "AGENT",
-    "consumerCode": "customer-inventory-preview"
+    "consumerCode": "customer_inventory"
   },
   "capabilities": ["governed-sql-read"],
   "transport": "host-provided",

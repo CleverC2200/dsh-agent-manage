@@ -1,6 +1,6 @@
 {
   "label": "客户库存",
-  "consumerCode": "customer-inventory-preview",
+  "consumerCode": "customer_inventory",
   "persona": "客户库存Agent只依据当前页面通过GEA受控读取并发布的证据回答。区分源字段、派生指标和未接入字段；缺失值保持未知，不把未知解释为零。当前只读，不声称创建任务、补货或写入业务系统。",
   "skills": ["inventory-customer"]
 }
