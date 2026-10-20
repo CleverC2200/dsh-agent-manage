@@ -359,25 +359,15 @@ test('joint execution keeps the native runner environment and forwards the compl
 })
 
 test('personal integration cannot trigger upstream release or Pages publication', () => {
-  const npm = readFileSync('.github/workflows/npm-publish.yml', 'utf8')
-  const pages = readFileSync('.github/workflows/docs-pages.yml', 'utf8')
-  const deny = "github.repository != 'CleverC2200/dsh-agent-manage'"
-  const job = (workflow, name) => workflow.match(new RegExp('^  ' + name + ':\\n([\\s\\S]*?)(?=^  [a-z-]+:|$(?![\\s\\S]))', 'm'))?.[1]
-  for (const [workflow, name] of [
-    [npm, 'release-please'],
-    [npm, 'npm-publish'],
-    [pages, 'build'],
-    [pages, 'deploy']
-  ]) {
-    const body = job(workflow, name)
-    assert.ok(body, name)
-    assert.ok(body.includes(deny), name + ' must refuse publication from the registered personal repository')
-  }
+  const npm = readFileSync('docs/history/upstream-workflows/npm-publish.yml', 'utf8')
+  const pages = readFileSync('docs/history/upstream-workflows/docs-pages.yml', 'utf8')
+  assert.equal(existsSync('.github/workflows/npm-publish.yml'), false)
+  assert.equal(existsSync('.github/workflows/docs-pages.yml'), false)
   assert.match(npm, /pnpm publish --no-git-checks --provenance/)
   assert.match(pages, /actions\/deploy-pages@v5/)
 })
 
-async function sourceImpactFixture(t) {
+async function sourceImpactFixture(t, { fullSource = false } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'manage-source-impact-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const source = resolve(import.meta.dirname, '..')
@@ -399,10 +389,10 @@ async function sourceImpactFixture(t) {
     write(join(path, 'package.json'), JSON.stringify({ name: repo }))
     git(path, 'init', '--quiet')
     if (repo === 'dsh-agent-manage') {
-      // Snapshot authored inputs only; concurrent scratch directories and builds have other owners.
       for (const file of git(source, 'ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean)) {
         if (!existsSync(join(source, file)) || file.startsWith('lib/') || !/\.(?:[cm]?[jt]sx?|css|html|json|ya?ml)$/.test(file)) continue
-        write(join(path, file), readFileSync(join(source, file)))
+        if (fullSource || file === 'scripts/ci-test-policy.json') write(join(path, file), readFileSync(join(source, file)))
+        else if (/^tests\/[^/]+\.test\.(?:ts|mjs)$/.test(file)) write(join(path, file), '')
       }
       write(join(path, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories: repositories.map(({ repo, head }) => ({ repo, head })) }))
     }
@@ -484,7 +474,7 @@ test('small client style and business Prompt changes avoid expensive engineering
 })
 
 test('changed engineering modules select their Node behavior consumers', async t => {
-  const fixture = await sourceImpactFixture(t)
+  const fixture = await sourceImpactFixture(t, { fullSource: true })
   fixture.change('scripts/download-cache.mjs', fixture.own)
   const plan = fixture.select()
   assert.ok(plan.files.includes('tests/download-cache.test.mjs'))
@@ -776,7 +766,7 @@ test('dynamic inventory resources keep the inventory Session and GEA contracts',
 })
 
 test('CI input writer changes select their Node contracts without fixed capability batches', async t => {
-  const fixture = await sourceImpactFixture(t)
+  const fixture = await sourceImpactFixture(t, { fullSource: true })
   fixture.change('scripts/write-ci-input.mjs', fixture.own)
   assert.deepEqual(fixture.select().files, ['tests/agent-mcp.test.ts', 'tests/ci-applicability.test.mjs', 'tests/quality-ci-cli.test.mjs', 'tests/routes.test.ts'])
 })
@@ -835,7 +825,7 @@ test('quality refuses an empty ordinary group without launching unfiltered Vites
 })
 
 test('a transitive Host implementation change selects its real client owner and records child execution', async t => {
-  const fixture = await sourceImpactFixture(t)
+  const fixture = await sourceImpactFixture(t, { fullSource: true })
   fixture.change('src/runtime/standard-preset.ts', fixture.own)
   const plan = fixture.select()
   assert.ok(plan.files.includes('tests/base-preset-client.test.ts'))

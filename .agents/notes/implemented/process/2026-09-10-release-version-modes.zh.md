@@ -8,6 +8,8 @@ Status: implemented
 
 ## Decision
 
+可执行的上游发行入口已由 [Manage CI 范围](2026-10-20-manage-ci-scope.zh.md)替代。下文版本选择原因保留为历史，当前插件交付归 GEA。
+
 本记录描述仓内发行 workflow，不授予发布权限，也不证明当前远端通过。隔离交付遵循[当前开发](../../../../docs/current-development.md)，发行操作须有明确授权目标。
 
 `npm-publish.yml` 保留自动路径，并新增一个手动输入：

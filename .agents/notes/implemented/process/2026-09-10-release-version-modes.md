@@ -8,6 +8,8 @@ The release version was decided solely by conventional-commit types. That fails 
 
 ## Decision
 
+The executable upstream release workflow is superseded by [Manage CI scope](2026-10-20-manage-ci-scope.md). The version-selection rationale below remains historical; current package delivery belongs to GEA.
+
 This records the checked-in release workflow, not a publishing grant or current remote receipt. Isolated delivery follows [current development](../../../../docs/current-development.md); release operations require an explicitly authorized target.
 
 `npm-publish.yml` keeps the automatic path and adds one manual input:
