@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import process from 'node:process'
 import console from 'node:console'
 import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
@@ -24,11 +25,19 @@ function refuse(code, detail) {
   throw new Error(`${code}: ${detail}`)
 }
 function run(command, args, cwd = process.cwd()) {
-  finalGroup?.verifyUnchanged()
-  const windows = process.platform === 'win32' && command === 'corepack'
-  const result = spawnSync(windows ? 'corepack.cmd' : command, args, { cwd, stdio: 'inherit', shell: windows })
-  if (result.error || result.status !== 0)
-    refuse('QUALITY_COMMAND_FAILED', `${command} ${args.join(' ')} exited ${result.status}: ${result.error?.message ?? result.signal ?? 'no exit result'}`)
+  const release =
+    ['npm', 'corepack'].includes(command) && (args.includes('ci') || args.includes('install'))
+      ? createRequire(import.meta.url)('../../dsh-gea-plugin/scripts/build-admission.mjs').acquireBuild({ operation: 'prepare', cwd })
+      : () => {}
+  try {
+    finalGroup?.verifyUnchanged()
+    const windows = process.platform === 'win32' && command === 'corepack'
+    const result = spawnSync(windows ? 'corepack.cmd' : command, args, { cwd, stdio: 'inherit', shell: windows })
+    if (result.error || result.status !== 0)
+      refuse('QUALITY_COMMAND_FAILED', `${command} ${args.join(' ')} exited ${result.status}: ${result.error?.message ?? result.signal ?? 'no exit result'}`)
+  } finally {
+    release()
+  }
 }
 try {
   if (values['final-group-sha256'] !== undefined) {

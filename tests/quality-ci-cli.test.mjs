@@ -557,6 +557,7 @@ function qualityExecution(t, files, { cacheOutput = false, invalidReceipt = fals
     cp.execFileSync = () => '11.11.0';
     syncBuiltinESMExports();
     registerHooks({ load(url, context, next) {
+      if (url.endsWith("/build-admission.mjs")) return { format: "module", shortCircuit: true, source: "export const acquireBuild = () => () => {}" };
       if (url !== ${JSON.stringify(pathToFileURL(resolve('scripts/prepare-official-sdk.mjs')).href)}) return next(url, context);
       return { format: 'module', shortCircuit: true, source: 'import cp from "node:child_process"; export const verifyOfficialSDK = options => { if (options.withArtifactReceipt && ${invalidReceipt}) throw Error("SDK_CACHE_ARTIFACT_CHANGED"); }; export const prepareOfficialSDK = () => cp.spawnSync("sdk", ["prepare"]); export const prepareOfficialSource = () => cp.spawnSync("sdk", ["source"]); export const verifyOfficialSource = () => {}' };
     } });`
