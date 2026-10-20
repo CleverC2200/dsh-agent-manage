@@ -23,7 +23,11 @@ export function scopedData(data: MetricData, scope: Scope): MetricData {
       const incomplete = source.rows.some(
         row => entries.some(([key]) => row[key] == null || row[key] === '') && entries.every(([key, value]) => row[key] == null || row[key] === '' || row[key] === value)
       )
-      return { ...source, id: section.id, rows: incomplete ? [] : source.rows.filter(row => entries.every(([key, value]) => row[key] === value)) }
+      return {
+        ...source,
+        id: section.id,
+        rows: incomplete && data.missingValuePolicy !== 'zero' ? [] : source.rows.filter(row => entries.every(([key, value]) => row[key] === value))
+      }
     })
   return { ...data, sections }
 }

@@ -2,9 +2,17 @@ type Row = Record<string, unknown>
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 
 /** Same-period MES quantity contract. No IO, organization assignment or authorization. */
-export function productionOutputMetric(rows: Row[]) {
+export function productionOutputMetric(rows: Row[], missingValuePolicy?: 'zero') {
   const unavailable = (note: string) => ({ value: null, note })
   if (!rows.length || rows.some(row => row.source_basis !== 'MES_QUANTITY')) return unavailable('当前无同期间、同数量口径的生产计划与实际产出；未来排程不当作生产实绩')
+  if (missingValuePolicy === 'zero') {
+    if (rows.some(row => [row.planned, row.actual].some(value => value != null && !finite(value)))) return unavailable('MES数量格式无效')
+    const planned = rows.reduce((total, row) => total + (row.planned == null ? 0 : (row.planned as number)), 0)
+    const actual = rows.reduce((total, row) => total + (row.actual == null ? 0 : (row.actual as number)), 0)
+    return planned > 0 && Number.isFinite(planned) && Number.isFinite(actual)
+      ? { value: (actual / planned) * 100, note: 'MES实际数量合计 ÷ 计划数量合计；源数值缺失按0，保留已有数值，不用完整行交集替代总量' }
+      : unavailable('生产计划量合计为0或无效，不能计算达成率')
+  }
   if (
     rows.some(
       row =>
