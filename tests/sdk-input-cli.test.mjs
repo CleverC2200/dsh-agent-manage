@@ -203,3 +203,73 @@ test('omitted Core head selects the registered current adaptation while explicit
     assert.equal(spawnSync('git', ['config', '--local', '--unset', 'dsh.sdkPreparation'], { cwd: checkout }).status, 0)
   }
 })
+
+test('SDK artifact reuse installs cold dependencies and only reuses a matching installation receipt', t => {
+  const fixture = mkdtempSync(join(tmpdir(), 'sdk-dependency-boundary-'))
+  t.after(() => rmSync(fixture, { recursive: true, force: true }))
+  const hook = join(fixture, 'commands.mjs')
+  const calls = join(fixture, 'install-calls')
+  const cache = new URL('../scripts/sdk-artifact-cache.mjs', import.meta.url).href
+  writeFileSync(
+    hook,
+    `
+    import fs from 'node:fs'; import os from 'node:os'; import cp from 'node:child_process';
+    import { join, dirname } from 'node:path'; import { registerHooks, syncBuiltinESMExports } from 'node:module';
+    const core = ${JSON.stringify(checkout)};
+    const manifest = JSON.parse(fs.readFileSync(join(core, 'package.json'), 'utf8'));
+    fs.statfsSync = () => ({ bavail: 100 * 1024 ** 3, bsize: 1 });
+    os.tmpdir = () => ${JSON.stringify(fixture)};
+    const original = cp.spawnSync;
+    cp.spawnSync = (command, args, options) => {
+      if (!['corepack', 'corepack.cmd'].includes(command)) return original(command, args, options);
+      if (args.includes('--version')) return { status: 0, stdout: manifest.packageManager.slice('pnpm@'.length) };
+      if (!args.includes('install')) throw Error('UNEXPECTED_SDK_BUILD_COMMAND');
+      fs.appendFileSync(${JSON.stringify(calls)}, 'install' + String.fromCharCode(10));
+      fs.mkdirSync(join(core, 'node_modules'), { recursive: true });
+      fs.writeFileSync(join(core, 'node_modules/.modules.yaml'), 'fixture');
+      for (const name of Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })) {
+        const file = join(core, 'node_modules', name, 'package.json');
+        fs.mkdirSync(dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify({ name, version: '1.0.0' }));
+      }
+      return { status: 0 };
+    };
+    syncBuiltinESMExports();
+    registerHooks({ load(url, context, next) {
+      if (url !== ${JSON.stringify(cache)}) return next(url, context);
+      return { format: 'module', shortCircuit: true, source: 'export const verifySDKArtifacts = () => true; export const writeSDKArtifacts = () => {};' };
+    } });
+  `
+  )
+  const own = spawnSync('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], { cwd: checkout, encoding: 'utf8' })
+  assert.equal(own.status, 0, own.stderr)
+  const run = () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--import',
+        hook,
+        'scripts/prepare-official-sdk.mjs',
+        '--prepare',
+        '--reuse-prepared',
+        '--core',
+        realpathSync(checkout),
+        '--consumer',
+        process.cwd(),
+        '--core-head',
+        selected.head
+      ],
+      { encoding: 'utf8' }
+    )
+    assert.match(result.stderr, /SDK_MATERIAL_REQUIRED/, result.stdout + result.stderr)
+    return result.stdout
+  }
+  assert.match(run(), /"dependenciesReused":false/)
+  assert.equal(readFileSync(calls, 'utf8'), 'install\n')
+  assert.match(run(), /"dependenciesReused":true/)
+  assert.equal(readFileSync(calls, 'utf8'), 'install\n')
+  const manifest = JSON.parse(readFileSync(join(checkout, 'package.json'), 'utf8'))
+  const dependency = Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })[0]
+  fs.unlinkSync(join(checkout, 'node_modules', dependency, 'package.json'))
+  assert.match(run(), /"dependenciesReused":false/)
+  assert.equal(readFileSync(calls, 'utf8'), 'install\ninstall\n')
+})

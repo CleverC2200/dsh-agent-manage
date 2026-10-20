@@ -8,7 +8,7 @@ Repeated preparation rebuilt valid dependencies and duplicated task outputs whil
 
 ## Decision
 
-The sibling GEA [development entry](../../../../../dsh-gea-plugin/docs/development-builds.md) owns shared admission, validated reuse and output reports. Manage keeps its pinned manager and lock. Its explicit build wrapper preserves host/client compilation and joins capacity admission. Frozen preparation skips the implicit prepare build. Valid official SDK artifact reuse also skips installation; cold preparation remains in an owned Core checkout.
+The sibling GEA [development entry](../../../../../dsh-gea-plugin/docs/development-builds.md) owns shared admission, validated reuse and output reports. Manage keeps its pinned manager and lock. Its explicit build wrapper preserves host/client compilation and joins capacity admission. Frozen preparation skips the implicit prepare build. Valid official SDK dependency receipts skip installation. Artifact cache hits alone still prepare dependencies in the owned Core checkout.
 
 This extends the [registered SDK decision](2026-10-04-one-official-sdk.md) only for preparation and output ownership. Its read-only consumer input, runtime peer and module boundaries remain. The [dual Core decision](2026-10-10-two-official-core-releases.md) continues to own release compatibility.
 

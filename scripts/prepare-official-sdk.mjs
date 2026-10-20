@@ -366,10 +366,36 @@ export function prepareOfficialSDK(options) {
   if (options.withFlock) flockTarget(core)
   const identity = sdkArtifactIdentity(coreHead)
   const reused = options.reusePrepared === true && verifySDKArtifacts(core, identity)
-  const needsPreparation = !reused || (options.withWeb && !existsSync(webReceipt(core))) || (options.withFlock && !existsSync(flockReceipt(core)))
+  const dependencyReceipt = resolve(core, '.git/dsh-sdk-dependencies.json')
+  const dependencyState = () => ({
+    core: realpathSync(core),
+    coreLock: hash(resolve(core, 'pnpm-lock.yaml')),
+    manifest: hash(resolve(core, 'package.json')),
+    node: process.version,
+    abi: process.versions.modules,
+    platform: process.platform,
+    arch: process.arch,
+    installed: createRequire(import.meta.url)('../../dsh-gea-plugin/scripts/development-dependencies.mjs').installed({
+      path: core,
+      manager: 'pnpm',
+      manifest: json(resolve(core, 'package.json'))
+    })
+  })
+  let dependenciesReused = false
+  if (existsSync(dependencyReceipt)) {
+    try {
+      dependenciesReused = JSON.stringify(json(dependencyReceipt)) === JSON.stringify(dependencyState())
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
+    }
+  }
+  const needsPreparation = !reused || !dependenciesReused || (options.withWeb && !existsSync(webReceipt(core))) || (options.withFlock && !existsSync(flockReceipt(core)))
   const release = needsPreparation ? acquireBuild({ operation: 'sdk', cwd: core }) : () => {}
   try {
-    if (needsPreparation) run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], core)
+    if (!dependenciesReused) {
+      run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], core)
+      writeFileSync(dependencyReceipt, JSON.stringify(dependencyState(), null, 2) + '\n')
+    }
     if (!reused) {
       const tsc = resolve(core, 'node_modules/typescript/bin/tsc')
       run(process.execPath, ['--max-old-space-size=4096', tsc, '-b', 'tsconfig.host.json'], core)
@@ -386,7 +412,7 @@ export function prepareOfficialSDK(options) {
       if (reused && existsSync(flockReceipt(core))) verifyFlock(core, coreHead)
       else prepareOfficialFlock(options)
     }
-    console.log(JSON.stringify({ stage: 'sdk-preparation', reused, core: coreHead }))
+    console.log(JSON.stringify({ stage: 'sdk-preparation', reused, dependenciesReused, core: coreHead }))
     return verifyOfficialSDK(options)
   } finally {
     release()

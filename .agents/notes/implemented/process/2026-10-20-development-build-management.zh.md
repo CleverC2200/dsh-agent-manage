@@ -8,7 +8,7 @@ Status: implemented
 
 ## Decision
 
-相邻 GEA 的[开发入口](../../../../../dsh-gea-plugin/docs/development-builds.md)持有共享准入、核验复用和输出报告。Manage 保留固定管理器与锁。显式构建 wrapper 保留 Host/client 编译并接入容量准入。冻结准备关闭隐式 prepare 构建；有效官方 SDK 产物复用也跳过安装，冷准备仍在 owner 独立 Core checkout 中完成。
+相邻 GEA 的[开发入口](../../../../../dsh-gea-plugin/docs/development-builds.md)持有共享准入、核验复用和输出报告。Manage 保留固定管理器与锁。显式构建 wrapper 保留 Host/client 编译并接入容量准入。冻结准备关闭隐式 prepare 构建；只有官方 SDK 依赖回执有效才跳过安装；仅命中编译产物时仍在 owner 独立 Core checkout 准备依赖。
 
 本决定仅扩展[登记 SDK 决定](2026-10-04-one-official-sdk.zh.md)的准备和输出归属；消费者只读输入、运行 peer 和模块边界保留。[双 Core 决定](2026-10-10-two-official-core-releases.zh.md)继续持有版本兼容范围。
 
