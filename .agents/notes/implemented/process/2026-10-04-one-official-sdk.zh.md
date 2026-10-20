@@ -21,3 +21,5 @@ Host和Client都消费本票登记的固定官方标准包的真实开发依赖�
 开发检查前须有只读的官方标准输入。源码门禁与完整测试不代表最新版实际客户端行为。插件不修改/构建SDK或Core，不复制用户状态；资源owner/取消和Consumer隔离保持。
 
 [两版已登记的官方 Core](2026-10-10-two-official-core-releases.zh.md)部分替代单版运行 peer 决定。已登记的 alpha.1 开发 SDK 和既有 module 归属保持。
+
+[开发构建管理](2026-10-20-development-build-management.zh.md)扩展本机准备与容量准入，消费者 SDK 继续只读。

@@ -1,0 +1,40 @@
+version = 1
+name = "dsh-agent-manage"
+
+[setup]
+script = "node --version && corepack --version"
+
+[[actions]]
+name = "工具与输入检查"
+icon = "tool"
+command = "node ../dsh-gea-plugin/scripts/development-tasks.mjs check"
+
+[[actions]]
+name = "准备依赖"
+icon = "tool"
+command = "node ../dsh-gea-plugin/scripts/development-tasks.mjs prepare"
+
+[[actions]]
+name = "构建插件"
+icon = "tool"
+command = "node ../dsh-gea-plugin/scripts/development-tasks.mjs build"
+
+[[actions]]
+name = "类型检查"
+icon = "tool"
+command = "node ../dsh-gea-plugin/scripts/development-tasks.mjs typecheck"
+
+[[actions]]
+name = "收尾与占用报告"
+icon = "tool"
+command = "node ../dsh-gea-plugin/scripts/development-tasks.mjs finish"
+
+[[actions]]
+name = "完整验收（冻结输入）"
+icon = "tool"
+command = 'node ../dsh-gea-plugin/scripts/development-tasks.mjs verify --input "$DSH_QUALITY_INPUT" --sha256 "$DSH_QUALITY_INPUT_SHA256"'
+
+[[actions]]
+name = "准备原始插件包（冻结输入）"
+icon = "tool"
+command = 'node ../dsh-gea-plugin/scripts/pack-raw.mjs --input "$DSH_DELIVERY_INPUT" --repo dsh-agent-manage --destination "$DSH_PACKAGE_OUTPUT"'

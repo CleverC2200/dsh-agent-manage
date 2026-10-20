@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import os from 'node:os'
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
@@ -129,8 +131,10 @@ test('checkout line-ending conversion is refused rather than normalizing the ori
   }
 })
 
-test('cold SDK clone preserves lock bytes even when the runner defaults to CRLF', () => {
+test('cold SDK clone preserves lock bytes even when the runner defaults to CRLF', t => {
   const fixture = mkdtempSync(join(tmpdir(), 'manage-sdk-line-endings-'))
+  t.mock.method(fs, 'statfsSync', () => ({ bavail: 100 * 1024 ** 3, bsize: 1 }))
+  t.mock.method(os, 'tmpdir', () => fixture)
   const originalGlobalConfig = process.env.GIT_CONFIG_GLOBAL
   try {
     const upstream = join(fixture, 'upstream')
