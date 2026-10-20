@@ -20,7 +20,7 @@ Skill 和 Prompt 选用均确认官方 Registry resolve 未返回 broken 后才�
 
 本决定取代[2026-09-29业务资源归属](../architecture/2026-09-29-workbench-business-resources.zh.md)中的文件系统mount和兼容路径；包内路径约束、独立页面解释器选择与GEA受控执行归属仍保持。既有市场dialect的Skill根替换语义保留，业务包正文原文保真。
 
-Manage 的现有 runtime 同时持有 `skill_reference_read` 与纯 §5.5 `forecast_compute` 能力。官方 Skill registry 是唯一目录与正文加载入口。参考读取核当前可由模型调用的 Skill、正文明确相对链接、宿主文件系统权限、UTF-8/大小/分页与调用者取消；owner 撤销或变化后不返回旧正文。计算沿同工作区核已安装启用的 `sinian-demand-baseline`，保持原十进制算法，并把输入 hash/版本及实际完整用户输入来源与业务授权分开报告。不新增 provider、备用目录、独立运行插件包或 Consumer 权威。
+Manage 的现有 runtime 同时持有 `skill_reference_read` 与纯 §5.5 `forecast_compute` 能力。官方 Skill registry 是唯一目录与正文加载入口。参考读取核当前可由模型调用的 Skill、正文明确的相对 Markdown 链接或行内代码文件路径、宿主文件系统权限、UTF-8/大小/分页与调用者取消；owner 撤销或变化后不返回旧正文。跨 Skill 引用必须选用文件所属 Skill，另一 Skill 中提到的路径不会授予跨资源访问。计算沿同工作区核已安装启用的 `sinian-demand-baseline`，保持原十进制算法，并把输入 hash/版本及实际完整用户输入来源与业务授权分开报告。不新增 provider、备用目录、独立运行插件包或 Consumer 权威。
 
 GEA 保留执行身份与真实业务数据/证据保护，其旧 Skill 正文/参考 loader、工具包/加载状态和纯计算在当前调用者接上 Manage 与官方 loader 后退出。原 Skill/persona 正文不改写。Manage 在 `business-resources/sinian-demand-forecast` 携带固定 `company-agent-suites/suites/sinian-demand-forecast` 完整快照，包括四个原销售 Skill、references、基线脚本与例子。既有包 Skill Provider 在默认启动时集中登记 APS 分析与销售 Skill，GEA 销售 profile 保留既有身份与授权。`SOURCE.json` 记录源提交、文件 hash 及源仓未声明独立许可证的事实。普通安装不依赖包外 Home 副本。离线检查覆盖不变的十四组参考算法、缺十进制数据、来源核对、参考可见性及 owner 撤销；真实安装及 Consumer/model 验收归同组运行。
 
