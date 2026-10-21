@@ -20,6 +20,8 @@ The [dual official Core decision](../.agents/notes/implemented/process/2026-10-1
 
 ## Current ownership / 当前决定归属
 
+- [Order fulfillment governed read](../.agents/notes/implemented/feature/2026-10-21-order-fulfillment-governed-read.md) and [中文](../.agents/notes/implemented/feature/2026-10-21-order-fulfillment-governed-read.zh.md) own the order01 declarations, source gaps and Gateway authorization boundary. / order01 声明、字段缺口与网关授权边界归该决定。
+
 - [Customer inventory governed read](../.agents/notes/implemented/feature/2026-10-19-customer-inventory-governed-read.md) and [中文](../.agents/notes/implemented/feature/2026-10-19-customer-inventory-governed-read.zh.md) own the current customer snapshot table, governed SQL path, derivations and unknown-field boundary. / 客户库存最新快照表、受控SQL链路、派生口径与未知字段边界归该决定。
 
 - [Resource runtime management](../.agents/notes/implemented/architecture/2026-10-15-resource-runtime-management.md) and [中文](../.agents/notes/implemented/architecture/2026-10-15-resource-runtime-management.zh.md) own runtime configuration, status, credential events, backend remounts and ordered release behind `Catalog.runtime`. / 运行配置、状态、凭据事件、后端重挂与释放顺序归 `Catalog.runtime`。

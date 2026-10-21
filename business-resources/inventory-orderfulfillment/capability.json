@@ -2,16 +2,40 @@
   "id": "inventory-orderfulfillment",
   "label": "订单履约",
   "data": {
-    "consumerCode": "orderfulfillment-preview",
-    "mock": true,
-    "tables": [],
-    "rules": ["本页17条订单为固定模拟数据；筛选和分页均是本地演示，不代表真实履约、生成或推送OMS单。不得调用SQL、workspace或真实履约工具。"]
+    "consumerCode": "order01",
+    "tables": [
+      "agents_scm_execute_detail_d",
+      "agents_scm_shortage_trace_f",
+      "agents_scm_stock_detail_d",
+      "agents_dim_product_list_mi",
+      "agents_dim_transfer_direction_mi"
+    ],
+    "rules": [
+      "所有查询通过GEA Host的order01当前业务身份与委托执行；行列权限由Gateway强制，页面筛选不是授权。",
+      "不同模块独立读取，拒权不回退直连、其他Consumer或模拟数据。身份/Session变化撤销旧事实与引用。",
+      "明细和汇总范围分离；只对来源订单去重计数；源数量单位未确认，重复数量不累计；正式指标所需排除与时间规则缺失保持未知。",
+      "源追踪状态仅覆盖可关联订单，不是全量履约状态；无当前源快照时间时不宣称实时。"
+    ]
   },
   "maxEffect": "view",
-  "layers": ["read"],
-  "skills": ["inventory-orderfulfillment"],
+  "layers": [
+    "read"
+  ],
+  "skills": [
+    "inventory-orderfulfillment",
+    "fulfillment-query-orchestrator",
+    "order-fulfillment-risk",
+    "sku-inventory-shortage",
+    "production-fulfillment-progress",
+    "warehouse-logistics-fulfillment",
+    "sales-organization-analysis",
+    "fulfillment-sales-confirmation-automation"
+  ],
   "routing": {
-    "keywords": ["订单履约", "inventory-orderfulfillment"],
-    "summary": "只解释明确标记的模拟订单和当前筛选分页。"
+    "keywords": [
+      "订单履约",
+      "inventory-orderfulfillment"
+    ],
+    "summary": "在当前order01业务授权范围读取订单执行、节点风险及库存源快照；缺失指标与外部执行能力明确待接入。"
   }
 }
