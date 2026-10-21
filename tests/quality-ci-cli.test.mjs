@@ -394,7 +394,8 @@ async function sourceImpactFixture(t, { fullSource = false } = {}) {
     if (repo === 'dsh-agent-manage') {
       for (const file of git(source, 'ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean)) {
         if (!existsSync(join(source, file)) || file.startsWith('lib/') || !/\.(?:[cm]?[jt]sx?|css|html|json|ya?ml)$/.test(file)) continue
-        if (fullSource || file === 'scripts/ci-test-policy.json') write(join(path, file), readFileSync(join(source, file)))
+        if (fullSource || file === 'scripts/ci-test-policy.json' || /^scripts\/workflow-preflight(?:\.test)?\.mjs$/.test(file))
+          write(join(path, file), readFileSync(join(source, file)))
         else if (/^(?:tests\/[^/]+\.test\.(?:ts|mjs)|scripts\/source-quality\.test\.mjs)$/.test(file)) write(join(path, file), '')
       }
       write(join(path, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories: repositories.map(({ repo, head }) => ({ repo, head })) }))
@@ -772,7 +773,13 @@ test('dynamic inventory resources keep the inventory Session and GEA contracts',
 test('CI input writer changes select their Node contracts without fixed capability batches', async t => {
   const fixture = await sourceImpactFixture(t, { fullSource: true })
   fixture.change('scripts/write-ci-input.mjs', fixture.own)
-  assert.deepEqual(fixture.select().files, ['tests/agent-mcp.test.ts', 'tests/ci-applicability.test.mjs', 'tests/quality-ci-cli.test.mjs', 'tests/routes.test.ts'])
+  assert.deepEqual(fixture.select().files, [
+    'scripts/source-quality.test.mjs',
+    'tests/agent-mcp.test.ts',
+    'tests/ci-applicability.test.mjs',
+    'tests/quality-ci-cli.test.mjs',
+    'tests/routes.test.ts'
+  ])
 })
 
 test('Workbench Session preparation and registered Core inputs keep the capability consumers', async t => {
