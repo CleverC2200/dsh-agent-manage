@@ -1,8 +1,6 @@
 # Fixed SDK and clean CI / 固定 SDK 与干净 CI
 
-PR 与 main push 由 `.github/workflows/source-quality.yml` 按实际 Git 差异选择检查。纯说明文档只完成适用性判断与必需状态汇总；包内 Prompt、Skill、资源声明及其资产走资源检查；代码与未知输入保留工程检查。`candidate-quality` 拒绝失败、取消、缺失或非预期跳过的适用检查。该流程只检出本仓，不装配另外两仓。 分类、CLI 和资源检查边界见[共享日常 CI 规则](../../dsh-agent-workbench/docs/ci-required-and-affected.md)。
-
-三仓冻结、SDK 准备、完整类型/构建、受影响集成与浏览器测试改由 `.github/workflows/quality.yml` 的手动 `workflow_dispatch` 执行，最终检查名为 `joint-quality`，不再作为日常合并条件。手动 alpha compatibility 入口保留。日常绿灯只证明上述本仓检查，不能表示三仓或客户端验收通过。
+日常 source-quality 的分类、检查与联合执行边界由[共享 CI 规则](../../dsh-agent-workbench/docs/ci-required-and-affected.md)维护。本地轻预检及未提交影响计划见[开发构建入口](../../dsh-gea-plugin/docs/development-builds.md)。本页保留 Manage 的 SDK 与联合准备合同。
 
 下文描述手动三仓流程及其历史范围，涉及联合合并门禁的旧说明不再适用于日常 PR/main。
 

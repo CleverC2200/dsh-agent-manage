@@ -38,3 +38,13 @@ command = 'node ../dsh-gea-plugin/scripts/development-tasks.mjs verify --input "
 name = "准备原始插件包（冻结输入）"
 icon = "tool"
 command = 'node ../dsh-gea-plugin/scripts/pack-raw.mjs --input "$DSH_DELIVERY_INPUT" --repo dsh-agent-manage --destination "$DSH_PACKAGE_OUTPUT"'
+
+[[actions]]
+name = "本地轻预检"
+icon = "tool"
+command = "node ../dsh-gea-plugin/scripts/development-tasks.mjs preflight"
+
+[[actions]]
+name = "本地影响计划"
+icon = "tool"
+command = "node ../dsh-gea-plugin/scripts/development-tasks.mjs plan"
