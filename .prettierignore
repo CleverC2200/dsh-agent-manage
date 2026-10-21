@@ -34,3 +34,9 @@ business-resources/orchestration/skills/
 business-resources/orchestration/prompt.md
 
 docs/history/verification/verify-lifecycle.cjs
+
+# Received fulfillment Skill assets retain SOURCE.json byte hashes.
+business-resources/inventory-orderfulfillment/skills/fulfillment-sales-confirmation-automation/SKILL.md
+business-resources/inventory-orderfulfillment/skills/operations-exception-root-cause/SKILL.md
+business-resources/inventory-orderworkbench/skills/fulfillment-sales-confirmation-automation/SKILL.md
+business-resources/inventory-orderworkbench/skills/operations-exception-root-cause/SKILL.md

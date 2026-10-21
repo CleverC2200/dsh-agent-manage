@@ -1,5 +1,5 @@
 name: source-quality
-run-name: "Repository source quality — ${{ github.sha }}"
+run-name: 'Repository source quality — ${{ github.sha }}'
 
 on:
   push:
@@ -55,10 +55,7 @@ jobs:
         run: node scripts/generate-plugin-package-version.mjs --check
       - name: Run independent repository regressions
         run: >-
-          node --test
-          tests/run-quality-checks.test.mjs
-          tests/fulfillment-resource-package.test.mjs
-          tests/download-cache.test.mjs
+          node --test tests/run-quality-checks.test.mjs tests/fulfillment-resource-package.test.mjs tests/download-cache.test.mjs
 
   dependency-review:
     if: github.event_name == 'pull_request'
