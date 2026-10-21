@@ -1,5 +1,11 @@
 # Fixed SDK and clean CI / 固定 SDK 与干净 CI
 
+PR 与 main push 由 `.github/workflows/source-quality.yml` 执行本仓 JavaScript/JSON 语法、差分空白、包版本标识和 workflow 中列出的独立回归。PR 同时执行依赖审查，`candidate-quality` 汇总并拒绝失败、取消或缺失的适用检查。该流程只检出本仓，不读取 peer baseline、不要求跨仓凭据，也不装配另外两仓。
+
+三仓冻结、SDK 准备、完整类型/构建、受影响集成与浏览器测试改由 `.github/workflows/quality.yml` 的手动 `workflow_dispatch` 执行，最终检查名为 `joint-quality`，不再作为日常合并条件。手动 alpha compatibility 入口保留。日常绿灯只证明上述本仓检查，不能表示三仓或客户端验收通过。
+
+下文描述手动三仓流程及其历史范围，涉及联合合并门禁的旧说明不再适用于日常 PR/main。
+
 `quality:ci` uses the existing Manage SDK preparation module, admits the frozen three-repository input, installs with the committed consumer lock, then runs independent static, planned ordinary/capability and build checks. Uncommitted local development continues to use `check:refactor`. / `quality:ci` 复用已有 SDK 准备模块，核冻结三仓输入，按消费者已提交锁安装，再分别运行静态检查、计划选中的普通与能力测试及构建。未提交的本地开发继续使用 `check:refactor`。
 
 The quality workflow accepts pushes to `main` and the exact `codex/quality-ci-maintenance-20261010` branch, and keeps PR `opened`, `synchronize` and `reopened` events. When a PR has merge conflicts, the maintenance candidate uses the same complete push quality gates. A workflow trigger or local configuration contract pass does not prove actual hosted quality success. / 质量工作流接受 `main` 和精确 `codex/quality-ci-maintenance-20261010` 分支的 push，保留 PR 的 `opened`、`synchronize` 和 `reopened` 事件。PR 存在合并冲突时，维护候选使用同一套完整 push 质量门禁。工作流触发或本地配置合同通过不表示实际 hosted 质量通过。
