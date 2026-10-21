@@ -16,7 +16,7 @@ const { values } = parseArgs({
     input: { type: 'string' },
     'core-source': { type: 'string' },
     'prepare-sdk': { type: 'boolean' },
-      'source-only': { type: 'boolean' },
+    'source-only': { type: 'boolean' },
     'final-group-sha256': { type: 'string' }
   }
 })
