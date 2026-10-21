@@ -25,6 +25,7 @@ test('received fulfillment prompt and complete Skill tree retain provenance and 
   for (const file of source.files) {
     const bytes = await readFile(new URL(file.path, root))
     assert.equal(hash(bytes), file.packagedSha256, file.path)
+    assert.doesNotMatch(bytes.toString('utf8'), /\/Users\//, file.path)
     if (!file.path.endsWith('/SKILL.md')) continue
     const text = bytes.toString('utf8')
     const name = text.match(/^name: (.+)$/m)?.[1].trim()
