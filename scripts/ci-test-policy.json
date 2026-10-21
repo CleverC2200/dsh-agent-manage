@@ -9,12 +9,6 @@
     "tests/quality-ci-cli.test.mjs": {
       "dependencies": true
     },
-    "tests/sdk-input-cli.test.mjs": {
-      "dependencies": false
-    },
-    "tests/sdk-artifact-cache.test.mjs": {
-      "dependencies": false
-    },
     "tests/official-source-alias.test.mjs": {
       "dependencies": true
     }
