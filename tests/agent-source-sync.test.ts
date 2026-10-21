@@ -146,6 +146,20 @@ it('merges source Skill and MCP conflicts without exposing secrets and retains o
     expect(preview.conflicts.map(row => row.key)).toEqual(expect.arrayContaining(['skill:source-skill', 'mcp:service']))
     expect(JSON.stringify(preview)).not.toContain('LOCAL_SECRET')
     expect(JSON.stringify(preview)).not.toContain('UPSTREAM_SECRET')
+    const durable = await readFile(join(home, 'agents.json'), 'utf8')
+    const importSource = agents.mcp!.importSource.bind(agents.mcp!)
+    const staging = vi.spyOn(agents.mcp!, 'importSource').mockImplementationOnce(async input => {
+      const connection = await importSource(input)
+      await writeFile(skillFile, '---\nname: source-skill\ndescription: Source skill\n---\nCHANGED_DURING_STAGING')
+      return connection
+    })
+    await expect(sources.commit({ token: preview.token, resolutions: { 'skill:source-skill': { choice: 'local' }, 'mcp:service': { choice: 'upstream' } } })).rejects.toThrow(
+      'AGENT_SOURCE_PREVIEW_STALE'
+    )
+    expect(await readFile(join(home, 'agents.json'), 'utf8')).toBe(durable)
+    expect((await agents.mcp!.list(agent.id)).map(row => row.connectionId)).toEqual([connection.connectionId])
+    staging.mockRestore()
+    await saveSource('new')
     const updated = await sources.commit({ token: preview.token, resolutions: { 'skill:source-skill': { choice: 'local' }, 'mcp:service': { choice: 'upstream' } } })
     const fresh = await agentOn(ctx, 'fresh-source-connections', updated.preset)
     expect((await ctx.skills.get('source-skill', { scope: fresh }))?.content).toBe('LOCAL_SKILL')
@@ -178,6 +192,86 @@ it('merges source Skill and MCP conflicts without exposing secrets and retains o
     await stop()
     await catalog.runtime.dispose()
     await new Promise<void>(resolve => server.close(() => resolve()))
+  }
+})
+
+it('rejects changed source names, metadata, Skills, MCP, Git revisions and discovery generations with an unchanged prompt', async () => {
+  const { ctx, home } = await presetHarness()
+  const root = join(home, 'complete-source-snapshot')
+  await mkdir(join(root, '.claude-plugin'), { recursive: true })
+  await mkdir(join(root, 'agents'))
+  await mkdir(join(root, 'skills/source-skill'), { recursive: true })
+  const manifest = join(root, '.claude-plugin/plugin.json')
+  const card = join(root, 'agents/helper.md')
+  const skill = join(root, 'skills/source-skill/SKILL.md')
+  await mkdir(join(root, 'references'))
+  const attachment = join(root, 'skills/source-skill/reference.txt')
+  const sharedAttachment = join(root, 'references/rules.md')
+  const manifestValue = { name: 'snapshot-source', version: '1.0.0' }
+  const reset = async () => {
+    await writeFile(attachment, 'SOURCE_ATTACHMENT')
+    await writeFile(sharedAttachment, 'SHARED_SOURCE_ATTACHMENT')
+    await writeFile(manifest, JSON.stringify(manifestValue))
+    await writeFile(card, '---\nname: Source helper\ndescription: Source description\n---\nUNCHANGED_PROMPT')
+    await writeFile(skill, '---\nname: source-skill\ndescription: Source skill\n---\nSOURCE_SKILL')
+  }
+  await reset()
+  const git = promisify(execFile)
+  const commit = async () => {
+    await git('git', ['-C', root, 'add', '.'])
+    await git('git', ['-C', root, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '--allow-empty', '-m', 'source'])
+  }
+  await git('git', ['init', root])
+  await commit()
+  const catalog = new Catalog({
+    userRoot: join(home, 'catalog'),
+    dataRoot: home,
+    onChanged: () => {},
+    runtime: {
+      ctx,
+      translate: key => key,
+      backend: async () => 'builtin',
+      writeBackend: async () => {},
+      tools: () => inspectToolRegistry(ctx.tools),
+      deleteGrantRecord: async () => {}
+    }
+  })
+  await catalog.load()
+  const stop = ctx.skills.registerProvider(() => new SuiteSkillProvider(catalog))
+  const file = join(home, 'agents.json')
+  const agents = new UserAgents(ctx, file, catalog.runtime)
+  await agents.load()
+  try {
+    const sources = new AgentSources(catalog, agents)
+    const source = await sources.acquire({ url: root, kind: 'local' })
+    const imported = await sources.import({ sourceId: source.id, suiteId: 'snapshot-source', resourceKey: 'agent:helper' })
+    const agent = await agents.save({ ...imported, name: 'Personal name', prompt: 'PERSONAL_PROMPT' })
+    const durable = await readFile(file, 'utf8')
+    const mutations: [string, () => Promise<unknown>][] = [
+      ['name', () => writeFile(card, '---\nname: Changed name\ndescription: Source description\n---\nUNCHANGED_PROMPT')],
+      ['description', () => writeFile(card, '---\nname: Source helper\ndescription: Changed description\n---\nUNCHANGED_PROMPT')],
+      ['Skill body', () => writeFile(skill, '---\nname: source-skill\ndescription: Source skill\n---\nCHANGED_SKILL')],
+      ['Skill attachment', () => writeFile(attachment, 'CHANGED_ATTACHMENT')],
+      ['shared Skill attachment', () => writeFile(sharedAttachment, 'CHANGED_SHARED_ATTACHMENT')],
+      ['MCP', () => writeFile(manifest, JSON.stringify({ ...manifestValue, mcpServers: { service: { command: 'fixture-command', args: [] } } }))],
+      ['version', () => writeFile(manifest, JSON.stringify({ ...manifestValue, version: '1.0.1' }))],
+      ['Git revision', commit],
+      ['discovery generation', () => catalog.refreshSource(source.id)]
+    ]
+    for (const [name, mutate] of mutations) {
+      await reset()
+      const preview = await sources.preview({ id: agent.id })
+      await mutate()
+      await expect(sources.commit({ token: preview.token }), name).rejects.toThrow('AGENT_SOURCE_PREVIEW_STALE')
+      expect(await readFile(file, 'utf8'), name).toBe(durable)
+      expect((await agents.list())[0], name).toMatchObject({ revision: agent.revision, name: 'Personal name', prompt: 'PERSONAL_PROMPT' })
+      await sources.cancel({ token: preview.token })
+      await expect(sources.commit({ token: preview.token })).rejects.toThrow('AGENT_SOURCE_PREVIEW_EXPIRED')
+    }
+  } finally {
+    await agents.dispose()
+    await stop()
+    await catalog.runtime.dispose()
   }
 })
 
