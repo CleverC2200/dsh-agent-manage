@@ -11,7 +11,8 @@
     "Append current Host capability boundary; preserve business rules",
     "Decode UTF-8 archive filenames missing the ZIP UTF-8 flag",
     "Update installed-capability notice for order01 governed read; external automation remains unavailable",
-    "Normalize packaged Markdown with repository formatter; retain received source hashes"
+    "Normalize packaged Markdown with repository formatter; retain received source hashes",
+    "Replace received author-local absolute source path with the original document title; preserve source hashes"
   ],
   "files": [
     {
@@ -52,7 +53,7 @@
     {
       "path": "skills/fulfillment-query-orchestrator/references/订单工作台及订单履约语义.md",
       "sourceSha256": "2d623d186b41ff83fd0080ea041ea9aa459e33779ebbb88bbbc1479bb4829ab8",
-      "packagedSha256": "0f84e79f82e47c9b9ede2817706081b00e35848b85cedd10c2f960e1a4c9d422",
+      "packagedSha256": "713923aa5a4c505f517c547f7428d9e5b36980f96195523f98ff3005bd054f53",
       "archivePath": "skills/fulfillment-query-orchestrator/references/Φ«óσìòσ╖ÑΣ╜£σÅ░σÅèΦ«óσìòσ▒Ñτ║ªΦ»¡Σ╣ë.md"
     }
   ],
