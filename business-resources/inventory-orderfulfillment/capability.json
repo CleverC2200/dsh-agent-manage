@@ -3,13 +3,7 @@
   "label": "订单履约",
   "data": {
     "consumerCode": "order01",
-    "tables": [
-      "agents_scm_execute_detail_d",
-      "agents_scm_shortage_trace_f",
-      "agents_scm_stock_detail_d",
-      "agents_dim_product_list_mi",
-      "agents_dim_transfer_direction_mi"
-    ],
+    "tables": ["agents_scm_execute_detail_d", "agents_scm_shortage_trace_f", "agents_scm_stock_detail_d", "agents_dim_product_list_mi", "agents_dim_transfer_direction_mi"],
     "rules": [
       "所有查询通过GEA Host的order01当前业务身份与委托执行；行列权限由Gateway强制，页面筛选不是授权。",
       "不同模块独立读取，拒权不回退直连、其他Consumer或模拟数据。身份/Session变化撤销旧事实与引用。",
@@ -18,9 +12,7 @@
     ]
   },
   "maxEffect": "view",
-  "layers": [
-    "read"
-  ],
+  "layers": ["read"],
   "skills": [
     "inventory-orderfulfillment",
     "fulfillment-query-orchestrator",
@@ -32,10 +24,7 @@
     "fulfillment-sales-confirmation-automation"
   ],
   "routing": {
-    "keywords": [
-      "订单履约",
-      "inventory-orderfulfillment"
-    ],
+    "keywords": ["订单履约", "inventory-orderfulfillment"],
     "summary": "在当前order01业务授权范围读取订单执行、节点风险及库存源快照；缺失指标与外部执行能力明确待接入。"
   }
 }

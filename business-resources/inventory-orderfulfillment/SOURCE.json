@@ -1,7 +1,7 @@
 {
   "receivedAt": "2026-10-21",
   "promptFileName": "订单履约 Agent提示词.txt",
-  "promptSha256": "21b037d2db97cd4bb3bab719902d4ceb279bedcef6c492d180d5f43a0a9b62e6",
+  "promptSha256": "e02e554d800e8aa6ceee2831d5fc3293921067bd1cf45767d560010fda1b7338",
   "archiveFileName": "订单履约skill.zip",
   "archiveSha256": "b64a49502e844784960b0ba9dc38a17db22e82abdd7945ab5ae66568db769e74",
   "transformations": [
@@ -10,49 +10,51 @@
     "Add orchestrator semantic reference link",
     "Append current Host capability boundary; preserve business rules",
     "Decode UTF-8 archive filenames missing the ZIP UTF-8 flag",
-    "Update installed-capability notice for order01 governed read; external automation remains unavailable"
+    "Update installed-capability notice for order01 governed read; external automation remains unavailable",
+    "Normalize packaged Markdown with repository formatter; retain received source hashes"
   ],
   "files": [
     {
       "path": "skills/production-fulfillment-progress/SKILL.md",
       "sourceSha256": "4a115864aa9d675e2d52fbe80f5b059d308c1e3338bc4f8405b3cb8028ae1273",
-      "packagedSha256": "1514ca19d47dca0f17ba0942016fe4e4f8e4b89118e3ce613dd7d8165a555f7a"
+      "packagedSha256": "0807870f0e1e8cdf940c3732fc3ddd14b970b6944090f665bd173df49921a7af"
     },
     {
       "path": "skills/warehouse-logistics-fulfillment/SKILL.md",
       "sourceSha256": "8d4292ff6afa19f0573ff63be85ea6efd105f0cf9a71bed13c6bc8a99b498d4b",
-      "packagedSha256": "c5f8dd480113e89b357c22387f52df0c6edca09f639f0d0c5a32846bf31f82d5"
+      "packagedSha256": "b4d56e9be87b56320bfbd798903743058ec500b8b554fe81fb0c5bb1ec571e60"
     },
     {
       "path": "skills/fulfillment-sales-confirmation-automation/SKILL.md",
       "sourceSha256": "2bc18e4eff5f092e439b2caccf3ba68efbf30396495164777e6ec5795618e0da",
-      "packagedSha256": "cf3176e3137d2f51eded05cb7dce5ce73c2f50b8e86aafad23101c106ee706d4"
+      "packagedSha256": "2d0f5cd31ee257c6cbb9e0601f87d6d13f24069f3dcc1b8b1fbdb45336a5c251"
     },
     {
       "path": "skills/sku-inventory-shortage/SKILL.md",
       "sourceSha256": "b44877f2366d88012d7eefecf742e4e39f7a4ad2963776574b3020ed0e9a185c",
-      "packagedSha256": "7f3376e44103475cf5610251f88cca0a84a97a60dfaa5f5ef695f09b86c3ef2a"
+      "packagedSha256": "70c187102c4ffcf91e4573659ff39b701ed2234836d0e5784a9ac92914ff5eda"
     },
     {
       "path": "skills/sales-organization-analysis/SKILL.md",
       "sourceSha256": "239764ef61cb9598d599a607e589e308e20828db62820b2e5b79c0c9977fdd89",
-      "packagedSha256": "0e519380206e5481539965a10dc93fbd7491251bfeb9ef5e155a929d1486f556"
+      "packagedSha256": "e4eaae3dce38ede5df3c4b7aec9dd2e1a999085b7e326f49193c3e8706c1dc33"
     },
     {
       "path": "skills/fulfillment-query-orchestrator/SKILL.md",
       "sourceSha256": "49607f7a9025ccba6bf0eedab51970f4d6a3f0f8f754e1e8211875452c75e5c0",
-      "packagedSha256": "6395f0fa8d8d0da7edee60ca942f37722db0f107bdb098b038fc7eac6d50d532"
+      "packagedSha256": "fe65aa8c2dc4bcb79e4fd7cf29eb0781f490dc3d1569e0fef0191013e57de9fb"
     },
     {
       "path": "skills/order-fulfillment-risk/SKILL.md",
       "sourceSha256": "86bae14d9774d8b2ea097647f84eb07c9d0cc7db4c97a7d1f4bea81fd21b5e83",
-      "packagedSha256": "1b31b09bb1df7349deb416144ab5703b89f6849b3b82992f10c6b33943e69c7f"
+      "packagedSha256": "1d2b24fb6bac8bd38d04b7a157ecb545ba0f78b3eea24e537827933a76292ad6"
     },
     {
       "path": "skills/fulfillment-query-orchestrator/references/订单工作台及订单履约语义.md",
       "sourceSha256": "2d623d186b41ff83fd0080ea041ea9aa459e33779ebbb88bbbc1479bb4829ab8",
-      "packagedSha256": "df9ff7b82bb93e146089fd43ef0b68537a24064c4b021d7053754bf300deaa6b",
+      "packagedSha256": "0f84e79f82e47c9b9ede2817706081b00e35848b85cedd10c2f960e1a4c9d422",
       "archivePath": "skills/fulfillment-query-orchestrator/references/Φ«óσìòσ╖ÑΣ╜£σÅ░σÅèΦ«óσìòσ▒Ñτ║ªΦ»¡Σ╣ë.md"
     }
-  ]
+  ],
+  "promptSourceSha256": "21b037d2db97cd4bb3bab719902d4ceb279bedcef6c492d180d5f43a0a9b62e6"
 }

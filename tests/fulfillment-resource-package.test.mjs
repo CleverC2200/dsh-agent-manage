@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
+import { URL } from 'node:url'
 
 const root = new URL('../business-resources/inventory-orderfulfillment/', import.meta.url)
 const json = async path => JSON.parse(await readFile(new URL(path, root), 'utf8'))
@@ -12,7 +13,14 @@ test('received fulfillment prompt and complete Skill tree retain provenance and 
   const prompt = await readFile(new URL('agent-prompt.md', root))
   assert.equal(hash(prompt), source.promptSha256)
   const profile = await json('prompt.json')
-  assert.ok(profile.persona.startsWith(prompt.toString('utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')))
+  assert.ok(
+    profile.persona.startsWith(
+      prompt
+        .toString('utf8')
+        .replace(/^\uFEFF/, '')
+        .replace(/\r\n/g, '\n')
+    )
+  )
   assert.equal(profile.skills.length, 8)
   for (const file of source.files) {
     const bytes = await readFile(new URL(file.path, root))
