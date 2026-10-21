@@ -1,6 +1,6 @@
 ---
 name: fulfillment-sales-confirmation-automation
-description: '订单履约销售确认自动化：由授权人员手动触发订单满足核算与飞书销售确认；销售未确认时每小时提醒一次。对缺货订单收集销售确认的替代商品与数量，更新 OMS 后重新核算；仅在当前订单版本满足规则且销售确认下发后，执行 WMS/TMS 下发。适用于订单确认和受控履约下发，不用于自动监听订单或无确认的自动下发。'
+description: "订单履约销售确认自动化：由授权人员手动触发订单满足核算与飞书销售确认；销售未确认时每小时提醒一次。对缺货订单收集销售确认的替代商品与数量，更新 OMS 后重新核算；仅在当前订单版本满足规则且销售确认下发后，执行 WMS/TMS 下发。适用于订单确认和受控履约下发，不用于自动监听订单或无确认的自动下发。"
 ---
 
 # 订单履约销售确认自动化 Skill
@@ -59,12 +59,12 @@ description: '订单履约销售确认自动化：由授权人员手动触发订
 
 ### 6、参考资料路由
 
-- 订单状态、订单满足率、超时/预警、订单有效性 → [../order-fulfillment-risk/SKILL.md](../order-fulfillment-risk/SKILL.md)。
-- 库存、缺货、可用量和替代后供给 → [../sku-inventory-shortage/SKILL.md](../sku-inventory-shortage/SKILL.md)。
-- 排产/生产/调拨是否可覆盖 → [../production-fulfillment-progress/SKILL.md](../production-fulfillment-progress/SKILL.md)。
-- WMS/TMS、运单和仓配履约状态 → [../warehouse-logistics-fulfillment/SKILL.md](../warehouse-logistics-fulfillment/SKILL.md)。
-- 销售组织、确认人及飞书群归属 → [../sales-organization-analysis/SKILL.md](../sales-organization-analysis/SKILL.md)。
-- 多 Skill 查询及口径统一 → [../fulfillment-query-orchestrator/SKILL.md](../fulfillment-query-orchestrator/SKILL.md)。
+- 订单状态、订单满足率、超时/预警、订单有效性 → [order-fulfillment-risk](../order-fulfillment-risk/SKILL.md)。
+- 库存、缺货、可用量和替代后供给 → [sku-inventory-shortage](../sku-inventory-shortage/SKILL.md)。
+- 排产/生产/调拨是否可覆盖 → [production-fulfillment-progress](../production-fulfillment-progress/SKILL.md)。
+- WMS/TMS、运单和仓配履约状态 → [warehouse-logistics-fulfillment](../warehouse-logistics-fulfillment/SKILL.md)。
+- 销售组织、确认人及飞书群归属 → [sales-organization-analysis](../sales-organization-analysis/SKILL.md)。
+- 多 Skill 查询及口径统一 → [fulfillment-query-orchestrator](../fulfillment-query-orchestrator/SKILL.md)。
 
 ### 7、业务字段、公式、案例
 
@@ -88,14 +88,14 @@ description: '订单履约销售确认自动化：由授权人员手动触发订
 
 #### 满足订单确认卡片
 
-标题：`待销售确认下发｜订单 {order_id}`  
-内容：客户、订单版本、基地、SKU 明细、订货数量、可满足数量、缺货数量、订单满足率、数据时间。  
+标题：`待销售确认下发｜订单 {order_id}`\
+内容：客户、订单版本、基地、SKU 明细、订货数量、可满足数量、缺货数量、订单满足率、数据时间。\
 操作：`确认下发`、`暂不下发`、`查看明细`。
 
 #### 缺货订单确认卡片
 
-标题：`待确认替代商品｜订单 {order_id}`  
-内容：缺货 SKU、原订货数量、可满足数量、缺货数量、订单满足率、允许替代项。  
+标题：`待确认替代商品｜订单 {order_id}`\
+内容：缺货 SKU、原订货数量、可满足数量、缺货数量、订单满足率、允许替代项。\
 操作：填写/选择替代 SKU 与数量后点击 `确认修改订单`，或点击 `转人工处理`。
 
 #### 提醒消息
@@ -108,4 +108,8 @@ description: '订单履约销售确认自动化：由授权人员手动触发订
 
 ## 当前安装能力边界
 
-当前 Consumer 为 `order01`，仅使用 GEA Host 按当前业务用户授权返回的只读订单、追踪及库存结果。页面显示源日期和关联覆盖率；缺少需求清洗、有效执行单、应交付时间或供应分配依据时，正式指标保持未知，不引用历史模拟数。飞书确认、提醒调度及 OMS/WMS/TMS 写入工具尚未接入，不能把本规范当作已实现动作或权限。
+本 Skill 由订单工作台与订单履约 Agent 共用，技能描述不授予查询、人员范围或业务写入权限。只能使用当前 Agent 已安装、已授权的页面证据和工具；用户角色描述不代表实际授权。
+
+订单履约只使用 order01 的当前用户受控只读能力，缺失指标和接口保持未知。订单工作台沿用其当前已发布能力；页面处于 mock 时，只分析明确标记的报告摘录、演示数据或用户提供的证据，不宣称已接入实时订单系统。
+
+销售确认、每小时提醒、飞书消息、OMS 更新、WMS/TMS 下发及外部改善任务尚无本次新增的写入或调度接口。可以解释流程、分析证据和生成草案，不能因加载 Skill 就启动执行或声称已完成。实际操作仍需相应工具、有效权限和明确授权。

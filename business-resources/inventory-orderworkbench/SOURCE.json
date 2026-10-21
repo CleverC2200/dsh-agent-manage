@@ -1,0 +1,82 @@
+{
+  "receivedAt": "2026-10-21",
+  "promptFileName": "订单工作台提示词.txt",
+  "promptSourceSha256": "4179cf9e73d8323698591d52e5fa69bc7677566b78feaee33c83ac7d2b3b0b9c",
+  "promptSha256": "1df8298bcf962ce49d64e7d6baa299865562c5c5cb09a2b347e6f567fa729807",
+  "archiveFileName": "订单履约_工作台Skills.zip",
+  "archiveSha256": "7985892cbee35c3a0aa94fd6971a021d9d86a1ccac2210995ee353da39a8cd18",
+  "transformations": [
+    "Exclude macOS metadata; resolve archive paths under the resource root",
+    "Normalize line endings and repair escaped Markdown frontmatter delimiters",
+    "Convert relative Markdown references to readable links",
+    "Retain the previously supplied semantic reference and its source provenance",
+    "Append installed Host capability boundaries without enabling writes or scheduling",
+    "Format packaged Markdown and JSON; retain original source hashes",
+    "Reuse the accepted semantic reference without machine-specific user paths",
+    "Represent Markdown hard breaks without trailing whitespace for CI"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "sourceSha256": "f2a990ebcf68cedf475c8934ccf7a3cc0dea13f83de7ce7537b83ed9bcf5a6e7",
+      "packagedSha256": "042a09e980599e35f9f9022a69bd93dbb412065261a0f0f7f2717860b8289155"
+    },
+    {
+      "path": "skills/production-fulfillment-progress/SKILL.md",
+      "sourceSha256": "4a115864aa9d675e2d52fbe80f5b059d308c1e3338bc4f8405b3cb8028ae1273",
+      "packagedSha256": "582dba48abb83a3ab66c25db05f2942e646ffeaf644db68df307072c5be10fa7"
+    },
+    {
+      "path": "skills/warehouse-logistics-fulfillment/SKILL.md",
+      "sourceSha256": "8d4292ff6afa19f0573ff63be85ea6efd105f0cf9a71bed13c6bc8a99b498d4b",
+      "packagedSha256": "944436acd48f6af504a38e54cc174c76b5b35ef8a642ea7b15a2548885281773"
+    },
+    {
+      "path": "skills/fulfillment-sales-confirmation-automation/SKILL.md",
+      "sourceSha256": "2bc18e4eff5f092e439b2caccf3ba68efbf30396495164777e6ec5795618e0da",
+      "packagedSha256": "7833b78920748950dfd55cc67c2c85acf7dd9ee787bf4924ce4b4b4dfc07b723"
+    },
+    {
+      "path": "skills/sku-inventory-shortage/SKILL.md",
+      "sourceSha256": "b44877f2366d88012d7eefecf742e4e39f7a4ad2963776574b3020ed0e9a185c",
+      "packagedSha256": "a6edc192e53a636684af851ef12f296d71133deb17e321a7c6d29d22b1a14755"
+    },
+    {
+      "path": "skills/operations-exception-root-cause/SKILL.md",
+      "sourceSha256": "227f4cea64ac18852dea668bce4ed0d9e6ba2e5678c548977bfab7f895657d68",
+      "packagedSha256": "55d0353e172ea8c2cff2575bc915405c029a5c1958abf8deb5eff7ef4d7d1698"
+    },
+    {
+      "path": "skills/sales-organization-analysis/SKILL.md",
+      "sourceSha256": "239764ef61cb9598d599a607e589e308e20828db62820b2e5b79c0c9977fdd89",
+      "packagedSha256": "32fbc4ff0d6363bb7a5168671efb351391bc37efd9e74059a0c59ea9f2797bc1"
+    },
+    {
+      "path": "skills/fulfillment-query-orchestrator/SKILL.md",
+      "sourceSha256": "49607f7a9025ccba6bf0eedab51970f4d6a3f0f8f754e1e8211875452c75e5c0",
+      "packagedSha256": "a0a9241373458cdd5cd165ba503c40e2ecd57a0c9d433fa6ab85018118889a35"
+    },
+    {
+      "path": "skills/operations-kpi-performance-analysis/SKILL.md",
+      "sourceSha256": "d43eda67717f593ba46f2c0fd9b1d48d0c5c74768e4d836fc20d2645a540bf51",
+      "packagedSha256": "70986c263cc1ded8e407d606b1bb3be211ba4592b5bd4a84558b2c08bd9a98ce"
+    },
+    {
+      "path": "skills/improvement-action-closure/SKILL.md",
+      "sourceSha256": "781246bc86a181cc24fd2f97b8181bb662b96dcb70eeb077ef4630402e97c138",
+      "packagedSha256": "d22dbb087d747dd378b7405575eb757a85bbe718d73ad9102dbc12abfa93b79c"
+    },
+    {
+      "path": "skills/order-fulfillment-risk/SKILL.md",
+      "sourceSha256": "c3ec72e43a29c4fcee9cb1cf7dcb4b986962d8c7675487029dc1999c3032358a",
+      "packagedSha256": "07be537162887ac764b97d7097ff87b1903ef19a55ebe22dc2f89ed72dea9a41"
+    },
+    {
+      "path": "skills/fulfillment-query-orchestrator/references/订单工作台及订单履约语义.md",
+      "sourceSha256": "2d623d186b41ff83fd0080ea041ea9aa459e33779ebbb88bbbc1479bb4829ab8",
+      "packagedSha256": "713923aa5a4c505f517c547f7428d9e5b36980f96195523f98ff3005bd054f53",
+      "archivePath": "skills/fulfillment-query-orchestrator/references/Φ«óσìòσ╖ÑΣ╜£σÅ░σÅèΦ«óσìòσ▒Ñτ║ªΦ»¡Σ╣ë.md",
+      "sourceArchiveFileName": "订单履约skill.zip"
+    }
+  ]
+}

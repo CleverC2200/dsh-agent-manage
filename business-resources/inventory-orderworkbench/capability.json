@@ -9,9 +9,21 @@
   },
   "maxEffect": "view",
   "layers": ["read"],
-  "skills": ["inventory-orderworkbench"],
+  "skills": [
+    "inventory-orderworkbench",
+    "fulfillment-query-orchestrator",
+    "order-fulfillment-risk",
+    "sku-inventory-shortage",
+    "production-fulfillment-progress",
+    "warehouse-logistics-fulfillment",
+    "sales-organization-analysis",
+    "fulfillment-sales-confirmation-automation",
+    "operations-kpi-performance-analysis",
+    "operations-exception-root-cause",
+    "improvement-action-closure"
+  ],
   "routing": {
     "keywords": ["订单工作台", "inventory-orderworkbench"],
-    "summary": "订单工作台页面的演示范围与数据边界。"
+    "summary": "订单工作台指标达成、异常归因和改善闭环分析；以当前页面或用户提供的证据为准，保持已安装的数据与执行边界。"
   }
 }

@@ -57,11 +57,11 @@ description: '订单履约 AI 问数编排：解析用户自然语言中的订�
 
 ### 6、参考资料路由
 
-- 订单状态/超时/预警/订单满足率 → [../order-fulfillment-risk/SKILL.md](../order-fulfillment-risk/SKILL.md)。
-- SKU 库存/缺货/货龄 → [../sku-inventory-shortage/SKILL.md](../sku-inventory-shortage/SKILL.md)。
-- 生产/排产/覆盖 → [../production-fulfillment-progress/SKILL.md](../production-fulfillment-progress/SKILL.md)。
-- 仓配/物流 → [../warehouse-logistics-fulfillment/SKILL.md](../warehouse-logistics-fulfillment/SKILL.md)。
-- 销售组织/区域汇总 → [../sales-organization-analysis/SKILL.md](../sales-organization-analysis/SKILL.md)。
+- 订单状态/超时/预警/订单满足率 → [order-fulfillment-risk](../order-fulfillment-risk/SKILL.md)。
+- SKU 库存/缺货/货龄 → [sku-inventory-shortage](../sku-inventory-shortage/SKILL.md)。
+- 生产/排产/覆盖 → [production-fulfillment-progress](../production-fulfillment-progress/SKILL.md)。
+- 仓配/物流 → [warehouse-logistics-fulfillment](../warehouse-logistics-fulfillment/SKILL.md)。
+- 销售组织/区域汇总 → [sales-organization-analysis](../sales-organization-analysis/SKILL.md)。
 - 如果用户只问计算定义，先用领域 Skill 的“业务字段、公式、案例”作答，不要求调用实时数据源。
 
 ### 7、业务字段、公式、案例
@@ -92,10 +92,12 @@ description: '订单履约 AI 问数编排：解析用户自然语言中的订�
 
 **口径与限制**：仅列会影响本次结论的公式、数据缺项和假设。
 
-## 业务语义参考
-
-[订单工作台及订单履约语义](references/订单工作台及订单履约语义.md)
+已有语义参考见[订单工作台及订单履约语义](references/订单工作台及订单履约语义.md)。具体指标以当前有效规则版本为准；口径不一致时标明差异，不自行覆盖。
 
 ## 当前安装能力边界
 
-当前 Consumer 为 `order01`，仅使用 GEA Host 按当前业务用户授权返回的只读订单、追踪及库存结果。页面显示源日期和关联覆盖率；缺少需求清洗、有效执行单、应交付时间或供应分配依据时，正式指标保持未知，不引用历史模拟数。飞书确认、提醒调度及 OMS/WMS/TMS 写入工具尚未接入，不能把本规范当作已实现动作或权限。
+本 Skill 由订单工作台与订单履约 Agent 共用，技能描述不授予查询、人员范围或业务写入权限。只能使用当前 Agent 已安装、已授权的页面证据和工具；用户角色描述不代表实际授权。
+
+订单履约只使用 order01 的当前用户受控只读能力，缺失指标和接口保持未知。订单工作台沿用其当前已发布能力；页面处于 mock 时，只分析明确标记的报告摘录、演示数据或用户提供的证据，不宣称已接入实时订单系统。
+
+销售确认、每小时提醒、飞书消息、OMS 更新、WMS/TMS 下发及外部改善任务尚无本次新增的写入或调度接口。可以解释流程、分析证据和生成草案，不能因加载 Skill 就启动执行或声称已完成。实际操作仍需相应工具、有效权限和明确授权。
