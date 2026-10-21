@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { dirname } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod'
 import { skillDirectoryFiles } from './skill-directories.js'
@@ -38,7 +37,7 @@ const syncCommit = syncToken
     resolutions: sourceResolutions
   })
   .strict()
-type SourceSnapshot = Awaited<ReturnType<Catalog['readSourceSnapshot']>> & { base: AgentSourceBaseline['base']; skillContents: Awaited<ReturnType<typeof skillDirectoryFiles>>[] }
+type SourceSnapshot = Awaited<ReturnType<Catalog['readSourceSnapshot']>> & { base: AgentSourceBaseline['base']; skillContents: Awaited<ReturnType<typeof skillDirectoryFiles>> }
 type SyncPlan = {
   agent: UserAgentConfig
   source: AgentSourceBaseline
@@ -365,14 +364,7 @@ export class AgentSources {
     const snapshot = await this.catalog.readSourceSnapshot(source.sourceId, source.suiteId)
     const candidate = (await this.discover(snapshot.suite)).find(row => row.resourceKey === source.resourceKey)
     if (!candidate?.base) throw Error(candidate?.error ?? 'AGENT_SOURCE_CONFIGURATION_NOT_FOUND')
-    const skillContents: Awaited<ReturnType<typeof skillDirectoryFiles>>[] = []
-    for (const skill of snapshot.suite.skills) {
-      signal?.throwIfAborted()
-      const errors: string[] = []
-      const file = await componentPath(snapshot.suite.root, skill.file, errors)
-      if (!file) throw Error(errors.join('; '))
-      skillContents.push(await skillDirectoryFiles(dirname(file)))
-    }
+    const skillContents = snapshot.suite.skills.length ? await skillDirectoryFiles(snapshot.suite.root) : []
     signal?.throwIfAborted()
     return { ...snapshot, base: candidate.base, skillContents }
   }

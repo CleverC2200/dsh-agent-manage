@@ -204,10 +204,13 @@ it('rejects changed source names, metadata, Skills, MCP, Git revisions and disco
   const manifest = join(root, '.claude-plugin/plugin.json')
   const card = join(root, 'agents/helper.md')
   const skill = join(root, 'skills/source-skill/SKILL.md')
+  await mkdir(join(root, 'references'))
   const attachment = join(root, 'skills/source-skill/reference.txt')
+  const sharedAttachment = join(root, 'references/rules.md')
   const manifestValue = { name: 'snapshot-source', version: '1.0.0' }
   const reset = async () => {
     await writeFile(attachment, 'SOURCE_ATTACHMENT')
+    await writeFile(sharedAttachment, 'SHARED_SOURCE_ATTACHMENT')
     await writeFile(manifest, JSON.stringify(manifestValue))
     await writeFile(card, '---\nname: Source helper\ndescription: Source description\n---\nUNCHANGED_PROMPT')
     await writeFile(skill, '---\nname: source-skill\ndescription: Source skill\n---\nSOURCE_SKILL')
@@ -249,6 +252,7 @@ it('rejects changed source names, metadata, Skills, MCP, Git revisions and disco
       ['description', () => writeFile(card, '---\nname: Source helper\ndescription: Changed description\n---\nUNCHANGED_PROMPT')],
       ['Skill body', () => writeFile(skill, '---\nname: source-skill\ndescription: Source skill\n---\nCHANGED_SKILL')],
       ['Skill attachment', () => writeFile(attachment, 'CHANGED_ATTACHMENT')],
+      ['shared Skill attachment', () => writeFile(sharedAttachment, 'CHANGED_SHARED_ATTACHMENT')],
       ['MCP', () => writeFile(manifest, JSON.stringify({ ...manifestValue, mcpServers: { service: { command: 'fixture-command', args: [] } } }))],
       ['version', () => writeFile(manifest, JSON.stringify({ ...manifestValue, version: '1.0.1' }))],
       ['Git revision', commit],
