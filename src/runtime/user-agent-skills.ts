@@ -6,7 +6,7 @@ import type { SkillCandidate, SkillDefinition, SkillLookupOptions } from '@deeps
 import type { UserAgentSkill } from '../contracts/user-agents.js'
 
 export const inject = ['skills']
-export function apply(ctx: Context, config: { skills: UserAgentSkill[] }): void {
+export function apply(ctx: Context, config: { skills: UserAgentSkill[]; inheritSkills?: boolean }): void {
   const provider = 'user-agent-skills'
   const selected = new Map(config.skills.map(skill => [skill.name, skill]))
   ctx.skills.registerProvider(control => {
@@ -29,11 +29,12 @@ export function apply(ctx: Context, config: { skills: UserAgentSkill[] }): void 
         const candidates: SkillCandidate[] = sources.map(source => {
           const choice = selected.get(source.name)
           const enabled =
-            !choice?.directory &&
-            choice?.enabled === true &&
-            choice.kind === 'reference' &&
-            choice.provider === source.provider &&
-            (choice.path === undefined || source.path === choice.path)
+            (!choice && config.inheritSkills && source.provider !== 'business-resource') ||
+            (!choice?.directory &&
+              choice?.enabled === true &&
+              choice.kind === 'reference' &&
+              choice.provider === source.provider &&
+              (choice.path === undefined || source.path === choice.path))
           return { ...source, provider, rank: -1000, locator: source.name, invocation: enabled ? source.invocation : { modelInvocable: false, userInvocable: false } }
         })
         for (const choice of config.skills) {
@@ -79,6 +80,10 @@ export function apply(ctx: Context, config: { skills: UserAgentSkill[] }): void 
       },
       async get(candidate: SkillCandidate, options: SkillLookupOptions): Promise<SkillDefinition | undefined> {
         const choice = selected.get(candidate.name)
+        if (!choice && config.inheritSkills && (candidate.invocation.modelInvocable || candidate.invocation.userInvocable)) {
+          const source = await ctx.skills.get(candidate.name, { cwd: options.cwd, signal: options.signal })
+          if (source && source.provider !== 'business-resource') return { ...source, provider }
+        }
         if (!choice?.enabled) return { ...candidate, content: '' }
         if (choice.directory) {
           if (choice.kind === 'reference') {

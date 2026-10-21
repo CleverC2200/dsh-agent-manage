@@ -5,6 +5,46 @@ import { composeStandardPreset, MINIMAL_SYSTEM_PROMPT } from '../src/runtime/sta
 import { expect, it, vi } from 'vitest'
 import { agentOn, completion, history, official, presetHarness, record, turn } from './core-preset-harness.js'
 
+it('limits the inherited orchestration catalog and Skill tool to declared business Skills while preserving generic Skills', async () => {
+  const { ctx, home } = await presetHarness()
+  const requests = await completion(ctx)
+  const invocation = { modelInvocable: true, userInvocable: true }
+  ctx.skills.registerProvider(() => ({
+    name: 'scope-fixture',
+    async list() {
+      return [{ name: 'general-skill', description: 'Generic fixture', provider: 'scope-fixture', source: 'custom', rank: 300, invocation }]
+    },
+    async get(candidate) {
+      return { ...candidate, content: 'Generic fixture instructions' }
+    }
+  }))
+  await writeFile(home + '/unrelated.md', '---\nname: unrelated-business\ndescription: Unrelated business fixture\n---\nUnrelated business instructions\n')
+  await ctx.agentResources.register([
+    {
+      id: 'unrelated-owner',
+      label: 'Unrelated fixture',
+      root: home,
+      profile: { label: 'Unrelated fixture', consumerCode: 'never-granted', skills: ['unrelated-business'] },
+      skillFiles: { 'unrelated-business': 'unrelated.md' }
+    }
+  ])
+  const agent = await agentOn(ctx, 'scoped-orchestration', 'auto-negotiation', undefined, home)
+  const visible = (await ctx.skills.list({ scope: agent, cwd: home })).filter(skill => skill.invocation.modelInvocable).map(skill => skill.name)
+  const business = (await ctx.skills.list({ cwd: home })).filter(skill => skill.provider === 'business-resource').map(skill => skill.name)
+  expect(visible.filter(name => business.includes(name)).sort()).toEqual(['frozen-food-base-inventory-insight', 'frozen-food-sales-operations-diagnosis', 'prototype-html'].sort())
+  expect(visible).toContain('general-skill')
+  expect(visible).not.toContain('unrelated-business')
+  expect((await ctx.agentResources.list({ cwd: home })).some(row => row.id === 'skill:unrelated-business')).toBe(true)
+  await turn(ctx, agent, 'Explain the current task without loading other business resources.')
+  const catalogs = requests.at(-1)?.messages.filter(message => message.content.some(block => block.text?.includes('<available_skills>'))) ?? []
+  expect(JSON.stringify(catalogs)).not.toContain('unrelated-business')
+  expect(JSON.stringify(catalogs)).toContain('general-skill')
+  const execute = (name: string) => ctx.tools.execute({ callId: name as never, name: 'skill', arguments: { name }, agent, signal: new AbortController().signal })
+  expect(JSON.stringify(await execute('unrelated-business'))).toContain('not available for model invocation')
+  expect(JSON.stringify(await execute('frozen-food-sales-operations-diagnosis'))).toContain('frozen-food-sales-operations-diagnosis')
+  expect(JSON.stringify(await execute('general-skill'))).toContain('Generic fixture instructions')
+})
+
 it('publishes the original intelligent orchestration identity beside all official choices', async () => {
   const { ctx } = await presetHarness()
   expect(await ctx.agentPresets.resolve('auto-negotiation')).toEqual({ id: 'auto-negotiation' })
@@ -208,7 +248,9 @@ it('keeps standard capabilities while replacing the company persona and automati
     complete: true,
     includeRuntimeContext: false
   }
-  expect(load(composed.content, { schema: entryListSchema })).toEqual(expected)
+  const actual = load(composed.content, { schema: entryListSchema }) as { name: string; config?: unknown }[]
+  expect(actual.filter(row => row.name !== 'dsh-agent-manage/user-agent-skills')).toEqual(expected)
+  expect(actual.find(row => row.name === 'dsh-agent-manage/user-agent-skills')).toMatchObject({ id: 'user-agent-skills', config: { inheritSkills: true } })
 })
 
 it('sends only the minimal system sentence and selected user persona while retaining tool schemas', async () => {
