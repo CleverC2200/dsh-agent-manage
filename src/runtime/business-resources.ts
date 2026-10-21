@@ -651,7 +651,11 @@ export class BusinessResources {
           personaPrefix: override?.prompt ?? profile.persona,
           plugins: [
             ...(d.plugins ?? []),
-            ...(!d.inheritSkills || override?.skills ? [{ id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills } }] : [])
+            {
+              id: 'user-agent-skills',
+              name: 'dsh-agent-manage/user-agent-skills',
+              config: { skills, ...(d.inheritSkills && !override?.skills ? { inheritSkills: true } : {}) }
+            }
           ]
         }
       )
