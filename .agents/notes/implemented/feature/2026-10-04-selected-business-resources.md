@@ -54,6 +54,8 @@ The shared main/settings Agent page replaces the six-tab workspace entry. Authen
 
 ## Personal Agent Skill scope
 
+Every resource preset mounts the existing scoped Skill adapter. `inheritSkills` inherits generic providers while enabling only the business Skills declared by that resource; skipping the adapter would expose every installed business Skill to its model catalog and loader. An explicit customized Skill list takes precedence over inheritance. The global management catalog retains installed resources for explicit selection. Official presets and the shared selected-Skill preset retain their existing contracts; these resource rules do not establish page binding or Consumer authorization.
+
 Manage stores each selected Skill as a complete immutable directory version and a separate per-Agent working tree. Directory views identify that tree as `directoryId`; authenticated directory requests use the owning Agent `id`, supplied by the current Agent page rather than inferred from the directory identity. Existing personal bodies and reference overrides are converted once, preserving their identity, metadata, enable state and source provenance. The retained content field is an editor projection; runtime loading uses the published directory through the official public filesystem provider. Original source trees remain unchanged.
 
 Folder, local ZIP and Git acquisition stage input before selection. The selected input root bounds dependency copying; a complete copy preserves shared relative references, bytes and executable modes. The preset adapter exposes only the selected Skill, using an explicit scan root and the selected entry path. Invalid metadata or missing dependencies reject publication. Import never executes scripts or installs dependencies.
