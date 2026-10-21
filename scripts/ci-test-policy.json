@@ -233,6 +233,14 @@
         "tests/sdk-input-cli.test.mjs",
         "tests/sdk-artifact-cache.test.mjs"
       ]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/quality-peer-baseline\\.json$",
+      "tests": [],
+      "sourceTests": [
+        "tests/quality-ci-cli.test.mjs"
+      ]
     }
   ]
 }
