@@ -59,18 +59,18 @@ it('selects the received MPS persona and Skill, then withdraws only its installe
       { id: 'gea-html-inventory-mps', label: profile.label, root, prompt: 'prompt.json', profile, skillFiles: { 'inventory-mps': 'skills/inventory-mps/SKILL.md' } }
     ])
     const selected = await resources.select('gea-html-inventory-mps', new AbortController().signal)
-    expect(selected.profile?.consumerCode).toBe('mps-prototype')
+    expect(selected.profile?.consumerCode).toBe('mps')
     const persona = (presets.get(selected.preset)!.plugins[0].config as { prefix: string }).prefix
-    expect(persona).toContain('第一步需求确认使用本地文件进行隔离核对')
-    expect(persona).toContain('CSV核对底稿是实际生成的本地文件，下载不等于业务保存')
-    expect(persona).toContain('文件预览不代表数据库同步')
+    expect(persona).toContain('通过GEA以mps身份只读查询')
+    expect(persona).toContain('下载不等于业务保存')
+    expect(persona).toContain('年度需求保留源数量，单位未确认')
     const candidate = (await provider.list({})).find(row => row.name === 'inventory-mps')
     if (!candidate) throw Error('MPS Skill missing')
     expect(candidate.path).toBe(join(root, 'skills/inventory-mps/SKILL.md'))
     const skill = (await provider.get(candidate, {})).content
     expect(skill).toContain('上下文只覆盖当前挂载步骤')
     expect(skill).toContain('未发送文字')
-    expect(skill).toContain('③至⑦仍沿用旧模拟内容')
+    expect(skill).toContain('③⑤⑥仍为原模拟内容')
     expect(skill).toContain('后续月份来源、计划达成率分母与历史参数口径尚未裁决的结果保持空')
     expect(skill).toContain('不沿用旧40/40/20权重')
     expect(skill).toContain('评估月份对应M+1')
