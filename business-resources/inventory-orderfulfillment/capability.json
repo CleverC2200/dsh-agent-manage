@@ -21,7 +21,10 @@
     "production-fulfillment-progress",
     "warehouse-logistics-fulfillment",
     "sales-organization-analysis",
-    "fulfillment-sales-confirmation-automation"
+    "fulfillment-sales-confirmation-automation",
+    "operations-kpi-performance-analysis",
+    "operations-exception-root-cause",
+    "improvement-action-closure"
   ],
   "routing": {
     "keywords": ["订单履约", "inventory-orderfulfillment"],

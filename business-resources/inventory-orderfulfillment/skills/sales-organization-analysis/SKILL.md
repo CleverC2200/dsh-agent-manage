@@ -49,11 +49,11 @@ description: '销售组织与区域订单履约分析：按销售组、销售组
 
 ### 6、参考资料路由
 
-- 订单状态、超时/预警、满足率算法 → [../order-fulfillment-risk/SKILL.md](../order-fulfillment-risk/SKILL.md)。
-- SKU 缺货、基地库存和货龄 → [../sku-inventory-shortage/SKILL.md](../sku-inventory-shortage/SKILL.md)。
-- 排产和生产覆盖 → [../production-fulfillment-progress/SKILL.md](../production-fulfillment-progress/SKILL.md)。
-- 运单与物流商表现 → [../warehouse-logistics-fulfillment/SKILL.md](../warehouse-logistics-fulfillment/SKILL.md)。
-- 多维联查和答案汇总 → [../fulfillment-query-orchestrator/SKILL.md](../fulfillment-query-orchestrator/SKILL.md)。
+- 订单状态、超时/预警、满足率算法 → [order-fulfillment-risk](../order-fulfillment-risk/SKILL.md)。
+- SKU 缺货、基地库存和货龄 → [sku-inventory-shortage](../sku-inventory-shortage/SKILL.md)。
+- 排产和生产覆盖 → [production-fulfillment-progress](../production-fulfillment-progress/SKILL.md)。
+- 运单与物流商表现 → [warehouse-logistics-fulfillment](../warehouse-logistics-fulfillment/SKILL.md)。
+- 多维联查和答案汇总 → [fulfillment-query-orchestrator](../fulfillment-query-orchestrator/SKILL.md)。
 
 ### 7、业务字段、公式、案例
 
@@ -82,4 +82,8 @@ description: '销售组织与区域订单履约分析：按销售组、销售组
 
 ## 当前安装能力边界
 
-当前 Consumer 为 `order01`，仅使用 GEA Host 按当前业务用户授权返回的只读订单、追踪及库存结果。页面显示源日期和关联覆盖率；缺少需求清洗、有效执行单、应交付时间或供应分配依据时，正式指标保持未知，不引用历史模拟数。飞书确认、提醒调度及 OMS/WMS/TMS 写入工具尚未接入，不能把本规范当作已实现动作或权限。
+本 Skill 由订单工作台与订单履约 Agent 共用，技能描述不授予查询、人员范围或业务写入权限。只能使用当前 Agent 已安装、已授权的页面证据和工具；用户角色描述不代表实际授权。
+
+订单履约只使用 order01 的当前用户受控只读能力，缺失指标和接口保持未知。订单工作台沿用其当前已发布能力；页面处于 mock 时，只分析明确标记的报告摘录、演示数据或用户提供的证据，不宣称已接入实时订单系统。
+
+销售确认、每小时提醒、飞书消息、OMS 更新、WMS/TMS 下发及外部改善任务尚无本次新增的写入或调度接口。可以解释流程、分析证据和生成草案，不能因加载 Skill 就启动执行或声称已完成。实际操作仍需相应工具、有效权限和明确授权。
