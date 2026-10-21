@@ -17,7 +17,8 @@
     {
       "repo": "dsh-agent-manage",
       "pattern": "^(?:tests/official-core-input\\.ts|vitest\\.preset-client\\.config\\.ts)$",
-      "tests": ["tests/official-source-alias.test.mjs"]
+      "tests": ["tests/official-source-alias.test.mjs"],
+      "sourceTests": ["tests/official-source-alias.test.mjs"]
     },
     {
       "repo": "dsh-agent-manage",
