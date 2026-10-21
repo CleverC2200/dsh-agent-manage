@@ -1,8 +1,11 @@
 {
   "schemaVersion": 1,
   "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
-  "tests": ["tests/*.test.ts", "tests/*.test.mjs", "scripts/source-quality.test.mjs"],
+  "tests": ["tests/*.test.ts", "tests/*.test.mjs", "scripts/source-quality.test.mjs", "scripts/workflow-preflight.test.mjs"],
   "sourceFixtures": {
+    "scripts/workflow-preflight.test.mjs": {
+      "dependencies": false
+    },
     "scripts/source-quality.test.mjs": {
       "dependencies": false
     },
@@ -14,6 +17,12 @@
     }
   },
   "rules": [
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:scripts/workflow-preflight(?:\\.test)?\\.mjs|\\.github/workflows/[^/]+\\.ya?ml)$",
+      "tests": ["scripts/workflow-preflight.test.mjs"],
+      "sourceTests": ["scripts/workflow-preflight.test.mjs"]
+    },
     {
       "repo": "dsh-agent-manage",
       "pattern": "^(?:tests/official-core-input\\.ts|vitest\\.preset-client\\.config\\.ts)$",
@@ -214,34 +223,25 @@
     {
       "repo": "dsh-agent-manage",
       "pattern": "^(?:scripts/source-quality\\.mjs|\\.github/workflows/source-quality\\.yml)$",
-      "tests": [
-        "scripts/source-quality.test.mjs"
-      ]
+      "tests": ["scripts/source-quality.test.mjs"]
     },
     {
       "repo": "dsh-agent-manage",
       "pattern": "^scripts/(?:run-quality-ci\\.mjs|ci-test-policy\\.json)$",
       "tests": [],
-      "sourceTests": [
-        "tests/quality-ci-cli.test.mjs"
-      ]
+      "sourceTests": ["tests/quality-ci-cli.test.mjs"]
     },
     {
       "repo": "dsh-agent-manage",
       "pattern": "^scripts/(?:prepare-official-sdk|sdk-artifact-cache)\\.mjs$",
       "tests": [],
-      "sourceTests": [
-        "tests/sdk-input-cli.test.mjs",
-        "tests/sdk-artifact-cache.test.mjs"
-      ]
+      "sourceTests": ["tests/sdk-input-cli.test.mjs", "tests/sdk-artifact-cache.test.mjs"]
     },
     {
       "repo": "dsh-agent-manage",
       "pattern": "^scripts/quality-peer-baseline\\.json$",
       "tests": [],
-      "sourceTests": [
-        "tests/quality-ci-cli.test.mjs"
-      ]
+      "sourceTests": ["tests/quality-ci-cli.test.mjs"]
     }
   ]
 }
