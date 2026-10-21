@@ -65,18 +65,16 @@ test('final quality rejects failed applicable security checks and accepts explic
   )
 })
 
-test('maintenance and main pushes use the read-only candidate quality workflow', () => {
-  const workflow = readFileSync('.github/workflows/quality.yml', 'utf8')
-  const pushBranches = workflow
-    .match(/^ {2}push:\n {4}branches: \[([^\]]+)\]/m)?.[1]
-    .split(',')
-    .map(branch => branch.trim())
-  assert.deepEqual(pushBranches, ['main', 'codex/quality-ci-maintenance-20261010'])
-  assert.match(workflow, /pull_request:\n {4}types: \[opened, synchronize, reopened\]/)
-  assert.match(workflow, /permissions:\n {2}contents: read/)
-  assert.doesNotMatch(workflow, /pull_request_target/)
-  assert.match(workflow, /QUALITY_EXPECTED_SHA: \$\{\{ github.event.pull_request.head.sha \|\| github.sha \}\}/)
-  assert.match(workflow, /QUALITY_SCOPE_ALLOWED: \$\{\{ github.event_name != 'pull_request' \|\| github.event.pull_request.head.repo.full_name == github.repository \}\}/)
+test('automatic source checks and manual joint checks use distinct merge contexts', () => {
+  const joint = readFileSync('.github/workflows/quality.yml', 'utf8')
+  const source = readFileSync('.github/workflows/source-quality.yml', 'utf8')
+  assert.doesNotMatch(joint, /^ {2}(push|pull_request):/m)
+  assert.match(joint, /^ {2}workflow_dispatch:/m)
+  assert.match(joint, /name: joint-quality/)
+  assert.match(source, /^ {2}push:/m)
+  assert.match(source, /^ {2}pull_request:/m)
+  assert.match(source, /^ {2}candidate-quality:/m)
+  assert.doesNotMatch(source, /PLUGIN_SPLIT_READ_TOKEN|quality-peer-baseline|read-hosted-peer-input|write-hosted-group/)
 })
 
 test('hosted quality prepares the declared Workbench npm before peer installation', () => {

@@ -492,11 +492,7 @@ export class SkillDirectories {
     if (!skill) return null
     const { directory, ...metadata } = skill
     if (!directory) return metadata
-    const files = await readTree(join(directory.bundle, 'tree'))
-    return {
-      ...metadata,
-      files: [...files].sort(([a], [b]) => a.localeCompare(b)).map(([path, entry]) => ({ path, data: entry.data.toString('base64'), executable: entry.mode & 0o111 }))
-    }
+    return { ...metadata, files: await skillDirectoryFiles(join(directory.bundle, 'tree')) }
   }
 
   private async target(value: z.infer<typeof targetInput>) {
@@ -632,6 +628,10 @@ function message(error: unknown): string {
 function inside(root: string, path: string): boolean {
   const rel = relative(root, path)
   return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`)
+}
+export async function skillDirectoryFiles(root: string) {
+  const files = await readTree(root)
+  return [...files].sort(([a], [b]) => a.localeCompare(b)).map(([path, entry]) => ({ path, data: entry.data.toString('base64'), executable: entry.mode & 0o111 }))
 }
 async function readTree(root: string): Promise<Tree> {
   const files: Tree = new Map()

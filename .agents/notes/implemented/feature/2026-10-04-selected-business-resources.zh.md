@@ -76,7 +76,7 @@ Manage 为每个选中 Skill 保留完整不可变目录版本与独立的每 Ag
 
 ## 导入 Agent 同步
 
-`AgentSources` 在 Catalog 刷新受管 checkout 前读取旧上游 MCP 定义及用户生效覆盖，按提示词字段、Skill 名称和 MCP 服务键比较基线、个人配置与新来源。冲突支持保留本地、采用上游和经校验的手动结果；预览及取消不改变已提交 Agent。预览令牌只在 Host 内存中保留，重启或替换预览后失效；Agent revision 或 MCP 关联变化时拒绝迟到提交。来源无变化不新增 revision。
+`AgentSources` 在 Catalog 刷新受管 checkout 前读取旧上游 MCP 定义及用户生效覆盖，按提示词字段、Skill 名称和 MCP 服务键比较基线、个人配置与新来源。冲突支持保留本地、采用上游和经校验的手动结果；预览及取消不改变已提交 Agent。预览令牌只在 Host 内存中保留，重启或替换预览后失效；Agent revision 或 MCP 关联变化时拒绝迟到提交。Catalog 重新读取包含元数据、Git HEAD 与发现代际的来源快照。保存预览、提交前及 MCP 暂存后，AgentSources 重新核对快照和完整 Skill 文件；输入改变时以 `AGENT_SOURCE_PREVIEW_STALE` 拒绝。来源无变化不新增 revision。
 
 Skill 同步比较完整 base、local、upstream 目录的文件字节、增删与可执行属性。现有每 Skill 冲突选择保留所选完整版本。来源 checkout 刷新不能改变已发布版本或清空工作副本。来源 MCP 变更使用独立连接身份，原始 config 继续作为 Host 基线，个人修改沿既有 runtime override 保存。Agent 列表及来源元数据只保存引用，MCP 冲突预览经过脱敏。
 

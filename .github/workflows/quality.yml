@@ -1,11 +1,7 @@
-name: candidate-quality
+name: candidate-joint-quality
 run-name: "${{ github.event_name == 'workflow_dispatch' && 'Joint frozen three-repository quality' || 'Source event quality' }} — ${{ github.sha }}"
 
 on:
-  push:
-    branches: [main, codex/quality-ci-maintenance-20261010]
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       gea_sha:
@@ -416,6 +412,7 @@ jobs:
       actions: read
 
   candidate-quality:
+    name: joint-quality
     if: always()
     needs: [candidate-scope, gates, security-audit, dependency-review, codeql]
     runs-on: ubuntu-latest

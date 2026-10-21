@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod'
+import { skillDirectoryFiles } from './skill-directories.js'
 import type { Catalog } from '../application/catalog.js'
 import { componentPath, defaultMarkdownResources, resourceText } from '../catalog/component-files.js'
 import { canonicalGitUrl } from '../catalog/scan-resolvers.js'
@@ -36,7 +37,15 @@ const syncCommit = syncToken
     resolutions: sourceResolutions
   })
   .strict()
-type SyncPlan = { agent: UserAgentConfig; source: AgentSourceBaseline; entries: SyncEntry[]; root: string; staged: Map<string, { connectionId: string; serverId: string }> }
+type SourceSnapshot = Awaited<ReturnType<Catalog['readSourceSnapshot']>> & { base: AgentSourceBaseline['base']; skillContents: Awaited<ReturnType<typeof skillDirectoryFiles>> }
+type SyncPlan = {
+  agent: UserAgentConfig
+  source: AgentSourceBaseline
+  snapshot: SourceSnapshot
+  entries: SyncEntry[]
+  root: string
+  staged: Map<string, { connectionId: string; serverId: string }>
+}
 const same = isDeepStrictEqual
 
 /** Source acquisition/discovery uses Catalog; editable snapshots and publication belong to UserAgents. */
@@ -174,13 +183,10 @@ export class AgentSources {
       }
       await this.catalog.refreshSource(agent.source.sourceId)
       signal?.throwIfAborted()
-      const source = (await this.list()).find(row => row.id === agent.source!.sourceId)
-      const suite = (await this.catalog.readUserCatalog()).suites.find(row => row.sourceId === source?.id && row.id === agent.source!.suiteId)
-      if (!suite || !source) throw Error('AGENT_SOURCE_SUITE_NOT_FOUND')
-      const candidate = (await this.discover(suite)).find(row => row.resourceKey === agent.source!.resourceKey)
-      if (!candidate?.base) throw Error(candidate?.error ?? 'AGENT_SOURCE_CONFIGURATION_NOT_FOUND')
+      const snapshot = await this.captureSource(agent.source, signal)
+      const { suite } = snapshot
       const skills = await this.sourceSkills(suite, signal)
-      const base = { ...candidate.base, skills }
+      const base = { ...snapshot.base, skills }
       const entries: SyncEntry[] = (['name', 'description', 'prompt'] as const).map(key => entry(key, agent.source!.base[key], agent[key], base[key]))
       const skillNames = new Set([...agent.source.base.skills, ...agent.skills, ...skills].map(skill => skill.name))
       for (const name of skillNames) {
@@ -203,10 +209,11 @@ export class AgentSources {
         const upstream = suite.mcp?.servers[key]
         entries.push(entry(`mcp:${key}`, old?.base ?? null, old?.local ?? null, upstream ? { name: key.slice(0, 160), config: upstream, enabled: true } : null))
       }
-      const provenance: AgentSourceBaseline = { ...agent.source, base, lockCommit: source.lockCommit, version: suite.manifest.version }
+      const provenance: AgentSourceBaseline = { ...agent.source, base, lockCommit: snapshot.lockCommit, version: suite.manifest.version }
       const token = randomUUID()
       signal?.throwIfAborted()
-      this.plans.set(token, { agent, source: provenance, entries, root: suite.mcp?.root ?? suite.root, staged: new Map() })
+      await this.assertSourceSnapshot(provenance, snapshot, signal)
+      this.plans.set(token, { agent, source: provenance, snapshot, entries, root: suite.mcp?.root ?? suite.root, staged: new Map() })
       return {
         token,
         agentId: id,
@@ -247,9 +254,7 @@ export class AgentSources {
         const local = association ? { name: association.name, config: (await this.agents.mcp!.sourceConfig(reference.connectionId)).local, enabled: association.enabled } : null
         if (!same(row?.local, local)) throw Error('AGENT_SOURCE_PREVIEW_STALE')
       }
-      const source = (await this.catalog.readUserCatalog()).suites.find(row => row.sourceId === plan.source.sourceId && row.id === plan.source.suiteId)
-      const latest = source && (await this.discover(source)).find(row => row.resourceKey === plan.source.resourceKey)
-      if (!latest?.base || latest.base.prompt !== plan.source.base.prompt) throw Error('AGENT_SOURCE_PREVIEW_STALE')
+      await this.assertSourceSnapshot(plan.source, plan.snapshot, signal)
       if (
         plan.entries.every(row => !row.upstreamChanged) &&
         current.source?.lockCommit === plan.source.lockCommit &&
@@ -325,6 +330,7 @@ export class AgentSources {
           references.push({ serverKey, ...connection, ...(removed ? { removed: true } : {}), ...(row.upstream === null ? { baseMissing: true } : {}) })
         }
         signal?.throwIfAborted()
+        await this.assertSourceSnapshot(plan.source, plan.snapshot, signal)
         // Persist membership first; revision-specific declarations keep old live
         // Sessions on their old connections while candidate publication settles.
         await this.agents.mcp?.sourceRevision(
@@ -351,6 +357,25 @@ export class AgentSources {
     const result = this.pending.then(operation)
     this.pending = result.catch(() => {})
     return result
+  }
+
+  private async captureSource(source: AgentSourceBaseline, signal?: AbortSignal): Promise<SourceSnapshot> {
+    signal?.throwIfAborted()
+    const snapshot = await this.catalog.readSourceSnapshot(source.sourceId, source.suiteId)
+    const candidate = (await this.discover(snapshot.suite)).find(row => row.resourceKey === source.resourceKey)
+    if (!candidate?.base) throw Error(candidate?.error ?? 'AGENT_SOURCE_CONFIGURATION_NOT_FOUND')
+    const skillContents = snapshot.suite.skills.length ? await skillDirectoryFiles(snapshot.suite.root) : []
+    signal?.throwIfAborted()
+    return { ...snapshot, base: candidate.base, skillContents }
+  }
+
+  private async assertSourceSnapshot(source: AgentSourceBaseline, expected: SourceSnapshot, signal?: AbortSignal): Promise<void> {
+    try {
+      if (!same(await this.captureSource(source, signal), expected)) throw Error('AGENT_SOURCE_PREVIEW_STALE')
+    } catch {
+      signal?.throwIfAborted()
+      throw Error('AGENT_SOURCE_PREVIEW_STALE')
+    }
   }
 
   private async sourceSkills(suite: Suite, signal?: AbortSignal): Promise<UserAgentSkill[]> {
