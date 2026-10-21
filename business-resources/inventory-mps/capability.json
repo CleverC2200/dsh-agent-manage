@@ -1,12 +1,20 @@
 {
   "id": "inventory-mps",
-  "label": "主生产计划(MPS) · 模拟原型",
+  "label": "主生产计划(MPS)",
   "data": {
-    "consumerCode": "mps-prototype",
-    "tables": [],
-    "mock": true,
+    "consumerCode": "mps",
+    "tables": [
+      "agents_dim_product_list_mi",
+      "agents_dim_demand_annual_mi",
+      "agents_dim_tunnel_capacity_mi",
+      "agents_dim_production_line_sku_capacity_mi",
+      "agents_dim_transfer_direction_mi"
+    ],
+    "mock": false,
     "rules": [
-      "- 前两步仅使用本地输入进行需求核对与本月发货测算，可下载实际生成的CSV底稿；第三至第七步仍为模拟。文件预览与下载不代表数据库同步或业务保存，禁止真实查询、生产计划提交或写入。"
+      "五张主数据表经GEA授权只读查询。产品清单与年度需求可同步到本地评估草稿；产能与调拨方向保留源粒度供核对，不合并重复的产线组合产能。",
+      "年度需求保留源数量，单位未确认。月份兼容YYYY-MM与Mon-YY；缺失、重复粒度或冲突口径不补零、不推定。产品表不含基地，替换物料字段不代表老品历史继承。",
+      "第二步的发货、库存与入库事实尚未接入，支持本地输入与明确标记的演示数据。第三至第七步仍为模拟。业务保存、计划提交和结转未接入。"
     ]
   },
   "maxEffect": "view",
@@ -14,6 +22,6 @@
   "skills": ["inventory-mps"],
   "routing": {
     "keywords": ["MPS", "主生产计划", "inventory-mps"],
-    "summary": "解释MPS前两步的本地需求核对、本月发货测算与调整，以及缺失数据、待定公式和后续模拟步骤。"
+    "summary": "查询月主计划主数据并解释前两步的需求核对、发货测算、缺失字段与待定口径。"
   }
 }

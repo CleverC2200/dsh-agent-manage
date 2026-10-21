@@ -3,7 +3,7 @@
   "sourceCommit": "797d33881a494fd0316e3f2241440830da7954a0",
   "sourcePath": "business-resources/inventory-mps",
   "originalMcpCapabilities": ["governed-sql-read"],
-  "reception": "Mock/view resource with empty MCP capabilities. Steps one and two use local inputs for demand reconciliation and shipment estimation, including manual adjustments and actual CSV downloads. File preview and download do not imply database synchronization or business persistence. Steps three through seven remain simulated. Current UI intent and unsent text recover in the Session; in-memory inputs require export before refresh. Existing Session drafts and the original intake hashes below are retained.",
+  "reception": "GEA mps Consumer authorizes read-only named queries for the five MPS master-data tables. Products and annual demand populate local review drafts; national and base annual quantities remain separate. Capacity and transfer rows preserve their source grain. Shipment facts, business writes and stages three through seven remain outside this integration. Historical intake hashes and existing Session drafts are retained.",
   "originalFilesSha256": {
     "prompt.json": "f0ef0755d5aca303ce3a73c9e5cf3f7261f46860033f4a9483e094d64b9c50ed",
     "capability.json": "de4ffe4b1a5b206608a9262238d8455a39b682664c43cd0fa85a4de713e8a6f2",
