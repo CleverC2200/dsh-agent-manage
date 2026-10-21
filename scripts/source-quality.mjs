@@ -3,6 +3,7 @@ import { appendFileSync, readFileSync, existsSync, realpathSync } from 'node:fs'
 import { dirname, resolve, relative, isAbsolute, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' });
 const listed = (...args) => git(...args).split('\0').filter(Boolean);
@@ -11,6 +12,24 @@ function resource(file) {
   if (file.split('/').includes('fixtures')) return false;
   if (/(?:^|\/)(?:package\.json|package-lock\.json|npm-shrinkwrap\.json|pnpm-(?:lock|workspace)\.yaml|yarn\.lock|requirements[^/]*\.txt)$/.test(file)) return false;
   return /^(?:business-resources|presets|default-presets|docs\/agent-inputs)\//.test(file) || skill(file) || /^business\/[^/]+\/(?:plugin\.json|page\.json|sql\.config\.json|SOURCE\.md)$/.test(file);
+}
+function versionOnly(files, base, head) {
+  if (!base || files.length !== 2 || !files.includes('package.json') || !files.includes('src/plugin-package-version.ts')) return false;
+  try {
+    const before = JSON.parse(git('show', `${base}:package.json`));
+    const after = JSON.parse(git('show', `${head}:package.json`));
+    const oldVersion = before.version, newVersion = after.version;
+    if (typeof oldVersion !== 'string' || typeof newVersion !== 'string' || !newVersion || oldVersion === newVersion) return false;
+    delete before.version;
+    delete after.version;
+    if (!isDeepStrictEqual(before, after)) return false;
+    const literal = value => "'" + JSON.stringify(value).slice(1, -1).replaceAll("'", "\\'") + "'";
+    const oldParts = git('show', `${base}:src/plugin-package-version.ts`).split('version: ' + literal(oldVersion));
+    const newParts = git('show', `${head}:src/plugin-package-version.ts`).split('version: ' + literal(newVersion));
+    return oldParts.length === 2 && isDeepStrictEqual(oldParts, newParts);
+  } catch {
+    return false;
+  }
 }
 function plan() {
   const event = process.env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')) : {};
@@ -22,7 +41,8 @@ function plan() {
   const files = hasBase ? listed('diff', '--no-renames', '--name-only', '-z', diffBase, head) : listed('ls-files', '-z');
   const documentation = file => /^(?:docs\/|docs-site\/|\.agents\/notes\/)/.test(file) && /\.(?:md|mdx|txt)$/.test(file) || /^[^/]+\.md$/.test(file);
   const mode = hasBase && files.length && files.every(file => !resource(file) && documentation(file)) ? 'docs' : hasBase && files.length && files.every(file => resource(file) || documentation(file)) ? 'resources' : 'code';
-  return { mode, files, base: diffBase, head, engineering: mode === 'code', 'dependency-review': mode === 'code' && process.env.GITHUB_EVENT_NAME === 'pull_request', codeql: mode === 'code' || files.some(file => /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file)) };
+  const codeql = !versionOnly(files.filter(file => !documentation(file)), diffBase, head) && (mode === 'code' || files.some(file => /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file)));
+  return { mode, files, base: diffBase, head, engineering: mode === 'code', 'dependency-review': mode === 'code' && process.env.GITHUB_EVENT_NAME === 'pull_request', codeql };
 }
 
 function checkResources(result) {
