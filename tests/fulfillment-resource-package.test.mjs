@@ -21,7 +21,7 @@ test('received fulfillment prompt and complete Skill tree retain provenance and 
         .replace(/\r\n/g, '\n')
     )
   )
-  assert.equal(profile.skills.length, 8)
+  assert.equal(profile.skills.length, 11)
   for (const file of source.files) {
     const bytes = await readFile(new URL(file.path, root))
     assert.equal(hash(bytes), file.packagedSha256, file.path)
