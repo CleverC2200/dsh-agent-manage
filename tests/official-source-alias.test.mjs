@@ -1,4 +1,5 @@
 import test from 'node:test'
+import process from 'node:process'
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'

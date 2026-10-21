@@ -31,9 +31,14 @@
     },
     {
       "repo": "dsh-agent-manage",
-      "pattern": "^(?:scripts/workflow-preflight(?:\\.test)?\\.mjs|\\.github/workflows/[^/]+\\.ya?ml)$",
+      "pattern": "^scripts/workflow-preflight(?:\\.test)?\\.mjs$",
       "tests": ["scripts/workflow-preflight.test.mjs"],
       "sourceTests": ["scripts/workflow-preflight.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^\\.github/workflows/[^/]+\\.ya?ml$",
+      "tests": ["scripts/workflow-preflight.test.mjs"]
     },
     {
       "repo": "dsh-agent-manage",
