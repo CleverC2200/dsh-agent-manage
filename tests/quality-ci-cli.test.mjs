@@ -74,7 +74,10 @@ test('automatic source checks and manual joint checks use distinct merge context
   assert.match(source, /^ {2}push:/m)
   assert.match(source, /^ {2}pull_request:/m)
   assert.match(source, /^ {2}candidate-quality:/m)
-  assert.doesNotMatch(source, /PLUGIN_SPLIT_READ_TOKEN|quality-peer-baseline|read-hosted-peer-input|write-hosted-group/)
+  const checks = parseYaml(source).jobs['source-checks'].steps
+  for (const step of checks.filter(step => step.with?.repository?.startsWith('CleverC2200/dsh-agent-'))) assert.equal(step.if, "needs.source-plan.outputs.engineering == 'true'")
+  assert.equal(checks.find(step => step.name === 'Prepare or verify SDK through existing cache contract').if, "steps.affected.outputs.sdk == 'true'")
+  assert.equal(checks.find(step => step.name === 'Select affected behavior and type checks before preparation').run, 'node scripts/source-quality.mjs --phase affected-plan')
 })
 
 test('hosted quality prepares the declared Workbench npm before peer installation', () => {
@@ -390,7 +393,7 @@ async function sourceImpactFixture(t, { fullSource = false } = {}) {
       for (const file of git(source, 'ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean)) {
         if (!existsSync(join(source, file)) || file.startsWith('lib/') || !/\.(?:[cm]?[jt]sx?|css|html|json|ya?ml)$/.test(file)) continue
         if (fullSource || file === 'scripts/ci-test-policy.json') write(join(path, file), readFileSync(join(source, file)))
-        else if (/^tests\/[^/]+\.test\.(?:ts|mjs)$/.test(file)) write(join(path, file), '')
+        else if (/^(?:tests\/[^/]+\.test\.(?:ts|mjs)|scripts\/source-quality\.test\.mjs)$/.test(file)) write(join(path, file), '')
       }
       write(join(path, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories: repositories.map(({ repo, head }) => ({ repo, head })) }))
     }

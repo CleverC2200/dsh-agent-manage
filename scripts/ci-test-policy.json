@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
-  "tests": ["tests/*.test.ts", "tests/*.test.mjs"],
+  "tests": ["tests/*.test.ts", "tests/*.test.mjs", "scripts/source-quality.test.mjs"],
   "rules": [
     {
       "repo": "dsh-agent-manage",
@@ -193,6 +193,13 @@
       "repo": "dsh-agent-manage",
       "pattern": "^scripts/(?:business-profile-ci(?:\\.test)?\\.mjs|verify-lifecycle\\.cjs)$",
       "tests": ["tests/quality-ci-cli.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:scripts/source-quality\\.mjs|\\.github/workflows/source-quality\\.yml)$",
+      "tests": [
+        "scripts/source-quality.test.mjs"
+      ]
     }
   ]
 }
