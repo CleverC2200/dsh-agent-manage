@@ -226,6 +226,20 @@ export class Catalog {
     return this.state.sources
   }
 
+  async readSourceSnapshot(sourceId: string, suiteId: string): Promise<{ source: SourceRef; suite: Suite; lockCommit?: string; generation: number }> {
+    return this.enqueue(async () => {
+      const source = this.state.sources.find(entry => entry.id === sourceId)
+      if (!source) throw Error('AGENT_SOURCE_NOT_FOUND')
+      const checkout = this.sourceCheckoutPath(source)
+      const before = await tryHead(checkout)
+      const suite = (await discoverSuitesInSource(checkout, sourceId, 'user', source.url)).find(entry => entry.id === suiteId)
+      if (!suite) throw Error('AGENT_SOURCE_SUITE_NOT_FOUND')
+      const after = await tryHead(checkout)
+      if (before !== after) throw Error('AGENT_SOURCE_PREVIEW_STALE')
+      return { source: { ...source }, suite, lockCommit: after ?? this.headCache.get(sourceId), generation: this.scanGeneration }
+    })
+  }
+
   /** The user-dimension suite root this catalog operates. */
   /** 中文：返回用户维度目录扫描所使用的根路径。 */
   get userRoot(): string {
