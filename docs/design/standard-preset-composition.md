@@ -14,7 +14,7 @@ The single-repository `test` runs Host and client preservation lanes. Cross-plug
 
 [The dual official Core decision](../../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.md) and [中文](../../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md) own runtime peer support and the `DSH_CORE_CHECKOUT` input. This contract uses the active Host's standard declaration; source or offline checks do not establish fresh installation, Native, business or model acceptance.
 
-智能编排的默认主提示词来自 `business-resources/orchestration/prompt.md`。它通过与其他插件 Agent 相同的 BusinessResources 目录发布，`auto-negotiation` 是“Agent 预设”与“Agent 配置”共用的唯一身份。配置页可编辑提示词、管理 Skill 和启停；个性化配置沿用已有持久化与版本发布，已有 Session 保留原版本，用户默认选择不因编辑或启停而改变。两个入口共享名称与说明，原生预设排序保留。默认继承其他可用 Skill；显式定制 Skill 列表后，新会话按该列表发布。
+智能编排的默认主提示词来自 `business-resources/orchestration/prompt.md`。它通过与其他插件 Agent 相同的 BusinessResources 目录发布，`auto-negotiation` 是“Agent 预设”与“Agent 配置”共用的唯一身份。配置页可编辑提示词、管理 Skill 和启停；个性化配置沿用已有持久化与版本发布，已有 Session 保留原版本，用户默认选择不因编辑或启停而改变。两个入口共享名称与说明，原生预设排序保留。默认继承通用 Skill，业务 Skill 按自身声明发布；显式定制 Skill 列表后，新会话按该列表发布。资源范围沿用[原生资源决定](../../.agents/notes/implemented/feature/2026-10-04-selected-business-resources.md#personal-agent-skill-scope)。
 
 `waitForStandard` 等待官方标准声明；`registerOrchestration` 向现有资源 owner 注册智能编排。Manage 在该 owner 创建后注册，资源面板与直接预设入口不各自维护一份提示词或配置。受控资源的 Markdown 提示词直接作为正文读取，既有 JSON 业务策略继续按原身份合同校验。
 
