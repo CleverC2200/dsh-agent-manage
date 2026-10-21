@@ -1,5 +1,7 @@
 import { it } from 'vitest'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { mountSkillReferenceReader } from '../src/runtime/skill-reference.js'
 function fixture() {
@@ -82,6 +84,36 @@ it('reference reader respects current skill visibility, cancellation and paging'
   const controller = new AbortController()
   controller.abort()
   await assert.rejects(() => reader.execute(args, { signal: controller.signal }))
+})
+
+it('reads the inline reference paths declared by the supplied inventory Skills', async () => {
+  const { tools, ctx, reads } = fixture()
+  const reader = tools.get('skill_reference_read')! as unknown as { execute(args: unknown, exec: unknown): Promise<string> }
+  const signal = new AbortController().signal
+  for (const [skill, path] of [
+    ['aging-stagnation-monitoring', 'rules.md'],
+    ['inventory-policy', 'rules/metric-catalog.md'],
+    ['inventory-policy', 'rules/data-access-contract.md']
+  ]) {
+    const root = resolve('business-resources/inventory-aqkc/skills', skill)
+    ctx.skills.get = async () => ({
+      invocation: { modelInvocable: true },
+      resourceBase: { kind: 'directory', path: root },
+      content: await readFile(resolve(root, 'SKILL.md'), 'utf8')
+    })
+    ctx.fs.readBytes = async target => {
+      reads.push(target.displayPath)
+      return readFile(target.displayPath)
+    }
+    const result = JSON.parse(await reader.execute({ skill, path, limit: 10 }, { signal }))
+    assert.equal(result.path, resolve(root, path))
+    assert.ok(result.totalLines > 0)
+    assert.ok(result.content.length > 0)
+    const before = reads.length
+    for (const denied of ['rules/not-declared.md', '../inventory-policy/rules/metric-catalog.md', '/etc/passwd', 'https://example.com/rules.md'])
+      await assert.rejects(() => reader.execute({ skill, path: denied }, { signal }))
+    assert.equal(reads.length, before)
+  }
 })
 
 it('unknown skill gives the current visible catalog instead of another dead end', async () => {
