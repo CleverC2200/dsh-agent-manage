@@ -2,6 +2,23 @@
   "schemaVersion": 1,
   "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
   "tests": ["tests/*.test.ts", "tests/*.test.mjs", "scripts/source-quality.test.mjs"],
+  "sourceFixtures": {
+    "scripts/source-quality.test.mjs": {
+      "dependencies": false
+    },
+    "tests/quality-ci-cli.test.mjs": {
+      "dependencies": true
+    },
+    "tests/sdk-input-cli.test.mjs": {
+      "dependencies": false
+    },
+    "tests/sdk-artifact-cache.test.mjs": {
+      "dependencies": false
+    },
+    "tests/official-source-alias.test.mjs": {
+      "dependencies": true
+    }
+  },
   "rules": [
     {
       "repo": "dsh-agent-manage",
@@ -204,6 +221,23 @@
       "pattern": "^(?:scripts/source-quality\\.mjs|\\.github/workflows/source-quality\\.yml)$",
       "tests": [
         "scripts/source-quality.test.mjs"
+      ]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/(?:run-quality-ci\\.mjs|ci-test-policy\\.json)$",
+      "tests": [],
+      "sourceTests": [
+        "tests/quality-ci-cli.test.mjs"
+      ]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/(?:prepare-official-sdk|sdk-artifact-cache)\\.mjs$",
+      "tests": [],
+      "sourceTests": [
+        "tests/sdk-input-cli.test.mjs",
+        "tests/sdk-artifact-cache.test.mjs"
       ]
     }
   ]
