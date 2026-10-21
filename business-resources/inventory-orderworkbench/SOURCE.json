@@ -12,7 +12,8 @@
     "Retain the previously supplied semantic reference and its source provenance",
     "Append installed Host capability boundaries without enabling writes or scheduling",
     "Format packaged Markdown and JSON; retain original source hashes",
-    "Reuse the accepted semantic reference without machine-specific user paths"
+    "Reuse the accepted semantic reference without machine-specific user paths",
+    "Represent Markdown hard breaks without trailing whitespace for CI"
   ],
   "files": [
     {
@@ -33,7 +34,7 @@
     {
       "path": "skills/fulfillment-sales-confirmation-automation/SKILL.md",
       "sourceSha256": "2bc18e4eff5f092e439b2caccf3ba68efbf30396495164777e6ec5795618e0da",
-      "packagedSha256": "f6bed84c33274fb4b5ebd32496403048053071ebc75eb2e004d1ec526d022eb9"
+      "packagedSha256": "7833b78920748950dfd55cc67c2c85acf7dd9ee787bf4924ce4b4b4dfc07b723"
     },
     {
       "path": "skills/sku-inventory-shortage/SKILL.md",
@@ -43,7 +44,7 @@
     {
       "path": "skills/operations-exception-root-cause/SKILL.md",
       "sourceSha256": "227f4cea64ac18852dea668bce4ed0d9e6ba2e5678c548977bfab7f895657d68",
-      "packagedSha256": "ec90f6063d4e2d13620383e19979621739959641a2a2a94609c91f97c5a3eb30"
+      "packagedSha256": "55d0353e172ea8c2cff2575bc915405c029a5c1958abf8deb5eff7ef4d7d1698"
     },
     {
       "path": "skills/sales-organization-analysis/SKILL.md",
