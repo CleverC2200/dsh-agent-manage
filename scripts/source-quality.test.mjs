@@ -158,3 +158,33 @@ test('JavaScript resources retain security scanning without unrelated engineerin
   assert.equal(repo.run('final', results).status, 0);
   assert.notEqual(repo.run('final', { ...results, CODEQL_RESULT: 'skipped' }).status, 0);
 });
+
+test('only a package version and matching generated stamp may skip CodeQL', t => {
+  const files = {
+    'package.json': '{"name":"fixture","version":"1.0.0"}',
+    'src/plugin-package-version.ts': "export const identity = { version: '1.0.0' }\n"
+  };
+  const changed = {
+    'package.json': '{"name":"fixture","version":"1.0.1"}',
+    'src/plugin-package-version.ts': "export const identity = { version: '1.0.1' }\n"
+  };
+  const repo = fixture(t, files, changed);
+  const planned = repo.run('plan');
+  assert.equal(planned.status, 0, planned.stderr);
+  const plan = JSON.parse(planned.stdout);
+  assert.equal(plan.engineering, true);
+  assert.equal(plan.codeql, false);
+  const results = { PLAN_RESULT: 'success', CHECK_RESULT: 'success', DEPENDENCY_RESULT: 'success', CODEQL_RESULT: 'skipped', HAS_CODEQL: 'true' };
+  assert.equal(repo.run('final', results).status, 0);
+  for (const edited of [
+    { ...changed, 'package.json': '{"name":"fixture","version":"1.0.1","dependencies":{"new-dependency":"1.0.0"}}' },
+    { ...changed, 'src/plugin-package-version.ts': changed['src/plugin-package-version.ts'] + 'export const extra = true\n' },
+    { ...changed, 'src/plugin-package-version.ts': "export const identity = { version: '9.0.0' }\n" }
+  ]) {
+    const source = fixture(t, files, edited);
+    const result = source.run('plan');
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).codeql, true);
+    assert.notEqual(source.run('final', results).status, 0);
+  }
+})
