@@ -4,6 +4,8 @@ Status: implemented
 
 The customer-inventory portion is partially superseded by [customer inventory governed read](2026-10-19-customer-inventory-governed-read.md). The decisions below remain current for the order workbench, order fulfillment and other received prototypes.
 
+The fulfillment execution portion is partially superseded by [order fulfillment governed read](2026-10-21-order-fulfillment-governed-read.md). Its order01 source reads replace the current mock-only execution; the retained original mock baseline, other prototypes and shared assembly remain here.
+
 ## Problem
 
 The customer, order report and fulfillment prototypes have existing pages and original Agent resources. Static pages without business resource declarations do not let users select those personas and Skills in the page's Session. Receiving the existing prototypes must preserve their mock interactions and resource text.
@@ -13,6 +15,8 @@ The customer, order report and fulfillment prototypes have existing pages and or
 The prototypes keep their existing page identifiers and local interactions. Manage owns the original personas, Skills and empty MCP capability declarations. Workbench assembles the pages and resource files; GEA mounts view-only page grants and rejects SQL for mocks. Selecting a resource uses the existing official Core Session flow without a model request.
 
 This complements [selected native business resources](2026-10-04-selected-business-resources.md). It uses the same resource selection and ownership contract and does not supersede that decision. UI filters and pagination belong to the current page and Session; transient local report tasks retain their original reset policy.
+
+The fulfillment resource includes the received complete Agent prompt, seven domain Skills and their semantic reference. SOURCE.json records original and packaged hashes; agent-prompt.md preserves the prompt bytes. Relative references become explicit Markdown links for the existing reference reader, and installed-capability boundaries are appended without granting tools. The original prompt bytes and mock source baseline remain. Current order01 execution belongs to the superseding fulfillment note; automation prose does not implement Feishu reminders or OMS/WMS/TMS writes. Workbench manifest order matches prompt Skill order.
 
 ## Alternatives considered
 

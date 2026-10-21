@@ -3,9 +3,9 @@
   "provider": "gea",
   "consumer": {
     "consumerType": "AGENT",
-    "consumerCode": "orderfulfillment-preview"
+    "consumerCode": "order01"
   },
-  "capabilities": [],
+  "capabilities": ["governed-sql-read"],
   "transport": "host-provided",
   "contract": "gea-html-v2"
 }

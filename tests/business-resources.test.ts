@@ -182,6 +182,12 @@ it('publishes opted-in installed business presets before any selection and relea
   const root = await mkdtemp(join(tmpdir(), 'resource-discovery-'))
   roots.push(root)
   const registered: Definition[] = []
+  let runtimeReady = false
+  let broken = false
+  const resolvePreset = vi.fn(async (id: string) => {
+    if (!runtimeReady) throw Error('Host activation must finish before auditing presets')
+    return { id, ...(broken ? { broken: 'Required service unavailable' } : {}) }
+  })
   const host = {
     skills: {
       registerProvider: () => () => {},
@@ -191,9 +197,7 @@ it('publishes opted-in installed business presets before any selection and relea
     },
     agentPresets: {
       readDocument: officialStandardDocument,
-      async resolve(id: string) {
-        return { id }
-      },
+      resolve: resolvePreset,
       async register(value: Definition) {
         registered.push(value)
         return async () => {
@@ -217,8 +221,13 @@ it('publishes opted-in installed business presets before any selection and relea
   expect(await resources.list()).toEqual(
     expect.arrayContaining([expect.objectContaining({ id: 'broken', enabled: false, error: expect.any(String) }), expect.objectContaining({ id: 'base-stock', enabled: true })])
   )
+  expect(resolvePreset).not.toHaveBeenCalled()
+  runtimeReady = true
   await resources.select('base-stock', new AbortController().signal)
+  expect(resolvePreset).toHaveBeenCalledWith('base-stock')
   expect(registered.map(p => p.id)).toEqual(['base-stock'])
+  broken = true
+  await expect(resources.select('base-stock', new AbortController().signal)).rejects.toThrow('Required service unavailable')
   await owner()
   expect(registered).toEqual([])
   await resources.dispose()
@@ -409,14 +418,17 @@ it('selects the restored regional resource through the original Skill provider a
       skillFiles: { 'plan-regional': 'skills/regional/SKILL.md' }
     }
   ])
+  const fulfillmentProfile = JSON.parse(await readFile(new URL('../business-resources/inventory-orderfulfillment/prompt.json', import.meta.url), 'utf8'))
   const otherOwner = await resources.register([
     {
       id: 'gea-html-inventory-orderfulfillment',
       label: '履约原型',
       root: fileURLToPath(new URL('../business-resources/inventory-orderfulfillment/', import.meta.url)),
       prompt: 'prompt.json',
-      profile: { label: '履约原型', consumerCode: 'orderfulfillment-preview', skills: ['inventory-orderfulfillment'] },
-      skillFiles: { 'inventory-orderfulfillment': 'skills/orderfulfillment/SKILL.md' }
+      profile: fulfillmentProfile,
+      skillFiles: Object.fromEntries(
+        fulfillmentProfile.skills.map((name: string) => [name, name === 'inventory-orderfulfillment' ? 'skills/orderfulfillment/SKILL.md' : `skills/${name}/SKILL.md`])
+      )
     }
   ])
   expect((await resources.list()).find(row => row.id === 'gea-html-plan-regional')).toMatchObject({ enabled: true, skills: ['plan-regional'] })
@@ -425,8 +437,8 @@ it('selects the restored regional resource through the original Skill provider a
   expect((await resources.select('gea-html-plan-regional', new AbortController().signal)).preset).toBe('gea-html-plan-regional')
   expect((registered[0].plugins[0].config as { prefix: string }).prefix).toContain('你负责当前区域计划原型的模拟数据解释')
   await owner()
-  expect((await resources.list()).map(row => row.id)).toEqual(['gea-html-inventory-orderfulfillment', 'skill:inventory-orderfulfillment'])
-  expect((await provider.list({})).map(row => row.name)).toEqual(['inventory-orderfulfillment'])
+  expect((await resources.list()).map(row => row.id)).toEqual(['gea-html-inventory-orderfulfillment', ...fulfillmentProfile.skills.map((name: string) => `skill:${name}`)])
+  expect((await provider.list({})).map(row => row.name)).toEqual(fulfillmentProfile.skills)
   expect(registered).toEqual([])
   await otherOwner()
   expect(await resources.list()).toEqual([])
