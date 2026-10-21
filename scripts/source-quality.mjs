@@ -1,3 +1,4 @@
+import { workflowFiles } from './workflow-preflight.mjs'
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, readFileSync, existsSync, realpathSync } from 'node:fs'
 import { dirname, resolve, relative, isAbsolute, basename } from 'node:path'
@@ -61,7 +62,18 @@ function plan() {
       head
     ) &&
     (mode === 'code' || files.some(file => /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file)))
-  return { mode, files, base: diffBase, head, engineering: mode === 'code', 'dependency-review': mode === 'code' && process.env.GITHUB_EVENT_NAME === 'pull_request', codeql }
+  const changedWorkflows = workflowFiles(files)
+  return {
+    mode,
+    files,
+    workflows: changedWorkflows.length > 0,
+    'workflow-files': JSON.stringify(changedWorkflows),
+    base: diffBase,
+    head,
+    engineering: mode === 'code',
+    'dependency-review': mode === 'code' && process.env.GITHUB_EVENT_NAME === 'pull_request',
+    codeql
+  }
 }
 
 function checkResources(result) {
@@ -84,7 +96,7 @@ function checkResources(result) {
   function readSkillNames() {
     return (skillNames ??= new Map(
       tracked
-        .filter(path => /^business-resources\//.test(path) && skill(path))
+        .filter(path => path.startsWith('business-resources/') && skill(path))
         .map(path => [
           path,
           readFileSync(reference(path, basename(path)), 'utf8')
