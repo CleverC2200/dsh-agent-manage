@@ -78,6 +78,8 @@ test('automatic source checks and manual joint checks use distinct merge context
   for (const step of checks.filter(step => step.with?.repository?.startsWith('CleverC2200/dsh-agent-'))) assert.equal(step.if, "needs.source-plan.outputs.engineering == 'true'")
   assert.equal(checks.find(step => step.name === 'Prepare or verify SDK through existing cache contract').if, "steps.affected.outputs.sdk == 'true'")
   assert.equal(checks.find(step => step.name === 'Select affected behavior and type checks before preparation').run, 'node scripts/source-quality.mjs --phase affected-plan')
+  assert.match(checks.find(step => step.id === 'core').run, /ciCores\('required'\)/)
+  assert.doesNotMatch(checks.find(step => step.id === 'core').run, /current-core|adaptation/)
 })
 
 test('hosted quality prepares the declared Workbench npm before peer installation', () => {
