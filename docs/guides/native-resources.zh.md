@@ -32,7 +32,7 @@ Manage 验证已选用提示词的 `pageAgents` 后，在资源摘要和选用�
 
 以下描述本 checkout 的源码声明。实际装载、真实身份、授权、源行与模型行为须分别留证。资源选用与页面可见不授予业务写入。
 
-客户库存、订单工作台与订单履约资源保存在 `business-resources/inventory-customer`、`inventory-orderworkbench` 和 `inventory-orderfulfillment`。原Prompt与Skill只解释模拟数据。Workbench把资源组装进原页面包，选用后关联官方Core Session，不发送模型请求。MCP能力声明为空，GEA拒绝业务SQL读取。
+客户库存、订单工作台与订单履约资源保存在 `business-resources/inventory-customer`、`inventory-orderworkbench` 和 `inventory-orderfulfillment`。Workbench把资源组装进原页面包，选用后关联官方Core Session，不发送模型请求。订单工作台仍仅模拟；客户库存沿现行受控读取合同，订单履约使用 order01 受控只读，缺少正式口径的指标保持未知。资源声明不授予当前用户 Gateway 权限。
 
 已有区域原型使用 `business-resources/plan-regional` 中的原 `plan-regional` 资源。Workbench将其组装到当前 `gea-regional-plan` 页面；Manage通过原生资源选用发布原Prompt与Skill。MCP能力列表为空，GEA只授予view访问。恢复UI草稿不代表真实计划保存。
 

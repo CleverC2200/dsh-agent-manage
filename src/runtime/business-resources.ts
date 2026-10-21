@@ -177,7 +177,7 @@ export class BusinessResources {
     for (const { id, publishPreset, enabled } of definitions)
       if (!this.customizations.get(id)?.disabled && (this.selected.has(id) || (publishPreset && enabled !== false))) {
         try {
-          await this.serialize(() => this.mountPrompt(id, new AbortController().signal))
+          await this.serialize(() => this.mountPrompt(id, new AbortController().signal, false))
         } catch (error) {
           const entry = this.entries.get(id)
           if (entry) entry.error = String(error)
@@ -613,7 +613,7 @@ export class BusinessResources {
     return { profile, interpreters }
   }
 
-  private async mountPrompt(id: string, signal: AbortSignal): Promise<void> {
+  private async mountPrompt(id: string, signal: AbortSignal, audit = true): Promise<void> {
     const entry = this.entries.get(id)
     if (!entry || !entry.definition.prompt || entry.definition.enabled === false || this.customizations.get(id)?.disabled) throw Error('AGENT_RESOURCE_DISABLED_OR_MISSING')
     signal = AbortSignal.any([signal, entry.owner.signal])
@@ -640,27 +640,32 @@ export class BusinessResources {
       await this.persist()
     }
     const version = createHash('sha256').update(JSON.stringify({ profile, override, skills })).digest('hex')
-    if (this.mounted.has(id) && this.versions.get(id) === version && !entry.error) return
-    await this.unmount(id)
-    const definition = await composeStandardPreset(
-      this.ctx.agentPresets,
-      { id, name: d.presetName ?? d.profile.label, description: promptDescription(d), ...(d.order === undefined ? {} : { order: d.order }) },
-      {
-        personaPrefix: override?.prompt ?? profile.persona,
-        plugins: [
-          ...(d.plugins ?? []),
-          ...(!d.inheritSkills || override?.skills ? [{ id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills } }] : [])
-        ]
-      }
-    )
-    signal.throwIfAborted()
-    const dispose = await this.ctx.agentPresets.register(definition)
-    this.mounted.set(id, dispose)
+    const unchanged = this.mounted.has(id) && this.versions.get(id) === version && !entry.error
+    if (unchanged && !audit) return
+    if (!unchanged) {
+      await this.unmount(id)
+      const definition = await composeStandardPreset(
+        this.ctx.agentPresets,
+        { id, name: d.presetName ?? d.profile.label, description: promptDescription(d), ...(d.order === undefined ? {} : { order: d.order }) },
+        {
+          personaPrefix: override?.prompt ?? profile.persona,
+          plugins: [
+            ...(d.plugins ?? []),
+            ...(!d.inheritSkills || override?.skills ? [{ id: 'user-agent-skills', name: 'dsh-agent-manage/user-agent-skills', config: { skills } }] : [])
+          ]
+        }
+      )
+      signal.throwIfAborted()
+      const dispose = await this.ctx.agentPresets.register(definition)
+      this.mounted.set(id, dispose)
+    }
     try {
       signal.throwIfAborted()
       if (this.closed || this.entries.get(id) !== entry) throw Error('AGENT_RESOURCE_OWNER_CHANGED')
-      const resolved = await this.ctx.agentPresets.resolve(id)
-      if (resolved.broken) throw Error(resolved.broken)
+      if (audit) {
+        const resolved = await this.ctx.agentPresets.resolve(id)
+        if (resolved.broken) throw Error(resolved.broken)
+      }
       signal.throwIfAborted()
       this.versions.set(id, version)
       entry.interpreters = interpreters as string[] | undefined

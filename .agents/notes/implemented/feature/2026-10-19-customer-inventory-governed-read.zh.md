@@ -24,6 +24,8 @@ Workbench保留已接收的React/Arco布局，通过共享 `gea-html-v2` SQL通�
 
 ## Consequences
 
+客户库存资源保留用户提供的完整 Agent 提示词和五个专项 Skill，不改业务原文。原 inventory-customer Skill 继续作为页面证据桥接，指标公式和阈值遵循当前页面证据，大日期使用 big_final_qty，不再使用总库存减正常库存的估算。Prompt 与 capability 的 Skill 身份和 Workbench 清单路径按顺序对应，GEA 通过既有资源提供器发布全部六个 Skill。本次不新增查询、写工具、Consumer 授权或历史/批次数据源；客户端安装与真实模型验收独立于资源加载测试。
+
 Workbench在连接或查询之前先挂载六卡片和空表格。未连接、Agent/数据拒权、资源未就绪、会话失效和查询失败均为明确展示状态，不作为空结果成功证据。加载有有限等待；身份/会话变化清除旧数据并取消读取，HTML在脚本未执行时仍有无数据静态界面。这些展示保护不改变GEA授权和指标公式。
 
 源码和映射测试可在无凭据下验证固定SQL、单位、派生和空值保留。源码完成不证明真实可用；安装、环境资源绑定、Consumer授权以及原始SQL回执仍是外部验收证据。用户已确认正式Consumer为 `customer_inventory`，页面、Prompt、MCP和能力声明统一使用该精确编码；页面及资源ID仍为 `inventory-customer`。GEA允许Consumer编码包含下划线，不放宽页面ID，也不授予权限；当前用户和数据资源仍由Gateway授权。

@@ -4,6 +4,8 @@ Status: implemented
 
 客户库存部分已由[客户库存受控读取](2026-10-19-customer-inventory-governed-read.zh.md)部分替代；下述订单工作台、订单履约及其他接收原型决定继续有效。
 
+履约执行部分已由[订单履约受控读取](2026-10-21-order-fulfillment-governed-read.zh.md)部分替代。order01 源读取取代当前仅模拟执行；原始模拟基线、其他原型和共享装配仍归本决定。
+
 ## Problem
 
 客户库存、订单工作台和订单履约已有原型页面与原Agent资源。只有静态页面而没有业务资源声明时，用户无法在页面的Session中选用这些Prompt和Skill。接收原型需要保留原模拟交互和资源原文。
@@ -13,6 +15,8 @@ Status: implemented
 原型保留原页面标识及本地交互。Manage持有原Prompt、Skill和空MCP能力声明；Workbench组装页面与资源文件，GEA只登记view范围的页面grant并拒绝mock的SQL。选用资源复用官方Core Session流程，不发送模型请求。
 
 本决定补充[已选原生业务资源](2026-10-04-selected-business-resources.zh.md)，沿用其资源选用和归属契约，不取代该决定。筛选和分页归当前页面与Session；订单报告临时演示任务保留原重置规则。
+
+履约资源包含用户完整 Agent 提示词、七个领域 Skill 及业务语义参考。SOURCE.json 记录原始与包内摘要，agent-prompt.md 逐字节保留提示词。相对引用转为现有参考读取器可读的 Markdown 链接，并追加当前安装能力边界，不授予工具。原提示词字节与模拟源基线保留；当前 order01 执行归替代决定。自动化文案不等于已实现飞书提醒或 OMS/WMS/TMS 写入。Workbench 清单与提示词中的 Skill 顺序一致。
 
 ## Alternatives considered
 

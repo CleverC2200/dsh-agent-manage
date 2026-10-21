@@ -5,6 +5,11 @@
   "rules": [
     {
       "repo": "dsh-agent-manage",
+      "pattern": "^scripts/build\\.mjs$",
+      "tests": ["tests/quality-ci-cli.test.mjs", "tests/plugin-package-version.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
       "pattern": "^(?:cordis\\.patch\\.yml|package\\.json|pnpm-lock\\.yaml|tsconfig[^/]*|vitest\\.config\\.ts|\\.github/workflows/quality\\.yml|scripts/(?:prepare-official-sdk\\.mjs|sdk-artifact-cache\\.mjs|preset-test-lanes\\.mjs|check-preset-capabilities\\.mjs|run-quality-ci\\.mjs|ci-test-policy\\.json|quality-peer-baseline\\.json))$",
       "tests": [
         "tests/standard-preset*.test.ts",

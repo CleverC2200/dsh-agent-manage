@@ -2,6 +2,7 @@ import { URL } from 'node:url'
 import process from 'node:process'
 import console from 'node:console'
 import { createHash } from 'node:crypto'
+const acquireBuild = options => createRequire(import.meta.url)('../../dsh-gea-plugin/scripts/build-admission.mjs').acquireBuild(options)
 import { existsSync, readFileSync, realpathSync, writeFileSync, mkdirSync, readdirSync, lstatSync } from 'node:fs'
 import { dirname, resolve, relative, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -344,10 +345,15 @@ export function prepareOfficialSource(options) {
   const { coreCommit } = supportedCore(coreHead)
   if (!existsSync(resolve(core, '.git'))) {
     if (!options.source) refuse('SDK_SOURCE_REQUIRED', 'supply --source for a new independent checkout')
-    mkdirSync(dirname(core), { recursive: true })
-    run('git', ['clone', '--config', 'core.autocrlf=false', '--no-checkout', '--no-hardlinks', options.source, core], dirname(core))
-    run('git', ['checkout', '--detach', coreCommit], core)
-    run('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], core)
+    const release = acquireBuild({ operation: 'prepare', cwd: dirname(core), output: core })
+    try {
+      mkdirSync(dirname(core), { recursive: true })
+      run('git', ['clone', '--config', 'core.autocrlf=false', '--no-checkout', '--no-hardlinks', options.source, core], dirname(core))
+      run('git', ['checkout', '--detach', coreCommit], core)
+      run('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], core)
+    } finally {
+      release()
+    }
   }
   ownedSource(core, coreHead)
   return verifyOfficialSource(core, { coreHead })
@@ -358,29 +364,59 @@ export function prepareOfficialSDK(options) {
   const coreHead = options.coreHead
   prepareOfficialSource(options)
   if (options.withFlock) flockTarget(core)
-  // Default SDK stages exclude desktop/native products and runtime startup.
-  // The declared host flock test dependency is built only when requested.
-  run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], core)
   const identity = sdkArtifactIdentity(coreHead)
   const reused = options.reusePrepared === true && verifySDKArtifacts(core, identity)
-  if (!reused) {
-    const tsc = resolve(core, 'node_modules/typescript/bin/tsc')
-    run(process.execPath, ['--max-old-space-size=4096', tsc, '-b', 'tsconfig.host.json'], core)
-    run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'], core)
-    run(process.execPath, [tsc, '-b', 'tsconfig.client.json'], core)
-    run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'], core)
-    writeSDKArtifacts(core, identity)
+  const dependencyReceipt = resolve(core, '.git/dsh-sdk-dependencies.json')
+  const dependencyState = () => ({
+    core: realpathSync(core),
+    coreLock: hash(resolve(core, 'pnpm-lock.yaml')),
+    manifest: hash(resolve(core, 'package.json')),
+    node: process.version,
+    abi: process.versions.modules,
+    platform: process.platform,
+    arch: process.arch,
+    installed: createRequire(import.meta.url)('../../dsh-gea-plugin/scripts/development-dependencies.mjs').installed({
+      path: core,
+      manager: 'pnpm',
+      manifest: json(resolve(core, 'package.json'))
+    })
+  })
+  let dependenciesReused = false
+  if (existsSync(dependencyReceipt)) {
+    try {
+      dependenciesReused = JSON.stringify(json(dependencyReceipt)) === JSON.stringify(dependencyState())
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
+    }
   }
-  if (options.withWeb) {
-    if (reused && existsSync(webReceipt(core))) verifyWeb(core, coreHead)
-    else prepareOfficialWeb({ ...options, withFlock: false })
+  const needsPreparation = !reused || !dependenciesReused || (options.withWeb && !existsSync(webReceipt(core))) || (options.withFlock && !existsSync(flockReceipt(core)))
+  const release = needsPreparation ? acquireBuild({ operation: 'sdk', cwd: core }) : () => {}
+  try {
+    if (!dependenciesReused) {
+      run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], core)
+      writeFileSync(dependencyReceipt, JSON.stringify(dependencyState(), null, 2) + '\n')
+    }
+    if (!reused) {
+      const tsc = resolve(core, 'node_modules/typescript/bin/tsc')
+      run(process.execPath, ['--max-old-space-size=4096', tsc, '-b', 'tsconfig.host.json'], core)
+      run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'], core)
+      run(process.execPath, [tsc, '-b', 'tsconfig.client.json'], core)
+      run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'], core)
+      writeSDKArtifacts(core, identity)
+    }
+    if (options.withWeb) {
+      if (reused && existsSync(webReceipt(core))) verifyWeb(core, coreHead)
+      else prepareOfficialWeb({ ...options, withFlock: false })
+    }
+    if (options.withFlock) {
+      if (reused && existsSync(flockReceipt(core))) verifyFlock(core, coreHead)
+      else prepareOfficialFlock(options)
+    }
+    console.log(JSON.stringify({ stage: 'sdk-preparation', reused, dependenciesReused, core: coreHead }))
+    return verifyOfficialSDK(options)
+  } finally {
+    release()
   }
-  if (options.withFlock) {
-    if (reused && existsSync(flockReceipt(core))) verifyFlock(core, coreHead)
-    else prepareOfficialFlock(options)
-  }
-  console.log(JSON.stringify({ stage: 'sdk-preparation', reused, core: coreHead }))
-  return verifyOfficialSDK(options)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

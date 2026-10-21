@@ -13,3 +13,5 @@ coverage/
 .idea/
 # Independent quality command receipts
 quality-checks.json
+
+.runtime/

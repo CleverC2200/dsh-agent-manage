@@ -21,3 +21,5 @@ The [UI baseline decision](2026-09-29-source-core-ui-baseline.md) retains its Re
 The standard official input must be available read-only before development checks. Source checks and full gates do not prove real latest-client behavior. No SDK/Core source or build is modified by this plugin, and no user state is copied. Existing resource owner/cancellation and Consumer separation remain.
 
 [Two registered official Core releases](2026-10-10-two-official-core-releases.md) partially supersedes the single-release runtime peer decision. The registered alpha.1 development SDK and existing module ownership remain.
+
+[Development build management](2026-10-20-development-build-management.md) extends local preparation and capacity admission; the consumer SDK remains read-only.

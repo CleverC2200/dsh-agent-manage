@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
   "description": "配置个人智能体、技能和 MCP 连接，管理原生预设与资源。",
-  "version": "0.6.3-company.24",
+  "version": "0.6.3-company.25",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -60,8 +60,8 @@
   ],
   "scripts": {
     "typecheck": "node scripts/generate-plugin-package-version.mjs --check && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
-    "build": "node scripts/generate-plugin-package-version.mjs && tsc -p tsconfig.json && pnpm run build:client",
-    "build:client": "node scripts/generate-plugin-package-version.mjs && tsdown && node scripts/normalize-client-banner.mjs",
+    "build": "node scripts/build.mjs",
+    "build:client": "node scripts/build.mjs --client",
     "test": "pnpm run test:package-version && vitest run && pnpm run test:preset-client",
     "test:contract": "vitest run tests/routes.test.ts tests/agent-mcp.test.ts",
     "test:coverage": "vitest run --coverage",
@@ -162,7 +162,7 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.31.0",
+    "@modelcontextprotocol/sdk": "1.32.0",
     "ajv": "^8.17.1",
     "decimal.js": "10.6.0",
     "fflate": "^0.8.3",

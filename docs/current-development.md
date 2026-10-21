@@ -1,5 +1,7 @@
 # Current Manage development / Manage 当前开发
 
+统一依赖、容量准入、构建复用与收尾使用相邻 GEA 的 [开发构建入口](../../dsh-gea-plugin/docs/development-builds.md)及本仓原生环境。 / Dependency preparation, capacity admission, build reuse and finish reports use the sibling GEA [development entry](../../dsh-gea-plugin/docs/development-builds.md) and this repository’s native environment.
+
 This checkout implements Agent/resource management and supplied-input calculations. Business pages belong to Workbench; Session and drafts belong to Core; business identity, credentials and authorization belong to GEA Host. / 本仓维护 Agent/资源管理与输入数据的纯计算。业务页面归 Workbench，Session 与草稿归 Core，业务身份、凭据与授权归 GEA Host。
 
 ## Input and checks / 输入与检查
@@ -17,6 +19,8 @@ Use `corepack pnpm run check:knowledge` for current local references, documented
 The [dual official Core decision](../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.md) and [中文](../.agents/notes/implemented/process/2026-10-10-two-official-core-releases.zh.md) own the exact rc.2/alpha.1 runtime peers and `DSH_CORE_CHECKOUT` capability matrix. [Clean CI](clean-ci.md) prepares the selected registered SDK before consumer installation; CI binds its Core head explicitly and runs both registered baselines. / [干净 CI](clean-ci.md) 在消费者安装前准备所选登记 SDK，CI 显式绑定 Core head 并分别运行两版基线。
 
 ## Current ownership / 当前决定归属
+
+- [Order fulfillment governed read](../.agents/notes/implemented/feature/2026-10-21-order-fulfillment-governed-read.md) and [中文](../.agents/notes/implemented/feature/2026-10-21-order-fulfillment-governed-read.zh.md) own the order01 declarations, source gaps and Gateway authorization boundary. / order01 声明、字段缺口与网关授权边界归该决定。
 
 - [Customer inventory governed read](../.agents/notes/implemented/feature/2026-10-19-customer-inventory-governed-read.md) and [中文](../.agents/notes/implemented/feature/2026-10-19-customer-inventory-governed-read.zh.md) own the current customer snapshot table, governed SQL path, derivations and unknown-field boundary. / 客户库存最新快照表、受控SQL链路、派生口径与未知字段边界归该决定。
 

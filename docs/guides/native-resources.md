@@ -26,7 +26,7 @@ The public `dsh-agent-manage/forecast-source` export provides the calculator ver
 
 The following describes this checkout’s source declarations. Installed runtime, live identity, grants, source rows and model behavior require separate receipts. Resource selection and page visibility do not grant business writes.
 
-Customer stock, order report and order fulfillment resources are retained in `business-resources/inventory-customer`, `inventory-orderworkbench` and `inventory-orderfulfillment`. Their original personas and Skills describe mock data only. The Workbench assembles them into existing page packages; selecting them prepares an official Core Session without a model request. Their MCP capability list is empty and GEA rejects business SQL.
+Customer stock, order report and order fulfillment resources are retained in `business-resources/inventory-customer`, `inventory-orderworkbench` and `inventory-orderfulfillment`. Workbench assembles them into page packages; selection prepares an official Core Session without a model request. Order report remains mock-only. Customer inventory uses its governed-read contract; fulfillment uses order01 governed read, with unresolved official metrics kept unknown. Source declarations do not grant current-user Gateway access.
 
 The existing regional prototype uses the original `plan-regional` resource in `business-resources/plan-regional`. Workbench assembles it into the current `gea-regional-plan` page; Manage publishes the original persona and Skill through native resource selection. Its MCP capability list is empty and GEA grants only view access. UI draft recovery does not save a business plan.
 
