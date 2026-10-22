@@ -116,6 +116,14 @@ jobs:
           QUALITY_CORE_HEAD: ${{ steps.core.outputs.head }}
         run: |
           node --input-type=module -e "import { verifyOfficialSource } from '../dsh-agent-manage/scripts/prepare-official-sdk.mjs'; console.log(JSON.stringify(verifyOfficialSource(process.env.GITHUB_WORKSPACE + '/source/official-core', { coreHead: process.env.QUALITY_CORE_HEAD })))"
+      - name: Read fixed Core command metadata for knowledge checks
+        if: steps.affected.outputs.tooling == 'true'
+        run: |
+          node --input-type=module <<'NODE'
+          import { ciCores } from '../dsh-gea-plugin/scripts/ci-core-policy.mjs';
+          import { prepareCoreCommandMetadata } from '../dsh-agent-workbench/scripts/source-tools.mjs';
+          console.log(JSON.stringify({ coreMetadata: await prepareCoreCommandMetadata(ciCores('required')[0].head, process.env.GITHUB_WORKSPACE) }));
+          NODE
       - name: Enable declared package managers
         if: steps.affected.outputs.dependencies == 'true' || steps.affected.outputs.sdk == 'true'
         run: |
