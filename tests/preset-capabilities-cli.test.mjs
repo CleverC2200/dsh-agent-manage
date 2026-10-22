@@ -31,6 +31,8 @@ function run(change = () => {}, plan, missingFile) {
       ])
     )
     mkdirSync(join(root, 'tests'))
+    mkdirSync(join(root, 'scripts'))
+    writeFileSync(join(root, 'scripts/source-quality.test.mjs'), '')
     writeFileSync(join(root, 'tests/routes.test.ts'), '')
     writeFileSync(join(root, 'tests/download-cache.test.mjs'), '')
     for (const file of Object.keys(presetHostOwners)) writeFileSync(join(root, file), '')
@@ -134,7 +136,7 @@ test('source-affected capability CLI runs only the selected client and GEA files
     schemaVersion: 1,
     mode: 'source-affected',
     repo: 'dsh-agent-manage',
-    files: ['tests/routes.test.ts', 'tests/standard-preset-draft.test.ts', 'tests/user-agent-cube-gea.test.ts']
+    files: ['scripts/source-quality.test.mjs', 'tests/routes.test.ts', 'tests/standard-preset-draft.test.ts', 'tests/user-agent-cube-gea.test.ts']
   })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(

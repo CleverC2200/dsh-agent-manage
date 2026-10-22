@@ -17,7 +17,7 @@ if (
     !Array.isArray(plan.files) ||
     !plan.files.length ||
     new Set(plan.files).size !== plan.files.length ||
-    plan.files.some(file => typeof file !== 'string' || !/^tests\/[^/]+\.test\.(?:ts|mjs)$/.test(file) || !existsSync(resolve(file))))
+    plan.files.some(file => typeof file !== 'string' || !/^(?:tests|scripts)\/[^/]+\.test\.(?:ts|mjs)$/.test(file) || !existsSync(resolve(file))))
 )
   throw Error('CAPABILITY_PLAN_REQUIRED: expected the Manage affected test plan')
 if (plan?.files.some(file => Object.hasOwn(presetHostOwners, file))) throw Error('CAPABILITY_PLAN_UNOWNED_HOST: use the client execution owner')
