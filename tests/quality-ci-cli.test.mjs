@@ -878,6 +878,7 @@ test('source tools skip Core while both download caches retain successful misses
     assert.ok(save.if.includes('steps.' + id + ".outputs.cache-hit != 'true'"))
     assert.deepEqual(save.with.path, restore.with.path)
     assert.ok(steps.indexOf(save) > steps.findIndex(step => step.name === 'Prepare dependencies consumed by selected checks'))
+    if (id === 'download-cache') assert.ok(steps.indexOf(save) > steps.findIndex(step => step.name === 'Run affected behavior and real TypeScript checks'))
   }
   const tools = steps.find(step => step.id === 'tool-download-cache')
   assert.equal(tools.with['restore-keys'], undefined)
