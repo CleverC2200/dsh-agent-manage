@@ -20,18 +20,10 @@
     ]
   },
   "maxEffect": "view",
-  "layers": [
-    "read"
-  ],
-  "skills": [
-    "inventory-mps"
-  ],
+  "layers": ["read"],
+  "skills": ["inventory-mps"],
   "routing": {
-    "keywords": [
-      "MPS",
-      "主生产计划",
-      "inventory-mps"
-    ],
+    "keywords": ["MPS", "主生产计划", "inventory-mps"],
     "summary": "只读核对月主计划期初、纠偏、历史发货、产品、年度需求及真实产线调拨关系，解释本地发货测算与未定口径。"
   }
 }
