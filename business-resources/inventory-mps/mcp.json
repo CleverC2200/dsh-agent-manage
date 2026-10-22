@@ -7,5 +7,5 @@
     "consumerType": "AGENT",
     "consumerCode": "mps"
   },
-  "capabilities": ["governed-sql-read"]
+  "capabilities": ["governed-sql-read", "governed-cube-read"]
 }

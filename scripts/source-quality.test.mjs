@@ -161,6 +161,8 @@ test('packaged Agent resources reject missing assembly inputs and invalid runtim
   const valid = fixture(t, files, { [prefix + 'prompt.json']: JSON.stringify({ ...prompt, persona: 'Use updated evidence.' }) })
   assert.equal(JSON.parse(valid.run('plan').stdout).engineering, false)
   assert.equal(valid.run('check').status, 0)
+  const cube = fixture(t, files, { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: ['governed-sql-read', 'governed-cube-read'] }) })
+  assert.equal(cube.run('check').status, 0)
   for (const changed of [
     { [prefix + 'prompt.json']: JSON.stringify({ ...prompt, persona: '' }) },
     { [prefix + 'prompt.json']: JSON.stringify({ ...prompt, consumerCode: 'another' }) },
@@ -170,7 +172,13 @@ test('packaged Agent resources reject missing assembly inputs and invalid runtim
     { [prefix + 'skills/demo/SKILL.md']: null },
     { [prefix + 'capability.json']: JSON.stringify({ ...capability, id: 'another' }) },
     { [prefix + 'capability.json']: JSON.stringify({ ...capability, maxEffect: 'approve' }) },
-    { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: [] }) }
+    { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: [] }) },
+    { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: ['governed-cube-read'] }) },
+    { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: ['governed-sql-read', 'arbitrary-write'] }) },
+    {
+      [prefix + 'capability.json']: JSON.stringify({ ...capability, data: { ...capability.data, mock: true } }),
+      [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: ['governed-sql-read', 'governed-cube-read'] })
+    }
   ]) {
     const repo = fixture(t, files, changed)
     const plan = JSON.parse(repo.run('plan').stdout)
