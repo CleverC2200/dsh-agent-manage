@@ -56,7 +56,7 @@ test('new workbench prompt keeps its source and preserves the existing preview c
   assert.equal(hash(prompt), (await json(root, 'SOURCE.json')).promptSha256)
   assert.ok(profile.persona.startsWith(prompt.toString('utf8')))
   assert.match(profile.persona, /订单工作台 Agent/)
-  assert.equal(profile.consumerCode, 'orderworkbench-preview')
+  assert.equal(profile.consumerCode, 'order')
   assert.equal((await json(root, 'capability.json')).data.mock, true)
   assert.deepEqual((await json(root, 'mcp.json')).capabilities, [])
   const fulfillment = rootFor('orderfulfillment')

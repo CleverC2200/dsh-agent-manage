@@ -1,8 +1,6 @@
 # Fixed SDK and clean CI / 固定 SDK 与干净 CI
 
-PR 与 main push 由 `.github/workflows/source-quality.yml` 执行本仓 JavaScript/JSON 语法、差分空白、包版本标识和 workflow 中列出的独立回归。PR 同时执行依赖审查，`candidate-quality` 汇总并拒绝失败、取消或缺失的适用检查。该流程只检出本仓，不读取 peer baseline、不要求跨仓凭据，也不装配另外两仓。
-
-三仓冻结、SDK 准备、完整类型/构建、受影响集成与浏览器测试改由 `.github/workflows/quality.yml` 的手动 `workflow_dispatch` 执行，最终检查名为 `joint-quality`，不再作为日常合并条件。手动 alpha compatibility 入口保留。日常绿灯只证明上述本仓检查，不能表示三仓或客户端验收通过。
+日常 source-quality 的分类、检查与联合执行边界由[共享 CI 规则](../../dsh-agent-workbench/docs/ci-required-and-affected.md)维护。本地轻预检及未提交影响计划见[开发构建入口](../../dsh-gea-plugin/docs/development-builds.md)。本页保留 Manage 的 SDK 与联合准备合同。
 
 下文描述手动三仓流程及其历史范围，涉及联合合并门禁的旧说明不再适用于日常 PR/main。
 
@@ -73,7 +71,7 @@ The final `candidate-quality` accepts only successful scope, every applicable qu
 
 The original PR `dependency-review` job separately checks dependency changes and remains independently failing when private-repository features are unavailable. Its coverage is distinct from the consumer audit. The final quality aggregate requires successful audit and dependency review only when their plan inputs make them applicable. / 原 PR 依赖差异审查 job 单独保留；私有仓库能力不可用时保持独立失败，其覆盖与消费者漏洞审计分别记录。最终质量汇总只要求本次计划适用的 audit 和 dependency-review 成功。
 
-This covers known vulnerabilities in the consumer lock, including development dependencies. It does not establish dependency-diff, license-policy or linked Core's full dependency-closure coverage. Historical private-repository CodeQL upload failures remain evidence; current source scans require their actual hosted result. Quality includes applicable audit and dependency-review results; the reusable CodeQL scan joins final quality when its source inputs change. / 此审计覆盖消费者锁内已知漏洞及开发依赖，依赖差异、许可证及 linked Core 完整安全闭包仍未证明。历史私有仓 CodeQL 阻断证据保留；当前公开仓扫描须以本次精确提交结果核验。质量汇总包含适用的 audit 和 dependency-review 结果，复用的 CodeQL 扫描在其源码输入变化时进入最终质量汇总。
+This covers known vulnerabilities in the consumer lock, including development dependencies. It does not establish dependency-diff, license-policy or linked Core's full dependency-closure coverage. CodeQL source analysis, scheduled scans and aggregate inputs are removed from current CI. Historical scan results and failures remain evidence. Applicable audit and dependency-review results still participate in final quality; they do not replace CodeQL's source dataflow analysis. / 此审计覆盖消费者锁内已知漏洞及开发依赖，依赖差异、许可证及 linked Core 完整安全闭包仍未证明。当前 CI 已移除 CodeQL 源码分析、定时扫描及汇总输入，历史扫描结果与失败证据保留。适用 audit 和 dependency-review 仍进入最终质量汇总，两者不替代 CodeQL 的源码数据流分析。
 
 Source tests, remote CI, Windows, Native, real business/model behavior and repository protection need their own evidence. No SDK preparation or quality command grants production release or business write permission. / 源码测试、远端 CI、Windows、Native、真实业务/模型和仓库保护分别留证。SDK 准备与质量命令不授予正式发行或业务写入权限。
 
@@ -89,7 +87,7 @@ The fixed business repair exception has retired from executable CI. Its original
 
 ## Preparation follows the admitted plan / 按准入计划准备
 
-The [shared CI rules](../../dsh-agent-workbench/docs/ci-required-and-affected.md) own docs/source classification and platform/security applicability. Manage consumes that plan before SDK preparation. Its docs lane keeps original-source admission, current knowledge references and changed-file whitespace checks, without consumer installation or Markdown formatting. Applicable audit and dependency-review results participate in final quality; CodeQL uses the same reusable scan for applicable source quality and the retained weekly schedule. / [共享 CI 规则](../../dsh-agent-workbench/docs/ci-required-and-affected.md)持有文档与源码分类、平台及安全检查适用性。Manage 在 SDK 准备前消费该计划；docs 保留原源码准入、当前知识引用与变更文件空白检查，不安装消费者、不检查 Markdown 排版。适用 audit 与 dependency-review 进入最终质量汇总，CodeQL 的适用源码检查和每周计划复用同一份扫描实现。
+The [shared CI rules](../../dsh-agent-workbench/docs/ci-required-and-affected.md) own docs/source classification and platform/security applicability. Manage consumes that plan before SDK preparation. Its docs lane keeps original-source admission, current knowledge references and changed-file whitespace checks, without consumer installation or Markdown formatting. Applicable audit and dependency-review results participate in final quality. / [共享 CI 规则](../../dsh-agent-workbench/docs/ci-required-and-affected.md)持有文档与源码分类、平台及安全检查适用性。Manage 在 SDK 准备前消费该计划；docs 保留原源码准入、当前知识引用与变更文件空白检查，不安装消费者、不检查 Markdown 排版。适用 audit 与 dependency-review 进入最终质量汇总。
 
 Hosted engineering regressions use the same affected test pool, with Node files executed through Node and TypeScript files through Vitest. They no longer run unconditionally inside static checks. Hosted static checks retain the generated identity precheck and client TypeScript check. The host build emits and checks the same host project once. Local `typecheck` keeps its complete read-only entry. Capability receipts require each selected file exactly once, at least one case per file, successful child completion and no skipped or unknown cases; adding passing cases needs no second count update. The historical fixed-PID browser probe is preserved byte-for-byte under `docs/history/verification/`. / hosted 工程回归进入同一受影响测试池，Node 文件由 Node 执行，TypeScript 文件由 Vitest 执行，不再无条件塞入静态检查。hosted 静态检查保留生成身份前置核验与 client TypeScript 检查，host build 对同一 host 项目只编译检查一次。本地 typecheck 保留完整只读入口。能力回执要求每个选中文件唯一、每文件至少一例、子进程成功且没有跳过或未知状态；增加通过用例无需同步第二份数量。历史固定 PID 浏览器探针原样保存在 docs/history/verification/。
 

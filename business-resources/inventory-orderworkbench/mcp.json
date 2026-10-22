@@ -3,7 +3,7 @@
   "provider": "gea",
   "consumer": {
     "consumerType": "AGENT",
-    "consumerCode": "orderworkbench-preview"
+    "consumerCode": "order"
   },
   "capabilities": [],
   "transport": "host-provided",

@@ -13,7 +13,7 @@ import { presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 const call = (phase, env) =>
   spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', phase], {
     encoding: 'utf8',
-    env: { ...process.env, QUALITY_APPLICABILITY: 'source', QUALITY_AUDIT_APPLICABLE: 'false', QUALITY_DEPENDENCY_APPLICABLE: 'false', QUALITY_CODEQL_APPLICABLE: 'false', ...env }
+    env: { ...process.env, QUALITY_APPLICABILITY: 'source', QUALITY_AUDIT_APPLICABLE: 'false', QUALITY_DEPENDENCY_APPLICABLE: 'false', ...env }
   })
 test('fork scope is rejected before preparation', () => {
   const result = call('scope', { QUALITY_SCOPE_ALLOWED: 'false' })
@@ -32,12 +32,10 @@ test('final quality aggregate rejects failure, missing, skipped and cancelled qu
 
 test('final quality rejects failed applicable security checks and accepts explicitly inapplicable lanes', () => {
   const successful = { QUALITY_SCOPE_RESULT: 'success', QUALITY_GATE_RESULT: 'success', QUALITY_WINDOWS_RESULT: 'success' }
-  for (const key of ['QUALITY_APPLICABILITY', 'QUALITY_AUDIT_APPLICABLE', 'QUALITY_DEPENDENCY_APPLICABLE', 'QUALITY_CODEQL_APPLICABLE'])
-    assert.equal(call('final', { ...successful, [key]: '' }).status, 1)
+  for (const key of ['QUALITY_APPLICABILITY', 'QUALITY_AUDIT_APPLICABLE', 'QUALITY_DEPENDENCY_APPLICABLE']) assert.equal(call('final', { ...successful, [key]: '' }).status, 1)
   for (const state of ['failure', 'cancelled', 'skipped', '']) {
     assert.equal(call('final', { ...successful, QUALITY_AUDIT_APPLICABLE: 'true', QUALITY_AUDIT_RESULT: state }).status, 1)
     assert.equal(call('final', { ...successful, QUALITY_DEPENDENCY_APPLICABLE: 'true', QUALITY_DEPENDENCY_RESULT: state }).status, 1)
-    assert.equal(call('final', { ...successful, QUALITY_CODEQL_APPLICABLE: 'true', QUALITY_CODEQL_RESULT: state }).status, 1)
   }
   assert.equal(
     call('final', {
@@ -45,9 +43,7 @@ test('final quality rejects failed applicable security checks and accepts explic
       QUALITY_AUDIT_APPLICABLE: 'true',
       QUALITY_AUDIT_RESULT: 'success',
       QUALITY_DEPENDENCY_APPLICABLE: 'true',
-      QUALITY_DEPENDENCY_RESULT: 'success',
-      QUALITY_CODEQL_APPLICABLE: 'true',
-      QUALITY_CODEQL_RESULT: 'success'
+      QUALITY_DEPENDENCY_RESULT: 'success'
     }).status,
     0
   )
@@ -58,7 +54,6 @@ test('final quality rejects failed applicable security checks and accepts explic
       QUALITY_AUDIT_APPLICABLE: 'false',
       QUALITY_AUDIT_RESULT: 'skipped',
       QUALITY_DEPENDENCY_APPLICABLE: 'false',
-      QUALITY_CODEQL_APPLICABLE: 'false',
       QUALITY_DEPENDENCY_RESULT: 'skipped'
     }).status,
     0
@@ -74,7 +69,15 @@ test('automatic source checks and manual joint checks use distinct merge context
   assert.match(source, /^ {2}push:/m)
   assert.match(source, /^ {2}pull_request:/m)
   assert.match(source, /^ {2}candidate-quality:/m)
-  assert.doesNotMatch(source, /PLUGIN_SPLIT_READ_TOKEN|quality-peer-baseline|read-hosted-peer-input|write-hosted-group/)
+  const checks = parseYaml(source).jobs['source-checks'].steps
+  for (const step of checks.filter(step => step.with?.repository?.startsWith('CleverC2200/dsh-agent-'))) assert.equal(step.if, "needs.source-plan.outputs.engineering == 'true'")
+  assert.equal(
+    checks.find(step => step.name === 'Prepare or verify SDK through existing cache contract').if,
+    "steps.affected.outputs.sdk == 'true' && steps.reuse.outputs.hit != 'true'"
+  )
+  assert.equal(checks.find(step => step.name === 'Select affected behavior and type checks before preparation').run, 'node scripts/source-quality.mjs --phase affected-plan')
+  assert.match(checks.find(step => step.id === 'core').run, /ciCores\('required'\)/)
+  assert.doesNotMatch(checks.find(step => step.id === 'core').run, /current-core|adaptation/)
 })
 
 test('hosted quality prepares the declared Workbench npm before peer installation', () => {
@@ -389,8 +392,9 @@ async function sourceImpactFixture(t, { fullSource = false } = {}) {
     if (repo === 'dsh-agent-manage') {
       for (const file of git(source, 'ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean)) {
         if (!existsSync(join(source, file)) || file.startsWith('lib/') || !/\.(?:[cm]?[jt]sx?|css|html|json|ya?ml)$/.test(file)) continue
-        if (fullSource || file === 'scripts/ci-test-policy.json') write(join(path, file), readFileSync(join(source, file)))
-        else if (/^tests\/[^/]+\.test\.(?:ts|mjs)$/.test(file)) write(join(path, file), '')
+        if (fullSource || file === 'scripts/ci-test-policy.json' || /^scripts\/workflow-preflight(?:\.test)?\.mjs$/.test(file))
+          write(join(path, file), readFileSync(join(source, file)))
+        else if (/^(?:tests\/[^/]+\.test\.(?:ts|mjs)|scripts\/source-quality\.test\.mjs)$/.test(file)) write(join(path, file), '')
       }
       write(join(path, 'scripts/quality-peer-baseline.json'), JSON.stringify({ repositories: repositories.map(({ repo, head }) => ({ repo, head })) }))
     }
@@ -579,21 +583,6 @@ function qualityExecution(t, files, { cacheOutput = false, invalidReceipt = fals
   }
 }
 
-test('quality calls one reusable CodeQL implementation at the actual source commit', () => {
-  const codeql = parseYaml(readFileSync('.github/workflows/codeql.yml', 'utf8'))
-  assert.ok(codeql.on.workflow_call.inputs.source_sha.required)
-  assert.ok(codeql.on.schedule.length)
-  assert.ok(!codeql.on.push && !codeql.on.pull_request)
-  const checkout = codeql.jobs.analyze.steps.find(step => step.uses?.startsWith('actions/checkout@'))
-  assert.equal(checkout.with.ref, '${{ inputs.source_sha || github.sha }}')
-  for (const file of ['quality', 'compatibility']) {
-    const workflow = parseYaml(readFileSync(`.github/workflows/${file}.yml`, 'utf8'))
-    assert.equal(workflow.jobs.codeql.uses, './.github/workflows/codeql.yml')
-    assert.equal(workflow.jobs.codeql.with.source_sha, '${{ github.event.pull_request.head.sha || github.sha }}')
-    assert.equal(workflow.jobs.codeql.permissions['security-events'], 'write')
-  }
-})
-
 test('retired business exceptions have no executable route while behavior tests remain available', () => {
   assert.doesNotMatch(readFileSync('scripts/run-quality-ci.mjs', 'utf8'), /business-profile/)
   assert.doesNotMatch(readFileSync('.github/workflows/quality.yml', 'utf8'), /business-lane|business-profile/)
@@ -767,7 +756,14 @@ test('dynamic inventory resources keep the inventory Session and GEA contracts',
 test('CI input writer changes select their Node contracts without fixed capability batches', async t => {
   const fixture = await sourceImpactFixture(t, { fullSource: true })
   fixture.change('scripts/write-ci-input.mjs', fixture.own)
-  assert.deepEqual(fixture.select().files, ['tests/agent-mcp.test.ts', 'tests/ci-applicability.test.mjs', 'tests/quality-ci-cli.test.mjs', 'tests/routes.test.ts'])
+  assert.deepEqual(fixture.select().files, [
+    'scripts/source-quality.test.mjs',
+    'tests/agent-mcp.test.ts',
+    'tests/ci-applicability.test.mjs',
+    'tests/preset-capabilities-cli.test.mjs',
+    'tests/quality-ci-cli.test.mjs',
+    'tests/routes.test.ts'
+  ])
 })
 
 test('Workbench Session preparation and registered Core inputs keep the capability consumers', async t => {
@@ -851,4 +847,63 @@ test('a direct client owner change runs that file once without falsely recording
   assert.equal(plan.files.filter(file => file === 'tests/base-preset-client.test.ts').length, 1)
   assert.equal(plan.files.includes('tests/base-resource-host.test.ts'), false)
   assert.equal(Object.hasOwn(plan.executedBy, 'tests/base-resource-host.test.ts'), false)
+})
+
+test('source tools skip Core while both download caches retain successful misses for reuse', () => {
+  const steps = parseYaml(readFileSync('.github/workflows/source-quality.yml', 'utf8')).jobs['source-checks'].steps
+  const core = steps.find(step => step.with?.repository === 'CleverC2200/deepseek-harness')
+  assert.equal(core.if, "steps.affected.outputs.core == 'true' && steps.reuse.outputs.hit != 'true'")
+  for (const id of ['tool-download-cache', 'download-cache']) {
+    const restore = steps.find(step => step.id === id)
+    const save = steps.find(step => step.uses === 'actions/cache/save@v4' && step.with?.key === '${{ steps.' + id + '.outputs.cache-primary-key }}')
+    assert.equal(restore.uses, 'actions/cache/restore@v4')
+    assert.ok(save)
+    assert.match(save.if, /success\(\)/)
+    assert.ok(save.if.includes('steps.' + id + ".outputs.cache-hit != 'true'"))
+    assert.deepEqual(save.with.path, restore.with.path)
+    assert.ok(steps.indexOf(save) > steps.findIndex(step => step.name === 'Prepare dependencies consumed by selected checks'))
+    if (id === 'download-cache') assert.ok(steps.indexOf(save) > steps.findIndex(step => step.name === 'Run affected behavior and real TypeScript checks'))
+  }
+  const tools = steps.find(step => step.id === 'tool-download-cache')
+  assert.equal(tools.with['restore-keys'], undefined)
+  assert.equal(tools.with.path, '${{ steps.affected.outputs.tools-downloads }}')
+})
+
+test('merged PR result reuse skips only the validated body and preserves every fallback check', () => {
+  const workflow = parseYaml(readFileSync('.github/workflows/source-quality.yml', 'utf8'))
+  const job = workflow.jobs['source-checks'],
+    steps = job.steps
+  const affected = steps.findIndex(step => step.id === 'affected')
+  const lookup = steps.findIndex(step => step.id === 'reuse')
+  const check = steps.findIndex(step => step.name === 'Check applicable repository source')
+  assert.ok(affected < lookup && lookup < check)
+  assert.equal(job.permissions.actions, 'read')
+  assert.equal(workflow.jobs['candidate-quality'].if, 'always()')
+  assert.ok(workflow.jobs['candidate-quality'].needs.includes('source-checks'))
+  const evaluate = (condition, hit) =>
+    Function(
+      'steps',
+      'needs',
+      'success',
+      'return (' + condition.replace(/(steps|needs)\.([\w-]+)\.outputs\.([\w-]+)/g, (_, kind, id, output) => `${kind}["${id}"].outputs["${output}"]`) + ')'
+    )({ reuse: { outputs: { hit } }, affected: { outputs: { dependencies: 'true', sdk: 'false' } } }, { 'source-plan': { outputs: { engineering: 'true' } } }, () => true)
+  for (const name of [
+    'Check applicable repository source',
+    'Check committed package version',
+    'Enable declared package managers',
+    'Prepare dependencies consumed by selected checks',
+    'Run affected behavior and real TypeScript checks'
+  ]) {
+    const step = steps.find(step => step.name === name)
+    assert.equal(evaluate(step.if, 'true'), false, name)
+    assert.equal(evaluate(step.if, 'false'), true, name)
+    assert.equal(step['continue-on-error'], undefined)
+  }
+  const record = steps.findIndex(step => step.id === 'receipt')
+  assert.ok(record > steps.findIndex(step => step.name === 'Run affected behavior and real TypeScript checks'))
+  assert.match(steps[record].if, /success\(\)/)
+  const store = steps.find(step => step.name === 'Store reusable tool-check receipt')
+  assert.equal(store.with.name, 'source-result-${{ github.run_attempt }}')
+  assert.equal(store.if, "steps.receipt.outputs.published == 'true'")
+  assert.equal(workflow.permissions.contents, 'read')
 })

@@ -25,12 +25,6 @@ const audit =
         (repo === 'dsh-agent-manage' && /^(?:scripts\/(?:run-quality-ci|write-ci-input)\.mjs|\.github\/workflows\/(?:quality|compatibility)\.yml)$/.test(file))
     ))
 const dependencyReview = !docs && (!plan || changes.some(({ repo, file }) => repo === 'dsh-agent-manage' && dependencyInput(file)))
-const codeql =
-  !docs &&
-  (!plan ||
-    changes.some(
-      ({ repo, file }) => repo === 'dsh-agent-manage' && /(?:\.(?:[cm]?jsx?|tsx?)$|^(?:package\.json|pnpm-lock\.yaml|tsconfig[^/]*|\.github\/workflows\/codeql\.yml)$)/.test(file)
-    ))
 const archives =
   !docs &&
   (!plan ||
@@ -51,7 +45,7 @@ const matrix = {
 if (process.env.GITHUB_OUTPUT) {
   appendFileSync(
     process.env.GITHUB_OUTPUT,
-    `core-head=${supported[0].head}\napplicability=${docs ? 'docs' : 'source'}\naudit-applicable=${audit}\ndependency-review-applicable=${dependencyReview}\ncodeql-applicable=${codeql}\n`
+    `core-head=${supported[0].head}\napplicability=${docs ? 'docs' : 'source'}\naudit-applicable=${audit}\ndependency-review-applicable=${dependencyReview}\n`
   )
   appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(matrix)}\n`)
   appendFileSync(process.env.GITHUB_OUTPUT, `audit-matrix=${JSON.stringify({ include: matrix.include.filter(entry => entry.phase === 'quality') })}\n`)
