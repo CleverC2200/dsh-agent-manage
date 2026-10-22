@@ -5,6 +5,10 @@ description: 在 DSH 分仓库存业务页读取当前 GEA 证据、调整筛选
 
 # 分仓库存
 
+## 当前订单与缺货问数
+
+当前订单与当前缺货问数优先调用 gea_current_shortage，view=summary 返回完整范围；base 传基地名称（如郑州），warehouseCode 传分仓编码，sku 传商品编码；view=detail 按地点+SKU翻页。该工具与页面共用已安装 SQL 配置和当前 Agent 的统一 GEA 授权，无需打开页面。当前状态不按月截断，不支持重建历史；来源或授权失败保持未知，不能换通道重试。单位箱，1件=1箱。此指标以固定查询为准，其余指标沿各自已发布来源。
+
 规则说明可以直接使用本 Skill；实际取数须选用已启用的分仓业务资源，加载 Skill 或角色名称不授予业务身份。独立查询在需要确认成员时使用本轮提供的 `mcp__gea-gateway__inspect_cube_model`，再按实际 Schema 调用 `mcp__gea-gateway__query_business_data`；已核实成员可直接用于最小查询。身份、页面或服务端授权失败时保留原错误并说明缺口，相同条件未变化时停止重复试探。其它 MCP 的结果标明独立来源，不能证明 GEA 页面恢复。
 
 ## 工作顺序
