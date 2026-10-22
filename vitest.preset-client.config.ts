@@ -11,8 +11,8 @@ import { core } from './tests/official-core-input.js'
 const { config, error } = ts.parseConfigFileTextToJson(`${core}/tsconfig.base.json`, readFileSync(`${core}/tsconfig.base.json`, 'utf8'))
 if (error) throw Error('Cannot read fixed Core source mapping')
 const aliases = Object.entries(config.compilerOptions.paths as Record<string, string[]>).map(([name, paths]) => ({
-  find: new RegExp('^' + name.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace('*', '(.*)') + '$'),
-  replacement: resolve(core, paths[0].replace('*', '$1'))
+  find: new RegExp('^' + name.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '(.*)') + '$'),
+  replacement: resolve(core, paths[0].replaceAll('*', '$1'))
 }))
 
 const workbench = resolve(process.env.DSH_WORKBENCH_CHECKOUT ?? '../dsh-agent-workbench')

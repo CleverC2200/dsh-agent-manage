@@ -36,7 +36,7 @@ export function officialModulePath(name: string): string {
   const selected = pkg.manifest.exports?.[subpath]
   let path = (typeof selected === 'string' ? selected : selected?.default) ?? (subpath === '.' ? pkg.manifest.main : undefined)
   if (!path && subpath.startsWith('./src/') && typeof pkg.manifest.exports?.['./src/*'] === 'string')
-    path = pkg.manifest.exports['./src/*'].replace('*', subpath.slice('./src/'.length))
+    path = pkg.manifest.exports['./src/*'].replaceAll('*', () => subpath.slice('./src/'.length))
   if (!path) throw Error(`Selected Core has no public export ${name}`)
   return realpathSync(resolve(pkg.root, path))
 }
@@ -50,8 +50,8 @@ export function officialHostAliases(): { find: RegExp; replacement: string }[] {
       if (typeof target !== 'string') continue
       const name = id + (subpath === '.' ? '' : subpath.slice(1))
       aliases.push({
-        find: new RegExp('^' + name.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace('*', '(.*)') + '$'),
-        replacement: resolve(root, target.replace('*', '$1'))
+        find: new RegExp('^' + name.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '(.*)') + '$'),
+        replacement: resolve(root, target.replaceAll('*', '$1'))
       })
     }
   }

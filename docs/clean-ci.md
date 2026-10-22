@@ -1,8 +1,6 @@
 # Fixed SDK and clean CI / 固定 SDK 与干净 CI
 
-PR 与 main push 由 `.github/workflows/source-quality.yml` 执行本仓 JavaScript/JSON 语法、差分空白、包版本标识和 workflow 中列出的独立回归。PR 同时执行依赖审查，`candidate-quality` 汇总并拒绝失败、取消或缺失的适用检查。该流程只检出本仓，不读取 peer baseline、不要求跨仓凭据，也不装配另外两仓。
-
-三仓冻结、SDK 准备、完整类型/构建、受影响集成与浏览器测试改由 `.github/workflows/quality.yml` 的手动 `workflow_dispatch` 执行，最终检查名为 `joint-quality`，不再作为日常合并条件。手动 alpha compatibility 入口保留。日常绿灯只证明上述本仓检查，不能表示三仓或客户端验收通过。
+日常 source-quality 的分类、检查与联合执行边界由[共享 CI 规则](../../dsh-agent-workbench/docs/ci-required-and-affected.md)维护。本地轻预检及未提交影响计划见[开发构建入口](../../dsh-gea-plugin/docs/development-builds.md)。本页保留 Manage 的 SDK 与联合准备合同。
 
 下文描述手动三仓流程及其历史范围，涉及联合合并门禁的旧说明不再适用于日常 PR/main。
 

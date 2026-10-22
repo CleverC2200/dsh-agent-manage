@@ -1,6 +1,6 @@
 # Current Manage development / Manage 当前开发
 
-统一依赖、容量准入、构建复用与收尾使用相邻 GEA 的 [开发构建入口](../../dsh-gea-plugin/docs/development-builds.md)及本仓原生环境。 / Dependency preparation, capacity admission, build reuse and finish reports use the sibling GEA [development entry](../../dsh-gea-plugin/docs/development-builds.md) and this repository’s native environment.
+本地轻预检、影响计划、依赖准备、容量准入、构建复用与收尾使用相邻 GEA 的 [开发构建入口](../../dsh-gea-plugin/docs/development-builds.md)及本仓原生环境。 / Local preflight, impact plans, dependency preparation, capacity admission, build reuse and finish reports use the sibling GEA [development entry](../../dsh-gea-plugin/docs/development-builds.md) and this repository’s native environment.
 
 This checkout implements Agent/resource management and supplied-input calculations. Business pages belong to Workbench; Session and drafts belong to Core; business identity, credentials and authorization belong to GEA Host. / 本仓维护 Agent/资源管理与输入数据的纯计算。业务页面归 Workbench，Session 与草稿归 Core，业务身份、凭据与授权归 GEA Host。
 

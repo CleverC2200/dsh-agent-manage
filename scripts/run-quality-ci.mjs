@@ -16,6 +16,7 @@ const { values } = parseArgs({
     input: { type: 'string' },
     'core-source': { type: 'string' },
     'prepare-sdk': { type: 'boolean' },
+    'source-only': { type: 'boolean' },
     'final-group-sha256': { type: 'string' }
   }
 })
@@ -88,6 +89,7 @@ try {
       const baseline = JSON.parse(readFileSync('scripts/quality-peer-baseline.json'))
       plan = selectCiTests({
         repositories: manifest.repositories,
+        sourceOnly: values['source-only'],
         repo: 'dsh-agent-manage',
         testOwners: presetHostOwners,
         base: process.env.QUALITY_BASE_SHA || baseline.repositories.find(entry => entry.repo === 'dsh-agent-manage').head
@@ -165,6 +167,7 @@ try {
               name: 'required-and-affected',
               execute: () => {
                 const files = plan.files.filter(file => file.endsWith('.test.ts') && !Object.values(presetLanes).some(lane => file in lane))
+                if (!files.length && values['source-only']) return
                 if (!files.length) refuse('CI_TEST_PLAN_EMPTY_ORDINARY', 'required ordinary tests must be explicitly selected')
                 run('corepack', ['pnpm', 'exec', 'vitest', 'run', '--config', 'vitest.ci-unit.config.ts', ...files])
               }
