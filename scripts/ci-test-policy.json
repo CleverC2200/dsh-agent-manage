@@ -22,6 +22,11 @@
   "rules": [
     {
       "repo": "dsh-agent-manage",
+      "pattern": "^business-resources/inventory-mps/",
+      "tests": ["tests/mps-resource-reception.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-manage",
       "pattern": "^src/mps-compute/",
       "tests": ["tests/mps-workflow.test.mjs"],
       "sourceTests": ["tests/mps-workflow.test.mjs"]
