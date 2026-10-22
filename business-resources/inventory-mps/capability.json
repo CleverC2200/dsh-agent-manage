@@ -8,20 +8,30 @@
       "agents_dim_demand_annual_mi",
       "agents_dim_tunnel_capacity_mi",
       "agents_dim_production_line_sku_capacity_mi",
-      "agents_dim_transfer_direction_mi"
+      "agents_dim_transfer_direction_mi",
+      "agents_sales_plan_demand_m",
+      "agents_scm_cust_deliv_daily_di"
     ],
     "mock": false,
     "rules": [
       "五张主数据表经GEA授权只读查询。产品清单与年度需求可同步到本地评估草稿；第四步按源编码核对产品、产线、系列与当期调拨关系，保留缺编码、无匹配、一对多和源字段，不合计重复组合日产能。",
       "年度需求保留源数量，单位未确认。月份兼容YYYY-MM与Mon-YY；缺失、重复粒度或冲突口径不补零、不推定。产品表不含基地，替换物料字段不代表老品历史继承。",
-      "第一步DMS提报、模型输出、BI发货的正式来源表尚未建立，其他业务表不替代。五项参数和基础指标依赖DMS与BI，逐月测算从输入现算、不独立落表。第二步支持本地发货库存输入，第三、五、六步仍为模拟，第七步尚未实现；业务保存、提交和结转未接入。"
+      "经Cube同步客户期初、客户纠偏和历史同期发货。期初plannum_total与纠偏allnum_total是单月完整版本，客户非空、客户×基地×SKU唯一，缺基地返回NULL，两版本不相加；发货按shipment_date筛同一实际期间，act_dl_qty_total、act_dl_qty_all_total分别展示，不相加，income_excl_tax_local_total为不含税收入，不替代含税销售额。NULL不补零，单个收入缺失不阻断数量。模型预测和库存正式发布映射待补，继续留空。五项参数和基础指标的未定公式继续留空；逐月测算从输入现算、不独立落表。第二步支持本地发货库存输入，第三、五、六步仍为模拟，第七步尚未实现；业务保存、提交和结转未接入。"
     ]
   },
   "maxEffect": "view",
-  "layers": ["read"],
-  "skills": ["inventory-mps"],
+  "layers": [
+    "read"
+  ],
+  "skills": [
+    "inventory-mps"
+  ],
   "routing": {
-    "keywords": ["MPS", "主生产计划", "inventory-mps"],
-    "summary": "只读核对月主计划产品、年度需求及真实产线调拨关系，解释本地发货测算、待建表来源与未定口径。"
+    "keywords": [
+      "MPS",
+      "主生产计划",
+      "inventory-mps"
+    ],
+    "summary": "只读核对月主计划期初、纠偏、历史发货、产品、年度需求及真实产线调拨关系，解释本地发货测算与未定口径。"
   }
 }

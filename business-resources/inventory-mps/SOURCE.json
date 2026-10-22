@@ -2,8 +2,10 @@
   "schemaVersion": 1,
   "sourceCommit": "797d33881a494fd0316e3f2241440830da7954a0",
   "sourcePath": "business-resources/inventory-mps",
-  "originalMcpCapabilities": ["governed-sql-read"],
-  "reception": "GEA mps Consumer authorizes read-only named queries for the five MPS master-data tables. Products and annual demand populate local review drafts; national and base quantities remain separate. Stage four checks exact-code candidate line, series and monthly transfer source relations. The official DMS submission, model-output and BI shipment tables for stage one are not built; other business tables are not substitutes. Parameters and indicators derive from DMS and BI inputs; monthly calculations do not use a separate result table. Business writes, stage-two fact integration and actual computations in stages three, five, six and seven remain incomplete. Historical intake hashes and existing Session drafts are retained.",
+  "originalMcpCapabilities": [
+    "governed-sql-read"
+  ],
+  "reception": "GEA mps Consumer authorizes read-only named queries for the five MPS master-data tables. Products and annual demand populate local review drafts; national and base quantities remain separate. Stage four checks exact-code candidate line, series and monthly transfer source relations. Stage one reads confirmed monthly initial and correction plan versions and actual historical shipments through the authorized Cube MCP. Versions, quantity bases and tax-exclusive revenue remain separate; NULL is retained. Model forecast and inventory publication are pending and do not block independent reads. Parameters and indicators derive from DMS and BI inputs; monthly calculations do not use a separate result table. Business writes, stage-two fact integration and actual computations in stages three, five, six and seven remain incomplete. Historical intake hashes and existing Session drafts are retained.",
   "originalFilesSha256": {
     "prompt.json": "f0ef0755d5aca303ce3a73c9e5cf3f7261f46860033f4a9483e094d64b9c50ed",
     "capability.json": "de4ffe4b1a5b206608a9262238d8455a39b682664c43cd0fa85a4de713e8a6f2",
@@ -11,9 +13,9 @@
     "skills/inventory-mps/SKILL.md": "d9fdc49299a505dd91c0e8150a4da63aa602620e02315e5207ac98253b5a74f9"
   },
   "receivedFilesSha256": {
-    "prompt.json": "c6132a4ccce676a9c1fd96ec081c19324c9f825661004fe1772bc78ffcf512df",
-    "capability.json": "c19bef64d998129fd12c3d72c73dc4c0791affcbddcba01c5e73861eb6046295",
-    "mcp.json": "ee44689603e335755493ed32f0bcd5207b76075ac1b45502212a2cd318958e70",
-    "skills/inventory-mps/SKILL.md": "f43f3f2b23f9512b9a407bfe4129c8a20ea79d050f3a2d735a4014949299de96"
+    "prompt.json": "8234981be52d995f9f63c1d20ff35f5602361c0e2592185abf611d2d8ff1b031",
+    "capability.json": "7766950f8b083c6bff677878f75d848aa2752c7e30cd38ecb3dbe7abff8896c6",
+    "mcp.json": "a75054960229cfcbabb7bcf1b13792e9475e954ab5349acda1e727d1d1413605",
+    "skills/inventory-mps/SKILL.md": "b5890efff3167aec67967ff9247d0198043635efeeda75525dd5d89923bc2992"
   }
 }
