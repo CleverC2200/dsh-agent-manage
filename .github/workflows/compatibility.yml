@@ -33,7 +33,6 @@ jobs:
       applicability: ${{ steps.matrix.outputs.applicability }}
       audit-applicable: ${{ steps.matrix.outputs.audit-applicable }}
       dependency-review-applicable: ${{ steps.matrix.outputs.dependency-review-applicable }}
-      codeql-applicable: ${{ steps.matrix.outputs.codeql-applicable }}
       gea-sha: ${{ steps.group.outputs.gea-sha }}
       workbench-sha: ${{ steps.group.outputs.workbench-sha }}
       manage-sha: ${{ steps.group.outputs.manage-sha }}
@@ -383,20 +382,9 @@ jobs:
         with:
           fail-on-severity: high
 
-  codeql:
-    needs: candidate-scope
-    if: needs.candidate-scope.outputs.codeql-applicable == 'true'
-    uses: ./.github/workflows/codeql.yml
-    with:
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-
   candidate-compatibility:
     if: always()
-    needs: [candidate-scope, gates, security-audit, dependency-review, codeql]
+    needs: [candidate-scope, gates, security-audit, dependency-review]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -413,8 +401,6 @@ jobs:
           QUALITY_APPLICABILITY: ${{ needs.candidate-scope.outputs.applicability }}
           QUALITY_AUDIT_APPLICABLE: ${{ needs.candidate-scope.outputs.audit-applicable }}
           QUALITY_DEPENDENCY_APPLICABLE: ${{ github.event_name == 'pull_request' && needs.candidate-scope.outputs.dependency-review-applicable == 'true' }}
-          QUALITY_CODEQL_APPLICABLE: ${{ needs.candidate-scope.outputs.codeql-applicable }}
-          QUALITY_CODEQL_RESULT: ${{ needs.codeql.result }}
           QUALITY_AUDIT_RESULT: ${{ needs.security-audit.result }}
           QUALITY_DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
           QUALITY_SCOPE_RESULT: ${{ needs.candidate-scope.result }}

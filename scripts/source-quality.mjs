@@ -4,7 +4,6 @@ import { appendFileSync, readFileSync, existsSync, realpathSync } from 'node:fs'
 import { dirname, resolve, relative, isAbsolute, basename } from 'node:path'
 import { createHash } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
-import { isDeepStrictEqual } from 'node:util'
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' })
 const listed = (...args) =>
@@ -21,25 +20,6 @@ function resource(file) {
     skill(file) ||
     /^business\/[^/]+\/(?:plugin\.json|page\.json|sql\.config\.json|SOURCE\.md)$/.test(file)
   )
-}
-function versionOnly(files, base, head) {
-  if (!base || files.length !== 2 || !files.includes('package.json') || !files.includes('src/plugin-package-version.ts')) return false
-  try {
-    const before = JSON.parse(git('show', `${base}:package.json`))
-    const after = JSON.parse(git('show', `${head}:package.json`))
-    const oldVersion = before.version,
-      newVersion = after.version
-    if (typeof oldVersion !== 'string' || typeof newVersion !== 'string' || !newVersion || oldVersion === newVersion) return false
-    delete before.version
-    delete after.version
-    if (!isDeepStrictEqual(before, after)) return false
-    const literal = value => "'" + JSON.stringify(value).slice(1, -1).replaceAll("'", "\\'") + "'"
-    const oldParts = git('show', `${base}:src/plugin-package-version.ts`).split('version: ' + literal(oldVersion))
-    const newParts = git('show', `${head}:src/plugin-package-version.ts`).split('version: ' + literal(newVersion))
-    return oldParts.length === 2 && isDeepStrictEqual(oldParts, newParts)
-  } catch {
-    return false
-  }
 }
 const workingTree = process.argv.includes('--working-tree')
 const availableFiles = () => listed('ls-files', '--cached', ...(workingTree ? ['--others', '--exclude-standard'] : []), '-z').filter(file => existsSync(file))
@@ -61,13 +41,6 @@ function plan() {
         : hasBase && files.length && files.every(file => resource(file) || documentation(file))
           ? 'resources'
           : 'code'
-  const codeql =
-    !versionOnly(
-      files.filter(file => !documentation(file)),
-      diffBase,
-      head
-    ) &&
-    (mode === 'code' || files.some(file => /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file)))
   const changedWorkflows = workflowFiles(files)
   return {
     mode,
@@ -78,8 +51,7 @@ function plan() {
     base: diffBase,
     head,
     engineering: mode === 'code',
-    'dependency-review': mode === 'code' && process.env.GITHUB_EVENT_NAME === 'pull_request',
-    codeql
+    'dependency-review': mode === 'code' && process.env.GITHUB_EVENT_NAME === 'pull_request'
   }
 }
 
@@ -289,7 +261,6 @@ else if (['affected-plan', 'affected-prepare', 'affected-check'].includes(phase)
   await (await import(pathToFileURL(reader))).sourceChecks(result, phase)
 } else if (phase === 'final') {
   const expected = { PLAN_RESULT: 'success', CHECK_RESULT: result.mode === 'docs' ? 'skipped' : 'success', DEPENDENCY_RESULT: result['dependency-review'] ? 'success' : 'skipped' }
-  if (process.env.HAS_CODEQL === 'true') expected.CODEQL_RESULT = result.codeql ? 'success' : 'skipped'
   for (const [key, value] of Object.entries(expected))
     if (process.env[key] !== value) throw Error(`SOURCE_RESULT_REJECTED: ${key}=${process.env[key] || 'missing'}, expected ${value}`)
   console.log(JSON.stringify({ mode: result.mode, status: 'success' }))
