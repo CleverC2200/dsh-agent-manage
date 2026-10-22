@@ -760,6 +760,7 @@ test('CI input writer changes select their Node contracts without fixed capabili
     'scripts/source-quality.test.mjs',
     'tests/agent-mcp.test.ts',
     'tests/ci-applicability.test.mjs',
+    'tests/preset-capabilities-cli.test.mjs',
     'tests/quality-ci-cli.test.mjs',
     'tests/routes.test.ts'
   ])

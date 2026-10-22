@@ -116,7 +116,9 @@ it('registers all four sales Skills at empty-home startup and selects the origin
   const orchestration = await agentOn(ctx, 'orchestration-skills', 'auto-negotiation', undefined, isolatedHome)
   const scopedOptions = { ...options, scope: orchestration }
   const orchestrationSkills = await ctx.skills.list(scopedOptions)
-  expect(orchestrationSkills.some(skill => skill.name === 'sinian-forecast-scope' && skill.invocation.modelInvocable)).toBe(true)
+  expect(listed.some(skill => skill.name === 'sinian-forecast-scope' && skill.invocation.modelInvocable)).toBe(true)
+  expect(orchestrationSkills.filter(skill => skill.name === 'sinian-forecast-scope')).toHaveLength(1)
+  expect(orchestrationSkills.find(skill => skill.name === 'sinian-forecast-scope')?.invocation.modelInvocable).toBe(false)
   for (const name of ['frozen-food-sales-operations-diagnosis', 'frozen-food-base-inventory-insight', 'prototype-html']) {
     expect(orchestrationSkills.filter(skill => skill.name === name)).toHaveLength(1)
     const file = resolve(`business-resources/orchestration/skills/${name}/SKILL.md`)
