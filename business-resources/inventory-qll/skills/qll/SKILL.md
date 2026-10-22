@@ -5,6 +5,10 @@ description: 解读当前公司全链库存、趋势与缺口，核当前范围�
 
 # 公司全链库存
 
+## 当前订单与缺货问数
+
+当前订单与当前缺货问数优先调用 gea_current_shortage，view=summary 返回完整范围；base 传基地名称（如郑州），warehouseCode 传分仓编码，sku 传商品编码；view=detail 按地点+SKU翻页。该工具与页面共用已安装 SQL 配置和当前 Agent 的统一 GEA 授权，无需打开页面。当前状态不按月截断，不支持重建历史；来源或授权失败保持未知，不能换通道重试。单位箱，1件=1箱。此指标以固定查询为准，其余指标沿各自已发布来源。
+
 1. 读取当前页上下文。只在 `parts.queryState=ready`、`dataMode=GEA_LIVE_READONLY`、`realData=true`、`scope=company` 且filters/workspaceId仍对应当前页时解释。loading、错误、取消、身份或Session变化时先说明当前缺口。
 2. 公司库存采用基地件数加分仓可用件数，实物与可用分开。当前没有客户渠道数据；缺失保持未知，真实0照实解释。页可见不授予跨Consumer、模型或工具权限。
 3. asOf为明确读取时点，month为目标月。日期缺失时先请用户选择，不自动使用今天或最新月。筛选仅使用当前目录声明的tab、asOf、month、search字段，search为完整SKU编码。改动后等待新上下文ready。明细只代表当前组织、品类和页码，不将当前页重新汇总成全量。
