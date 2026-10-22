@@ -246,7 +246,7 @@
       "repo": "dsh-agent-manage",
       "pattern": "^scripts/(?:run-quality-ci\\.mjs|ci-test-policy\\.json)$",
       "tests": [],
-      "sourceTests": ["tests/quality-ci-cli.test.mjs"]
+      "sourceTests": ["tests/official-source-alias.test.mjs", "tests/order-agents-resource-package.test.mjs", "tests/quality-ci-cli.test.mjs"]
     },
     {
       "repo": "dsh-agent-manage",
@@ -260,5 +260,10 @@
       "tests": [],
       "sourceTests": ["tests/quality-ci-cli.test.mjs"]
     }
-  ]
+  ],
+  "sourceTools": {
+    "tests/quality-ci-cli.test.mjs": ["yaml"],
+    "tests/official-source-alias.test.mjs": ["zod"],
+    "tests/order-agents-resource-package.test.mjs": []
+  }
 }

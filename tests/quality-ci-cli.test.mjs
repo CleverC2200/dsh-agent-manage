@@ -864,3 +864,23 @@ test('a direct client owner change runs that file once without falsely recording
   assert.equal(plan.files.includes('tests/base-resource-host.test.ts'), false)
   assert.equal(Object.hasOwn(plan.executedBy, 'tests/base-resource-host.test.ts'), false)
 })
+
+test('source tools skip Core while both download caches retain successful misses for reuse', () => {
+  const steps = parseYaml(readFileSync('.github/workflows/source-quality.yml', 'utf8')).jobs['source-checks'].steps
+  const core = steps.find(step => step.with?.repository === 'CleverC2200/deepseek-harness')
+  assert.equal(core.if, "steps.affected.outputs.core == 'true'")
+  for (const id of ['tool-download-cache', 'download-cache']) {
+    const restore = steps.find(step => step.id === id)
+    const save = steps.find(step => step.uses === 'actions/cache/save@v4' && step.with?.key === '${{ steps.' + id + '.outputs.cache-primary-key }}')
+    assert.equal(restore.uses, 'actions/cache/restore@v4')
+    assert.ok(save)
+    assert.match(save.if, /success\(\)/)
+    assert.ok(save.if.includes('steps.' + id + ".outputs.cache-hit != 'true'"))
+    assert.deepEqual(save.with.path, restore.with.path)
+    assert.ok(steps.indexOf(save) > steps.findIndex(step => step.name === 'Prepare dependencies consumed by selected checks'))
+    if (id === 'download-cache') assert.ok(steps.indexOf(save) > steps.findIndex(step => step.name === 'Run affected behavior and real TypeScript checks'))
+  }
+  const tools = steps.find(step => step.id === 'tool-download-cache')
+  assert.equal(tools.with['restore-keys'], undefined)
+  assert.equal(tools.with.path, '${{ steps.affected.outputs.tools-downloads }}')
+})
