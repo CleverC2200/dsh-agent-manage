@@ -2,7 +2,7 @@
   "id": "inventory-orderworkbench",
   "label": "订单工作台",
   "data": {
-    "consumerCode": "orderworkbench-preview",
+    "consumerCode": "order",
     "tables": [],
     "rules": [],
     "mock": true
