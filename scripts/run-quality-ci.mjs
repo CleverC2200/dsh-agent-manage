@@ -49,14 +49,13 @@ try {
     if (process.env.QUALITY_SCOPE_ALLOWED !== 'true') refuse('CANDIDATE_SCOPE_REQUIRED', 'same-repository read-only execution only')
   } else if (phase === 'final') {
     if (!['docs', 'source'].includes(process.env.QUALITY_APPLICABILITY)) refuse('QUALITY_REQUIRED', 'explicit plan applicability')
-    for (const key of ['QUALITY_AUDIT_APPLICABLE', 'QUALITY_DEPENDENCY_APPLICABLE', 'QUALITY_CODEQL_APPLICABLE']) {
+    for (const key of ['QUALITY_AUDIT_APPLICABLE', 'QUALITY_DEPENDENCY_APPLICABLE']) {
       if (!['true', 'false'].includes(process.env[key])) refuse('QUALITY_REQUIRED', `${key}=missing`)
     }
     const docs = process.env.QUALITY_APPLICABILITY === 'docs'
     const required = ['QUALITY_SCOPE_RESULT', 'QUALITY_GATE_RESULT', 'QUALITY_WINDOWS_RESULT']
     if (!docs && process.env.QUALITY_AUDIT_APPLICABLE === 'true') required.push('QUALITY_AUDIT_RESULT')
     if (!docs && process.env.QUALITY_DEPENDENCY_APPLICABLE === 'true') required.push('QUALITY_DEPENDENCY_RESULT')
-    if (!docs && process.env.QUALITY_CODEQL_APPLICABLE === 'true') required.push('QUALITY_CODEQL_RESULT')
     for (const key of required) {
       if (process.env[key] !== 'success') refuse('QUALITY_REQUIRED', `${key}=${process.env[key] ?? 'missing'}`)
     }

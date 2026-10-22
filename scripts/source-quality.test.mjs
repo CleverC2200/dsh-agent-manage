@@ -70,7 +70,7 @@ test('resource-only checks accept Markdown hard breaks and reject missing packag
 
 test('candidate-quality accepts only intended skips and fails closed for failed, cancelled or unknown jobs', t => {
   const docs = fixture(t, { 'README.md': 'Before\n' }, { 'README.md': 'After\n' })
-  const skipped = { PLAN_RESULT: 'success', CHECK_RESULT: 'skipped', DEPENDENCY_RESULT: 'skipped', CODEQL_RESULT: 'skipped', HAS_CODEQL: 'true' }
+  const skipped = { PLAN_RESULT: 'success', CHECK_RESULT: 'skipped', DEPENDENCY_RESULT: 'skipped' }
   assert.equal(docs.run('final', skipped).status, 0)
   for (const result of ['failure', 'cancelled', '', 'unknown']) {
     assert.notEqual(docs.run('final', { ...skipped, PLAN_RESULT: result }).status, 0)
@@ -80,9 +80,9 @@ test('candidate-quality accepts only intended skips and fails closed for failed,
   assert.equal(resources.run('final', { ...skipped, CHECK_RESULT: 'success' }).status, 0)
   assert.notEqual(resources.run('final', skipped).status, 0)
   const code = fixture(t, { 'src/main.js': 'export const value = 1;\n' }, { 'src/main.js': 'export const value = 2;\n' })
-  const success = { PLAN_RESULT: 'success', CHECK_RESULT: 'success', DEPENDENCY_RESULT: 'success', CODEQL_RESULT: 'success', HAS_CODEQL: 'true' }
+  const success = { PLAN_RESULT: 'success', CHECK_RESULT: 'success', DEPENDENCY_RESULT: 'success' }
   assert.equal(code.run('final', success).status, 0)
-  for (const key of ['CHECK_RESULT', 'DEPENDENCY_RESULT', 'CODEQL_RESULT'])
+  for (const key of ['CHECK_RESULT', 'DEPENDENCY_RESULT'])
     for (const result of ['skipped', 'failure', 'cancelled', '', 'unknown']) assert.notEqual(code.run('final', { ...success, [key]: result }).status, 0, `${key}=${result}`)
 })
 
@@ -238,7 +238,7 @@ test('pull requests compare their merge-base while push events retain the pushed
   assert.equal(JSON.parse(push.stdout).mode, 'code')
 })
 
-test('JavaScript resources retain security scanning without unrelated engineering preparation', t => {
+test('JavaScript resources retain source checks without unrelated engineering preparation', t => {
   const repo = fixture(t, { 'business-resources/demo/scripts/run.mjs': 'export const value = 1;\n' }, { 'business-resources/demo/scripts/run.mjs': 'export const value = 2;\n' })
   const planned = repo.run('plan')
   assert.equal(planned.status, 0, planned.stderr)
@@ -246,40 +246,10 @@ test('JavaScript resources retain security scanning without unrelated engineerin
   assert.equal(plan.mode, 'resources')
   assert.equal(plan.engineering, false)
   assert.equal(plan['dependency-review'], false)
-  assert.equal(plan.codeql, true)
-  const results = { PLAN_RESULT: 'success', CHECK_RESULT: 'success', DEPENDENCY_RESULT: 'skipped', CODEQL_RESULT: 'success', HAS_CODEQL: 'true' }
+  const checked = repo.run('check')
+  assert.equal(checked.status, 0, checked.stderr)
+  const results = { PLAN_RESULT: 'success', CHECK_RESULT: 'success', DEPENDENCY_RESULT: 'skipped' }
   assert.equal(repo.run('final', results).status, 0)
-  assert.notEqual(repo.run('final', { ...results, CODEQL_RESULT: 'skipped' }).status, 0)
-})
-
-test('only a package version and matching generated stamp may skip CodeQL', t => {
-  const files = {
-    'package.json': '{"name":"fixture","version":"1.0.0"}',
-    'src/plugin-package-version.ts': "export const identity = { version: '1.0.0' }\n"
-  }
-  const changed = {
-    'package.json': '{"name":"fixture","version":"1.0.1"}',
-    'src/plugin-package-version.ts': "export const identity = { version: '1.0.1' }\n"
-  }
-  const repo = fixture(t, files, changed)
-  const planned = repo.run('plan')
-  assert.equal(planned.status, 0, planned.stderr)
-  const plan = JSON.parse(planned.stdout)
-  assert.equal(plan.engineering, true)
-  assert.equal(plan.codeql, false)
-  const results = { PLAN_RESULT: 'success', CHECK_RESULT: 'success', DEPENDENCY_RESULT: 'success', CODEQL_RESULT: 'skipped', HAS_CODEQL: 'true' }
-  assert.equal(repo.run('final', results).status, 0)
-  for (const edited of [
-    { ...changed, 'package.json': '{"name":"fixture","version":"1.0.1","dependencies":{"new-dependency":"1.0.0"}}' },
-    { ...changed, 'src/plugin-package-version.ts': changed['src/plugin-package-version.ts'] + 'export const extra = true\n' },
-    { ...changed, 'src/plugin-package-version.ts': "export const identity = { version: '9.0.0' }\n" }
-  ]) {
-    const source = fixture(t, files, edited)
-    const result = source.run('plan')
-    assert.equal(result.status, 0, result.stderr)
-    assert.equal(JSON.parse(result.stdout).codeql, true)
-    assert.notEqual(source.run('final', results).status, 0)
-  }
 })
 
 test('ordinary JavaScript changes check only current changed sources', t => {

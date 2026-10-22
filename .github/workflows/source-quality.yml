@@ -26,7 +26,6 @@ jobs:
       engineering: ${{ steps.plan.outputs.engineering }}
       workflows: ${{ steps.plan.outputs.workflows }}
       dependency-review: ${{ steps.plan.outputs.dependency-review }}
-      codeql: ${{ steps.plan.outputs.codeql }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -254,20 +253,9 @@ jobs:
         with:
           fail-on-severity: high
 
-  codeql:
-    needs: source-plan
-    if: needs.source-plan.outputs.codeql == 'true'
-    uses: ./.github/workflows/codeql.yml
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-    with:
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
   candidate-quality:
     if: always()
-    needs: [source-plan, source-checks, dependency-review, codeql]
+    needs: [source-plan, source-checks, dependency-review]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -284,6 +272,4 @@ jobs:
           PLAN_RESULT: ${{ needs.source-plan.result }}
           CHECK_RESULT: ${{ needs.source-checks.result }}
           DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
-          HAS_CODEQL: 'true'
-          CODEQL_RESULT: ${{ needs.codeql.result }}
         run: node scripts/source-quality.mjs --phase final

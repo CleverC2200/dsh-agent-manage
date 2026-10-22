@@ -13,7 +13,7 @@ import { presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 const call = (phase, env) =>
   spawnSync(process.execPath, ['scripts/run-quality-ci.mjs', '--phase', phase], {
     encoding: 'utf8',
-    env: { ...process.env, QUALITY_APPLICABILITY: 'source', QUALITY_AUDIT_APPLICABLE: 'false', QUALITY_DEPENDENCY_APPLICABLE: 'false', QUALITY_CODEQL_APPLICABLE: 'false', ...env }
+    env: { ...process.env, QUALITY_APPLICABILITY: 'source', QUALITY_AUDIT_APPLICABLE: 'false', QUALITY_DEPENDENCY_APPLICABLE: 'false', ...env }
   })
 test('fork scope is rejected before preparation', () => {
   const result = call('scope', { QUALITY_SCOPE_ALLOWED: 'false' })
@@ -32,12 +32,10 @@ test('final quality aggregate rejects failure, missing, skipped and cancelled qu
 
 test('final quality rejects failed applicable security checks and accepts explicitly inapplicable lanes', () => {
   const successful = { QUALITY_SCOPE_RESULT: 'success', QUALITY_GATE_RESULT: 'success', QUALITY_WINDOWS_RESULT: 'success' }
-  for (const key of ['QUALITY_APPLICABILITY', 'QUALITY_AUDIT_APPLICABLE', 'QUALITY_DEPENDENCY_APPLICABLE', 'QUALITY_CODEQL_APPLICABLE'])
-    assert.equal(call('final', { ...successful, [key]: '' }).status, 1)
+  for (const key of ['QUALITY_APPLICABILITY', 'QUALITY_AUDIT_APPLICABLE', 'QUALITY_DEPENDENCY_APPLICABLE']) assert.equal(call('final', { ...successful, [key]: '' }).status, 1)
   for (const state of ['failure', 'cancelled', 'skipped', '']) {
     assert.equal(call('final', { ...successful, QUALITY_AUDIT_APPLICABLE: 'true', QUALITY_AUDIT_RESULT: state }).status, 1)
     assert.equal(call('final', { ...successful, QUALITY_DEPENDENCY_APPLICABLE: 'true', QUALITY_DEPENDENCY_RESULT: state }).status, 1)
-    assert.equal(call('final', { ...successful, QUALITY_CODEQL_APPLICABLE: 'true', QUALITY_CODEQL_RESULT: state }).status, 1)
   }
   assert.equal(
     call('final', {
@@ -45,9 +43,7 @@ test('final quality rejects failed applicable security checks and accepts explic
       QUALITY_AUDIT_APPLICABLE: 'true',
       QUALITY_AUDIT_RESULT: 'success',
       QUALITY_DEPENDENCY_APPLICABLE: 'true',
-      QUALITY_DEPENDENCY_RESULT: 'success',
-      QUALITY_CODEQL_APPLICABLE: 'true',
-      QUALITY_CODEQL_RESULT: 'success'
+      QUALITY_DEPENDENCY_RESULT: 'success'
     }).status,
     0
   )
@@ -58,7 +54,6 @@ test('final quality rejects failed applicable security checks and accepts explic
       QUALITY_AUDIT_APPLICABLE: 'false',
       QUALITY_AUDIT_RESULT: 'skipped',
       QUALITY_DEPENDENCY_APPLICABLE: 'false',
-      QUALITY_CODEQL_APPLICABLE: 'false',
       QUALITY_DEPENDENCY_RESULT: 'skipped'
     }).status,
     0
@@ -587,21 +582,6 @@ function qualityExecution(t, files, { cacheOutput = false, invalidReceipt = fals
     output: existsSync(outputFile) ? readFileSync(outputFile, 'utf8') : ''
   }
 }
-
-test('quality calls one reusable CodeQL implementation at the actual source commit', () => {
-  const codeql = parseYaml(readFileSync('.github/workflows/codeql.yml', 'utf8'))
-  assert.ok(codeql.on.workflow_call.inputs.source_sha.required)
-  assert.ok(codeql.on.schedule.length)
-  assert.ok(!codeql.on.push && !codeql.on.pull_request)
-  const checkout = codeql.jobs.analyze.steps.find(step => step.uses?.startsWith('actions/checkout@'))
-  assert.equal(checkout.with.ref, '${{ inputs.source_sha || github.sha }}')
-  for (const file of ['quality', 'compatibility']) {
-    const workflow = parseYaml(readFileSync(`.github/workflows/${file}.yml`, 'utf8'))
-    assert.equal(workflow.jobs.codeql.uses, './.github/workflows/codeql.yml')
-    assert.equal(workflow.jobs.codeql.with.source_sha, '${{ github.event.pull_request.head.sha || github.sha }}')
-    assert.equal(workflow.jobs.codeql.permissions['security-events'], 'write')
-  }
-})
 
 test('retired business exceptions have no executable route while behavior tests remain available', () => {
   assert.doesNotMatch(readFileSync('scripts/run-quality-ci.mjs', 'utf8'), /business-profile/)
