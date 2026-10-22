@@ -5,6 +5,10 @@ description: 解释产销协同当前经营页面的 GEA 只读指标、来源�
 
 # 产销协同工作台
 
+## 当前订单与缺货问数
+
+当前订单与当前缺货问数优先调用 gea_current_shortage，view=summary 返回完整范围；base 传基地名称（如郑州），warehouseCode 传分仓编码，sku 传商品编码；view=detail 按地点+SKU翻页。该工具与页面共用已安装 SQL 配置和当前 Agent 的统一 GEA 授权，无需打开页面。当前状态不按月截断，不支持重建历史；来源或授权失败保持未知，不能换通道重试。单位箱，1件=1箱。此指标以固定查询为准，其余指标沿各自已发布来源。
+
 当前通过宿主以 Agent 编码 `aps` 调用 GEA 受控 SQL，使用当前登录用户的组织、行和返回字段权限。固定查询仅访问已授权资源；不依赖本地数据库配置，凭据不进入页面或模型。
 
 1. 使用当前声明的 `gea_page` 读取 context，核对 realData、status、period（含版本与订单类型）、scope、filters.current/options、sources 和 missing。metrics 的 value 为 null 时保持未知，零值是实际零；筛选后等待当前数据已发布。preview 是本页原型，不是业务执行或真实数据。查询截止不等于未回传的实际来源快照。加载中仅分析当前筛选下已成功加载的部分；身份失效不得沿用旧结果。
