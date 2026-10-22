@@ -187,7 +187,9 @@ function checkResources(result) {
       mcp.contract !== 'gea-html-v2' ||
       mcp.consumer?.consumerType !== 'AGENT' ||
       mcp.consumer.consumerCode !== profile.consumerCode ||
-      JSON.stringify(mcp.capabilities) !== JSON.stringify(capability.data.mock === true ? [] : ['governed-sql-read'])
+      !(capability.data.mock === true
+        ? JSON.stringify(mcp.capabilities) === '[]'
+        : ['["governed-sql-read"]', '["governed-sql-read","governed-cube-read"]'].includes(JSON.stringify(mcp.capabilities)))
     )
       throw Error(`RESOURCE_CAPABILITY: ${group}mcp.json`)
   }
