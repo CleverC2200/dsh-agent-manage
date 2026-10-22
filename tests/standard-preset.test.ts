@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { composeStandardPreset, MINIMAL_SYSTEM_PROMPT } from '../src/runtime/standard-preset.js'
@@ -43,6 +43,104 @@ it('limits the inherited orchestration catalog and Skill tool to declared busine
   expect(JSON.stringify(await execute('unrelated-business'))).toContain('not available for model invocation')
   expect(JSON.stringify(await execute('frozen-food-sales-operations-diagnosis'))).toContain('frozen-food-sales-operations-diagnosis')
   expect(JSON.stringify(await execute('general-skill'))).toContain('Generic fixture instructions')
+})
+
+it.each(['source', 'directory', 'disabled-directory'])('keeps business isolation and healthy selections after %s loss, then recovers', async failure => {
+  const { ctx, home } = await presetHarness()
+  await completion(ctx)
+  const diagnostics: string[] = []
+  ctx.logger.exporter({ levels: { default: 2 }, export: ({ args }) => diagnostics.push(args.map(String).join(' ')) })
+  const invocation = { modelInvocable: true, userInvocable: true }
+  let invalidate = () => {}
+  ctx.skills.registerProvider(control => {
+    invalidate = control.invalidate
+    return {
+      name: 'generic-fixture',
+      async list() {
+        return ['general-skill', 'disabled-generic'].map(name => ({ name, description: name, provider: 'generic-fixture', source: 'custom', rank: 300, invocation }))
+      },
+      async get(candidate) {
+        return { ...candidate, content: `Generic instructions for ${candidate.name}` }
+      }
+    }
+  })
+  const names = ['selected-sales', 'healthy-sales', 'inventory-aqkc', 'sales-forecast-result-analysis']
+  for (const name of names) await writeFile(`${home}/${name}.md`, `---\nname: ${name}\ndescription: ${name}\n---\nInstructions for ${name}\n`)
+  const definitions = names.map(name => ({
+    id: name,
+    label: name,
+    root: home,
+    profile: { label: name, consumerCode: 'never-granted', skills: [name] },
+    skillFiles: { [name]: `${name}.md` }
+  }))
+  const release = await ctx.agentResources.register([definitions[0]!])
+  await ctx.agentResources.register(definitions.slice(1))
+  const directory = { id: 'sales-snapshot', bundle: `${home}/snapshot`, root: `${home}/snapshot/tree`, entry: 'selected-sales' }
+  const restoreDirectory = async () => {
+    await mkdir(`${directory.root}/selected-sales`, { recursive: true })
+    await writeFile(`${directory.root}/selected-sales/SKILL.md`, '---\nname: selected-sales\ndescription: Sales snapshot\n---\nSnapshot instructions for selected-sales\n')
+  }
+  if (failure !== 'source') await restoreDirectory()
+  await ctx.agentPresets.register(
+    await composeStandardPreset(
+      ctx.agentPresets,
+      { id: 'sales-isolation-fixture' },
+      {
+        plugins: [
+          {
+            id: 'user-agent-skills',
+            name: 'dsh-agent-manage/user-agent-skills',
+            config: {
+              inheritSkills: true,
+              skills: [
+                {
+                  kind: 'reference',
+                  name: 'selected-sales',
+                  provider: 'business-resource',
+                  enabled: failure !== 'disabled-directory',
+                  ...(failure === 'source' ? {} : { directory })
+                },
+                { kind: 'reference', name: 'healthy-sales', provider: 'business-resource', enabled: true },
+                { kind: 'reference', name: 'disabled-generic', provider: 'generic-fixture', enabled: false }
+              ]
+            }
+          }
+        ]
+      }
+    )
+  )
+  const agent = await agentOn(ctx, 'sales-isolation', 'sales-isolation-fixture', undefined, home)
+  const execute = async (name: string) =>
+    JSON.stringify(await ctx.tools.execute({ callId: name as never, name: 'skill', arguments: { name }, agent, signal: new AbortController().signal }))
+  const selectedResult =
+    failure === 'disabled-directory' ? 'not available for model invocation' : failure === 'source' ? 'Instructions for selected-sales' : 'Snapshot instructions for selected-sales'
+  expect(await execute('selected-sales')).toContain(selectedResult)
+  expect(await execute('inventory-aqkc')).toContain('not available for model invocation')
+  if (failure === 'source') await release()
+  else {
+    await rm(directory.bundle, { recursive: true })
+    invalidate()
+  }
+  for (const name of ['inventory-aqkc', 'sales-forecast-result-analysis', 'disabled-generic']) expect(await execute(name), name).toContain('not available for model invocation')
+  const failed = await ctx.skills.snapshot({ scope: agent, cwd: home })
+  expect(failed.complete).toBe(failure === 'disabled-directory')
+  expect(failed.skills.filter(skill => [...names, 'general-skill', 'disabled-generic'].includes(skill.name) && skill.invocation.modelInvocable).map(skill => skill.name)).toEqual([
+    'general-skill',
+    'healthy-sales'
+  ])
+  expect(await execute('healthy-sales')).toContain('Instructions for healthy-sales')
+  expect(await execute('general-skill')).toContain('Generic instructions for general-skill')
+  if (failure !== 'disabled-directory')
+    expect(diagnostics.join('\n')).toContain(failure === 'source' ? 'AGENT_SKILL_SOURCE_MISSING: selected-sales' : 'AGENT_SKILL_DIRECTORY_INVALID: selected-sales')
+  const aborted = new AbortController()
+  const reason = Error('Cancel Skill discovery')
+  aborted.abort(reason)
+  await expect(ctx.skills.snapshot({ scope: agent, cwd: home, signal: aborted.signal })).rejects.toBe(reason)
+  if (failure === 'source') await ctx.agentResources.register([definitions[0]!])
+  else await restoreDirectory()
+  expect(await execute('selected-sales')).toContain(selectedResult)
+  expect((await ctx.skills.snapshot({ scope: agent, cwd: home })).complete).toBe(true)
+  expect(await execute('inventory-aqkc')).toContain('not available for model invocation')
 })
 
 it('publishes the original intelligent orchestration identity beside all official choices', async () => {
