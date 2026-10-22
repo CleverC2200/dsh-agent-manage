@@ -2,6 +2,8 @@
 
 Status: implemented
 
+The MPS execution portion is partially superseded by [MPS seven-step calculation ownership](../architecture/2026-10-22-mps-seven-step-calculation.md). Its governed reads and shared local calculation replace the earlier mock execution; original provenance and the other received resources remain covered here.
+
 The customer-inventory portion is partially superseded by [customer inventory governed read](2026-10-19-customer-inventory-governed-read.md). The decisions below remain current for the order workbench, order fulfillment and other received prototypes.
 
 The fulfillment execution portion is partially superseded by [order fulfillment governed read](2026-10-21-order-fulfillment-governed-read.md). Its order01 source reads replace the current mock-only execution; the retained original mock baseline, other prototypes and shared assembly remain here.

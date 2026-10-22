@@ -2,6 +2,8 @@
 
 Status: implemented
 
+MPS执行部分由[MPS七步计算归属](../architecture/2026-10-22-mps-seven-step-calculation.zh.md)部分替代。受控读取与共享本地计算替代此前模拟执行；原始来源及其他已接收资源继续由本记录负责。
+
 客户库存部分已由[客户库存受控读取](2026-10-19-customer-inventory-governed-read.zh.md)部分替代；下述订单工作台、订单履约及其他接收原型决定继续有效。
 
 履约执行部分已由[订单履约受控读取](2026-10-21-order-fulfillment-governed-read.zh.md)部分替代。order01 源读取取代当前仅模拟执行；原始模拟基线、其他原型和共享装配仍归本决定。
