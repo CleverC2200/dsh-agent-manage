@@ -5,7 +5,7 @@
   "contract": "gea-html-v2",
   "consumer": {
     "consumerType": "AGENT",
-    "consumerCode": "mps-prototype"
+    "consumerCode": "mps"
   },
-  "capabilities": []
+  "capabilities": ["governed-sql-read", "governed-cube-read"]
 }

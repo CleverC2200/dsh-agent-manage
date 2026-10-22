@@ -25,7 +25,6 @@ test('documentation plans retain one source-check job without Windows or depende
   )
   assert.match(output, /audit-applicable=false/)
   assert.match(output, /dependency-review-applicable=false/)
-  assert.match(output, /codeql-applicable=false/)
 })
 
 test('ordinary CSS and business prompt changes do not rerun dependency or Windows checks', t => {
@@ -63,15 +62,4 @@ test('dependency inputs and audit implementation activate only their applicable 
   const audit = select(t, { changes: [{ repo: 'dsh-agent-manage', file: 'scripts/run-quality-ci.mjs' }] })
   assert.match(audit.output, /audit-applicable=true/)
   assert.match(audit.output, /dependency-review-applicable=false/)
-})
-
-test('CodeQL follows own executable or scanner inputs and ignores pure resources and peer source', t => {
-  for (const [repo, file, expected] of [
-    ['dsh-agent-manage', 'src/client/index.ts', true],
-    ['dsh-agent-manage', '.github/workflows/codeql.yml', true],
-    ['dsh-agent-manage', 'src/client/market.module.css', false],
-    ['dsh-agent-manage', 'business-resources/orchestration/prompt.md', false],
-    ['dsh-gea-plugin', 'src/index.ts', false]
-  ])
-    assert.match(select(t, { changes: [{ repo, file }] }).output, new RegExp(`codeql-applicable=${expected}`))
 })

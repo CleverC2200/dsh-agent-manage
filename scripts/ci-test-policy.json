@@ -1,8 +1,51 @@
 {
   "schemaVersion": 1,
   "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
-  "tests": ["tests/*.test.ts", "tests/*.test.mjs"],
+  "tests": ["tests/*.test.ts", "tests/*.test.mjs", "scripts/source-quality.test.mjs", "scripts/workflow-preflight.test.mjs"],
+  "sourceFixtures": {
+    "scripts/workflow-preflight.test.mjs": {
+      "dependencies": false
+    },
+    "scripts/source-quality.test.mjs": {
+      "dependencies": false
+    },
+    "tests/quality-ci-cli.test.mjs": {
+      "dependencies": true
+    },
+    "tests/official-source-alias.test.mjs": {
+      "dependencies": true
+    }
+  },
   "rules": [
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^\\.codex/environments/environment\\.toml$",
+      "tests": ["scripts/source-quality.test.mjs"],
+      "sourceTests": ["scripts/source-quality.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^\\.prettierignore$",
+      "tests": ["scripts/source-quality.test.mjs", "tests/order-agents-resource-package.test.mjs"],
+      "sourceTests": ["scripts/source-quality.test.mjs", "tests/order-agents-resource-package.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/workflow-preflight(?:\\.test)?\\.mjs$",
+      "tests": ["scripts/workflow-preflight.test.mjs"],
+      "sourceTests": ["scripts/workflow-preflight.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^\\.github/workflows/[^/]+\\.ya?ml$",
+      "tests": ["scripts/workflow-preflight.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:tests/official-core-input\\.ts|vitest\\.preset-client\\.config\\.ts)$",
+      "tests": ["tests/official-source-alias.test.mjs"],
+      "sourceTests": ["tests/official-source-alias.test.mjs"]
+    },
     {
       "repo": "dsh-agent-manage",
       "pattern": "^scripts/build\\.mjs$",
@@ -193,6 +236,34 @@
       "repo": "dsh-agent-manage",
       "pattern": "^scripts/(?:business-profile-ci(?:\\.test)?\\.mjs|verify-lifecycle\\.cjs)$",
       "tests": ["tests/quality-ci-cli.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:scripts/source-quality\\.mjs|\\.github/workflows/source-quality\\.yml)$",
+      "tests": ["scripts/source-quality.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/(?:run-quality-ci\\.mjs|ci-test-policy\\.json)$",
+      "tests": [],
+      "sourceTests": ["tests/official-source-alias.test.mjs", "tests/order-agents-resource-package.test.mjs", "tests/quality-ci-cli.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/(?:prepare-official-sdk|sdk-artifact-cache)\\.mjs$",
+      "tests": [],
+      "sourceTests": ["tests/sdk-input-cli.test.mjs", "tests/sdk-artifact-cache.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/quality-peer-baseline\\.json$",
+      "tests": [],
+      "sourceTests": ["tests/quality-ci-cli.test.mjs"]
     }
-  ]
+  ],
+  "sourceTools": {
+    "tests/quality-ci-cli.test.mjs": ["yaml"],
+    "tests/official-source-alias.test.mjs": ["zod"],
+    "tests/order-agents-resource-package.test.mjs": []
+  }
 }
