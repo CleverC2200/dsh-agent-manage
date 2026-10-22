@@ -39,3 +39,5 @@ business-resources/inventory-orderfulfillment/skills/fulfillment-sales-confirmat
 business-resources/inventory-orderfulfillment/skills/operations-exception-root-cause/SKILL.md
 business-resources/inventory-orderworkbench/skills/fulfillment-sales-confirmation-automation/SKILL.md
 business-resources/inventory-orderworkbench/skills/operations-exception-root-cause/SKILL.md
+
+# Received fulfillment Skill assets retain SOURCE.json byte hashes.

@@ -3,7 +3,7 @@
   "sourcePromptSha256": "93f7a4bae051b80ddc8b7247f709f5b7c26255c05fe961f1ef53411ca1582a5f",
   "sourceArchive": "base-inventory-agent-skill-p1.zip",
   "sourceArchiveSha256": "b1ae5be166b1724e60112638dcccdab99a8246e2cccc967844782cd99fe28b08",
-  "personaSha256": "a897eb321ddcea6290588aed26af894be7a431aae92a2d5d1e5b1de89bd27fcf",
+  "personaSha256": "8eb8e529b76edb6d971f858183b3dfddf706035883a3afbeb2dbf395281acf94",
   "retainedSkillSha256": "41b8fb11d166ff89afb926f0e5632b0a4f4c0da3866e3ddaafc654597aa29454",
   "files": {
     "skills/aging-stagnation-monitoring/SKILL.md": "2841aa1df0d79b57984e759fa859827be278e0e33cbe807bab92f6dd466dfa76",
@@ -22,5 +22,8 @@
     "skills/shortage-monitoring/SKILL.md": "9bfa9adc5e2bb119babc79fdeb571a9ce52b492cf137f29e28cd7434df7fe083",
     "skills/shortage-monitoring/rules.md": "d4bf09688455a738cbc607e58f0cc7bb23315c3365d03f3c56a0769bcb298847"
   },
-  "adaptations": ["2026-10-19：按用户要求移除主提示词、输出指南及四个分析 Skill 中的四档固定输出结构与对应字数限制。"]
+  "adaptations": [
+    "2026-10-19：按用户要求移除主提示词、输出指南及四个分析 Skill 中的四档固定输出结构与对应字数限制。",
+    "2026-10-22：按用户确认更新当前缺货为订单、库存池与 SKU、地点三层计算；补充同源未备单状态、占用、关联与统一 GEA SQL 约束，保留原始提示词及 Skill 文件来源摘要。"
+  ]
 }

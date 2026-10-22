@@ -10,13 +10,17 @@
       "agents_scm_branch_plan",
       "agents_scm_inventory_age",
       "agents_scm_order_fulfillment",
-      "agents_scm_safety_stock"
+      "agents_scm_safety_stock",
+      "agents_scm_execute_detail_d",
+      "agents_scm_inventory_sku_data_d",
+      "agents_scm_material_in_out_summary_d"
     ],
     "rules": [
       "公司库存只读取当前GEA身份/Consumer获准的固定查询结果。基地与分仓按原可用/实物、日期、单位和目标口径分别解释；当前没有客户渠道数据。",
       "组织、品类、SKU及月份只在当前授权范围内收窄。完整分页、返回列及快照变化时拒绝结果，缺失保持null，零值保持0。",
       "趋势使用同一公司快照和收窄范围，固定30天窗口、目标月订单缺口与原算法；取消、身份或Session变化撤下旧事实和引用。",
-      "本模块不提供补货、反馈、通知、提交、审批或真实写入。"
+      "本模块不提供补货、反馈、通知、提交、审批或真实写入。",
+      "- 当前未备单订单缺货：仅取等待组波、组波中、组波完成、组波失败、提交成功、提交中、提交失败、上传验证、人工释放占用、撤回待改单、创建；短拨和调账已在同步层排除。需求为 agents_scm_execute_detail_d.adjust_order_qty，占用为同一状态同订单的 qtyallocated，均按已确认箱口径。先在订单+SKU累计后计算 max(需求-自身占用,0)，再按基地库存池/具体分仓+SKU累计，扣一次同池可用库存并截零，地点上卷只求和。库存总占用、月累计缺货、已下发WMS订单都不能替代。基地01/02按belong_base合池，分仓20按warehouseid独立；订单pickup_point通过出入库表唯一映射关联，不能直接等于warehouseid。保留较早创建但仍有效的订单；本指标是当前状态，不能重建历史。页面继续使用统一GEA受控SQL，卡片读SQL全范围汇总，列表默认10行翻页重查；不得对当前页重算全量缺口或将共享库存缺口分摊到订单。"
     ]
   },
   "maxEffect": "view",
