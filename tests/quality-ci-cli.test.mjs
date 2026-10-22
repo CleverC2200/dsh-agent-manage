@@ -888,7 +888,7 @@ test('source tools skip Core while both download caches retain successful misses
   assert.equal(tools.with.path, '${{ steps.affected.outputs.tools-downloads }}')
 })
 
-test('PR result reuse skips only the validated body and falls back to every original check', () => {
+test('merged PR result reuse skips only the validated body and preserves every fallback check', () => {
   const workflow = parseYaml(readFileSync('.github/workflows/source-quality.yml', 'utf8'))
   const job = workflow.jobs['source-checks'],
     steps = job.steps
