@@ -260,5 +260,10 @@
       "tests": [],
       "sourceTests": ["tests/quality-ci-cli.test.mjs"]
     }
-  ]
+  ],
+  "sourceTools": {
+    "tests/quality-ci-cli.test.mjs": ["yaml"],
+    "tests/official-source-alias.test.mjs": [],
+    "tests/order-agents-resource-package.test.mjs": []
+  }
 }
