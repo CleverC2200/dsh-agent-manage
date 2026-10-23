@@ -25,6 +25,8 @@ const workingTree = process.argv.includes('--working-tree')
 const availableFiles = () => listed('ls-files', '--cached', ...(workingTree ? ['--others', '--exclude-standard'] : []), '-z').filter(file => existsSync(file))
 function plan() {
   const event = !workingTree && process.env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')) : {}
+  if (!workingTree && event.pull_request && event.pull_request.base?.ref !== 'main')
+    throw Error('SOURCE_PR_TARGET_MAIN_REQUIRED: retarget the PR to main; freeze build inputs by SHA')
   const head = (!workingTree && process.env.SOURCE_HEAD_SHA) || event.pull_request?.head?.sha || event.after || git('rev-parse', 'HEAD').trim()
   if (git('rev-parse', head) !== git('rev-parse', 'HEAD')) throw Error('SOURCE_HEAD_MISMATCH')
   const base = process.env.SOURCE_BASE_SHA || event.pull_request?.base?.sha || event.before || (workingTree ? head : undefined)
