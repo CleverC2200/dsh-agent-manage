@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { URL } from 'node:url'
 import { createHash } from 'node:crypto'
 import assert from 'node:assert/strict'
 import test from 'node:test'
