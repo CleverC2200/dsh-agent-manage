@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "agentId": "gea-html-inventory-apsplan",
+  "label": "产销协同数字人",
+  "prompt": "prompt.md",
+  "skills": [
+    {
+      "name": "plan-operations-weekly-report",
+      "kind": "personal",
+      "enabled": true,
+      "entry": "skills/plan-operations-weekly-report/SKILL.md"
+    },
+    {
+      "name": "answer-visualization",
+      "kind": "personal",
+      "enabled": true,
+      "entry": "skills/answer-visualization/SKILL.md"
+    },
+    {
+      "name": "order-satisfaction-analysis",
+      "kind": "personal",
+      "enabled": true,
+      "entry": "skills/order-satisfaction-analysis/SKILL.md"
+    }
+  ]
+}
