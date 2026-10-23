@@ -28,11 +28,11 @@ test('client snapshot retains all received file bytes and no unlisted payload', 
   }
 })
 
-test('client snapshot retains the seven selected skills and their enabled states', () => {
+test('client snapshot retains the three selected skills and their enabled states', () => {
   assert.equal(profile.agentId, 'gea-html-inventory-apsplan')
   assert.ok(read(profile.prompt).length > 0)
-  assert.equal(profile.skills.length, 7)
-  assert.equal(new Set(profile.skills.map(skill => skill.name)).size, 7)
+  assert.equal(profile.skills.length, 3)
+  assert.equal(new Set(profile.skills.map(skill => skill.name)).size, 3)
   assert.deepEqual(
     profile.skills
       .filter(skill => skill.enabled)

@@ -1,4 +1,0 @@
-interface:
-  display_name: "订单满足率分析（分阶段执行）"
-  short_description: "分阶段完成订单满足率取数、证据勾稽、原因分析和报告验收"
-  default_prompt: "使用 $order-satisfaction-analysis-guided 分阶段生成订单满足率原因分析报告，保留原始证据并执行独立核验。"
