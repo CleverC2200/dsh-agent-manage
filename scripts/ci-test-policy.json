@@ -24,7 +24,7 @@
   "rules": [
     {
       "repo": "dsh-agent-manage",
-      "pattern": "^business-resources/aps-client-profile/",
+      "pattern": "^(?:business-resources/aps-client-profile/|\\.gitattributes$)",
       "tests": ["tests/aps-client-profile.test.mjs"],
       "sourceTests": ["tests/aps-client-profile.test.mjs"]
     },
