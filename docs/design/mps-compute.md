@@ -1,0 +1,13 @@
+# MPS calculation contract
+
+Manage owns the browser-safe pure function `computeMpsWorkflow` in the public `dsh-agent-manage/mps-compute/workflow` module. The package exposes source, JavaScript and declaration paths through `./mps-compute/*`. Workbench normalizes the current evaluation draft, source read status, relation snapshot and same-version shipment result. This module performs no reads, writes or authorization.
+
+The input contains an evaluation context, product dimensions, explicit category demand, monthly sales submissions, last-year shipments, opening inventory, source capacity candidates and local constraints. M+1 equals the evaluation month. M+4 remains at category level. Rows at base, material group and SKU grain exist for M+1 through M+3.
+
+For each month and category, the function computes the sales-submission share and last-year same-month shipment share, averages the two shares, then multiplies by the category demand. The product set must cover the source records. A missing quantity, duplicate product key, unmatched source record, failed current read or zero denominator prevents the dependent share and demand. Valid zero quantities remain zero. No piece-rounding rule is assumed; the last row receives only the floating-point residual needed to reconcile with category demand.
+
+Category demand is an explicit input seam. The function does not invent the unresolved first-step formula or substitute model data. Missing category demand does not remove valid shares, opening inventory or source capacities. Negative projected closing inventory is preserved as opening inventory. A source income field missing from historical shipments does not invalidate valid shipment quantities.
+
+Each row returns nullable quantities and field-specific missing reasons. It also retains source daily capacity candidates separately. Candidate lines are not summed into monthly capacity. Safety-stock formulas, working days, monthly capacity, load, main plan, transfer allocation and gaps remain null while their rules are unconfirmed. Local safety days and rule descriptions are draft inputs; they do not represent formal saving or an active scheduling rule.
+
+`tests/mps-workflow.test.mjs` exercises the public pure function with worked inputs, zero values, missing data, source coverage and reconciliation. `pnpm test:mps-compute` runs these checks. The normal TypeScript build emits the JavaScript and declaration files; Workbench's author build resolves the public source export and bundles it for the browser.

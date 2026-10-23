@@ -86,7 +86,8 @@ export async function registerOrchestration(resources: Pick<Context['agentResour
       prompt: 'prompt.md',
       publishPreset: true,
       inheritSkills: true,
-      profile: { label: ORCHESTRATION_PRESET.name, consumerCode: 'general', skills },
+      cube: true,
+      profile: { label: ORCHESTRATION_PRESET.name, consumerCode: 'workbench', skills },
       skillFiles: Object.fromEntries(skills.map(name => [name, `skills/${name}/SKILL.md`]))
     }
   ])

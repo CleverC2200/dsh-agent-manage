@@ -15,9 +15,23 @@
     },
     "tests/official-source-alias.test.mjs": {
       "dependencies": true
+    },
+    "tests/mps-workflow.test.mjs": {
+      "dependencies": false
     }
   },
   "rules": [
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^business-resources/inventory-mps/",
+      "tests": ["tests/mps-resource-reception.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^src/mps-compute/",
+      "tests": ["tests/mps-workflow.test.mjs"],
+      "sourceTests": ["tests/mps-workflow.test.mjs"]
+    },
     {
       "repo": "dsh-agent-manage",
       "pattern": "^\\.codex/environments/environment\\.toml$",
@@ -265,6 +279,7 @@
   "sourceTools": {
     "tests/quality-ci-cli.test.mjs": ["yaml"],
     "tests/official-source-alias.test.mjs": ["zod"],
-    "tests/order-agents-resource-package.test.mjs": []
+    "tests/order-agents-resource-package.test.mjs": [],
+    "tests/mps-workflow.test.mjs": []
   }
 }
