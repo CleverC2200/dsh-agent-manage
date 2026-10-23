@@ -1,0 +1,110 @@
+{
+  "dateRange": [
+    "2026-09-01",
+    "2026-09-30"
+  ],
+  "metricDecision": {
+    "definitionStatus": "pending",
+    "coverageVerified": false,
+    "unitsVerified": false,
+    "evidence": [
+      "原始取数/orders.json",
+      "原始取数/kb-formula.json"
+    ],
+    "reason": "知识库与Cube定义冲突；9月订单执行模型空集"
+  },
+  "sources": {
+    "primary": {
+      "file": "原始取数/orders.json",
+      "dataset": "september_execution_total",
+      "model": "agents_order_execute_isontime_mi",
+      "fields": {
+        "count": "agents_order_execute_isontime_mi.record_count",
+        "need": "agents_order_execute_isontime_mi.need_qty_origin_value",
+        "shipped": "agents_order_execute_isontime_mi.qtyshipped_total",
+        "shortage": "agents_order_execute_isontime_mi.outqty_total",
+        "rate": "agents_order_execute_isontime_mi.order_fulfillment_rate"
+      }
+    },
+    "candidate": {
+      "file": "原始取数/orders.json",
+      "dataset": "september_order_total",
+      "model": "agents_scm_order_plan_exe_m",
+      "fields": {
+        "need": "agents_scm_order_plan_exe_m.need_qty_origin_total",
+        "rawShipped": "agents_scm_order_plan_exe_m.qtyshipped_total",
+        "monthlyShortage": "agents_scm_order_plan_exe_m.outqty_total",
+        "rate": "agents_scm_order_plan_exe_m.order_fulfillment_rate",
+        "demandChangeShortage": "agents_scm_order_plan_exe_m.demand_change_outqty_total",
+        "inPlanShortage": "agents_scm_order_plan_exe_m.plan_inner_outqty_total"
+      }
+    },
+    "production": {
+      "file": "原始取数/breakdown.json",
+      "dataset": "production_factories",
+      "model": "agents_mes_prod_oee_line_result_d",
+      "fields": {
+        "count": "agents_mes_prod_oee_line_result_d.record_count",
+        "plan": "agents_mes_prod_oee_line_result_d.plan_qty_total",
+        "actual": "agents_mes_prod_oee_line_result_d.actual_qty_total"
+      }
+    }
+  },
+  "pagedGroups": [
+    {
+      "id": "production",
+      "pages": [
+        {
+          "file": "原始取数/production-detail.json",
+          "dataset": "production_detail_0",
+          "model": "agents_mes_prod_oee_line_result_d"
+        },
+        {
+          "file": "原始取数/production-detail.json",
+          "dataset": "production_detail_1",
+          "model": "agents_mes_prod_oee_line_result_d"
+        },
+        {
+          "file": "原始取数/production-detail.json",
+          "dataset": "production_detail_2",
+          "model": "agents_mes_prod_oee_line_result_d"
+        },
+        {
+          "file": "原始取数/production-detail.json",
+          "dataset": "production_detail_3",
+          "model": "agents_mes_prod_oee_line_result_d"
+        },
+        {
+          "file": "原始取数/production-detail.json",
+          "dataset": "production_detail_4",
+          "model": "agents_mes_prod_oee_line_result_d"
+        },
+        {
+          "file": "原始取数/production-detail.json",
+          "dataset": "production_detail_5",
+          "model": "agents_mes_prod_oee_line_result_d"
+        }
+      ],
+      "keyMembers": [
+        "agents_mes_prod_oee_line_result_d.production_date",
+        "agents_mes_prod_oee_line_result_d.factory_name",
+        "agents_mes_prod_oee_line_result_d.material_code",
+        "agents_mes_prod_oee_line_result_d.order_code",
+        "agents_mes_prod_oee_line_result_d.batch_no",
+        "agents_mes_prod_oee_line_result_d.workcenter",
+        "agents_mes_prod_oee_line_result_d.deviation_reason",
+        "agents_mes_prod_oee_line_result_d.classify1",
+        "agents_mes_prod_oee_line_result_d.material_name",
+        "agents_mes_prod_oee_line_result_d.product_line_code",
+        "agents_mes_prod_oee_line_result_d.team_name"
+      ],
+      "sumMembers": [
+        "agents_mes_prod_oee_line_result_d.plan_qty_total",
+        "agents_mes_prod_oee_line_result_d.actual_qty_total",
+        "agents_mes_prod_oee_line_result_d.record_count"
+      ],
+      "totalRole": "production",
+      "baseMember": "agents_mes_prod_oee_line_result_d.factory_name"
+    }
+  ]
+}

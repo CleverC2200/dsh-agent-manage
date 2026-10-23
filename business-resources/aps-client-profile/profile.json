@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "agentId": "gea-html-inventory-apsplan",
+  "label": "产销协同数字人",
+  "prompt": "prompt.md",
+  "skills": [
+    {
+      "name": "inventory-apsplan",
+      "kind": "reference",
+      "enabled": false,
+      "entry": "skills/inventory-apsplan/SKILL.md"
+    },
+    {
+      "name": "sales-forecast-result-analysis",
+      "kind": "reference",
+      "enabled": false,
+      "entry": "skills/sales-forecast-result-analysis/SKILL.md"
+    },
+    {
+      "name": "sales-ops-problem-analysis",
+      "kind": "reference",
+      "enabled": false,
+      "entry": "skills/sales-ops-problem-analysis/SKILL.md"
+    },
+    {
+      "name": "order-satisfaction-analysis-guided",
+      "kind": "personal",
+      "enabled": false,
+      "entry": "skills/order-satisfaction-analysis-guided/SKILL.md"
+    },
+    {
+      "name": "plan-operations-weekly-report",
+      "kind": "personal",
+      "enabled": true,
+      "entry": "skills/plan-operations-weekly-report/SKILL.md"
+    },
+    {
+      "name": "answer-visualization",
+      "kind": "personal",
+      "enabled": true,
+      "entry": "skills/answer-visualization/SKILL.md"
+    },
+    {
+      "name": "order-satisfaction-analysis",
+      "kind": "personal",
+      "enabled": true,
+      "entry": "skills/order-satisfaction-analysis/SKILL.md"
+    }
+  ]
+}

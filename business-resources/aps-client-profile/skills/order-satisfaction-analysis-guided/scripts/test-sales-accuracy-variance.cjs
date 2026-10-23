@@ -1,0 +1,12 @@
+const fs=require('fs'),assert=require('assert/strict'),B=require('./sales-reporting.js');
+const d=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));B.apply(d);
+assert.equal(d.metric.salesDemandPlanVariance,-1854076);
+const base=n=>d.demandRows.find(r=>r.view==='基地经理'&&r.object===n);
+assert.equal(base('郑州').salesDemandPlanVariance,-1273172);assert.equal(base('郑州').accuracy,null);assert.match(base('郑州').accuracyMissingReason,/源下单量缺失/);
+assert(Math.abs(base('华南').accuracy-35.778595)<1e-8);
+const missingBase=base('基地未映射（销售提报）');assert(missingBase.accuracy<0);const saved=missingBase.accuracy;B.apply(d);assert.equal(missingBase.accuracy,saved,'重复绑定不重复乘100');
+const internal=base('郑州').children.find(r=>r.object==='思念食品有限公司').children.find(r=>r.object==='生产及供应链运营');
+assert.equal(internal.reported,0);assert.equal(internal.salesDemandPlanVariance,-291074);assert.equal(internal.accuracy,null);assert.match(internal.accuracyMissingReason,/提报分母非正/);
+const minimal={scope:{unit:'件'},metric:{reportedDemand:0,need:0},calculation:{salesDemandPlanVariance:'adjusted-minus-order-v1'},demandRows:[{reported:100,ordered:70},{reported:null,ordered:1},{reported:0,ordered:50}]};B.apply(minimal);assert.equal(minimal.metric.salesDemandPlanVariance,0);assert.deepEqual(minimal.demandRows.map(r=>r.salesDemandPlanVariance),[30,null,-50]);
+const published={scope:{unit:'件'},metric:{reportedDemand:100,need:70,salesDemandPlanVariance:888},demandRows:[]};B.apply(published);assert.equal(published.metric.salesDemandPlanVariance,888,'默认不覆盖发布值');
+console.log('PASS 用户确认差额、符号、零值/空值、源NULL说明、独立组织准确率、负准确率和编码幂等');

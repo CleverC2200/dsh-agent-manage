@@ -1,0 +1,4 @@
+# Preserve received client resource bytes across Windows and Linux checkouts.
+business-resources/aps-client-profile/prompt.md -text
+business-resources/aps-client-profile/skills/** -text
+business-resources/aps-client-profile/profile.json text eol=lf

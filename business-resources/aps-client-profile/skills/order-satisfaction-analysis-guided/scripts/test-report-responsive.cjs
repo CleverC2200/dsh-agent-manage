@@ -1,0 +1,23 @@
+const fs=require('fs'),path=require('path'),assert=require('assert/strict');
+const {JSDOM}=require('./report-environment.cjs').resolveDOM().module;
+const css=fs.readFileSync(path.join(__dirname,'../assets/data-binding.css'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'report-responsive.js'),'utf8');
+const dom=new JSDOM('<html><head><style>'+css+'</style></head><body><div class="topbar" style="position:sticky"></div><div class="layout"><main class="main"><section class="panel"><div id="host"><div class="analysis-body"><div class="report-table-wrap" id="viewport"><table style="min-width:1480px"><tbody><tr class="inline-drill-row"><td colspan="13"><div class="reason-drilldown"><div class="plan-drilldown-head">当前对象</div><div class="report-table-wrap"><table style="min-width:1120px"></table></div></div></td></tr></tbody></table></div></div></div></section></main></div></body></html>',{runScripts:'outside-only'});
+const w=dom.window,d=w.document,observers=[];
+w.ResizeObserver=class{constructor(callback){this.callback=callback;this.disconnected=false;observers.push(this);}observe(target){this.target=target;}disconnect(){this.disconnected=true;}};
+let headerHeight=66;d.querySelector('.topbar').getBoundingClientRect=()=>({height:headerHeight});
+w.eval(source);
+const host=d.getElementById('host'),viewport=d.getElementById('viewport'),detail=host.querySelector('.reason-drilldown');
+let visibleWidth=1000;Object.defineProperty(viewport,'clientWidth',{get:()=>visibleWidth});
+w.ReportResponsive.mount(host);
+const observer=observers.find(o=>o.target===viewport);
+for(const width of [1280,1145,900,720,375,280]){visibleWidth=width;observer.callback();const size=parseFloat(detail.style.getPropertyValue('--report-detail-width'));assert.equal(size,width-32);assert(size<width);}
+assert.equal(detail.closest('.report-table-wrap'),viewport,'以下钻外层滚动区为基准，而非内部SKU表');
+const cs=w.getComputedStyle(detail);assert.equal(cs.position,'sticky');assert.equal(cs.left,'16px');
+assert.equal(w.getComputedStyle(d.querySelector('.main')).gridTemplateColumns,'minmax(0,1fr)');
+assert.equal(w.getComputedStyle(viewport).width,'auto','含边距的滚动区不使用100%宽度');
+assert.equal(w.getComputedStyle(viewport).overflowX,'auto');
+headerHeight=120;observers.find(o=>o.target===d.querySelector('.topbar')).callback();assert.equal(d.documentElement.style.getPropertyValue('--report-header-offset'),'120px');
+w.ReportResponsive.mount(host);assert.equal(observer.disconnected,true,'重新渲染释放旧尺寸观察器');
+const current=observers.findLast(o=>o.target===viewport);detail.remove();w.ReportResponsive.mount(host);assert.equal(current.disconnected,true,'收起详情后释放观察器');
+dom.window.close();console.log('PASS 下钻可见宽度同步、嵌套滚动区、顶部换行偏移、重绘/收起观察器释放；模拟尺寸测试，不代表浏览器布局验收');

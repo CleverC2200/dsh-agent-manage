@@ -1,0 +1,6 @@
+interface:
+  display_name: "订单满足率分析与报告"
+  short_description: "逐项完成取数与缺数分诊，用可追溯证据卡解释生产机制并生成指定报告"
+  default_prompt: "使用 $order-satisfaction-analysis，读取表字段与页面绑定索引及运行步骤；按宿主已配置工具查询知识库和数据，保存完整证据，用prepare-source-bundle整理、audit-bindings检查，审阅全量结论，再经guided check/build交付并记录实际验收状态。"
+policy:
+  allow_implicit_invocation: true

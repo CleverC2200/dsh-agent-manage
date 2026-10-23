@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>计划运营周度管理报告｜HTML 演示版</title>
+  <style>
+    :root {
+      --ink: #20232a;
+      --text: #555d68;
+      --muted: #858c96;
+      --faint: #a0a4ac;
+      --line: #e3e6ea;
+      --strong-line: #d9dde3;
+      --divider: #eceef1;
+      --panel: #ffffff;
+      --subtle: #fafafa;
+      --soft: #f5f6f8;
+      --bg: #f7f8fa;
+      --brand: #df1732;
+      --brand-hover: #c91029;
+      --brand-soft: #fff0f2;
+      --hover-bg: #fffafb;
+      --hover-line: #efabb4;
+      --green: #168e58;
+      --green-soft: #eaf7ef;
+      --amber: #956900;
+      --amber-soft: #fff4d9;
+      --red: #c8112a;
+      --red-soft: #ffe9ec;
+      --neutral: #667085;
+      --neutral-soft: #eef1f5;
+      --shadow: 0 2px 10px #20273308;
+      --hover-shadow: 0 8px 20px #20273312;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    button { font: inherit; }
+    .app { min-height: 100vh; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      height: 56px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--ink);
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--brand);
+      color: #fff;
+      font-size: 11px;
+    }
+    .toolbar { display: flex; align-items: center; gap: 10px; }
+    .toolbar button {
+      min-height: 36px;
+      border: 1px solid var(--strong-line);
+      color: var(--text);
+      background: #fff;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+    }
+    .toolbar button:hover { color: var(--brand); border-color: var(--hover-line); background: var(--hover-bg); }
+
+    .layout {
+      width: min(1500px, calc(100% - 36px));
+      margin: 20px auto 48px;
+      display: block;
+    }
+    .side {
+      position: sticky;
+      top: 56px;
+      z-index: 30;
+      display: flex;
+      align-items: stretch;
+      margin-top: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 0 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .side::-webkit-scrollbar { display: none; }
+    .side-title { flex: 0 0 auto; display: flex; align-items: center; padding: 0 16px 0 4px; color: var(--muted); font-size: 9px; font-weight: 800; white-space: nowrap; }
+    .side a {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex: 1 0 138px;
+      color: var(--text);
+      text-decoration: none;
+      min-height: 46px;
+      padding: 0 14px;
+      margin: 0;
+      font-size: 10px;
+      font-weight: 600;
+      transition: color 180ms ease, background 180ms ease;
+    }
+    .side a:hover { color: var(--brand); background: var(--hover-bg); }
+    .side a.active { color: var(--brand); background: #fff; font-weight: 800; }
+    .side a.active::after { content: ""; position: absolute; inset: auto 0 -1px; height: 2px; background: var(--brand); }
+    .side-index { width: 20px; color: var(--muted); font-size: 9px; }
+
+    main { min-width: 0; }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: var(--panel);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      right: -76px;
+      top: -94px;
+      border-radius: 50%;
+      background: var(--brand-soft);
+    }
+    .eyebrow { position: relative; color: var(--brand); font-size: 10px; letter-spacing: .08em; font-weight: 700; }
+    h1 { position: relative; margin: 8px 0; font-size: clamp(24px, 2.5vw, 30px); line-height: 1.2; }
+    .hero p { position: relative; margin: 0; color: var(--text); font-size: 13px; }
+    .meta { position: relative; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .meta span { padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--subtle); color: var(--muted); font-size: 10px; }
+    .demo-note {
+      margin-top: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      color: var(--amber);
+      background: var(--amber-soft);
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .section {
+      scroll-margin-top: 86px;
+      margin-top: 24px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .section-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin-bottom: 16px; }
+    .section-kicker { color: var(--brand); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+    h2 { margin: 3px 0 0; font-size: 18px; line-height: 1.35; }
+    h3 { margin: 24px 0 12px; font-size: 14px; line-height: 1.4; }
+    .section-desc { color: var(--muted); font-size: 10px; text-align: right; max-width: 460px; }
+
+    .filters { display: flex; gap: 0; overflow-x: auto; margin: 0 0 16px; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+    .filters::-webkit-scrollbar { display: none; }
+    .filter {
+      position: relative;
+      min-height: 36px;
+      padding: 0 16px;
+      border: 0;
+      background: #fff;
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .filter:hover { color: var(--brand); background: var(--hover-bg); }
+    .filter.active { color: var(--brand); background: #fff; font-weight: 800; }
+    .filter.active::after { content: ""; position: absolute; inset: auto 0 -1px; height: 2px; background: var(--brand); }
+
+    .kpis { display: grid; grid-template-columns: repeat(6, minmax(150px, 1fr)); gap: 12px; }
+    .kpi { position: relative; min-height: 168px; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; background: #fff; overflow: hidden; transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
+    .kpi:hover { border-color: var(--hover-line); background: var(--hover-bg); box-shadow: var(--hover-shadow); transform: translateY(-1px); }
+    .kpi-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .kpi-name { font-size: 11px; font-weight: 700; }
+    .status { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font-size: 8px; line-height: 1.25; font-weight: 700; white-space: nowrap; }
+    .status.healthy { color: var(--green); background: var(--green-soft); }
+    .status.warning { color: var(--amber); background: var(--amber-soft); }
+    .status.severe { color: var(--red); background: var(--red-soft); }
+    .status.info { color: var(--neutral); background: var(--neutral-soft); }
+    .kpi-value { margin-top: 16px; font-size: 23px; line-height: 1.15; font-weight: 700; letter-spacing: -.04em; }
+    .kpi-target { margin-top: 8px; color: var(--muted); font-size: 10px; }
+    .delta { margin-top: 16px; display: grid; gap: 4px; color: var(--text); font-size: 10px; }
+    .delta-row { display: flex; justify-content: space-between; gap: 8px; }
+    .up-good, .down-good { color: var(--green); font-weight: 700; }
+    .up-bad, .down-bad { color: var(--red); font-weight: 700; }
+
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 18px; }
+    .summary-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+    .summary-card strong { display: block; margin-bottom: 4px; font-size: 11px; }
+    .summary-card p { margin: 0; color: var(--text); font-size: 12px; }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; font-size: 10px; color: var(--text); }
+    th { height: 38px; padding: 0 14px; text-align: left; color: #747b86; background: var(--soft); border-bottom: 1px solid var(--line); font-size: 9px; font-weight: 800; white-space: nowrap; }
+    td { height: 44px; padding: 8px 14px; border-bottom: 1px solid var(--divider); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: var(--hover-bg); }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .bad { color: var(--red); font-weight: 800; }
+    .good { color: var(--green); font-weight: 800; }
+    .muted { color: var(--muted); }
+
+    .issue-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .issue { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; background: #fff; }
+    .issue-header { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+    .issue-title { font-size: 14px; font-weight: 700; }
+    .issue-metric { margin-top: 3px; color: var(--red); font-weight: 700; font-size: 12px; }
+    .issue dl { margin: 12px 0 0; display: grid; grid-template-columns: 74px 1fr; gap: 8px; font-size: 12px; }
+    .issue dt { color: var(--muted); }
+    .issue dd { margin: 0; }
+    .evidence { margin-top: 12px; padding: 8px 12px; border-radius: 8px; color: var(--amber); background: var(--amber-soft); font-size: 10px; }
+
+    .cross-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .cross-card { padding: 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--subtle); }
+    .cross-card .label { color: var(--muted); font-size: 9px; font-weight: 700; }
+    .cross-card .name { margin-top: 5px; font-weight: 800; }
+    .cross-card .note { margin-top: 6px; font-size: 10px; color: var(--text); }
+
+    .action-status { font-weight: 700; white-space: nowrap; }
+    .action-status.running { color: var(--brand); }
+    .action-status.pending { color: var(--amber); }
+    .action-status.observe { color: var(--neutral); }
+    .action-status.closed { color: var(--green); }
+
+    .next-week { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+    .next-item { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); }
+    .next-no { flex: 0 0 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; color: var(--brand); background: var(--brand-soft); font-size: 10px; font-weight: 800; }
+    .next-item strong { display: block; font-size: 11px; }
+    .next-item p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
+
+    .footnote { margin-top: 16px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--subtle); color: var(--text); font-size: 10px; }
+    .hidden-by-filter { display: none !important; }
+
+    button:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+    @media (max-width: 1250px) {
+      .kpis { grid-template-columns: repeat(3, 1fr); }
+      .cross-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 900px) {
+      .layout { width: min(100% - 20px, 820px); display: block; }
+      .side { top: 56px; }
+      .side a { flex-basis: 132px; }
+      .topbar { padding: 0 15px; }
+      .hero, .section { padding: 16px; }
+      .section-head { align-items: flex-start; flex-direction: column; }
+      .section-desc { text-align: left; }
+      .kpis, .summary-grid, .issue-grid, .next-week { grid-template-columns: 1fr; }
+      .cross-grid { grid-template-columns: 1fr 1fr; }
+      .toolbar .wide { display: none; }
+    }
+    @media (max-width: 520px) {
+      .cross-grid { grid-template-columns: 1fr; }
+      .topbar { padding: 0 12px; }
+      .brand { font-size: 12px; }
+    }
+    @media print {
+      @page { size: A4 landscape; margin: 12mm; }
+      body { background: #fff; font-size: 10pt; }
+      .topbar, .side, .filters { display: none !important; }
+      .layout { display: block; width: 100%; margin: 0; }
+      .hero { box-shadow: none; border-radius: 0; }
+      .section { box-shadow: none; break-inside: avoid; padding: 16px 0; margin-top: 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+      .kpis { grid-template-columns: repeat(6, 1fr); }
+      .kpi { min-height: 150px; padding: 10px; }
+      .kpi-value { font-size: 20px; }
+      .issue { break-inside: avoid; }
+      table { font-size: 8.5pt; }
+      th, td { padding: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">PO</span><span>计划运营管理驾驶舱</span></div>
+      <div class="toolbar">
+        <button id="riskOnly" class="wide" type="button">仅看风险</button>
+        <button type="button" onclick="window.print()">打印 / 导出 PDF</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <main>
+        <section class="hero">
+          <div class="eyebrow">PLAN OPERATIONS WEEKLY REVIEW</div>
+          <h1>计划运营周度管理报告 10月<br />（2026.10.01-10.11）</h1>
+          <p>以指标达成、责任对象、问题证据与改善闭环为主线的管理例会视图</p>
+          <div class="meta">
+            <span>月度累计：10.01-10.11</span>
+            <span>本周：10.05-10.11</span>
+            <span>数据截止：10.12 08:00</span>
+            <span>时区：Asia/Shanghai</span>
+            <span>版本：DEMO-V1</span>
+          </div>
+          <div class="demo-note">⚠ 页面演示数据，不代表正式经营结果或实际责任归属</div>
+        </section>
+
+        <nav class="side" aria-label="报告目录">
+          <div class="side-title">报告目录</div>
+          <a href="#overview" class="active"><span class="side-index">01</span>核心指标总览</a>
+          <a href="#base"><span class="side-index">02</span>基地维度</a>
+          <a href="#director"><span class="side-index">03</span>应责总监维度</a>
+          <a href="#category"><span class="side-index">04</span>品项维度</a>
+          <a href="#actions"><span class="side-index">05</span>改善与长期规划</a>
+        </nav>
+
+        <section class="section" id="overview">
+          <div class="section-head">
+            <div><div class="section-kicker">SECTION 01</div><h2>一、六大核心指标达成总览</h2></div>
+            <div class="section-desc">同一口径展示月度累计、本周节奏与变化方向；状态阈值仅用于页面演示。</div>
+          </div>
+          <div class="filters" aria-label="状态筛选">
+            <button class="filter active" data-filter="all" type="button">全部指标</button>
+            <button class="filter" data-filter="risk" type="button">预警与严重</button>
+            <button class="filter" data-filter="healthy" type="button">达标</button>
+          </div>
+          <div class="kpis">
+            <article class="kpi healthy" data-status="healthy">
+              <div class="kpi-top"><span class="kpi-name">作废率</span><span class="status healthy">● 达标</span></div>
+              <div class="kpi-value">4.38%</div><div class="kpi-target">目标 ≤ 6.00%</div>
+              <div class="delta"><div class="delta-row"><span>月环比</span><b class="down-good">↓ 0.42 pct</b></div><div class="delta-row"><span>本周</span><b>3.91%</b></div></div>
+            </article>
+            <article class="kpi warning" data-status="warning">
+              <div class="kpi-top"><span class="kpi-name">改单率</span><span class="status warning">● 预警</span></div>
+              <div class="kpi-value">2.16%</div><div class="kpi-target">目标 ≤ 2.00%</div>
+              <div class="delta"><div class="delta-row"><span>月环比</span><b class="up-bad">↑ 0.21 pct</b></div><div class="delta-row"><span>本周</span><b>1.88%</b></div></div>
+            </article>
+            <article class="kpi severe" data-status="severe">
+              <div class="kpi-top"><span class="kpi-name">订单满足率</span><span class="status severe">● 严重</span></div>
+              <div class="kpi-value">93.42%</div><div class="kpi-target">目标 ≥ 95.00%</div>
+              <div class="delta"><div class="delta-row"><span>月环比</span><b class="down-bad">↓ 1.08 pct</b></div><div class="delta-row"><span>本周</span><b>92.86%</b></div></div>
+            </article>
+            <article class="kpi severe" data-status="severe">
+              <div class="kpi-top"><span class="kpi-name">准交率</span><span class="status severe">● 严重</span></div>
+              <div class="kpi-value">96.72%</div><div class="kpi-target">目标 ≥ 98.50%</div>
+              <div class="delta"><div class="delta-row"><span>月环比</span><b class="down-bad">↓ 0.74 pct</b></div><div class="delta-row"><span>本周</span><b>95.81%</b></div></div>
+            </article>
+            <article class="kpi warning" data-status="warning">
+              <div class="kpi-top"><span class="kpi-name">60天+货龄占比</span><span class="status warning">● 预警</span></div>
+              <div class="kpi-value">7.84%</div><div class="kpi-target">目标 ≤ 7.00%</div>
+              <div class="delta"><div class="delta-row"><span>月环比</span><b class="up-bad">↑ 0.36 pct</b></div><div class="delta-row"><span>本周</span><b>8.12%</b></div></div>
+            </article>
+            <article class="kpi healthy" data-status="healthy">
+              <div class="kpi-top"><span class="kpi-name">可发货天数</span><span class="status healthy">● 达标</span></div>
+              <div class="kpi-value">10.6天</div><div class="kpi-target">目标 ≤ 12.0天</div>
+              <div class="delta"><div class="delta-row"><span>月环比</span><b class="down-good">↓ 0.8天</b></div><div class="delta-row"><span>本周</span><b>10.2天</b></div></div>
+            </article>
+          </div>
+
+          <h3>本期结论摘要</h3>
+          <div class="summary-grid">
+            <div class="summary-card good"><strong>正向表现</strong><p>作废率和可发货天数处于健康区间，可发货天数较上期下降 0.8 天，库存总量压力有所缓解。</p></div>
+            <div class="summary-card risk"><strong>主要风险</strong><p>订单满足率与准交率双红，月度缺口分别为 1.58 pct 和 1.78 pct；风险集中于西南基地及水饺、预制食材品项。</p></div>
+            <div class="summary-card rhythm"><strong>周度节奏</strong><p>本周满足率低于月度累计 0.56 pct，连续性风险仍在；改单率本周回落，但需观察下一完整周。</p></div>
+          </div>
+          <div class="footnote">证据状态：本页全部数值为界面演示数据；正式报告应由 <code>cube_new</code> 取数，并通过 <code>gea_kb</code> 中本人具有 ASK 权限的知识库核对定义和阈值后重新判级。</div>
+        </section>
+
+        <section class="section" id="base">
+          <div class="section-head">
+            <div><div class="section-kicker">SECTION 02</div><h2>二、基地维度达成分析</h2></div>
+            <div class="section-desc">先呈现全量比较，再对重点基地展开原因、措施与数据缺口。</div>
+          </div>
+          <h3>2.1 基地月度达成</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>基地</th><th class="num">满足率</th><th class="num">环比</th><th class="num">同比</th><th class="num">准交率</th><th class="num">环比</th><th class="num">60天+占比</th><th class="num">环比</th><th class="num">可发货天数</th><th class="num">环比</th></tr></thead>
+              <tbody>
+                <tr><td>华东基地</td><td class="num good">96.18%</td><td class="num good">+0.62</td><td class="num">+0.31</td><td class="num">98.72%</td><td class="num">+0.18</td><td class="num">6.24%</td><td class="num">-0.41</td><td class="num">9.4</td><td class="num">-0.6</td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>华南基地</td><td class="num">94.61%</td><td class="num bad">-0.73</td><td class="num">-0.22</td><td class="num">98.14%</td><td class="num">+0.11</td><td class="num bad">8.09%</td><td class="num bad">+0.67</td><td class="num">11.7</td><td class="num">+0.2</td></tr>
+                <tr class="risk-row" data-status-row="severe"><td>西南基地</td><td class="num bad">89.76%</td><td class="num bad">-2.41</td><td class="num bad">-3.16</td><td class="num bad">94.88%</td><td class="num bad">-1.62</td><td class="num bad">10.42%</td><td class="num bad">+1.28</td><td class="num bad">14.9</td><td class="num bad">+2.1</td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>中原基地</td><td class="num">92.84%</td><td class="num">-0.38</td><td class="num">+0.14</td><td class="num bad">96.02%</td><td class="num bad">-0.86</td><td class="num">7.18%</td><td class="num">-0.09</td><td class="num">10.5</td><td class="num">-0.4</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>2.2 基地周度达成</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>基地</th><th class="num">满足率本周</th><th class="num">周环比</th><th class="num">周同比</th><th class="num">准交率本周</th><th class="num">周环比</th><th class="num">60天+占比</th><th class="num">周环比</th><th class="num">可发货天数</th><th class="num">周环比</th></tr></thead>
+              <tbody>
+                <tr><td>华东基地</td><td class="num good">96.42%</td><td class="num">+0.34</td><td class="num">+0.52</td><td class="num">98.54%</td><td class="num">-0.08</td><td class="num">6.11%</td><td class="num">-0.16</td><td class="num">9.1</td><td class="num">-0.4</td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>华南基地</td><td class="num">93.88%</td><td class="num bad">-1.08</td><td class="num">-0.47</td><td class="num">97.92%</td><td class="num">-0.31</td><td class="num bad">8.32%</td><td class="num bad">+0.42</td><td class="num">11.9</td><td class="num">+0.5</td></tr>
+                <tr class="risk-row" data-status-row="severe"><td>西南基地</td><td class="num bad">88.91%</td><td class="num bad">-2.76</td><td class="num bad">-3.62</td><td class="num bad">93.72%</td><td class="num bad">-2.18</td><td class="num bad">10.86%</td><td class="num bad">+0.73</td><td class="num bad">15.6</td><td class="num bad">+1.7</td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>中原基地</td><td class="num">92.47%</td><td class="num">-0.61</td><td class="num">+0.26</td><td class="num bad">95.46%</td><td class="num bad">-1.03</td><td class="num">7.05%</td><td class="num">-0.18</td><td class="num">10.2</td><td class="num">-0.6</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>2.3 重点基地：原因分析与改善措施</h3>
+          <div class="issue-grid">
+            <article class="issue" data-status="severe">
+              <div class="issue-header"><div><div class="issue-title">西南基地</div><div class="issue-metric">满足率 89.76%｜准交率 94.88%</div></div><span class="status severe">严重</span></div>
+              <dl><dt>贡献对象</dt><dd>水饺、预制食材，占基地未满足量的演示占比 61%</dd><dt>原因线索</dt><dd>生产兑现与区域库存结构存在同步缺口</dd><dt>改善执行</dt><dd>建议建立订单商品到生产单、调拨单的匹配清单</dd><dt>长期规划</dt><dd>建立区域产能缺口前置识别与调拨触发规则</dd></dl>
+              <div class="evidence">证据状态：待验证。缺少订单商品—供给实体关联、事件时间与实际影响量。</div>
+            </article>
+            <article class="issue" data-status="warning">
+              <div class="issue-header"><div><div class="issue-title">华南基地</div><div class="issue-metric">60天+货龄占比 8.09%</div></div><span class="status warning">预警</span></div>
+              <dl><dt>贡献对象</dt><dd>休闲品项、渠道定制品</dd><dt>原因线索</dt><dd>高货龄与满足率未达同时出现，需核查可用性与渠道映射</dd><dt>改善执行</dt><dd>建议按 SKU×渠道形成去化与调拨候选清单</dd><dt>长期规划</dt><dd>补充临期库存分层处置规则和验收窗口</dd></dl>
+              <div class="evidence">证据状态：待验证。交叉指标只能决定核查方向，不能直接认定根因。</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="director">
+          <div class="section-head">
+            <div><div class="section-kicker">SECTION 03</div><h2>三、应责总监维度达成分析</h2></div>
+            <div class="section-desc">责任映射应以报告期间生效组织版本为准；下列姓名均为页面演示代称。</div>
+          </div>
+          <h3>3.1 应责总监月度达成</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>应责总监</th><th>对应范围</th><th class="num">满足率</th><th class="num">环比</th><th class="num">准交率</th><th class="num">60天+占比</th><th class="num">可发货天数</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td>总监 A</td><td>华东基地</td><td class="num good">96.18%</td><td class="num">+0.62</td><td class="num">98.72%</td><td class="num">6.24%</td><td class="num">9.4</td><td><span class="status healthy">达标</span></td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>总监 B</td><td>华南基地</td><td class="num">94.61%</td><td class="num bad">-0.73</td><td class="num">98.14%</td><td class="num bad">8.09%</td><td class="num">11.7</td><td><span class="status warning">预警</span></td></tr>
+                <tr class="risk-row" data-status-row="severe"><td>总监 C</td><td>西南基地</td><td class="num bad">89.76%</td><td class="num bad">-2.41</td><td class="num bad">94.88%</td><td class="num bad">10.42%</td><td class="num bad">14.9</td><td><span class="status severe">严重</span></td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>总监 D</td><td>中原基地</td><td class="num">92.84%</td><td class="num">-0.38</td><td class="num bad">96.02%</td><td class="num">7.18%</td><td class="num">10.5</td><td><span class="status warning">预警</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>3.2 应责总监周度达成</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>应责总监</th><th>对应范围</th><th class="num">满足率本周</th><th class="num">周环比</th><th class="num">准交率本周</th><th class="num">60天+占比</th><th class="num">可发货天数</th><th>状态</th></tr></thead>
+              <tbody>
+                <tr><td>总监 A</td><td>华东基地</td><td class="num good">96.42%</td><td class="num">+0.34</td><td class="num">98.54%</td><td class="num">6.11%</td><td class="num">9.1</td><td><span class="status healthy">达标</span></td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>总监 B</td><td>华南基地</td><td class="num">93.88%</td><td class="num bad">-1.08</td><td class="num">97.92%</td><td class="num bad">8.32%</td><td class="num">11.9</td><td><span class="status warning">预警</span></td></tr>
+                <tr class="risk-row" data-status-row="severe"><td>总监 C</td><td>西南基地</td><td class="num bad">88.91%</td><td class="num bad">-2.76</td><td class="num bad">93.72%</td><td class="num bad">10.86%</td><td class="num bad">15.6</td><td><span class="status severe">严重</span></td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>总监 D</td><td>中原基地</td><td class="num">92.47%</td><td class="num">-0.61</td><td class="num bad">95.46%</td><td class="num">7.05%</td><td class="num">10.2</td><td><span class="status warning">预警</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>3.3 重点责任对象观察</h3>
+          <div class="cross-grid">
+            <div class="cross-card"><div class="label">最深异常</div><div class="name">总监 C / 西南</div><div class="note">满足率、准交率、货龄和库存天数同时处于风险区。</div></div>
+            <div class="cross-card"><div class="label">最大恶化</div><div class="name">总监 C / 西南</div><div class="note">满足率月环比下降 2.41 pct，需优先核查贡献对象。</div></div>
+            <div class="cross-card"><div class="label">最大改善</div><div class="name">总监 A / 华东</div><div class="note">满足率月环比改善 0.62 pct，但改善原因尚未归因。</div></div>
+            <div class="cross-card"><div class="label">结构矛盾</div><div class="name">总监 B / 华南</div><div class="note">高货龄伴随满足率未达，优先检查 SKU 与渠道错配。</div></div>
+          </div>
+          <div class="footnote">责任说明：指标发生在某基地不等同于个人责任已经确认。正式归责需有生效组织映射、职责边界和业务事件依据。</div>
+        </section>
+
+        <section class="section" id="category">
+          <div class="section-head">
+            <div><div class="section-kicker">SECTION 04</div><h2>四、品项维度达成分析</h2></div>
+            <div class="section-desc">识别满足率、库存天数和货龄风险之间的结构性矛盾。</div>
+          </div>
+          <h3>4.1 品项月度达成</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>品项</th><th class="num">满足率</th><th class="num">环比</th><th class="num">同比</th><th class="num">可发货天数</th><th class="num">环比</th><th class="num">60天+占比</th><th class="num">环比</th><th>未达成项</th></tr></thead>
+              <tbody>
+                <tr><td>面点</td><td class="num good">96.44%</td><td class="num">+0.44</td><td class="num">+0.62</td><td class="num">9.2</td><td class="num">-0.5</td><td class="num">5.68%</td><td class="num">-0.32</td><td>—</td></tr>
+                <tr class="risk-row" data-status-row="severe"><td>水饺</td><td class="num bad">88.73%</td><td class="num bad">-2.86</td><td class="num bad">-3.42</td><td class="num bad">13.8</td><td class="num bad">+1.9</td><td class="num">7.32%</td><td class="num">+0.21</td><td>满足率、可发货天数</td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>汤圆</td><td class="num">94.28%</td><td class="num">-0.64</td><td class="num">+0.18</td><td class="num">10.1</td><td class="num">-0.2</td><td class="num">6.94%</td><td class="num">+0.14</td><td>满足率</td></tr>
+                <tr><td>火锅料</td><td class="num good">95.82%</td><td class="num">+0.36</td><td class="num">+0.51</td><td class="num">11.4</td><td class="num">-0.7</td><td class="num">6.72%</td><td class="num">-0.28</td><td>—</td></tr>
+                <tr class="risk-row" data-status-row="severe"><td>预制食材</td><td class="num bad">90.16%</td><td class="num bad">-1.74</td><td class="num">-0.83</td><td class="num bad">14.6</td><td class="num bad">+2.2</td><td class="num bad">9.48%</td><td class="num bad">+1.16</td><td>满足率、库存、货龄</td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>休闲</td><td class="num">94.76%</td><td class="num">-0.41</td><td class="num">+0.09</td><td class="num">12.2</td><td class="num">+0.4</td><td class="num bad">10.21%</td><td class="num bad">+0.88</td><td>满足率、货龄</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>4.2 品项周度达成</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>品项</th><th class="num">满足率本周</th><th class="num">周环比</th><th class="num">周同比</th><th class="num">可发货天数</th><th class="num">周环比</th><th class="num">60天+占比</th><th class="num">周环比</th></tr></thead>
+              <tbody>
+                <tr><td>面点</td><td class="num good">96.71%</td><td class="num">+0.38</td><td class="num">+0.71</td><td class="num">8.9</td><td class="num">-0.4</td><td class="num">5.52%</td><td class="num">-0.21</td></tr>
+                <tr class="risk-row" data-status-row="severe"><td>水饺</td><td class="num bad">87.94%</td><td class="num bad">-3.12</td><td class="num bad">-3.88</td><td class="num bad">14.4</td><td class="num bad">+1.5</td><td class="num">7.48%</td><td class="num">+0.18</td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>汤圆</td><td class="num">93.82%</td><td class="num">-0.91</td><td class="num">+0.06</td><td class="num">9.8</td><td class="num">-0.3</td><td class="num">6.88%</td><td class="num">+0.09</td></tr>
+                <tr><td>火锅料</td><td class="num good">96.08%</td><td class="num">+0.29</td><td class="num">+0.48</td><td class="num">10.9</td><td class="num">-0.6</td><td class="num">6.59%</td><td class="num">-0.22</td></tr>
+                <tr class="risk-row" data-status-row="severe"><td>预制食材</td><td class="num bad">89.43%</td><td class="num bad">-2.06</td><td class="num">-1.14</td><td class="num bad">15.1</td><td class="num bad">+1.7</td><td class="num bad">9.76%</td><td class="num bad">+0.64</td></tr>
+                <tr class="warning-row" data-status-row="warning"><td>休闲</td><td class="num">94.21%</td><td class="num">-0.72</td><td class="num">-0.15</td><td class="num">12.5</td><td class="num">+0.3</td><td class="num bad">10.44%</td><td class="num bad">+0.46</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>4.3 重点品项问题卡</h3>
+          <div class="issue-grid">
+            <article class="issue" data-status="severe">
+              <div class="issue-header"><div><div class="issue-title">水饺</div><div class="issue-metric">满足率 88.73%｜可发货天数 13.8天</div></div><span class="status severe">严重</span></div>
+              <dl><dt>重点切面</dt><dd>西南基地×水饺</dd><dt>调查方向</dt><dd>总量供给、排产兑现、调拨到货与可用库存结构</dd><dt>建议动作</dt><dd>按未满足数量排序订单商品，建立供给匹配和事件时间线</dd></dl>
+              <div class="evidence">证据状态：数据不足。当前只有演示指标，不能判定生产或调拨是实际根因。</div>
+            </article>
+            <article class="issue" data-status="severe">
+              <div class="issue-header"><div><div class="issue-title">预制食材</div><div class="issue-metric">满足率 90.16%｜60天+占比 9.48%</div></div><span class="status severe">严重</span></div>
+              <dl><dt>重点切面</dt><dd>西南、华南基地</dd><dt>调查方向</dt><dd>库存可用性、渠道限制、效期约束、需求与品项映射</dd><dt>建议动作</dt><dd>核对高货龄库存是否可用于当前订单池，避免总量抵消结构缺口</dd></dl>
+              <div class="evidence">证据状态：待验证。高库存与低满足并存只能说明结构性核查优先级。</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="actions">
+          <div class="section-head">
+            <div><div class="section-kicker">SECTION 05</div><h2>五、改善措施：执行情况与长期规划</h2></div>
+            <div class="section-desc">行动必须对应具体问题，并具备责任、时间、完成证据与验收窗口。</div>
+          </div>
+          <h3>5.1 执行情况</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>条线</th><th>关键动作</th><th>对应问题</th><th>状态</th><th>责任角色</th><th>计划时间</th><th>完成 / 验收证据</th></tr></thead>
+              <tbody>
+                <tr><td>供需匹配</td><td>建立西南水饺订单商品—供给实体匹配清单</td><td>满足率严重未达</td><td><span class="action-status running">正在执行</span></td><td>计划管理 / 西南基地</td><td>10月15日</td><td>匹配覆盖率≥95%，缺口去重勾稽</td></tr>
+                <tr><td>库存去化</td><td>形成华南休闲品项 SKU×渠道去化清单</td><td>60天+货龄预警</td><td><span class="action-status pending">待启动</span></td><td>销售运营 / 库存管理</td><td>10月16日</td><td>清单审批记录与两周货龄变化</td></tr>
+                <tr><td>生产兑现</td><td>核查预制食材生产单承诺与实际可用时间</td><td>低满足+高库存矛盾</td><td><span class="action-status running">正在执行</span></td><td>生产计划 / 基地计划</td><td>10月14日</td><td>生产单、入库批次、订单需求关联</td></tr>
+                <tr><td>订单质量</td><td>统计改单原因并收敛高频操作场景</td><td>改单率预警</td><td><span class="action-status observe">已完成待观察</span></td><td>销售运营 / 计划管理</td><td>观察至10月25日</td><td>连续两完整周改单率≤2%</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>5.2 长期规划</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>机制</th><th>机制内容</th><th>目标</th><th>责任角色</th><th>里程碑 / 触发规则</th></tr></thead>
+              <tbody>
+                <tr><td>产能缺口前置识别</td><td>以订单需求、有效库存、排产承诺和可用日期形成滚动缺口</td><td>在履约窗口前识别高贡献缺口</td><td>计划管理 / 生产计划</td><td>满足率预测低于目标时自动进入专项</td></tr>
+                <tr><td>库存结构治理</td><td>按 SKU、渠道、效期和基地拆分可用与不可用库存</td><td>避免总库存掩盖结构性缺货</td><td>库存管理 / 销售运营</td><td>高库存+低满足组合连续两周触发</td></tr>
+                <tr><td>改善闭环验收</td><td>行动完成后按同口径观察窗口复核指标与影响量</td><td>区分“做完动作”和“问题关闭”</td><td>经营管理 / 计划管理</td><td>至少一个完整周或指标定义要求的窗口</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>附：下周重点</h3>
+          <div class="next-week">
+            <div class="next-item"><span class="next-no">01</span><div><strong>西南基地满足率专项</strong><p>完成订单商品缺口与供给实体匹配，确认前两大贡献分支。</p></div></div>
+            <div class="next-item"><span class="next-no">02</span><div><strong>预制食材结构性库存核查</strong><p>核对库存可用性、渠道限制与效期约束，形成调拨和去化建议。</p></div></div>
+            <div class="next-item"><span class="next-no">03</span><div><strong>改单率措施观察</strong><p>按完整周观察措施效果，若再次超过 2% 则进入原因专项。</p></div></div>
+            <div class="next-item"><span class="next-no">04</span><div><strong>数据缺口补齐</strong><p>补充订单—生产—库存—调拨关联与组织责任生效版本。</p></div></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const filters = [...document.querySelectorAll('.filter')];
+    const kpis = [...document.querySelectorAll('.kpi')];
+    filters.forEach(button => button.addEventListener('click', () => {
+      filters.forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      const mode = button.dataset.filter;
+      kpis.forEach(card => {
+        const status = card.dataset.status;
+        const visible = mode === 'all' || status === mode || (mode === 'risk' && status !== 'healthy');
+        card.classList.toggle('hidden-by-filter', !visible);
+      });
+    }));
+
+    let riskOnly = false;
+    const riskButton = document.getElementById('riskOnly');
+    riskButton.addEventListener('click', () => {
+      riskOnly = !riskOnly;
+      riskButton.textContent = riskOnly ? '显示全部对象' : '仅看风险';
+      document.querySelectorAll('#base tbody tr, #director tbody tr, #category tbody tr').forEach(row => {
+        if (!row.dataset.statusRow) return;
+        row.classList.toggle('hidden-by-filter', false);
+      });
+      document.querySelectorAll('#base tbody tr:not([data-status-row]), #director tbody tr:not([data-status-row]), #category tbody tr:not([data-status-row])').forEach(row => {
+        row.classList.toggle('hidden-by-filter', riskOnly);
+      });
+    });
+
+    const links = [...document.querySelectorAll('.side a')];
+    const sections = links.map(link => document.querySelector(link.getAttribute('href'))).filter(Boolean);
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${visible.target.id}`));
+    }, { rootMargin: '-80px 0px -65% 0px', threshold: [0, .2, .5] });
+    sections.forEach(section => observer.observe(section));
+  </script>
+</body>
+</html>

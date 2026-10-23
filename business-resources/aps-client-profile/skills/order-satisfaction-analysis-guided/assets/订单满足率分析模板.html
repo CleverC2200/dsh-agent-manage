@@ -1,0 +1,2023 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>订单满足率分析主线·交互示例</title>
+<!-- REPORT_STYLE_START -->
+<style>
+.analysis-report{
+  --report-ink:#20232a;
+  --report-text:#555d68;
+  --report-muted:#858c96;
+  --report-faint:#a0a4ac;
+  --report-line:#e3e6ea;
+  --report-strong-line:#d9dde3;
+  --report-divider:#eceef1;
+  --report-panel:#fff;
+  --report-subtle:#fafafa;
+  --report-soft:#f5f6f8;
+  --report-bg:#f7f8fa;
+  --report-brand:#df1732;
+  --report-brand-hover:#c91029;
+  --report-brand-soft:#fff0f2;
+  --report-hover:#fffafb;
+  --report-hover-line:#efabb4;
+  --report-success:#168e58;
+  --report-success-soft:#eaf7ef;
+  --report-warning:#956900;
+  --report-warning-soft:#fff4d9;
+  --report-risk:#c8112a;
+  --report-risk-soft:#ffe9ec;
+  --report-neutral:#667085;
+  --report-neutral-soft:#eef1f5;
+  max-width:1180px;
+  margin:auto;
+  color:var(--report-text);
+  background:transparent;
+  font:12px/1.7 "Microsoft YaHei UI","PingFang SC","Noto Sans CJK SC",Arial,sans-serif;
+}
+.analysis-report *{box-sizing:border-box}
+.report-cover{position:relative;overflow:hidden;padding:24px;border:1px solid var(--report-line);border-radius:10px;background:var(--report-panel);box-shadow:0 2px 10px #20273308}
+.report-cover::after{content:"";position:absolute;width:180px;height:180px;right:-76px;top:-94px;border-radius:50%;background:var(--report-brand-soft)}
+.report-overline,.report-cover h2,.report-meta,.report-scope-label{position:relative;z-index:1}
+.report-overline{color:var(--report-brand);font-size:10px;font-weight:700;letter-spacing:.08em}
+.report-cover h2{font-size:30px;line-height:1.2;color:var(--report-ink);margin:8px 0}
+.report-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.report-meta-item,.report-scope-label{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid var(--report-line);border-radius:999px;background:var(--report-subtle);color:var(--report-muted);font-size:10px}
+.report-scope-label{margin-top:12px;color:var(--report-warning);border-color:transparent;background:var(--report-warning-soft);font-weight:700}
+.report-nav{position:sticky;top:0;z-index:20;display:flex;align-items:stretch;margin-top:16px;padding:0 12px;overflow-x:auto;border:1px solid var(--report-line);border-radius:10px;background:var(--report-panel);box-shadow:0 2px 10px #20273308;scrollbar-width:none}
+.report-nav::-webkit-scrollbar{display:none}
+.report-nav-title{flex:0 0 auto;display:flex;align-items:center;padding:0 16px 0 4px;color:var(--report-muted);font-size:9px;font-weight:800;white-space:nowrap}
+.report-nav a{position:relative;flex:1 0 128px;display:flex;align-items:center;justify-content:center;min-height:46px;padding:0 12px;color:var(--report-text);font-size:10px;font-weight:600;text-decoration:none;white-space:nowrap;transition:color 180ms ease,background 180ms ease}
+.report-nav a:hover{color:var(--report-brand);background:var(--report-hover)}
+.report-nav a:focus-visible,.report-method summary:focus-visible{outline:2px solid var(--report-brand);outline-offset:2px}
+.report-nav a[aria-current="location"]{color:var(--report-brand);font-weight:800}
+.report-nav a[aria-current="location"]::after{content:"";position:absolute;inset:auto 0 -1px;height:2px;background:var(--report-brand)}
+.report-block{scroll-margin-top:68px;margin-top:24px;padding:16px;border:1px solid var(--report-line);border-radius:10px;background:var(--report-panel);box-shadow:0 2px 10px #20273308}
+.report-block h3{display:flex;align-items:center;gap:8px;font-size:18px;line-height:1.35;color:var(--report-ink);margin:0 0 16px}
+.report-block h3>span{font-size:9px;color:var(--report-brand);font-weight:800;letter-spacing:.08em}
+.report-block p{margin:0 0 12px}
+.report-lead{font-size:13px;font-weight:600;color:var(--report-ink);line-height:1.7}
+.report-measures{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.report-measures>div{min-height:112px;padding:12px;border:1px solid var(--report-line);border-radius:10px;background:var(--report-panel);transition:border-color 180ms ease,background 180ms ease,box-shadow 180ms ease,transform 180ms ease}
+.report-measures>div:hover{border-color:var(--report-hover-line);background:var(--report-hover);box-shadow:0 8px 20px #20273312;transform:translateY(-1px)}
+.report-measures small{display:block;font-size:10px;color:var(--report-muted)}
+.report-measures strong{display:block;margin-top:16px;font-size:23px;line-height:1.15;color:var(--report-ink);letter-spacing:-.04em}
+.report-boundary{font-size:10px;color:var(--report-muted);margin:12px 0 0!important;line-height:1.65}
+.report-table-wrap{overflow-x:auto;border:1px solid var(--report-line);border-radius:10px}
+.analysis-report table{width:100%;border-collapse:collapse;min-width:680px;table-layout:auto;color:var(--report-text)}
+.analysis-report th{height:38px;padding:0 14px;background:var(--report-soft);color:#747b86;font:800 9px/1.35 "Microsoft YaHei UI","PingFang SC",Arial,sans-serif;text-align:left;white-space:nowrap}
+.analysis-report td{height:44px;padding:8px 14px;border-bottom:1px solid var(--report-divider);font-size:10px;line-height:1.55;vertical-align:middle;color:var(--report-text);white-space:normal}
+.analysis-report tbody tr:hover{background:var(--report-hover)}
+.analysis-report tr:last-child td{border-bottom:0}
+.analysis-report td:first-child{font-weight:600;color:var(--report-ink)}
+.analysis-report .report-note{margin-top:12px;padding:12px;border:1px solid var(--report-line);border-radius:8px;background:var(--report-subtle);font-size:10px;line-height:1.7}
+.analysis-report .report-note p{margin:8px 0 0}
+.report-findings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.report-finding{padding:16px;border:1px solid var(--report-line);border-radius:10px;background:var(--report-panel);transition:border-color 180ms ease,background 180ms ease}
+.report-finding:hover{border-color:var(--report-hover-line);background:var(--report-hover)}
+.report-finding-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px}
+.report-finding-head strong{color:var(--report-ink);font-size:11px}
+.report-evidence{font-size:10px;color:var(--report-muted);margin:0!important}
+.report-state{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:2px 7px;background:var(--report-neutral-soft);color:var(--report-neutral);font-size:8px;line-height:1.25;font-weight:700}
+.report-state.verified{background:var(--report-success-soft);color:var(--report-success)}
+.report-state.supported_unverified{background:var(--report-warning-soft);color:var(--report-warning)}
+.report-state.definition_conflict{background:var(--report-risk-soft);color:var(--report-risk)}
+.analysis-report .report-method{scroll-margin-top:68px;margin-top:24px;padding:16px;border:1px solid var(--report-line);border-radius:10px;background:var(--report-panel);box-shadow:0 2px 10px #20273308;overflow:visible}
+.analysis-report .report-method summary{cursor:pointer;font-size:14px;font-weight:700;color:var(--report-ink);padding:0;background:var(--report-panel)}
+.report-method p{margin:12px 0 0}
+.report-footer{margin-top:24px;padding:12px 0;border-top:1px solid var(--report-line);font-size:10px;color:var(--report-muted)}
+.report-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--report-divider)}
+.report-toolbar-actions{display:flex;gap:8px;align-items:center}
+.report-export-status{font-size:10px;color:var(--report-muted)}
+@media(max-width:900px){.report-cover h2{font-size:24px}.report-findings{grid-template-columns:1fr}.report-nav a{flex-basis:120px}}
+@media(max-width:720px){.report-measures{grid-template-columns:repeat(2,minmax(0,1fr))}.report-finding-head{flex-wrap:wrap}.report-block h3{font-size:16px}}
+@media(max-width:520px){.report-measures{grid-template-columns:1fr}.report-cover,.report-block,.analysis-report .report-method{padding:16px}.report-nav-title{padding-right:10px}.report-cover h2{font-size:23px}}
+@media print{body{background:white!important;margin:0!important}.report-toolbar,.report-nav{display:none!important}.analysis-report{max-width:none!important}.report-cover,.report-block,.analysis-report .report-method{box-shadow:none!important}.report-block,.report-finding,tr{break-inside:avoid}.report-table-wrap{overflow:visible}.analysis-report table{min-width:0}body.report-print .app>*:not(.layout),body.report-print .sidebar,body.report-print .main>*:not([data-panel="3"]){display:none!important}body.report-print .app,body.report-print .layout,body.report-print .main{display:block!important;margin:0!important;padding:0!important;max-width:none!important}body.report-print .panel[data-panel="3"]{display:block!important;box-shadow:none!important;border:0!important;padding:0!important}@page{size:A4;margin:16mm}}
+</style>
+<!-- REPORT_STYLE_END -->
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --ink: #20232a;
+      --muted: #858c96;
+      --line: #e3e6ea;
+      --primary: #df1732;
+      --primary-hover: #c91029;
+      --primary-soft: #fff0f2;
+      --blue: #246bfd;
+      --blue-soft: #edf4ff;
+      --green: #16845b;
+      --green-soft: #eaf8f2;
+      --amber: #b56a00;
+      --amber-soft: #fff7e7;
+      --purple: #6f4cc3;
+      --purple-soft: #f4efff;
+      --shadow: 0 2px 10px rgba(32, 39, 51, 0.03);
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display:none !important; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(207,46,46,.07), transparent 22rem),
+        var(--bg);
+      font-family: "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .app { min-height: 100vh; }
+    .topbar {
+      height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      background: rgba(255,255,255,.92);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(14px);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 34px; height: 34px; border-radius: 10px;
+      display: grid; place-items: center;
+      color: #fff; background: linear-gradient(135deg,#d93636,#a71818);
+      box-shadow: 0 7px 18px rgba(207,46,46,.23);
+      font-weight: 800;
+    }
+    .brand-title { font-size: 17px; font-weight: 700; }
+    .brand-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .top-actions { display: flex; gap: 10px; align-items: center; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 11px; border-radius: 999px;
+      font-size: 12px; font-weight: 700;
+      background: var(--amber-soft); color: #8b5200; border: 1px solid #f4d9a8;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+    .layout {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 16px 28px 28px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 12px;
+    }
+
+    .layout > .hero,
+    .layout > .sidebar,
+    .layout > .metric-grid,
+    .layout > .main { grid-column: 1 / -1; }
+
+    .sidebar {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: auto repeat(4,minmax(0,1fr));
+      gap: 8px;
+      align-items: stretch;
+    }
+    .side-label { color: var(--muted); font-size: 12px; font-weight: 700; margin: 0 8px; display:flex; align-items:center; white-space:nowrap; }
+    .step-btn {
+      width: 100%; border: 0; background: transparent; color: var(--muted);
+      border-radius: 8px; padding: 11px 10px; display: grid;
+      grid-template-columns: 28px 1fr; gap: 9px; text-align: left; align-items: start;
+      margin: 0; transition: .18s ease;
+    }
+    .step-btn:hover { background: #f7f8fa; color: var(--ink); }
+    .step-btn.active { background: var(--primary-soft); color: var(--primary); }
+    .step-no {
+      width: 25px; height: 25px; border-radius: 8px; display: grid; place-items: center;
+      background: #eef1f5; color: #637083; font-size: 12px; font-weight: 800;
+    }
+    .step-btn.active .step-no { background: var(--primary); color: #fff; }
+    .step-name { font-size: 13px; font-weight: 700; line-height: 1.4; }
+    .step-desc { font-size: 11px; margin-top: 3px; opacity: .8; line-height: 1.35; }
+    .side-rule { display:none; }
+    .scope-card { grid-column:1 / -1; border-radius: 8px; padding: 8px 12px; background: #f7f8fa; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    .scope-card strong { display:block; font-size: 12px; margin:0; }
+    .scope-card p { color: var(--muted); margin:0; font-size: 11px; line-height: 1.5; }
+
+    .main { min-width: 0; display:grid; gap:12px; align-content:start; }
+    .hero {
+      padding: 18px 20px;
+      border: 1px solid #f0d9d8;
+      background: linear-gradient(120deg,#fff 28%,#fff7f8 100%);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+    }
+    .eyebrow { color: var(--primary); font-size: 9px; line-height:1.35; font-weight: 700; }
+    h1 { margin: 7px 0 5px; font-size: clamp(23px, 2.2vw, 30px); line-height:1.1; letter-spacing: -.04em; }
+    .hero p { margin: 0; color: #555d68; line-height: 1.7; font-size: 12px; }
+    .formula {
+      display: inline-flex; margin-top: 12px; padding: 8px 12px; border-radius: 8px;
+      background: #fff; border: 1px solid var(--line); color: #374151;
+      font-family: Consolas, monospace; font-size: 11px;
+    }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 12px; margin: 0; }
+    .metric {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+      padding: 14px 16px; box-shadow: var(--shadow);
+    }
+    .metric-label { color: #555d68; font-size: 11px; font-weight:700; display:flex; align-items:center; gap:6px; }
+    .metric-value { font-size: 23px; line-height:1.15; font-weight: 700; margin-top: 8px; letter-spacing: -.04em; }
+    .metric-note { font-size: 10px; line-height:1.4; color: var(--muted); margin-top: 5px; }
+    .metric-breakdown { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin-top:9px; }
+    .metric-slice { display:flex; align-items:center; justify-content:space-between; gap:6px; min-width:0; padding:5px 7px; border-radius:6px; background:#f6f8fb; color:#596273; font-size:9px; line-height:1.2; }
+    .metric-slice b { color:#1f2937; font-size:10px; white-space:nowrap; }
+    .metric-slice.demand { background:#fff6ed; color:#9a4c12; }
+    .metric-slice.plan { background:#fff1f2; color:#b42331; }
+    .metric-split-note { margin-top:6px; color:var(--muted); font-size:9px; line-height:1.35; }
+    .metric.bad .metric-value { color: var(--primary); }
+
+    .panel {
+      display: none;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+      padding: 16px; box-shadow: var(--shadow); animation: rise .18s ease;
+    }
+    .panel.active { display: block; }
+    .panel[data-sample-panel] { display:block; }
+    #sampleSteps .step-desc { display:block; }
+    @keyframes rise { from { opacity:0; transform: translateY(5px); } to { opacity:1; transform:none; } }
+    .panel-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:12px; }
+    .panel-kicker { color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing:.08em; }
+    h2 { margin: 5px 0 5px; font-size: 18px; line-height:1.35; }
+    .panel-head p { margin:0; color:#555d68; font-size:12px; line-height:1.7; }
+    .status {
+      flex:0 0 auto; padding:7px 10px; border-radius:999px; font-size:11px; font-weight:800;
+      background:var(--green-soft); color:var(--green); border:1px solid #bce6d5;
+    }
+    .status.warn { background:var(--amber-soft); color:var(--amber); border-color:#f3d89c; }
+    .status.red { background:var(--primary-soft); color:var(--primary); border-color:#f2c5c1; }
+    .status.blue { background:var(--blue-soft); color:var(--blue); border-color:#c9dcff; }
+
+    .two-col { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .two-col.single { grid-template-columns:1fr; }
+    .three-col { display:grid; grid-template-columns: repeat(3,1fr); gap:12px; }
+    .card { border:1px solid var(--line); border-radius:10px; padding:14px; background:#fff; box-shadow:var(--shadow); }
+    .card.soft { background:#fafbfc; }
+    .card h3 { margin:0 0 11px; font-size:14px; }
+    .callout { border-left:4px solid var(--primary); background:var(--primary-soft); border-radius:10px; padding:13px 15px; font-size:13px; line-height:1.7; }
+    .callout strong { color:var(--primary); }
+    .hint { color:var(--muted); font-size:11px; line-height:1.55; }
+
+    .check-list { display:grid; gap:8px; }
+    .check-item { display:flex; gap:9px; align-items:flex-start; font-size:12px; line-height:1.5; }
+    .check-icon { width:18px; height:18px; border-radius:50%; display:grid; place-items:center; flex:0 0 auto; font-size:11px; font-weight:900; }
+    .ok { background:var(--green-soft); color:var(--green); }
+    .wait { background:var(--amber-soft); color:var(--amber); }
+    .bad-icon { background:var(--primary-soft); color:var(--primary); }
+
+    table { width:100%; border-collapse:collapse; font-size:10px; }
+    th { text-align:left; color:#747b86; font-size:9px; line-height:1.35; font-weight:800; padding:11px 9px; background:#f5f6f8; border-bottom:1px solid var(--line); }
+    .sort-button { display:inline-flex; align-items:center; justify-content:flex-start; gap:4px; width:100%; padding:0; border:0; background:transparent; color:inherit; font:inherit; font-weight:800; text-align:left; cursor:pointer; }
+    th.number .sort-button { justify-content:flex-end; }
+    .sort-button:hover,.sort-button.active { color:var(--primary); }
+    .sort-icon { width:9px; color:#a0a4ac; font-size:8px; line-height:1; }
+    .sort-button.active .sort-icon { color:var(--primary); }
+    .th-with-help { display:inline-flex; align-items:center; justify-content:flex-end; gap:4px; width:100%; }
+    .info-tip,.kpi-help { position:relative; flex:0 0 auto; width:18px; height:18px; display:inline-grid; place-items:center; padding:0; border:1px solid #f1c2c9; border-radius:50%; background:#fff; color:#df1732; box-shadow:0 1px 4px rgba(223,23,50,.10); font:800 10px/1 Arial,sans-serif; cursor:help; transition:color .15s ease,border-color .15s ease,background .15s ease,box-shadow .15s ease; }
+    .info-tip:hover,.info-tip:focus-visible,.kpi-help:hover,.kpi-help:focus-visible { color:#b90e28; border-color:#df1732; background:#fff1f3; box-shadow:0 2px 7px rgba(223,23,50,.16); outline:none; }
+    .info-tip:focus-visible,.kpi-help:focus-visible { outline:2px solid rgba(223,23,50,.18); outline-offset:2px; }
+    .info-tip-pop { position:absolute; right:-6px; top:25px; width:250px; display:none; padding:9px 10px; border:1px solid #ead8dc; border-radius:8px; background:#fff; color:#475467; box-shadow:0 10px 28px rgba(32,39,51,.14); font:500 10px/1.55 inherit; text-align:left; white-space:normal; z-index:20; }
+    .info-tip:hover .info-tip-pop,.info-tip:focus .info-tip-pop,.info-tip:focus-within .info-tip-pop { display:block; }
+    td { height:43px; padding:10px 9px; border-bottom:1px solid #eceef1; vertical-align:middle; }
+    tr:last-child td { border-bottom:0; }
+    .mono { font-family:Consolas,monospace; }
+    .number { text-align:right; font-variant-numeric:tabular-nums; }
+    .contrib-bar { width:100%; min-width:110px; height:7px; border-radius:99px; background:#eef1f4; overflow:hidden; }
+    .contrib-bar i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#d93636,#ef7b6f); }
+    .pill { display:inline-flex; align-items:center; border-radius:999px; padding:4px 8px; font-size:10px; font-weight:800; white-space:nowrap; }
+    .verified { background:var(--green-soft); color:var(--green); }
+    .supported { background:var(--blue-soft); color:var(--blue); }
+    .missing { background:#f2f3f5; color:#596273; }
+    .conflict { background:var(--purple-soft); color:var(--purple); }
+    .evidence-tags { display:flex; flex-wrap:wrap; gap:4px; min-width:150px; }
+    .evidence-tag { display:inline-flex; align-items:center; border-radius:999px; padding:3px 7px; background:#f1f3f6; color:#4f5968; font-size:9px; font-weight:700; white-space:nowrap; }
+
+    .tabs { display:flex; flex-wrap:nowrap; gap:0; margin-bottom:12px; border-bottom:1px solid var(--line); overflow-x:auto; scrollbar-width:none; }
+    .tabs::-webkit-scrollbar { display:none; }
+    .tab {
+      min-height:31px; border:0; border-bottom:2px solid transparent; background:#fff; color:#555d68; border-radius:0;
+      padding:7px 16px; font-size:11px; font-weight:600; white-space:nowrap;
+    }
+    .tab:hover { color:var(--primary); background:#fffafb; }
+    .tab.active { color:var(--primary); border-bottom-color:var(--primary); background:#fff; font-weight:800; }
+
+    .bar-list { display:grid; gap:12px; }
+    .bar-row { display:grid; grid-template-columns:98px 1fr 65px; gap:8px; align-items:center; width:100%; padding:7px 9px; border:1px solid transparent; border-radius:6px; background:transparent; color:#555d68; text-align:left; font-size:11px; transition:160ms ease; }
+    .bar-row.static { grid-template-columns:98px 1fr 65px; cursor:default; }
+    .bar-row:not(.static):hover { color:var(--primary); background:#fffafb; border-color:#efabb4; }
+    .bar-row.selected { color:var(--primary); background:var(--primary-soft); border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-soft); }
+    .bar-track { height:10px; border-radius:99px; background:#eff2f5; overflow:hidden; }
+    .bar-fill { height:100%; border-radius:inherit; background:linear-gradient(90deg,#d53737,#ed8075); transition:width .25s ease; }
+    .bar-value { text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
+
+    .decision-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
+    .decision-card { border:1px solid var(--line); border-radius:10px; padding:14px; }
+    .decision-card .big { font-size:20px; font-weight:800; margin:7px 0 4px; }
+    .decision-card p { color:var(--muted); font-size:11px; line-height:1.5; margin:0; }
+    button.decision-card { width:100%; text-align:left; background:#fff; transition:.18s ease; }
+    button.decision-card:hover { transform:translateY(-1px); border-color:#efabb4; background:#fffafb; box-shadow:0 8px 20px rgba(32,39,51,.07); }
+    button.decision-card.active { border-color:var(--primary); background:var(--primary-soft); box-shadow:0 0 0 2px rgba(207,46,46,.08); }
+    .definition-catalog { margin-top:12px; border:1px solid var(--line); border-radius:10px; background:#fff; overflow:hidden; }
+    .definition-catalog > summary { cursor:pointer; padding:13px 15px; font-weight:800; font-size:13px; color:var(--ink); background:#fafbfc; }
+    .definition-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; padding:14px; }
+    .definition-item { border:1px solid var(--line); border-radius:10px; padding:13px; background:#fff; }
+    .definition-item h4 { margin:0 0 7px; font-size:13px; }
+    .definition-item p { margin:5px 0; color:var(--muted); font-size:11px; line-height:1.6; }
+    .definition-item strong { color:var(--ink); }
+    .definition-item .formula { padding:7px 9px; border-radius:8px; background:#f6f8fb; color:#344054; font-family:Consolas,"SFMono-Regular",monospace; }
+    .definition-formula { margin:0 14px 14px; padding:12px 14px; border:1px solid #dce6f5; border-radius:10px; background:#f7faff; color:#475467; font-size:11px; line-height:1.7; }
+    .cause-definition { margin:12px 0; padding:12px 14px; border:1px solid #dce6f5; border-radius:11px; background:#f7faff; font-size:11px; line-height:1.65; color:var(--muted); }
+    .cause-definition strong { color:var(--ink); }
+    .cause-card-top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .cause-title-with-help { display:inline-flex; align-items:center; gap:6px; }
+    .cause-share { color:var(--muted); font-size:10px; font-weight:700; }
+    .cause-card-note { display:block; margin-top:10px; padding-top:9px; border-top:1px dashed #e7dfe2; color:#687386; font-size:10px; line-height:1.55; text-align:left; }
+    .cause-card-note strong { color:var(--ink); }
+    .breadcrumb { display:flex; flex-wrap:wrap; gap:7px; align-items:center; padding:10px 12px; margin-bottom:14px; border:1px solid #d8e4f7; background:#f5f8fe; border-radius:10px; color:#45617f; font-size:11px; font-weight:700; }
+    .breadcrumb b { color:var(--primary); }
+    .ledger { display:grid; grid-template-columns:1fr auto 1fr auto 1fr; gap:10px; align-items:center; margin-top:14px; }
+    .ledger-item { border:1px solid var(--line); border-radius:12px; padding:13px; background:#fff; }
+    .ledger-item strong { display:block; font-size:21px; margin-top:5px; }
+    .ledger-op { color:var(--muted); font-weight:900; }
+    .scope-note { padding:9px 11px; border-radius:9px; background:#f7f8fa; color:var(--muted); font-size:11px; line-height:1.55; }
+    .cause-analysis { margin-top:12px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; }
+    .cause-analysis-head { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; padding:16px; border-bottom:1px solid var(--line); }
+    .cause-analysis-head h3 { margin:0 0 5px; font-size:15px; }
+    .cause-analysis-head p { margin:0; color:var(--muted); font-size:11px; line-height:1.6; }
+    .analysis-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:14px 16px; background:#fafbfc; border-bottom:1px solid var(--line); }
+    .analysis-kpis.five { grid-template-columns:repeat(5,1fr); }
+    .analysis-kpi { padding:11px; border:1px solid var(--line); border-radius:10px; background:#fff; box-shadow:var(--shadow); }
+    .analysis-kpi span { display:block; color:var(--muted); font-size:10px; }
+    .analysis-kpi strong { display:block; margin-top:6px; font-size:18px; }
+    .analysis-kpi small { display:block; margin-top:7px; color:var(--muted); font-size:9px; line-height:1.55; }
+    .analysis-kpi-title { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .analysis-kpi-title span { color:#596273; font-size:10px; font-weight:700; }
+    .kpi-help::after { content:attr(data-help); position:absolute; right:-8px; bottom:calc(100% + 8px); z-index:20; width:220px; padding:9px 10px; border:1px solid #ead8dc; border-radius:8px; background:#fff; color:#475467; box-shadow:0 10px 28px rgba(32,39,51,.14); font:500 10px/1.55 inherit; text-align:left; opacity:0; visibility:hidden; transform:translateY(4px); transition:.15s ease; pointer-events:none; }
+    .kpi-help:hover::after,.kpi-help:focus-visible::after,.kpi-help.open::after { opacity:1; visibility:visible; transform:none; }
+    .kpi-total { display:flex; align-items:flex-end; justify-content:space-between; gap:8px; margin-top:9px; padding:0 2px 9px; border-bottom:1px solid #eceff3; }
+    .kpi-total span { color:#7a8492; font-size:9px; }
+    .kpi-total strong { display:inline; margin:0; color:#1f2937; font-size:20px; line-height:1; }
+    .kpi-total.bad strong { color:var(--primary); }
+    .kpi-channel-list { display:grid; gap:5px; margin-top:8px; }
+    .kpi-channel { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 8px; border-radius:7px; background:#fff4f3; }
+    .kpi-channel span { color:#b42331; font-size:10px; font-weight:700; }
+    .kpi-channel strong { display:inline; margin:0; color:#1f2937; font-size:15px; }
+    .kpi-channel.transfer { background:#f4f6f8; }
+    .kpi-channel.transfer span,.kpi-channel.transfer strong { color:#7a8492; }
+    .analysis-body { padding:16px; }
+    .analysis-section-title { display:flex; justify-content:space-between; gap:12px; align-items:center; margin:0 0 10px; font-size:13px; }
+    .detail-toggle { min-height:28px; padding:5px 9px; }
+    .analysis-grid { display:grid; grid-template-columns:1.25fr .75fr; gap:14px; }
+    .reason-list { display:grid; gap:9px; }
+    .reason-drilldown { margin-top:16px; padding:14px; border:1px solid #dce6f5; border-radius:10px; background:#f8faff; }
+    .reason-drilldown-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+    .reason-role { display:inline-flex; margin-bottom:7px; padding:3px 7px; border-radius:999px; background:#eef3fb; color:#476b9b; font-size:9px; font-weight:800; }
+    .reason-evidence { margin-top:6px; color:var(--muted); font-size:10px; line-height:1.5; }
+    .drill-row { cursor:pointer; transition:background .16s ease; }
+    .drill-row:hover { background:#fffafb; }
+    .drill-row.selected { background:#fff3f2; }
+    .drill-button { min-height:27px; padding:5px 8px; white-space:nowrap; }
+    .inline-drill-row > td { height:auto; padding:10px 10px 16px; background:#f7f8fa; }
+    .inline-drill-row .reason-drilldown { margin-top:0; }
+    .demand-detail-block { margin-top:12px; }
+    .demand-detail-block > summary { color:var(--primary); font-weight:700; }
+    .demand-detail-table { min-width:1120px; }
+    .demand-source-records > summary { white-space:nowrap; color:#2468d3; }
+    .demand-record-table { margin-top:8px; max-width:900px; }
+    .demand-record-table table { min-width:760px; }
+    .plan-drilldown { padding:0; overflow:hidden; border-color:#dfe4eb; border-top:3px solid var(--primary); border-radius:10px; background:#fff; box-shadow:0 6px 16px rgba(31,41,55,.06); }
+    .plan-drilldown-head { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:14px 16px; border-bottom:1px solid var(--line); background:#fff; }
+    .plan-drilldown-kicker { margin-bottom:4px; color:var(--primary); font-size:9px; font-weight:900; letter-spacing:.08em; }
+    .plan-drilldown-head h4 { margin:0; font-size:14px; }
+    .plan-drilldown-sub { margin-top:5px; max-width:610px; color:var(--muted); font-size:10px; line-height:1.5; }
+    .plan-drilldown-metrics { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+    .plan-drilldown-metric { min-width:76px; padding:7px 9px; border-left:1px solid var(--line); background:#fff; text-align:right; }
+    .plan-drilldown-metric span { display:block; color:var(--muted); font-size:9px; }
+    .plan-drilldown-metric strong { display:block; margin-top:3px; font-size:14px; }
+    .plan-reason-section { padding:15px 16px; }
+    .plan-reason-section-head { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:10px; }
+    .plan-reason-section-head strong { font-size:12px; }
+    .plan-reason-section-head span { color:var(--muted); font-size:10px; }
+    .plan-reason-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+    .plan-reason-card:last-child:nth-child(odd) { grid-column:1 / -1; }
+    .supply-checks { padding:12px 16px 16px; background:#fbfcfd; }
+    .supply-checks details { margin-top:8px; overflow:hidden; border:1px solid #e2e6ec; border-radius:8px; box-shadow:none; background:#fff; }
+    .supply-checks summary { padding:11px 13px; cursor:pointer; color:#263244; font-size:12px; font-weight:800; background:#fff; }
+    .supply-checks details[open] summary { border-bottom:1px solid #e7eaf0; color:var(--primary); background:#fff8f7; }
+    .supply-checks summary:focus-visible { outline:2px solid var(--primary); outline-offset:-2px; }
+    .supply-checks .check-content { padding:13px; border-top:0; }
+    .supply-checks .check-meta { font-size:10px; color:var(--muted); line-height:1.65; margin:0 0 10px; }
+    .stock-formula { padding:12px; border-radius:8px; background:#f5f6f8; font-size:11px; line-height:1.8; }
+    .plan-reason-card { min-height:96px; padding:10px 11px; border:1px solid #e6e9ee; border-radius:8px; background:#fcfdff; }
+    .plan-reason-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .plan-reason-card-top .reason-role { margin-bottom:0; }
+    .plan-reason-index { width:24px; height:24px; display:grid; place-items:center; border-radius:7px; background:var(--primary-soft); color:var(--primary); font-size:9px; font-weight:900; }
+    .plan-reason-title { display:flex; align-items:center; gap:6px; margin:9px 0 5px; }
+    .plan-reason-card h5 { margin:0; font-size:12px; }
+    .plan-reason-title .kpi-help { width:16px; height:16px; font-size:9px; }
+    .plan-reason-card p { margin:0; color:var(--muted); font-size:10px; line-height:1.55; }
+    .plan-drilldown-note { margin:0 16px 15px; padding:9px 11px; border-radius:9px; background:#f6f8fb; color:#596579; font-size:10px; line-height:1.55; }
+    .reason-item { display:grid; grid-template-columns:1fr auto; gap:8px; padding:10px 11px; border:1px solid var(--line); border-radius:10px; }
+    .reason-item strong { font-size:12px; }
+    .reason-item small { display:block; margin-top:4px; color:var(--muted); line-height:1.45; }
+    .reason-item b { color:var(--primary); font-size:13px; }
+    .supply-lanes { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .supply-lane { border:1px solid var(--line); border-radius:10px; padding:13px; background:#fff; }
+    .supply-lane .lane-code { color:var(--primary); font-size:11px; font-weight:900; }
+    .supply-lane .lane-value { font-size:22px; font-weight:900; margin:6px 0; }
+    .supply-lane p { margin:0; color:var(--muted); font-size:10px; line-height:1.55; }
+    .audit-equation { margin-top:12px; padding:10px 12px; border-radius:9px; background:var(--blue-soft); color:#315f9d; font-size:11px; font-weight:700; }
+
+    .chain { display:grid; gap:0; }
+    .chain-node { display:grid; grid-template-columns:34px 1fr; gap:11px; position:relative; padding-bottom:16px; }
+    .chain-node:not(:last-child)::before { content:""; position:absolute; left:16px; top:32px; bottom:0; width:2px; background:#e2e7ed; }
+    .chain-icon { width:34px; height:34px; border-radius:11px; background:#eef2f7; color:#4f6073; display:grid; place-items:center; font-weight:900; font-size:12px; z-index:1; }
+    .chain-node.hot .chain-icon { background:var(--primary); color:#fff; }
+    .chain-body { border:1px solid var(--line); border-radius:10px; padding:13px 14px; }
+    .chain-title { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:13px; font-weight:800; }
+    .chain-text { margin-top:6px; color:var(--muted); font-size:12px; line-height:1.65; }
+    .chain-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+    .meta { font-size:10px; background:#f4f6f8; color:#5c6675; border-radius:7px; padding:4px 7px; }
+    details { border:1px solid var(--line); border-radius:10px; margin-top:12px; overflow:hidden; }
+    summary { list-style:none; padding:11px 13px; cursor:pointer; font-size:12px; font-weight:800; background:#fafbfc; }
+    summary::-webkit-details-marker { display:none; }
+    details .detail-body { padding:12px 14px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); line-height:1.7; }
+
+    .evidence-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+    .evidence { border:1px solid var(--line); border-radius:10px; padding:14px; position:relative; }
+    .evidence h3 { font-size:13px; margin:0 0 7px; padding-right:100px; }
+    .evidence .pill { position:absolute; top:12px; right:12px; }
+    .evidence p { margin:0; color:var(--muted); font-size:11px; line-height:1.65; }
+    .report-section { border:1px solid var(--line); border-radius:10px; padding:14px; background:#fff; }
+    .report-section h3 { margin:0 0 5px; font-size:14px; }
+    .report-section > p { margin:0 0 12px; color:var(--muted); font-size:10px; line-height:1.55; }
+    .report-rank-list { display:grid; gap:8px; }
+    .report-rank-row { display:grid; grid-template-columns:minmax(90px,1fr) 2fr 55px 55px; gap:8px; align-items:center; font-size:10px; }
+    .report-rank-row strong { font-size:10px; }
+    .report-rank-track { height:7px; overflow:hidden; border-radius:99px; background:#eef1f4; }
+    .report-rank-track i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#d53737,#ed8075); }
+    .report-rank-value,.report-rank-share { text-align:right; font-variant-numeric:tabular-nums; }
+    .report-rank-share { color:var(--muted); }
+    .report-subtitle { display:flex; justify-content:space-between; gap:8px; align-items:center; margin:13px 0 8px; font-size:11px; }
+    .report-note { margin-top:12px; padding:9px 10px; border-radius:8px; background:#f6f8fb; color:#596579; font-size:10px; line-height:1.55; }
+
+    .whatif-layout { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr); gap:16px; }
+    .slider-row { padding:13px 0; border-bottom:1px solid var(--line); }
+    .slider-row:last-child { border-bottom:0; }
+    .slider-head { display:flex; justify-content:space-between; gap:15px; align-items:center; font-size:12px; font-weight:800; }
+    .slider-sub { font-size:10px; color:var(--muted); margin:4px 0 9px; }
+    input[type="range"] { width:100%; accent-color:var(--primary); }
+    .result-box { padding:18px; border-radius:10px; background:linear-gradient(145deg,#241f22,#3b282a); color:#fff; min-height:100%; }
+    .result-box .label { color:rgba(255,255,255,.65); font-size:11px; }
+    .result-rate { font-size:44px; font-weight:900; margin:8px 0 3px; letter-spacing:-.05em; }
+    .result-box .progress { height:10px; background:rgba(255,255,255,.16); border-radius:99px; overflow:hidden; margin:14px 0; }
+    .result-box .progress i { display:block; height:100%; background:linear-gradient(90deg,#ff766d,#ffd0cc); border-radius:inherit; transition:width .2s ease; }
+    .result-stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .result-stat { background:rgba(255,255,255,.08); padding:10px; border-radius:10px; }
+    .result-stat strong { display:block; font-size:16px; margin-top:4px; }
+
+    .nav-actions { display:flex; justify-content:space-between; align-items:center; margin-top:14px; }
+    .btn { border:1px solid #d9dde3; border-radius:8px; padding:9px 14px; background:#fff; color:#555d68; font-size:11px; font-weight:700; }
+    .btn:hover { color:var(--primary); background:#fffafb; border-color:#efabb4; }
+    .btn.primary { background:var(--primary); color:#fff; border-color:var(--primary); box-shadow:0 6px 16px rgba(207,46,46,.2); }
+    .btn.primary:hover { background:var(--primary-hover); border-color:var(--primary-hover); color:#fff; }
+    .btn:disabled { opacity:.4; cursor:not-allowed; }
+
+    button:focus-visible, input:focus-visible, summary:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+
+    .footer-note { text-align:center; color:var(--muted); font-size:11px; margin-top:16px; }
+
+    @media (max-width: 1200px) {
+      .metric-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns:1fr; padding:14px; }
+      .layout > .hero,.layout > .sidebar,.layout > .metric-grid,.layout > .main { grid-column:1; }
+      .sidebar { position:static; display:flex; overflow:auto; gap:5px; padding:10px; }
+      .side-label,.side-rule,.scope-card,.step-desc { display:none; }
+      .step-btn { min-width:140px; margin:0; }
+      .metric-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .whatif-layout { grid-template-columns:1fr; }
+      .reason-drilldown-grid { grid-template-columns:1fr; }
+      .plan-reason-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width: 640px) {
+      .topbar { padding:0 14px; }
+      .brand-sub { display:none; }
+      .layout { padding:10px; }
+      .hero,.panel { padding:17px; }
+      .metric-grid,.two-col,.three-col,.decision-grid,.evidence-grid,.definition-grid { grid-template-columns:1fr; }
+      .ledger { grid-template-columns:1fr; }
+      .ledger-op { text-align:center; }
+      .analysis-kpis,.analysis-kpis.five,.analysis-grid,.supply-lanes { grid-template-columns:1fr; }
+      .panel-head { flex-direction:column; }
+      .bar-row { grid-template-columns:78px 1fr 55px; }
+      .bar-row.static { grid-template-columns:78px 1fr 55px; }
+      .top-actions .badge:last-child { display:none; }
+      .plan-drilldown-head { flex-direction:column; }
+      .plan-drilldown-metrics { justify-content:flex-start; }
+      .plan-reason-grid { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">协</div>
+      <div>
+        <div class="brand-title">产销协同·订单满足分析</div>
+        <div class="brand-sub">从指标异常到可验证原因的全链路示例</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="badge"><span class="dot"></span>模拟演示数据</span>
+      <span class="badge" style="background:#f3f7ff;color:#315da8;border-color:#d6e3fb;">数据截止 09-22 24:00</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="hero" aria-labelledby="mainAnalysisTitle">
+      <div class="eyebrow">主分析 · 月度视角</div>
+      <h1 id="mainAnalysisTitle">本月订单满足率 88.0%，为什么？</h1>
+      <p>先交互查看“口径审计 → 缺口结构 → 问题定位”，再阅读全量分析报告。分析范围为2026-09-01至2026-09-22；月内累计预览，所有数字均为模拟数据。</p>
+      <div class="formula">订单满足率 = SUM(已开订单发货量) / SUM(已开订单需求量)</div>
+    </section>
+
+    <section class="metric-grid" aria-label="核心指标">
+      <article class="metric"><div class="metric-label">初始销售需求提报量<button type="button" class="kpi-help" aria-label="初始销售需求提报量口径说明" aria-expanded="false" data-help="销售需求初始版本的提报数量；当前示例未提供该版本数据，接入后按初始版本汇总。">?</button></div><div class="metric-value">待补数据</div><div class="metric-note">初始版本数据未提供</div></article>
+      <article class="metric"><div class="metric-label">纠偏销售需求提报量<button type="button" class="kpi-help" aria-label="纠偏销售需求提报量口径说明" aria-expanded="false" data-help="销售需求月度纠偏后的提报数量；当前模拟值与需求变化复盘中的纠偏后提报总量一致。">?</button></div><div class="metric-value">4,780 件</div><div class="metric-note">月度纠偏后提报汇总</div></article>
+      <article class="metric"><div class="metric-label">已开订单需求量<button type="button" class="kpi-help" aria-label="已开订单需求量口径说明" aria-expanded="false" data-help="need_qty_origin：OMS 已开订单商品需求数量；业务定义为 OMS 原始需求量。">?</button></div><div class="metric-value">12,400 件</div><div class="metric-note">4,826 条订单商品</div></article>
+      <article class="metric"><div class="metric-label">已开订单发货量<button type="button" class="kpi-help" aria-label="已开订单发货量口径说明" aria-expanded="false" data-help="qtyshipped：已开订单商品对应的同口径发货数量。">?</button></div><div class="metric-value">10,912 件</div><div class="metric-note">含零发货订单商品</div></article>
+      <article class="metric bad"><div class="metric-label">订单满足率<button type="button" class="kpi-help" aria-label="订单满足率口径说明" aria-expanded="false" data-help="1 − ((need_qty_origin − qtyshipped) ÷ need_qty_origin)">?</button></div><div class="metric-value">88.0%</div><div class="metric-note">距 95% 目标尚差 7.0 个百分点</div></article>
+      <article class="metric"><div class="metric-label">已开订单缺货量<button type="button" class="kpi-help" aria-label="已开订单缺货量口径说明" aria-expanded="false" data-help="订单商品层按已开订单需求量与同口径发货量计算非负未满足量后汇总。">?</button></div><div class="metric-value">1,488 件</div><div class="metric-breakdown" aria-label="重点原因量"><span class="metric-slice demand">需求变化归属 <b>520 件</b></span><span class="metric-slice plan">生产计划归属 <b>402 件</b></span></div><div class="metric-split-note">下方展示本轮重点分析的两类原因量；原因归属不等于根因均已验证。</div></article>
+    </section>
+
+    <aside class="sidebar" aria-label="分析步骤">
+      <div class="side-label">分析主线</div>
+      <button class="step-btn active" data-step="0"><span class="step-no">1</span><span><span class="step-name">口径与覆盖审计</span><span class="step-desc">先确认这个指标能不能信</span></span></button>
+      <button class="step-btn" data-step="1"><span class="step-no">2</span><span><span class="step-name">宏观原因结构</span><span class="step-desc">先解释业务缺口由什么构成</span></span></button>
+      <button class="step-btn" data-step="2"><span class="step-no">3</span><span><span class="step-name">原因内重点定位</span><span class="step-desc">在所选原因内找重点对象</span></span></button>
+      <button class="step-btn" data-step="3"><span class="step-no">4</span><span><span class="step-name">分析结论汇总</span><span class="step-desc">生成需求与生产计划全量报告</span></span></button>
+      <button class="step-btn" data-step="4" hidden><span class="step-no">5</span><span><span class="step-name">What If 决策比较</span><span class="step-desc">比较恢复量、成本与结果</span></span></button>
+      <div class="side-rule"></div>
+      <div class="scope-card">
+        <strong>演示分析范围</strong>
+        <p>2026-09-01 至 2026-09-22</p>
+        <p>全国·冷冻面点·件</p>
+        <p>目标：&gt;95%；当前：88.0%</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="panel active" data-panel="0">
+        <div class="panel-head">
+          <div><div class="panel-kicker">STEP 01</div><h2>先审计指标，再讨论业务原因</h2><p>指标覆盖问题会直接改变分母。如果完全零发货订单被过滤，得到的只是“已发货订单满足率”。</p></div>
+          <span class="status blue">口径与覆盖已核对</span>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <h3>口径确认</h3>
+            <div class="check-list">
+              <div class="check-item"><span class="check-icon ok">✓</span><span>按订单商品数量加权，不按订单张数。</span></div>
+              <div class="check-item"><span class="check-icon ok">✓</span><span>分母为本期应履约的 OMS 原始需求量。</span></div>
+              <div class="check-item"><span class="check-icon ok">✓</span><span>按同一商品单位汇总发货数量。</span></div>
+              <div class="check-item"><span class="check-icon ok">✓</span><span>月度先汇总数量再相除，不平均日满足率。</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>覆盖勾稽</h3>
+            <div class="check-list">
+              <div class="check-item"><span class="check-icon ok">✓</span><span>OMS 4,826 条订单商品全部进入分析池。</span></div>
+              <div class="check-item"><span class="check-icon ok">✓</span><span>214 条零发货订单商品已保留在分母。</span></div>
+              <div class="check-item"><span class="check-icon ok">✓</span><span>主辅单、拆单关系未发现重复计数。</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="callout" style="margin-top:14px;"><strong>当前可信结论：</strong>已开订单需求量 12,400 件，已开订单发货量 10,912 件，订单满足率 88.0%，对应已开订单缺货量 1,488 件。后续从需求变化和计划内缺货两条主线定位重点问题。</div>
+        <div class="ledger" aria-label="订单满足率数量勾稽">
+          <div class="ledger-item"><span class="hint">OMS 原始需求量</span><strong>12,400 件</strong></div><div class="ledger-op">−</div>
+          <div class="ledger-item"><span class="hint">发货量</span><strong>10,912 件</strong></div><div class="ledger-op">=</div>
+          <div class="ledger-item" style="border-color:#efbbb6;background:#fff8f7;"><span class="hint">总缺货量</span><strong style="color:var(--primary);">1,488 件</strong></div>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="1">
+        <div class="panel-head">
+          <div><div class="panel-kicker">STEP 02</div><h2>从两条主线分析重点缺货原因</h2><p>过程监控看计划内缺货及生产计划供给，月末复盘看需求变化。本轮两类重点原因量合计 922 件，分别进入对应管理视角继续下钻。</p></div>
+          <span class="status blue">重点原因量 922 件</span>
+        </div>
+        <div class="breadcrumb"><span>全国冷冻面点</span><span>›</span><b>总缺货量 1,488 件</b><span>›</span><b>两类重点原因量 922 件</b><span>›</span><span>选择一类原因继续下钻</span></div>
+        <div class="two-col" id="causeCards">
+          <button class="decision-card cause-card active" data-cause="demand" aria-pressed="true"><div class="cause-card-top"><span class="pill supported">需求变化缺货量</span><span class="cause-share">34.9%</span></div><div class="big">520 件</div><p>基地经理按基地→大区→省区澄清，品类经理按品类→大区→省区澄清。</p><span class="cause-card-note"><strong>口径备注：</strong>=MIN(MAX([@总下单量]-[@最终计划],0), MAX([@总下单量]-[@总发货量],0))</span></button>
+          <button class="decision-card cause-card" data-cause="plan" aria-pressed="false"><div class="cause-card-top"><span class="cause-title-with-help"><span class="pill supported">计划内缺货量</span><span class="kpi-help" role="button" tabindex="0" aria-label="生产计划达成率字段说明" aria-expanded="false" data-help="生产计划达成率里面的 order_qty：计划量；eliv_qty：实际生产量。">?</span></span><span class="cause-share">27.0%</span></div><div class="big">402 件</div><p>按自产、调拨两条兑现链核查；本例402 件为已核对自产范围，调拨待接入，库存准备单独检查。</p><span class="cause-card-note"><strong>口径备注：</strong>=MAX(MIN([@总下单量],[@最终计划])-[@总发货量],0)</span></button>
+        </div>
+        <details class="definition-catalog" open>
+          <summary>两类原因维度的详细定义、判定口径与边界</summary>
+          <div class="definition-grid">
+            <article class="definition-item"><h4>A 需求变化缺货量</h4><p><strong>定义：</strong>在订单商品层，将“总下单量超过最终计划”的新增需求中，实际未发出的部分归为需求变化缺货量。</p><p class="formula"><strong>数量公式：</strong>需求变化缺货量ᵢ＝MIN（MAX（总下单量ᵢ－最终计划ᵢ，0），MAX（总下单量ᵢ－总发货量ᵢ，0））</p><p><strong>判定：</strong>只有总下单量大于最终计划且总下单量大于总发货量时才产生；归属量不得超过该订单商品的实际缺货量。</p><p><strong>分析视角：</strong>基地经理按基地→大区→省区；品类经理按品类→大区→省区。</p><p><strong>边界：</strong>该指标只分配需求增量造成的缺货，不把全部需求变化量直接认定为缺货；必须逐订单商品计算后汇总，负向变化与已满足数量均不计入。</p></article>
+            <article class="definition-item"><h4>C 计划内缺货量</h4><p><strong>定义：</strong>在订单商品层，将最终计划与实际下单量重叠范围内、仍未由总发货量满足的部分归为计划内缺货量。</p><p class="formula"><strong>数量公式：</strong>计划内缺货量ᵢ＝MAX（MIN（总下单量ᵢ，最终计划ᵢ）－总发货量ᵢ，0）</p><p><strong>判定：</strong>先以MIN（总下单量，最终计划）确定计划内订单量；总发货量低于该数量时，差额计入计划内缺货量。</p><p><strong>分析维度：</strong>生产基地；基地内明细保留到基地×品类，并继续核查自产、调拨、库存和发运兑现。</p><p><strong>边界：</strong>计划内缺货量是待核查的供给责任范围，不直接等同于生产未达成；只有建立订单—供给关联并排除库存、调拨、发运及替代供给后，才能进一步归因到生产。</p></article>
+          </div>
+          <div class="definition-formula"><strong>统一底层公式：</strong>月度订单缺口ᵢ＝MAX（总下单量ᵢ－总发货量ᵢ，0）；需求变化缺货量与计划内缺货量必须先在订单商品层计算，再分别汇总，不能用汇总数代入公式。页面当前 520＋402＝922 件为本轮两类重点原因量，不宣称覆盖全部总缺货量。<br /><strong>维度汇总：</strong>某维度成员原因归属量＝Σ符合该成员条件的订单商品原因归属量；原因内贡献率＝该成员原因归属量÷当前原因总量。基地→大区→省区与品类→大区→省区是同一笔需求变化缺货量的两种管理视角，各自应合计回520 件，但两种视角不能相加。</div>
+        </details>
+        <div class="callout" style="margin-top:14px;"><strong>页面阅读顺序：</strong>先看需求变化缺货量，再看计划内缺货量。前者定位超出最终计划的新增需求缺货，后者定位最终计划覆盖范围内仍未满足的缺货；两类均按订单商品逐行计算。本例默认选择“需求变化缺货量 520 件”。</div>
+        <div class="scope-note" style="margin-top:10px;">两类重点原因量勾稽：520 + 402 = 922 件。该数量用于承接后续下钻，不作为全部总缺货量的完整分类结果。</div>
+      </section>
+
+      <section class="panel" data-panel="2">
+        <div class="panel-head">
+          <div><div class="panel-kicker">STEP 03</div><h2 id="causeTitle">在“C 生产计划供给”内部找重点对象</h2><p id="causeContext">此处的所有贡献率只除以所选原因的 402 件，不再用全局 1,488 件。不同维度仍是同一原因量的不同切面，不可相加。</p></div>
+          <span class="status red" id="causeAmount">当前分母 402 件</span>
+        </div>
+        <div class="breadcrumb" id="causeBreadcrumb"><span>全国</span><span>›</span><span>总缺货量 1,488 件</span><span>›</span><b>C 生产计划供给 402 件</b></div>
+        <div class="cause-definition" id="causeDefinition"></div>
+        <div class="tabs" id="dimensionTabs" role="tablist" aria-label="原因内分析维度"></div>
+        <div class="two-col single" id="causeDimensionGrid">
+          <div class="card soft"><h3 id="barTitle">C 生产计划供给 · 基地归属量</h3><div id="barList" class="bar-list"></div></div>
+        </div>
+        <div id="specificAnalysis" class="cause-analysis"></div>
+        <div class="nav-actions" style="margin-top:12px;"><button class="btn" id="backToCauses">← 重选宏观原因</button><span class="scope-note" id="causeStepNote">下一步生成全部需求与生产计划分析报告，不限于当前选择。</span></div>
+      </section>
+
+      <section class="panel" data-panel="3">
+        <div class="report-toolbar"><div><span class="panel-kicker">STEP 04 · 总结报告</span><div class="report-export-status" id="reportExportStatus" role="status" aria-live="polite">基于全部需求与生产计划数据生成，不随选择变化</div></div><div class="report-toolbar-actions"><button class="btn" id="downloadReport">下载报告</button><button class="btn" id="copyReport">复制报告</button><button class="btn primary" id="printReport">打印 / 保存 PDF</button></div></div>
+        <div id="reportDocument"></div>
+      </section>
+
+      <section class="panel" data-panel="4" hidden>
+        <div class="panel-head">
+          <div><div class="panel-kicker">STEP 05</div><h2>不只问“怎么提升”，还要问“以什么代价提升”</h2><p>拖动滑块设置各方案的恢复量。右侧实时计算新满足率、剩余缺口和增量成本。</p></div>
+          <span class="status blue">可交互试算</span>
+        </div>
+        <div class="whatif-layout">
+          <div class="card">
+            <div class="slider-row">
+              <div class="slider-head"><span>跨基地库存重分配</span><span><b id="transferValue">250</b> 件</span></div>
+              <div class="slider-sub">可恢复上限 300 件；估算增量成本 0.073 万元/件。</div>
+              <input id="transfer" type="range" min="0" max="300" step="10" value="250" />
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span>包材加急＋生产加班＋外协补产</span><span><b id="supplyValue">330</b> 件</span></div>
+              <div class="slider-sub">可恢复上限 402 件；估算增量成本 0.145 万元/件。</div>
+              <input id="supply" type="range" min="0" max="402" step="6" value="330" />
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span>优先级重排＋仓配快速通道</span><span><b id="priorityValue">300</b> 件</span></div>
+              <div class="slider-sub">覆盖需求协同、ATP承诺和仓配执行，可恢复上限 690 件；估算增量成本 0.032 万元/件。</div>
+              <input id="priority" type="range" min="0" max="690" step="2" value="300" />
+            </div>
+          </div>
+          <div class="result-box">
+            <div class="label">试算后订单满足率</div>
+            <div class="result-rate" id="resultRate">95.1%</div>
+            <div class="label" id="targetText">达到 &gt;95% 健康目标</div>
+            <div class="progress"><i id="resultProgress" style="width:95.1%"></i></div>
+            <div class="result-stats">
+              <div class="result-stat"><span class="label">业务恢复量</span><strong id="recoverQty">880 件</strong></div>
+              <div class="result-stat"><span class="label">剩余缺货量</span><strong id="remainQty">608 件</strong></div>
+              <div class="result-stat"><span class="label">增量成本</span><strong id="resultCost">75.7 万</strong></div>
+              <div class="result-stat"><span class="label">单位业务恢复成本</span><strong id="unitCost">0.086 万/件</strong></div>
+            </div>
+            <div style="margin-top:14px;color:rgba(255,255,255,.72);font-size:11px;line-height:1.7;">注：该试算只比较订单满足率与增量成本。正式决策还需纳入新鲜度、调拨时效、客户优先级、产线切换损失和未来库存风险。</div>
+          </div>
+        </div>
+        <div class="callout" style="margin-top:14px;"><strong>示例决策：</strong>本步骤基于需求变化、生产计划供给、库存重分配和仓配优先级进行组合试算，将指标提升至 95.1%。这不代表已执行，仅为决策备选方案。</div>
+      </section>
+
+      <div class="nav-actions">
+        <button id="prevBtn" class="btn" disabled>← 上一步</button>
+        <span class="hint" id="stepHint">第 1 / 4 步</span>
+        <button id="nextBtn" class="btn primary">下一步 →</button>
+      </div>
+      <div class="footer-note">本页为业务分析交互示例·所有数据、单号、SKU与事件均为模拟数据 · <span id="logicAuditStatus">逻辑勾稽检查中</span></div>
+    </main>
+  </div>
+</div>
+
+<!-- REPORT_ENGINE_START -->
+<!-- SHARED_REASON_UI_START -->
+<style>/* Shared data-binding components and responsive container rules. */
+.panel{--report-line:#e3e6ea;--report-panel:#fff;--report-hover:#fffafb;--report-hover-line:#efabb4}
+.panel p{white-space:pre-line;overflow-wrap:anywhere}
+.report-finding{margin:10px 0}.report-finding summary{cursor:pointer;line-height:1.7}
+.report-state.verified_fact,.report-state.data_missing{background:#eef1f5;color:#667085}
+.report-state.verified_cause{background:#eaf7ef;color:#168e58}
+.bar-row{grid-template-columns:120px minmax(70px,1fr) minmax(90px,auto)}
+.bar-value{white-space:normal;font-size:11px;overflow-wrap:anywhere}.tabs{flex-wrap:nowrap;overflow-x:auto}.tab{flex-shrink:0}
+.panel .report-table-wrap{overflow-x:auto}.panel table{width:100%;min-width:680px;border-collapse:collapse}
+.panel th,.panel td{padding:10px 14px;border-bottom:1px solid #eceef1;text-align:left;font-size:10px}
+.panel th{background:#f5f6f8;font-size:9px}.panel select{height:36px;padding:8px;border:1px solid #d9dde3;border-radius:8px}
+.metric-value{overflow-wrap:anywhere}.metric-unit{font-size:11px;font-weight:400;color:#858c96;letter-spacing:normal;margin-left:3px}
+.report-nav{top:66px;z-index:19}.report-block,.analysis-report .report-method{scroll-margin-top:136px}
+.topbar{gap:12px}.brand,.top-actions{min-width:0}.top-actions{flex-wrap:wrap;justify-content:flex-end}.badge{overflow-wrap:anywhere}
+@media(max-width:980px){.topbar{height:auto;min-height:66px;position:static;padding:12px 14px;flex-wrap:wrap}.report-nav{top:0}.report-block{scroll-margin-top:68px}}
+@media(max-width:640px){.bar-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.bar-track{grid-column:1/-1;grid-row:2}.bar-value{grid-column:2;grid-row:1}.report-toolbar-actions{flex-wrap:wrap}.top-actions{justify-content:flex-start}}
+@media print{body.report-print .hero,body.report-print .metric-grid{display:none!important}}
+.panel td.number,.panel th.number{text-align:right}
+.cause-analysis .analysis-kpis .analysis-kpi{min-width:0}
+.analysis-kpis.six{grid-template-columns:repeat(6,minmax(0,1fr))}.analysis-kpi .kpi-scope{display:block;margin-top:8px;color:#98a0ab;font-size:9px;font-weight:400}.analysis-kpis.six .analysis-kpi>strong{overflow-wrap:anywhere}
+.cause-analysis .kpi-total strong,.cause-analysis .kpi-channel strong{overflow-wrap:anywhere}
+.bar-list>div:first-child:has(#sortKey){font-size:11px;margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inline-drill-row>td{padding:14px 16px 18px!important;background:#fafbfc}
+.cause-analysis .analysis-body{overflow:hidden}
+.cause-analysis .analysis-body>.report-table-wrap{max-width:100%}
+.demand-detail-block{margin-top:12px}.demand-detail-block>summary{color:var(--primary);font-weight:700}.demand-detail-table{min-width:1120px!important}.demand-source-records>summary{white-space:nowrap;color:#2468d3}.demand-record-table{margin-top:8px;max-width:900px}.demand-record-table table{min-width:760px!important}
+.reason-filter-toolbar{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.reason-filter-toolbar>span{font-size:11px;color:#667085}
+.production-reason-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:16px}.production-reason-heading h4{margin:4px 0 6px;font-size:18px;color:#20232a}.production-reason-heading p{margin:0;color:#667085;font-size:11px;line-height:1.7}
+.reason-family-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px}
+.reason-family-card{position:relative;display:grid;gap:6px;min-height:104px;padding:14px;border:1px solid #e3e6ea;border-radius:10px;background:#fff;text-align:left;color:#343b46;font:inherit;cursor:pointer;box-shadow:0 1px 2px #18223008}.reason-family-card:hover{border-color:#e8a4ae;background:#fffafb}.reason-family-card.selected{border-color:#e59ca8;background:#fff7f8;box-shadow:0 0 0 2px #df17320d}.reason-family-name{font-size:12px;font-weight:700;color:#555d68}.reason-family-card strong{font-size:22px;color:#20232a}.reason-family-card small{font-size:10px;color:#858c96}
+.reason-distribution{border:1px solid #eceef1;border-radius:10px;background:#fafbfc;padding:14px}.reason-distribution-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:8px}.reason-distribution-head h5{font-size:13px;margin:0 0 4px;color:#20232a}.reason-distribution-head p,.reason-distribution-head>span{margin:0;font-size:10px;color:#858c96}.reason-chart{max-height:300px;overflow:auto}
+.reason-bar{width:100%;display:grid;grid-template-columns:minmax(140px,2fr) minmax(80px,3fr) minmax(80px,1fr);gap:12px;align-items:center;background:white;border:1px solid transparent;border-radius:8px;padding:10px;text-align:left;font:inherit;color:#555d68;cursor:pointer}
+.reason-bar:hover{background:#fff}.reason-bar.selected{border-color:#e59ca8;background:#fff7f8}.reason-bar-name{overflow-wrap:anywhere}.reason-bar-track{height:8px;border-radius:999px;background:#e9edf2;overflow:hidden}.reason-bar-track>span{display:block;height:100%;background:#df1732;border-radius:inherit}.reason-boundary{margin:12px 2px 0;color:#667085;font-size:10px;line-height:1.7}
+.reason-record-scroll{max-height:380px;overflow:auto}.reason-record-scroll table{min-width:1000px!important}.reason-record-scroll th{position:sticky;top:0}
+.production-analysis [hidden]{display:none!important}.production-analysis summary{cursor:pointer}.production-analysis{border-radius:10px;overflow:hidden}.production-analysis .supply-checks{padding:16px 18px 18px}.production-source-records>.check-meta{margin:0;padding:12px 14px 0}.production-source-records>.report-table-wrap{margin:10px 14px 14px}.production-sku-details{margin-top:12px}.production-sku-details>summary{padding:14px 16px;color:#343b46!important;background:#fff!important}.production-sku-details>.check-meta{margin:0;padding:12px 16px 4px}.production-sku-list{display:grid;gap:8px;padding:8px 16px 16px}.production-sku-row{display:grid;grid-template-columns:minmax(260px,2fr) repeat(3,minmax(100px,1fr));gap:16px;align-items:center;padding:11px 12px;border:1px solid #e6e9ee;border-radius:8px;background:#fff;color:#555d68}.production-sku-row strong{color:#20232a}.production-sku-row span{text-align:right;font-size:10px}.supply-checks details[open]>summary{border-bottom:1px solid #e8ebef;color:var(--primary);background:#fff8f7}
+.production-source-records[open] .reason-row-tags>summary{border-bottom:0;color:#3972c4;background:transparent}.report-lazy-state{margin:18px;padding:28px;border:1px dashed #d9dde3;border-radius:10px;background:#fafbfc;color:#667085;text-align:center}
+.reason-family-card:focus-visible,.reason-bar:focus-visible{outline:2px solid #df1732;outline-offset:2px}
+.selector-control{display:inline-flex;position:relative}.selector-trigger,.selector-option{font:700 12px/18px "Microsoft YaHei UI","PingFang SC","Noto Sans CJK SC",Arial,sans-serif;letter-spacing:normal;color:#343b46}
+.selector-trigger{height:36px;min-width:132px;padding:0 11px;display:flex;align-items:center;justify-content:space-between;gap:18px;border:1px solid #c9ced7;border-radius:10px;background:#fff;box-shadow:0 1px 2px #1822300a;cursor:pointer}
+.selector-trigger:hover{border-color:#e8a4ae;background:#fff7f8;box-shadow:0 2px 8px #df173214}.selector-trigger:focus-visible{outline:none;border-color:#e59ca8;box-shadow:0 0 0 3px #df17321a}.selector-trigger[aria-expanded=true]{border-color:#ce7280;box-shadow:0 0 0 3px #df173212}.selector-trigger[aria-expanded=true] svg{transform:rotate(180deg)}
+.selector-menu{z-index:1000;overflow:auto;padding:5px;border:1px solid #e7e9ee;border-radius:12px;background:#fff;box-shadow:0 14px 38px #18223024,0 2px 8px #1822300a}
+.selector-option{display:block;width:100%;min-height:34px;padding:0 10px;border:0;border-radius:7px;background:white;text-align:left;cursor:pointer}.selector-option:hover,.selector-option:focus-visible{background:#ffedf0;outline:none}.selector-option[aria-selected=true]{background:#fff5f6}
+.report-sort-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.report-sort-toolbar>label{display:flex;gap:8px;align-items:center;font-size:10px;color:#667085}.report-sort-toolbar .btn{height:36px;padding:0 12px;font-size:12px}
+.production-reason-overview{margin:16px;border:1px solid #e3e6ea;border-radius:10px;padding:18px;background:#fff;box-shadow:0 2px 10px #18223008}
+.reason-dictionary-tag{display:inline-block;padding:3px 6px;margin:2px;border-radius:6px;background:#edf4ff;color:#3972c4;font-size:10px;white-space:normal}
+.reason-row-tags{max-width:200px}.reason-row-tags summary{cursor:pointer;color:#3972c4}.production-source-records td small{display:block;color:#858c96}
+@media(max-width:1100px){.analysis-kpis.six{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.analysis-kpis.six{grid-template-columns:1fr}.production-reason-heading{display:block}.reason-filter-toolbar{justify-content:flex-start;margin-top:12px}.reason-bar{grid-template-columns:minmax(0,1fr) auto}.reason-bar-track{grid-column:1/-1;grid-row:2}.reason-family-grid{grid-template-columns:1fr}.production-sku-row{grid-template-columns:1fr}.production-sku-row span{text-align:left}}
+.demand-scope-note{font-size:12px;line-height:1.7;color:#7b8493;padding:12px 20px;margin:0}
+.accuracy-empty small{display:block;max-width:130px;white-space:normal;font-size:11px;line-height:1.5;color:#7b8493;margin-top:4px}
+#specificAnalysis[data-analysis-mode="demand"]>.analysis-body>.report-table-wrap>table{min-width:1480px}
+
+/* Grid items must shrink independently of the wide tables they contain.
+ * Keep horizontal scrolling on table wrappers, never on the full panel/page. */
+.layout>.main{grid-template-columns:minmax(0,1fr);min-width:0;max-width:100%}
+.main>.panel{min-width:0;max-width:100%;width:100%}
+.panel .two-col.single,.panel .bar-list{grid-template-columns:minmax(0,1fr)}
+.panel .two-col,.panel .two-col>.card,.panel .bar-list,.panel .bar-row,
+.panel .cause-analysis,.panel .analysis-body,.panel .report-block,
+.panel .analysis-kpis,.panel .analysis-kpi,.panel #specificAnalysis{min-width:0;max-width:100%}
+.panel .report-table-wrap{min-width:0;width:auto;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;container-type:inline-size}
+.panel .bar-row{grid-template-columns:minmax(80px,120px) minmax(0,1fr) minmax(90px,auto)}
+.panel .bar-row>*{min-width:0}
+.panel .bar-row>span:first-child{overflow-wrap:anywhere}
+.panel .bar-value{white-space:nowrap}
+.panel .panel-head>div,.panel .cause-analysis-head>div{min-width:0}
+.panel .breadcrumb,.panel .scope-note{max-width:100%;overflow-wrap:anywhere}
+.panel .plan-drilldown-metrics{flex-wrap:wrap}
+@media(max-width:1200px){.analysis-kpis.six{grid-template-columns:repeat(3,minmax(0,1fr))}.topbar{height:auto;min-height:66px;flex-wrap:wrap}.top-actions{flex-wrap:wrap}.badge{max-width:100%;white-space:normal}}
+@media(max-width:900px){.panel .analysis-kpis:not(.six){grid-template-columns:repeat(2,minmax(0,1fr))}.panel .report-toolbar,.panel .cause-analysis-head{flex-wrap:wrap}}
+@media(max-width:720px){.panel .analysis-kpis.six{grid-template-columns:repeat(2,minmax(0,1fr))}.panel .bar-row{grid-template-columns:minmax(0,1fr) auto}.panel .bar-row .bar-track{grid-column:1/-1;grid-row:2}.panel .bar-value{grid-column:2;grid-row:1}.top-actions{justify-content:flex-start;width:100%}}
+@media(max-width:520px){.panel .analysis-kpis,.panel .analysis-kpis.six,.panel .analysis-kpis:not(.six){grid-template-columns:minmax(0,1fr)}.panel .bar-row{padding-inline:6px}.panel .bar-value{font-size:10px}.report-toolbar-actions{max-width:100%;flex-wrap:wrap}}
+@media print{.panel .report-table-wrap{overflow:visible}.panel table,#specificAnalysis[data-analysis-mode="demand"]>.analysis-body>.report-table-wrap>table{min-width:0}}
+
+/* Shared across audit, cause structure, charts, drilldowns, and conclusions. */
+.panel .two-col{grid-template-columns:repeat(2,minmax(0,1fr))}
+.panel .two-col.single{grid-template-columns:minmax(0,1fr)}
+.panel .three-col,.panel .decision-grid,.panel .supply-lanes{grid-template-columns:repeat(3,minmax(0,1fr))}
+.panel .definition-grid,.panel .evidence-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.panel .card,.panel .decision-card,.panel .definition-grid>*,.panel .evidence-grid>*,
+.panel .plan-drilldown-head>div,.panel .plan-drilldown-metrics,.panel .plan-drilldown-metric,
+.panel .supply-checks,.panel .supply-checks>details,.panel .check-content,
+.panel .production-reason-overview,.panel .reason-distribution,.panel .reason-chart,
+.panel .reason-family-card,.panel .production-sku-list,.panel .production-sku-row,
+.panel .analysis-report,.panel .report-cover,.panel .conclusion-metric{min-width:0;max-width:100%}
+.panel .card p,.panel .report-finding,.panel .check-meta,.panel .reason-boundary,
+.panel .plan-drilldown-head h4,.panel .production-sku-row strong{overflow-wrap:anywhere}
+.panel .analysis-section-title,.panel .reason-distribution-head,.panel .plan-drilldown-head{flex-wrap:wrap}
+.panel .plan-drilldown-head>div:first-child{flex:1 1 260px}
+.panel .plan-drilldown-metrics{flex:0 1 auto;gap:8px}
+.panel .plan-drilldown-metric{flex:1 1 90px}
+.panel .plan-drilldown-metric strong{overflow-wrap:anywhere}
+.panel .kpi-total,.panel .kpi-channel{flex-wrap:wrap;gap:6px}
+.panel .analysis-kpi-title>span{min-width:0;overflow-wrap:anywhere}
+.panel .inline-drill-row>td>.reason-drilldown{position:sticky;left:16px;box-sizing:border-box;min-width:0;width:var(--report-detail-width,100%);max-width:var(--report-detail-width,100%)}
+@supports(width:1cqi){.panel .inline-drill-row>td>.reason-drilldown{width:var(--report-detail-width,calc(100cqi - 32px));max-width:var(--report-detail-width,calc(100cqi - 32px))}}
+.panel .reason-bar{min-width:0;grid-template-columns:minmax(140px,2fr) minmax(0,3fr) minmax(90px,auto)}
+.panel .reason-bar>*{min-width:0;overflow-wrap:anywhere}
+.panel .reason-bar>strong{white-space:nowrap}
+.panel .report-toolbar-actions{flex-wrap:wrap;max-width:100%}
+.report-nav{top:var(--report-header-offset,66px)}
+.report-block,.analysis-report .report-method{scroll-margin-top:calc(var(--report-header-offset,66px) + 74px)}
+@media(max-width:1200px){.layout>.metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.panel .two-col,.panel .three-col,.panel .decision-grid,.panel .analysis-grid,.panel .supply-lanes{grid-template-columns:minmax(0,1fr)}.panel .conclusion-columns{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:720px){.panel .plan-reason-grid,.panel .definition-grid,.panel .evidence-grid{grid-template-columns:minmax(0,1fr)}.panel .reason-bar{grid-template-columns:minmax(0,1fr) auto}.panel .reason-bar .reason-bar-track{grid-column:1/-1;grid-row:2}.panel .reason-bar>strong{grid-column:2;grid-row:1}.panel .plan-drilldown-head{align-items:stretch;flex-direction:row}.panel .plan-drilldown-metrics{flex-basis:100%;justify-content:flex-start}.panel .production-sku-row{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:520px){.layout>.metric-grid,.panel .conclusion-metrics{grid-template-columns:minmax(0,1fr)}.panel .plan-drilldown-head{padding:12px}.panel .supply-checks{padding:12px}.panel .production-reason-overview{margin:12px;padding:12px}.panel .report-toolbar-actions>.btn{flex:1 1 auto}.panel .report-cover h2{overflow-wrap:anywhere}}
+@media print{.panel .report-table-wrap{container-type:normal}.panel .inline-drill-row>td>.reason-drilldown{position:static;width:100%;max-width:100%}.report-nav{position:static}.panel .supply-checks{overflow:visible}}
+@media(max-width:720px){.top-actions .badge:last-child{display:inline-flex}}
+.panel .demand-source-row>td{padding:16px;vertical-align:top;background:#f8fafc}
+.panel .demand-source-row>td>.demand-source-panel{position:sticky;left:16px;box-sizing:border-box;min-width:0;width:var(--report-detail-width,100%);max-width:var(--report-detail-width,100%);border:1px solid var(--line,#e3e7ed);border-radius:12px;background:#fff;overflow:hidden}
+@supports(width:1cqi){.panel .demand-source-row>td>.demand-source-panel{width:var(--report-detail-width,calc(100cqi - 32px));max-width:var(--report-detail-width,calc(100cqi - 32px))}}
+.demand-source-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;border-bottom:1px solid #e3e7ed}
+.demand-source-head>div{min-width:0;overflow-wrap:anywhere}.demand-source-head small{display:block;margin-top:6px;color:#8792a3}
+.panel .demand-source-panel .demand-record-table{margin:16px;max-width:none}.panel .demand-source-panel th,.panel .demand-source-panel td{padding:12px 16px;vertical-align:top}
+.demand-source-records{white-space:nowrap}
+.demand-source-pages{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:0 16px 16px;font-size:12px;color:#687586}.demand-source-pages>span{margin-right:auto}.demand-source-pages button:disabled{opacity:.45;cursor:default}
+.demand-detail-table>tbody>tr:not(.demand-source-row)>td{vertical-align:top}
+@media print{.panel .demand-source-row>td>.demand-source-panel{position:static;width:100%;max-width:100%}}
+</style>
+<style>.dual-conclusion{color:#555d68;font-size:14px;line-height:1.8}
+.dual-conclusion .report-cover{padding:24px;background:#fff;border:1px solid #e3e6ea;border-radius:10px}
+.dual-conclusion .report-block{padding:24px;margin:18px 0;background:#fff;border:1px solid #e3e6ea;border-radius:10px;scroll-margin-top:140px}
+.dual-conclusion h3{font-size:19px;color:#20232a;margin:0 0 18px}
+.dual-conclusion h4{font-size:16px;color:#20232a;margin:22px 0 10px}
+.dual-conclusion p{white-space:pre-line;margin:12px 0 18px}
+.conclusion-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0 0 22px}
+.conclusion-metric{padding:18px;border:1px solid #e3e6ea;border-radius:10px;background:#f7f8fa}
+.conclusion-metric span{display:block;color:#7b8493;font-size:12px}
+.conclusion-metric strong{display:block;margin-top:6px;font-size:23px;color:#20232a}
+.conclusion-columns{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.dual-conclusion .conclusion-evidence{border:1px solid #e3e6ea;border-radius:8px;margin:18px 0;padding:12px 16px}
+.conclusion-evidence>summary{cursor:pointer;font-weight:600;color:#555d68}
+.dual-conclusion .report-table-wrap{margin:18px 0;overflow-x:auto}
+.dual-conclusion th,.dual-conclusion td{padding:12px 14px;text-align:left;vertical-align:top}
+.dual-conclusion th{background:#f7f8fa;color:#7b8493}
+.dual-conclusion .conclusion-footnote{font-size:12px;color:#7b8493}
+.report-nav a:focus-visible,.conclusion-evidence>summary:focus-visible{outline:2px solid #df1732;outline-offset:3px}
+.conclusion-filters{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.conclusion-filters .btn.selected{color:#df1732;background:#fff0f2;border-color:#df1732}
+.dual-conclusion [hidden]{display:none!important}
+.dual-conclusion .report-cover,.dual-conclusion .report-block{min-width:0;max-width:100%}
+.dual-conclusion .report-table-wrap table{min-width:760px}
+@media(max-width:700px){.conclusion-metrics,.conclusion-columns{grid-template-columns:1fr}.dual-conclusion .report-block{padding:18px 14px}.dual-conclusion .report-nav{display:flex;overflow-x:auto;white-space:nowrap}.dual-conclusion .report-nav a{flex-shrink:0}}
+@media print{.dual-conclusion .report-nav{position:static}.dual-conclusion .report-block{break-inside:auto}.dual-conclusion .conclusion-evidence{display:block}}
+</style>
+<script>/* Size inline drilldowns to the scroll viewport, not the colspan table width. */
+(function(root){
+ const mounts=new WeakMap();
+ function mount(host){
+  mounts.get(host)?.();
+  const groups=new Map();
+  host.querySelectorAll('.inline-drill-row > td > .reason-drilldown, .demand-source-row > td > .demand-source-panel').forEach(detail=>{
+   const viewport=detail.closest('.report-table-wrap');if(!viewport)return;
+   if(!groups.has(viewport))groups.set(viewport,[]);groups.get(viewport).push(detail);
+  });
+  const sync=()=>groups.forEach((details,viewport)=>{
+   if(!(viewport.clientWidth>0))return;
+   details.forEach(detail=>{
+    const cellStyle=getComputedStyle(detail.parentElement);
+    const padding=(parseFloat(cellStyle.paddingLeft)||0)+(parseFloat(cellStyle.paddingRight)||0);
+    const width=Math.max(1,viewport.clientWidth-padding)+'px';
+    if(detail.style.getPropertyValue('--report-detail-width')!==width)detail.style.setProperty('--report-detail-width',width);
+   });
+  });
+  sync();
+  if(root.ResizeObserver&&groups.size){const observer=new root.ResizeObserver(sync);groups.forEach((_,v)=>observer.observe(v));mounts.set(host,()=>observer.disconnect());}
+  else if(groups.size){root.addEventListener('resize',sync);mounts.set(host,()=>root.removeEventListener('resize',sync));}
+  else mounts.delete(host);
+ }
+ const header=document.querySelector('.topbar');
+ function syncHeader(){if(!header)return;const fixed=['sticky','fixed'].includes(getComputedStyle(header).position);document.documentElement.style.setProperty('--report-header-offset',fixed?header.getBoundingClientRect().height+'px':'0px');}
+ if(header){syncHeader();if(root.ResizeObserver){const observer=new root.ResizeObserver(syncHeader);observer.observe(header);}root.addEventListener('resize',syncHeader);}
+ root.ReportResponsive={mount};
+})(globalThis);
+</script>
+<script>(function(root){
+  const mounted=new WeakMap();
+  const dataTable=(b,C,rows=b.rows)=>C.table(b.headers,rows.map(r=>r.map(v=>v==null?'—':v)));
+  function tableView(b,C,filter=null,limit=b.pageSize||20){
+    const values=Number.isInteger(b.filterColumn)?[...new Set(b.rows.map(r=>r[b.filterColumn]))]:[];
+    const rows=filter===null?b.rows:b.rows.filter(r=>r[b.filterColumn]===filter);
+    return (values.length?`<div class="conclusion-filters" role="group" aria-label="${C.esc(b.filterLabel||'明细筛选')}">${[null,...values].map((v,i)=>`<button type="button" class="btn ${filter===v?'selected':''}" data-conclusion-filter="${i-1}" aria-pressed="${filter===v}">${C.esc(v===null?'全部':v)}</button>`).join('')}</div>`:'')+`<p role="status" class="conclusion-footnote">当前 ${rows.length} 条，展示 ${Math.min(limit,rows.length)} 条；下载报告保留全部记录。</p>`+dataTable(b,C,rows.slice(0,limit))+`<button type="button" class="btn" data-conclusion-more ${limit>=rows.length?'hidden':''}>显示更多</button>`;
+  }
+  function blocks(list,C,prefix,registry){return (list||[]).map((b,i)=>{
+    const id=prefix+'.'+i;if(typeof b==='string')return `<p>${C.esc(b)}</p>`;
+    if(b.heading)return `<h4>${C.esc(b.heading)}</h4>`;
+    if(b.type==='table'){
+      if(!Array.isArray(b.headers)||!Array.isArray(b.rows))throw Error('结论表格缺少表头或记录');
+      if(b.pageSize!=null&&(!Number.isInteger(b.pageSize)||b.pageSize<1))throw Error('结论表格分页数量必须为正整数');
+      if(b.pageSize){registry?.set(id,b);return `<div data-conclusion-table="${id}">${tableView(b,C)}</div>`;}
+      return dataTable(b,C);
+    }
+    if(b.type==='details')return `<details class="conclusion-evidence"><summary>${C.esc(b.summary)}</summary>${blocks(b.blocks,C,id,registry)}</details>`;
+    return `<p>${C.esc(b.text)}</p>`;
+  }).join('');}
+  function mount(host,d,C){
+    const registry=new Map(),views=[];(d.conclusion?.sections||[]).forEach((s,i)=>blocks(s.blocks,C,String(i),registry));
+    host.querySelectorAll('[data-conclusion-table]').forEach(el=>{
+      const b=registry.get(el.dataset.conclusionTable);if(!b)return;
+      const values=Number.isInteger(b.filterColumn)?[...new Set(b.rows.map(r=>r[b.filterColumn]))]:[];
+      let filter=null,limit=b.pageSize;
+      function draw(print=false){el.innerHTML=tableView(b,C,filter,print?Infinity:limit);
+        el.querySelectorAll('[data-conclusion-filter]').forEach(btn=>btn.onclick=()=>{const index=Number(btn.dataset.conclusionFilter);filter=index<0?null:values[index];limit=b.pageSize;draw();});
+        el.querySelector('[data-conclusion-more]').onclick=()=>{limit+=b.pageSize;draw();};
+      }draw();views.push(draw);
+    });mounted.set(host,views);
+  }
+  function print(host,enabled){(mounted.get(host)||[]).forEach(draw=>draw(enabled));}
+  function sections(d,C){
+    const x=d.conclusion||{}, e=C.esc, unit=d.scope.unit;
+    if(x.sections?.length)return x.sections.map((s,i)=>[s.title,blocks(s.blocks,C,String(i))]);
+    const paras=blocks=>(blocks||[]).map(b=>typeof b==='string'?`<p>${e(b)}</p>`:b.heading?`<h4>${e(b.heading)}</h4>`:`<p>${e(b.text)}</p>`).join('');
+    const pct=(v,total)=>v==null||!(total>0)?'—':(v/total*100).toFixed(1)+'%';
+    const rank=(rows,key)=>[...rows].sort((a,b)=>(b[key]??-Infinity)-(a[key]??-Infinity));
+    const bases=d.demandRows.filter(r=>/基地/.test(r.view||'')),cats=d.demandRows.filter(r=>/品类/.test(r.view||''));
+    const amounts=rows=>C.table(['对象','初始提报（'+unit+'）','纠偏提报（'+unit+'）','需求变化缺货（'+unit+'）','占需求变化总量','计划内缺货（'+unit+'）','占计划内总量'],rows.map(r=>[r.object,C.number(r.initialReportedDemand),C.number(r.reported),C.number(r.gap),pct(r.gap,d.metric.demandChangeShortage),C.number(r.inPlanReference),pct(r.inPlanReference,d.metric.inPlanShortage)]));
+    const orgRows=(key)=>rank(bases.flatMap(b=>(b.children||[]).flatMap(r=>(r.children||[]).map(p=>({...p,base:b.object,region:r.object})))),key);
+    const orgTable=(key)=>{const rows=orgRows(key).filter(r=>r[key]>0);return rows.length?`<details class="conclusion-evidence"><summary>组织重点清单 · 前5项（全量见下载报告）</summary>${C.table(['基地','大区 / 组织','省区 / 组织','分类缺货（'+unit+'）'],rows.slice(0,5).map(r=>[r.base,r.region,r.object,C.number(r[key])]))}</details>`:'';};
+    const headline=(title,value)=>`<div class="conclusion-metric"><span>${title}</span><strong>${C.qty(value,unit)}</strong></div>`;
+    const cards=`<div class="conclusion-metrics">${headline('需求变化缺货',d.metric.demandChangeShortage)}${headline('计划内缺货',d.metric.inPlanShortage)}${headline('已开订单缺货',d.metric.monthlyShortage)}</div>`;
+    const summary=x.summary?.length?paras(x.summary):`<div class="conclusion-columns"><div><h4>需求变化缺货</h4><p>${e(d.demandNarrative||'尚无需求变化分析结论；参考下方对象分布。')}</p></div><div><h4>计划内缺货</h4><p>${e(d.planNarrative||'尚无计划内分析结论；参考下方供给核查。')}</p></div></div>`;
+    const framework=paras(x.framework||['按本期重要异常和证据选择分析路径。需求与供给可以分析到不同深度；不以生产偏差代替订单缺货，不为缺少依据的对象补造原因。']);
+    const production=C.table(['生产对象','计划（'+unit+'）','实际产出（'+unit+'）','生产偏差（'+unit+'）'],d.planRows.map(r=>[r.object,C.number(r.planned),C.number(r.actual),C.number(r.gap)]));
+    const selected=x.evidenceIds||[];
+    const evidence=selected.map(i=>d.findings[i]).filter(Boolean);
+    const boundary=paras(x.boundary||[d.method||'指标定义、期间及证据状态见本次口径快照。']);
+    return [
+      ['核心结论',cards+summary],
+      ['双维度框架与问题分布',framework+amounts(rank(bases,'monthlyShortage'))],
+      ['需求变化缺货',paras(x.demand||[d.demandNarrative||'尚未形成需求变化原因判断。'])+amounts(rank(cats,'gap'))+orgTable('gap')],
+      ['计划内缺货与供给核查',paras(x.plan||[d.planNarrative||'尚未形成计划兑现原因判断。'])+orgTable('inPlanReference')+`<details class="conclusion-evidence"><summary>生产计划与实绩对照</summary>${production}<p>生产偏差与订单分类缺货保持各自口径，按订单商品及需要时间关联后再判断影响。</p></details>`],
+      ['分对象行动',C.table(['优先级','对象','核查 / 改善建议','建议协同角色','完成依据'],(x.actions||d.actions).map(a=>[a.priority||'—',a.object,a.task,a.owner,a.acceptance]))],
+      ['口径与证据说明',boundary+(evidence.length?`<details class="conclusion-evidence"><summary>关键证据（${evidence.length}项）</summary>${evidence.map(C.finding).join('')}</details>`:'')+`<p class="conclusion-footnote">全部原因证据、层级数据与源记录保存在下载报告中。结论使用全量输入，不随当前页面筛选改变。</p>`]
+    ];
+  }
+  function render(d,C){const list=sections(d,C);return `<article class="analysis-report dual-conclusion"><header class="report-cover"><h2>${C.esc(d.title)}</h2><p>${C.esc(d.scope.object)} · ${C.esc(d.scope.period)} · ${C.esc(d.conclusion?.subtitle||'需求与供给综合分析')}</p></header><nav class="report-nav">${list.map((s,i)=>`<a href="#report-section-${i}">${i+1} ${C.esc(s[0])}</a>`).join('')}</nav>${list.map((s,i)=>`<section class="report-block" id="report-section-${i}"><h3>SECTION ${String(i+1).padStart(2,'0')} ${C.esc(s[0])}</h3>${s[1]}</section>`).join('')}</article>`;}
+  function markdown(d,C){return sections(d,C).map(([title,html])=>'## '+title+'\n\n'+html.replace(/<\/(th|td)>/g,' | ').replace(/<\/tr>/g,'\n').replace(/<\/(p|h4|summary)>/g,'\n\n').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")).join('\n\n');}
+  function fullBlocks(list){return (list||[]).map(b=>typeof b==='string'?b:{...b,...(b.type==='table'?{pageSize:null}:{}),...(b.blocks?{blocks:fullBlocks(b.blocks)}:{})});}
+  function fullMarkdown(d,C){const full=d.conclusion?.sections?.length?{...d,conclusion:{...d.conclusion,sections:d.conclusion.sections.map(s=>({...s,blocks:fullBlocks(s.blocks)}))}}:d;return markdown(full,C);}
+  const api={render,markdown:fullMarkdown,mount,print};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ConclusionReport=api;
+})(globalThis);
+</script>
+<script>(function(root){
+  const CORE_UNIT='件';
+  const esc=v=>String(v??'待补数据').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const number=v=>v==null?'—':Number(v).toLocaleString('zh-CN',{maximumFractionDigits:2});
+  const qty=(v,u)=>v==null?'—':`${number(v)} ${esc(u||CORE_UNIT)}`;
+  const labels={verified_fact:'有来源事实',verified_cause:'已验证根因',supported_unverified:'有支持待验证',hypothesis:'待核查假设',data_missing:'数据缺失',definition_conflict:'口径冲突'};
+  function classify(r){
+    if(['finalPlan','totalOrder','totalShipped'].some(k=>r[k]==null))return null;
+    if(['finalPlan','totalOrder','totalShipped'].some(k=>!Number.isFinite(r[k])||r[k]<0))throw Error('订单商品数量无效');
+    const gap=Math.max(r.totalOrder-r.totalShipped,0);
+    return {...r,monthlyShortage:gap,demandChangeShortage:Math.min(Math.max(r.totalOrder-r.finalPlan,0),gap),inPlanShortage:Math.max(Math.min(r.totalOrder,r.finalPlan)-r.totalShipped,0)};
+  }
+  function normalize(input){
+    const d=JSON.parse(JSON.stringify(input)); if(!d.scope||!d.metric)throw Error('缺少范围或指标');
+    d.findings??=[];d.actions??=[];d.planRows??=[];d.demandRows??=[];d.transferRows??=[];d.oeRows??=[];d.odRows??=[];d.overallRows??=[];d.orderRows??=[];
+    d.scope.unit ||= CORE_UNIT;d.scope.productionUnit ||= CORE_UNIT;
+    if(d.scope.unit!==CORE_UNIT||d.scope.productionUnit!==CORE_UNIT)throw Error('订单满足率核心业务数量单位必须为件');
+    for(const r of flatten([...d.demandRows,...d.planRows,...d.transferRows,...d.oeRows,...d.odRows,...d.overallRows])){
+      if(r.unit&&r.unit!==CORE_UNIT)throw Error('业务明细数量单位必须为件：'+(r.object||'未命名对象'));
+      r.unit=CORE_UNIT;
+    }
+    for(const r of [...d.demandRows,...d.planRows,...d.transferRows,...d.oeRows,...d.odRows,...d.overallRows])r.unit ||= CORE_UNIT;
+    const keys=new Set();for(const r of d.orderRows){if(!r.key||keys.has(r.key))throw Error('订单商品键缺失或重复');keys.add(r.key);}
+    d.metric.initialReportedDemand ??= null;
+    for(const k of ['need','shipped','reportedDemand','initialReportedDemand','monthlyShortage','businessGap','demandChangeShortage','inPlanShortage'])if(d.metric[k]!=null&&(!Number.isFinite(d.metric[k])||d.metric[k]<0))throw Error('指标数量无效：'+k);
+    if(d.metric.salesDemandPlanVariance!=null&&!Number.isFinite(d.metric.salesDemandPlanVariance))throw Error('指标数量无效：salesDemandPlanVariance');
+    // Published metrics are authoritative; legacy source-row recomputation is opt-in.
+    const local=d.calculation?.classification==='legacy-minmax-v1';
+    if(d.calculation?.classification&&!local&&d.calculation.classification!=='published')throw Error('未知分类复核模式');
+    const rows=local?d.orderRows.map(classify):[];
+    if(local&&(!d.orderRowsComplete||!rows.every(Boolean)))throw Error('完整订单池存在缺数');
+    if(local&&d.orderRowsComplete&&rows.every(Boolean))for(const k of ['monthlyShortage','demandChangeShortage','inPlanShortage']){
+      const sum=rows.reduce((s,r)=>s+r[k],0);if(d.metric[k]!=null&&Math.abs(d.metric[k]-sum)>.01)throw Error('分类汇总不一致：'+k);d.metric[k]=sum;
+    }
+    if(local&&d.orderRowsComplete)d.metric.classificationComplete=true;
+    if(d.metric.rate!=null&&!Number.isFinite(d.metric.rate))throw Error('满足率必须为0–1编码的有限数值');
+    if(d.calculation?.rate&&!['published','ratio-v1'].includes(d.calculation.rate))throw Error('未知满足率计算模式');
+    if(d.metric.classificationComplete&&['monthlyShortage','demandChangeShortage','inPlanShortage'].some(k=>d.metric[k]==null))throw Error('完整分类缺少数量');
+    if(d.metric.classificationComplete&&Math.abs(d.metric.monthlyShortage-d.metric.demandChangeShortage-d.metric.inPlanShortage)>.01)throw Error('完整分类不勾稽');
+    for(const f of d.findings){
+      if(f.status==='verified'){f.originalStatus='verified';f.status='verified_fact';}
+      if(!labels[f.status])throw Error('未知证据状态：'+f.status);
+      if(f.status==='verified_cause'&&(!f.orderSupplyLink||!f.eventTime||!f.mechanism||!f.counterEvidence||!f.evidence?.length||f.impact==null))throw Error('已验证根因缺少订单关联、时序、影响量或证据');
+      if(f.unit&&f.unit!==CORE_UNIT)throw Error('finding 业务影响量单位必须为件：'+(f.object||'未命名对象'));
+      f.unit=CORE_UNIT;
+    }
+    if(d.scenario?.items?.length){
+      if(d.scenario.exclusive!==true||d.scenario.unit!==d.scope.unit||!d.scenario.costUnit||d.metric.monthlyShortage==null)throw Error('情景须明确同单位、互斥范围和缺货上限');
+      if(d.calculation?.rate==='ratio-v1'&&(!(d.metric.need>0)||d.metric.shipped==null))throw Error('比例情景缺少有效分子分母');
+      if(d.scenario.items.some(s=>!Number.isFinite(s.max)||s.max<0||!Number.isFinite(s.costPerUnit)||s.costPerUnit<0))throw Error('情景参数无效');
+      if(d.scenario.items.reduce((s,r)=>s+r.max,0)>d.metric.monthlyShortage)throw Error('情景恢复上限超过缺货');
+    }
+    return d;
+  }
+  const rateValue=d=>Object.hasOwn(d.metric,'rate')?d.metric.rate:(d.calculation?.rate==='ratio-v1'&&d.metric.need>0&&d.metric.shipped!=null?d.metric.shipped/d.metric.need:null);
+  const rate=d=>rateValue(d)==null?'—':(100*rateValue(d)).toFixed(2)+'%';
+  const actualShipped=d=>Object.hasOwn(d.metric||{},'rawShipped')?d.metric.rawShipped:(d.metric?.shippedIsActual===true?d.metric.shipped:null);
+  const classificationText=(d,key)=>d.metric.classificationDefinitions?.[key]||(d.calculation?.classification==='legacy-minmax-v1'?(key==='demand'?'MIN(MAX(下单−最终计划,0),MAX(下单−发货,0))':'MAX(MIN(下单,最终计划)−发货,0)'):'采用本次发布分类口径；定义详见口径快照');
+  function finding(f){return `<details class="report-finding"><summary><strong>${esc(f.object)}</strong> <span class="report-state ${esc(f.status)}">${labels[f.status]}</span></summary><p>${esc(f.fact)}</p><p>作用机制：${esc(f.mechanism)}</p><p>涉及量（不自动等同因果量）：${qty(f.impact,f.unit)}</p><p>证据：${esc((f.evidence||[]).join('；'))}</p><p>反证：${esc(f.counterEvidence)}</p><p>边界／停止点：${esc(f.boundary)}</p></details>`;}
+  function table(headers,rows){return `<div class="report-table-wrap"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${headers.length}">待补数据，未生成虚构记录</td></tr>`}</tbody></table></div>`;}
+  function markdown(d){return `# ${d.title}\n\n${d.scope.object} · ${d.scope.period}\n\n${d.summary}\n\n${d.metric.needLabel||'OMS需求'} ${number(d.metric.need)} ${d.scope.unit}；已开订单发货量 ${number(actualShipped(d))} ${d.scope.unit}；满足率 ${rate(d)}\n\n## 需求变化\n${d.demandNarrative}\n\n## 计划内缺货\n${d.planNarrative}\n\n${d.planPreparation||''}\n\n## 原因证据\n`+d.findings.map(f=>`### ${f.object} · ${labels[f.status]}\n${f.fact}\n机制：${f.mechanism||'待核查'}\n涉及量：${number(f.impact)} ${f.unit}\n证据：${(f.evidence||[]).join('；')}\n反证：${f.counterEvidence||'待补'}\n边界：${f.boundary}\n`).join('\n')+'\n## 行动\n'+d.actions.map(a=>`${a.object}：${a.task}；${a.owner}；${a.acceptance}`).join('\n')+'\n## 口径\n'+d.method;}
+  function flatten(rows,parent=''){return (rows||[]).flatMap(r=>[{...r,object:parent?parent+' → '+r.object:r.object},...flatten(r.children,parent?parent+' → '+r.object:r.object)]);}
+  function flattenDemandDetails(rows,parent=''){
+    return (rows||[]).flatMap(r=>{const path=parent?parent+' → '+r.object:r.object;return [...(r.detailRows||[]).flatMap(s=>(s.records?.length?s.records:[{}]).map(x=>({path,skuCode:s.skuCode,skuName:s.skuName,date:x.date,planReference:x.planReference??s.planReference,ordered:x.ordered??s.ordered,shipped:x.shipped??s.shipped,monthlyShortage:x.monthlyShortage??s.monthlyShortage,demandGap:x.demandGap??s.demandGap,inPlanGap:x.inPlanGap??s.inPlanGap,unit:s.unit||r.unit||CORE_UNIT}))),...flattenDemandDetails(r.children,path)];});
+  }
+  function demandDetailExport(d,md=false){
+    const rows=flattenDemandDetails(d.demandRows),headers=['对象路径','SKU编码','商品名称','日期','源计划量参考','需求量','发货量','发布缺货量','需求变化参考','计划内参考','单位'];
+    const values=rows.map(r=>[r.path,r.skuCode,r.skuName,String(r.date||'').slice(0,10),number(r.planReference),number(r.ordered),number(r.shipped),number(r.monthlyShortage),number(r.demandGap),number(r.inPlanGap),r.unit]);
+    const cell=v=>String(v??'').replace(/\|/g,'\\|').replace(/\r?\n/g,' ');
+    return md?'\n### 需求变化SKU与源记录\n\n|'+headers.join('|')+'|\n|'+headers.map(()=>'---').join('|')+'|\n'+values.map(r=>'|'+r.map(cell).join('|')+'|').join('\n')+'\n':'<details class="report-finding"><summary>需求变化SKU与源记录（'+values.length+'）</summary>'+table(headers,values)+'</details>';
+  }
+  function dataTables(d,md=false){return [['总缺货分布（非两类归属）',d.overallRows,d.scope.unit],['需求变化全量明细',d.demandRows,d.scope.unit],['自产兑现全量明细',d.planRows,d.scope.productionUnit],['调拨兑现全量明细',d.transferRows,d.scope.productionUnit],['OE全量明细',d.oeRows,d.scope.productionUnit],['OD全量明细',d.odRows,d.scope.productionUnit]].map(([title,rows,u])=>{
+    const headers=['视角／对象路径','初始提报','计划／纠偏提报','下单','实际／发货','差额／分类量','单位'];
+    const values=flatten(rows).map(r=>[(r.view||'')+' '+r.object,number(r.initialReportedDemand),number(r.planned??r.reported),number(r.ordered),number(r.actual??r.shipped),number(r.gap),r.unit||u]);
+    const cell=v=>String(v).replace(/\|/g,'\\|').replace(/\r?\n/g,' ');
+    return md?'\n### '+title+'\n\n|'+headers.join('|')+'|\n|'+headers.map(()=>'---').join('|')+'|\n'+values.map(r=>'|'+r.map(cell).join('|')+'|').join('\n')+'\n':'<details class="report-finding"><summary>'+title+'（'+values.length+'）</summary>'+table(headers,values)+'</details>';
+  }).join('');}
+  const conclusion=()=>typeof module!=='undefined'&&module.exports?require('./conclusion-report.js'):root.ConclusionReport;
+  const api={CORE_UNIT,esc,qty,number,labels,classify,normalize,rate,rateValue,actualShipped,classificationText,finding,table,flatten,flattenDemandDetails,dataTables,report:d=>conclusion().render(d,api),markdown:d=>'# '+d.title+'\n\n'+conclusion().markdown(d,api)+'\n\n# 完整证据与明细附录\n\n'+markdown(d)+'\n## 全量底表\n'+dataTables(d,true)+demandDetailExport(d,true)};if(typeof module!=='undefined')module.exports=api;else root.AnalysisCore=api;
+})(globalThis);
+</script>
+<script>/* User-approved A–K / 52 labels. Rules propose tags, not verified root causes. */
+(function(root){
+ const families={A:'计划与订单',B:'人员',C:'设备',D:'物料',E:'包材',F:'质量与工艺',G:'产能',H:'生产组织',I:'研发与新品',J:'后工序与入库',K:'能源与环境'};
+ const entries=[
+ ['A01','临时增加计划',/临时.{0,6}(增加|加单|加量)|追加计划|临时增产/],
+ ['A02','临时调减或取消',/计划.{0,6}(调减|取消)|临时.{0,6}(减量|取消)|取消.{0,4}计划/],
+ ['A03','转产或优先级调整',/转产|优先(做|生产|级)|调整优先/],
+ ['A04','系统计划错误/重复/未同步',/计划.{0,6}(错误|重复|未同步)|系统.{0,6}(错单|重复计划)/],
+ ['A05','计划量超出可用产能',/计划.{0,12}(超出|超过).{0,8}产能/],
+ ['B01','出勤不足',/人员不足|人员不够|缺员|缺勤|请假|出勤不足/],
+ ['B02','跨线或跨品项调配',/人员.{0,8}(调配|调走|支援)|跨线.{0,6}(调|支援)|调人/],
+ ['B03','新员工/机手熟练度不足',/新工.{0,12}(效率低|不熟练|熟练度|提产|开机晚)|新机手.{0,8}(不熟练|提产)|机手.{0,8}不熟练/],
+ ['B04','岗位配置不匹配',/岗位.{0,6}(不匹配|配置不足)|缺(机手|包装工)|无机手/],
+ ['C01','成型设备故障',/成型.{0,8}(故障|损坏|坏了|维修)/],
+ ['C02','包装设备故障',/包装(机|设备|线).{0,8}(故障|损坏|坏了|维修)/],
+ ['C03','隧道/速冻设备故障',/(隧道|速冻).{0,8}(故障|损坏|坏了|维修)/],
+ ['C04','面房/前处理设备故障',/(面房|柔粉车间|和面锅|和面机|前处理|切丁机).{0,8}(故障|损坏|维修)/],
+ ['C05','设备调试或改造',/设备调试|设备改造|改造设备|调试设备/],
+ ['C06','缺配件/设备老旧',/缺配件|配件.{0,6}(缺|未到)|设备老旧/],
+ ['D01','原料不足',/原料.{0,6}(不足|不够|缺货)|缺原料/],
+ ['D02','原料到货晚',/(原料|圆椒|肉|菜).{0,6}(到货晚|到货延迟|未到货)/],
+ ['D03','原料质量不合格',/原料.{0,8}(不合格|质量异常)/],
+ ['D04','小料/馅料/面皮供应不足',/(小料|馅料|面皮|面).{0,5}(供应不上|供应不足)|缺(馅料|面皮|小料)/],
+ ['D05','前处理供应不及时',/前处理.{0,8}(不及时|供应慢|未及时)/],
+ ['E01','纸箱不足或不合格',/纸箱.{0,8}(不足|不够|不合格|未到|缺)|缺纸箱/],
+ ['E02','卷材不足或异常',/(卷材|包装膜).{0,10}(不足|不够|异常|未.{0,5}到货|延迟|缺)|缺(卷材|包装膜)/],
+ ['E03','标签不足或错误',/标签.{0,6}(不足|不够|错误|印错)|缺标签/],
+ ['E04','托盒/包装袋/礼盒不足',/(托盒|包装袋|礼盒).{0,6}(不足|不够|未到)|缺(托盒|包装袋|礼盒)/],
+ ['E05','新旧版包材切换',/新旧.{0,6}包材|包材.{0,6}(换版|切换)/],
+ ['F01','漏馅/开口/开裂',/漏馅|开口|开裂/],
+ ['F02','变形/粘连/气泡/黑点',/变形|粘连|气泡|黑点/],
+ ['F03','温度或冻结效果不合格',/(温度|冻结效果).{0,8}(不合格|不好|异常|不达标)/],
+ ['F04','净含量/出成异常',/(净含量|出成).{0,6}(异常|偏差|不足|不合格)/],
+ ['F05','次品率高导致补做或降速',/次品(率)?(多|高|偏高)|次品.{0,6}(补做|降速)/],
+ ['G01','开机台数不足',/开机台数不足|开机.{0,6}不足|少开.{0,4}台/],
+ ['G02','单机产能不足',/单机.{0,6}(产能不足|产能低|效率低)/],
+ ['G03','产线满负荷',/产线满负荷|满负荷生产|产线满产/],
+ ['G04','包装能力形成瓶颈',/包装.{0,8}(能力不足|瓶颈|跟不上|产能不足)/],
+ ['G05','工艺要求导致限速',/工艺.{0,8}(限速|降速)/],
+ ['H01','换产/换馅/换规格',/换产|换馅|换规格/],
+ ['H02','清线、刷机、卫生清洁',/清线|刷机|卫生|清洁/],
+ ['H03','审核迎检停机',/审核|迎检/],
+ ['H04','日期或包装版本切换',/更换日期|日期切换|换日期|包装版本切换/],
+ ['H05','生产不连续/未连班',/生产不连续|未连班|不连班|断续生产/],
+ ['I01','新品首次生产',/新品.{0,6}(首次|第一次|首产)|新产品.{0,6}(首次|第一次)/],
+ ['I02','中试/试产',/中试|试产/],
+ ['I03','研发试机',/研发.{0,6}试机/],
+ ['I04','新配方或新设备调试',/新配方|新设备.{0,6}调试/],
+ ['J01','半成品待包装',/半成品.{0,6}(待包装|等待包装)/],
+ ['J02','包装不及时',/包装不及时|包装延迟/],
+ ['J03','无包材无法入库',/无包材.{0,6}(无法|不能)入库|缺包材.{0,6}入库/],
+ ['J04','标签/扫码异常',/(标签|扫码).{0,6}异常/],
+ ['J05','跨订单或拆分入库',/跨订单.{0,6}入库|拆分入库/],
+ ['K01','停电',/停电/],
+ ['K02','蒸汽/冷气/气压不足',/(蒸汽|冷气|气压).{0,6}(不足|不够|低)/],
+ ['K03','公共设施维修',/公共设施维修/]
+ ].map(([code,label,pattern])=>({code,label,pattern,family:code[0],familyLabel:families[code[0]]}));
+ function classify(raw){
+  const text=String(raw||'').trim();
+  if(!text||/^(?:[\d.]+|无|无q|暂无|无原因|原文为空|不详|未知|—|-|null)[，,；;。\s]*$/i.test(text))return {tags:[],primary:null,state:'invalid'};
+  // Negated assertions are not positive evidence. Leave them for manual review.
+  if(/无故障|没有.{0,8}(不足|故障)|未发生|不存在/.test(text))return {tags:[],primary:null,state:'review'};
+  let hits=entries.filter(x=>x.pattern.test(text));
+  if(hits.some(x=>x.code==='I04'))hits=hits.filter(x=>x.code!=='C05');
+  const tags=hits.map(({pattern,...x})=>x);
+  return {tags,primary:tags.length===1?tags[0].code:null,state:tags.length===1?'rule_matched':tags.length?'multiple':'review'};
+ }
+ const api={version:'2026-10-19-user-AK',families,entries,classify};root.ProductionReasonDictionary=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+})(globalThis);
+</script>
+<script>/* Shared dictionary summary above the category table; raw evidence stays inline. */
+(function(root){
+ const C=root.AnalysisCore,e=C.esc,q=v=>C.qty(v,'件'),D=root.ProductionReasonDictionary;
+ const caches=new WeakMap();
+ function records(d,r){
+  let cache=caches.get(d);if(!cache){cache=new Map();caches.set(d,cache);}if(cache.has(r.scopeKey))return cache.get(r.scopeKey);
+  const result=[];
+  for(const f of (r.findingIds||[]).map(i=>d.findings[i]).filter(Boolean)){
+   if(!r.scopeKey||f.scopeKey!==r.scopeKey||!['verified','verified_fact','verified_cause','supported_unverified'].includes(f.status)||f.channel==='transfer')continue;
+   const tagging=D.classify(f.reasonText);if(tagging.state==='invalid')continue;
+   result.push(...(f.records||[]).map(x=>({...x,reason:f.reasonText,...tagging})));
+  }
+  cache.set(r.scopeKey,result);return result;
+ }
+ const quantity=rs=>rs.every(x=>Number.isFinite(x.gap))?rs.reduce((s,x)=>s+x.gap,0):null;
+ const accepts=(record,key)=>key==='all'||record.primary===key||(key.length===1&&record.primary?.startsWith(key));
+ function matches(d,r,key){return key==='all'||records(d,r).some(x=>accepts(x,key));}
+ function aggregate(rs){
+  return D.entries.map(item=>{const selected=rs.filter(x=>x.primary===item.code);return {...item,records:selected,quantity:quantity(selected)};}).filter(x=>x.records.length).sort((a,b)=>b.quantity-a.quantity||a.code.localeCompare(b.code));
+ }
+ function overview(d,roots,filter='all'){
+  // Use one level only: never add parent/category/SKU copies together.
+  const rs=roots.flatMap(r=>records(d,r)),gs=aggregate(rs),max=Math.max(1,...gs.map(g=>g.quantity));
+  const families=Object.entries(D.families).map(([code,label])=>({code,label,children:gs.filter(g=>g.family===code)})).filter(g=>g.children.length);
+  const multiple=rs.filter(x=>x.state==='multiple').length,review=rs.filter(x=>x.state==='review').length;
+  const current=filter==='all'?'全部原因':e(filter+' '+(D.entries.find(x=>x.code===filter)?.label||D.families[filter]||''));
+  return `<section class="production-reason-overview" aria-label="自产原因字典汇总"><div class="production-reason-heading"><div><span class="panel-kicker">生产原因 · 字典归类</span><h4>自产原因字典汇总</h4><p>按理由原文匹配 A–K 字典，数量为欠产分组正差（件），不等同于订单缺货影响量。</p></div><div class="reason-filter-toolbar"><button type="button" class="btn ${filter==='all'?'selected':''}" data-dictionary-filter="all" aria-pressed="${filter==='all'}">全部原因</button><span role="status">当前：${current}</span></div></div>
+  <div class="reason-family-grid">${families.map(g=>`<button type="button" class="reason-family-card ${filter===g.code?'selected':''}" data-dictionary-filter="${g.code}" aria-pressed="${filter===g.code}"><span class="reason-family-name">${g.code} ${e(g.label)}</span><strong>${q(g.children.every(x=>x.quantity!=null)?g.children.reduce((s,x)=>s+x.quantity,0):null)}</strong><small>${g.children.length}个细分类 · ${g.children.reduce((s,x)=>s+x.records.length,0)}条记录</small></button>`).join('')}</div>
+  <div class="reason-distribution"><div class="reason-distribution-head"><div><h5>细分类数量分布</h5><p>点击原因可联动筛选下方基地、SKU 与原始记录</p></div><span>${gs.length} 个有效细分类</span></div><div class="reason-chart" role="group" aria-label="原因字典细分类柱状图">${gs.map(g=>`<button type="button" class="reason-bar ${filter===g.code?'selected':''}" data-dictionary-filter="${g.code}" aria-pressed="${filter===g.code}"><span>${g.code} ${e(g.label)}</span><span class="reason-bar-track"><span style="width:${100*g.quantity/max}%"></span></span><strong>${q(g.quantity)}</strong></button>`).join('')||'<p>当前范围暂无唯一命中的原因分类，不生成推算柱条。</p>'}</div></div>
+  <p class="reason-boundary">打标边界：${multiple}条记录命中多个标签、${review}条理由不足以匹配细分类，仍保留在全部原始记录中供复核，不进入分类数量柱图；每条唯一命中记录只计量一次。</p></section>`;
+ }
+ function tags(x){return x.tags.length?x.tags.map(t=>`<span class="reason-dictionary-tag">${e(t.code+' '+t.label)}</span>`).join('')+(x.state==='multiple'?'<small>多标签，主因待确认</small>':''):'<span class="check-meta">细分类待确认</span>';}
+ function tagSummary(d,r){const list=[...new Map(records(d,r).flatMap(x=>x.tags).map(t=>[t.code,t])).values()];return list.length?`<details class="reason-row-tags"><summary>${list.length}个字典标签</summary>${list.map(t=>`<span class="reason-dictionary-tag">${e(t.code+' '+t.label)}</span>`).join('')}</details>`:'—';}
+ function render(d,r,depth=0,filter='all'){
+  const rs=records(d,r).filter(x=>accepts(x,filter)),delta=r.gap??null;
+  const children=(r.children||[]).filter(c=>matches(d,c,filter));
+  return `<section class="production-analysis reason-drilldown plan-drilldown"><div class="plan-drilldown-head"><div><div class="plan-drilldown-kicker">已选对象 · 生产原因记录</div><h4>${e(r.object)}</h4><p class="check-meta">原因汇总及筛选位于上方四张指标卡下；当前筛选：${filter==='all'?'全部原因':e(filter)}。</p></div><div class="plan-drilldown-metrics">${[['计划生产量',r.planned],['实际执行量',r.actual],['发布生产偏差',delta]].map(([k,v])=>`<div class="plan-drilldown-metric"><span>${k}</span><strong>${q(v)}</strong></div>`).join('')}</div></div><div class="supply-checks">
+  <details open class="production-source-records"><summary>生产偏差原始记录（${rs.length}条）</summary><p class="check-meta">保留理由原文与字典标签；日期×SKU×生产单／批次×产线源分组。规则打标不等于已验证根因。</p><div class="report-table-wrap reason-record-scroll"><table><thead><tr><th>日期</th><th>SKU</th><th>生产单</th><th>批次</th><th>产线／班次</th><th>计划（件）</th><th>实际（件）</th><th>正差（件）</th><th>理由原文</th><th>字典标签</th></tr></thead><tbody>${rs.map(x=>`<tr>${['date','sku','order','batch'].map(k=>`<td>${e(x[k]||'—')}</td>`).join('')}<td>${e(x.line||'—')} / ${e(x.shift||'—')}</td>${['planned','actual','gap'].map(k=>`<td>${C.number(x[k])}</td>`).join('')}<td>${e(x.reason)}</td><td>${tags(x)}</td></tr>`).join('')||'<tr><td colspan="10">当前筛选无明确理由记录。</td></tr>'}</tbody></table></div></details>
+  ${children.length?`<details class="production-sku-details"><summary>SKU汇总与继续分析（${children.length}项）</summary><p class="check-meta">只展示当前筛选相关SKU，月度指标不随原因标签截断；点击上方原因标签筛选，SKU行保持中性展示。</p><div class="production-sku-list">${children.map(c=>`<div class="production-sku-row"><strong>${e(c.object)}</strong><span>计划 ${q(c.planned)}</span><span>实际 ${q(c.actual)}</span><span>正差 ${q(c.gap)}</span></div>`).join('')}</div></details>`:''}</div></section>`;
+ }
+ root.ProductionReasons={records,aggregate,overview,matches,render,tagSummary,bind:()=>{}};
+})(globalThis);
+</script>
+<script>/* Template DOM contract: cause-analysis-head → analysis-kpis → analysis-body.
+ * Keep the original four supply cards, channel rows and inline drilldown structure.
+ * Only data values and evidence-backed captions are supplied by the report input. */
+(function(root){
+ const C=root.AnalysisCore,e=C.esc,n=C.number,q=v=>v==null?'—':C.qty(v,'件');
+ const sum=(rs,k)=>rs.length&&rs.every(r=>r[k]!=null)?rs.reduce((s,r)=>s+r[k],0):null;
+ const ratio=(a,b)=>a!=null&&b>0?(100*a/b).toFixed(2)+'%':'—';
+ const gap=r=>r.gap??null;
+ const help=(label,text)=>`<button type="button" class="kpi-help" aria-label="${e(label)}口径说明" aria-expanded="false" data-help="${e(text)}">?</button>`;
+ const accuracyCell=r=>r.accuracy==null?`<span class="accuracy-empty" title="${e(r.accuracyNote||'当前范围未取得正式准确率')}">—<small>${e(r.accuracyMissingReason||'未取得正式值')}</small></span>`:`<span title="${e(r.accuracyNote||'当前范围销售提报准确率')}">${n(r.accuracy)}%</span>`;
+ const total=rs=>{const planned=sum(rs,'planned'),actual=sum(rs,'actual');return {planned,actual,gap:sum(rs,'gap'),rate:rs.length===1?rs[0].rate:undefined};};
+ function productionRate(d,r){return r.rate!==undefined?(r.rate==null?'—':(100*r.rate).toFixed(2)+'%'):d.calculation?.productionRate==='ratio-v1'?ratio(r.actual,r.planned):'—';}
+ function cards(d,prod,transfer,oe,od){
+  return `<div class="analysis-kpis">${[['计划生产量','planned'],['实际执行量','actual'],['偏差量','gap'],['生产达成率','rate']].map(([label,key])=>{
+   const value=r=>key==='rate'?productionRate(d,r):q(r[key]);
+   return `<div class="analysis-kpi"><div class="analysis-kpi-title"><span>${label}</span>${help(label,'当前合计仅展示自产统计范围；调拨、OE、OD单列，未经对象、时间及去重核验不相加。实际生产量不等于合格入库或订单可用量；偏差读取本次发布值，不是订单因果量。')}</div><div class="kpi-total${key==='gap'?' bad':''}"><span>当前合计 · 自产</span><strong>${value(prod)}</strong></div><div class="kpi-channel-list"><div class="kpi-channel self"><span>自产</span><strong>${value(prod)}</strong></div><div class="kpi-channel transfer"><span>调拨</span><strong>${value(transfer)}</strong></div><div class="kpi-channel oe"><span>OE</span><strong>${value(oe)}</strong></div><div class="kpi-channel od"><span>OD</span><strong>${value(od)}</strong></div></div></div>`;
+  }).join('')}</div>`;
+ }
+ function evidence(d,r){return (r.findingIds||[]).map(i=>d.findings[i]).filter(f=>f&&['verified_fact','verified_cause','supported_unverified'].includes(f.status));}
+ function demandDetailTable(r,sourceBank){
+  const rows=r.detailRows||[];
+  const sourceButton=x=>{if(!x.records?.length)return '—';const id=String(sourceBank.size);sourceBank.set(id,x);return `<button type="button" class="btn demand-source-records" data-source-records="${id}" aria-expanded="false">查看（${x.records.length}）</button>`;};
+  return `<details open class="demand-detail-block"><summary>需求变化明细（${rows.length}个SKU）</summary><div class="check-content"><p class="check-meta">当前基地×大区×省区下钻至SKU；源计划字段版本尚待核验，故仅作参考。数量单位均为件。</p>${rows.length?`<div class="report-table-wrap"><table class="demand-detail-table"><thead><tr><th>SKU编码</th><th>商品名称</th><th>源计划量参考（件）</th><th>需求量（件）</th><th>发货量（件）</th><th>发布缺货（件）</th><th>需求变化参考（件）</th><th>计划内参考（件）</th><th>源记录</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${e(x.skuCode)}</td><td>${e(x.skuName||'—')}</td>${['planReference','ordered','shipped','monthlyShortage','demandGap','inPlanGap'].map(k=>`<td class="number">${n(x[k])}</td>`).join('')}<td>${sourceButton(x)}</td></tr>`).join('')}</tbody></table></div>`:'<p>— · 当前对象尚无SKU明细，不生成推算记录。</p>'}</div></details>`;
+ }
+ function bindSourceRecords(host,bank){
+  host.querySelectorAll('[data-source-records]').forEach(button=>button.onclick=()=>{
+   const sku=bank.get(button.dataset.sourceRecords),row=button.closest('tr');
+   if(button.getAttribute('aria-expanded')==='true'){row.nextElementSibling?.remove();button.setAttribute('aria-expanded','false');button.textContent=`查看（${sku.records.length}）`;root.ReportResponsive?.mount(host);return;}
+   const detail=document.createElement('tr');detail.className='demand-source-row';
+   detail.innerHTML='<td colspan="9"><div class="demand-source-panel"></div></td>';row.after(detail);
+   button.setAttribute('aria-expanded','true');button.textContent='收起记录';
+   const panel=detail.firstElementChild.firstElementChild,pageSize=10;
+   function show(page){
+    const pages=Math.ceil(sku.records.length/pageSize),records=sku.records.slice(page*pageSize,(page+1)*pageSize);
+    panel.innerHTML=`<div class="demand-source-head"><div><strong>${e(sku.skuCode)} · ${e(sku.skuName||'—')}</strong><small>源记录 · 共 ${sku.records.length} 条 · 数量单位：件</small></div><button type="button" class="btn" data-source-close>关闭</button></div><div class="report-table-wrap demand-record-table"><table><thead><tr><th>日期</th><th>需求量（件）</th><th>发货量（件）</th><th>发布缺货（件）</th><th>源计划量参考（件）</th><th>需求变化参考（件）</th><th>计划内参考（件）</th></tr></thead><tbody>${records.map(x=>`<tr><td>${e(String(x.date||'—').slice(0,10))}</td>${['ordered','shipped','monthlyShortage','planReference','demandGap','inPlanGap'].map(k=>`<td class="number">${n(x[k])}</td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="demand-source-pages"><span>第 ${page+1} / ${pages} 页 · ${page*pageSize+1}–${Math.min((page+1)*pageSize,sku.records.length)} 条</span><button type="button" class="btn" data-source-prev ${page===0?'disabled':''}>上一页</button><button type="button" class="btn" data-source-next ${page+1===pages?'disabled':''}>下一页</button></div>`;
+    panel.querySelector('[data-source-close]').onclick=()=>{button.click();button.focus();};
+    panel.querySelector('[data-source-prev]').onclick=()=>show(page-1);
+    panel.querySelector('[data-source-next]').onclick=()=>show(page+1);
+   }
+   show(0);root.ReportResponsive?.mount(host);
+  });
+ }
+ function planDrill(d,r,depth,filter){return root.ProductionReasons.render(d,r,depth,filter);}
+ function drill(d,r,mode,depth=0,filter='all',sourceBank=new Map()){
+  if(mode==='plan')return planDrill(d,r,depth,filter);
+  const facts=evidence(d,r),children=r.children||[];
+  const demandTitle=[r.object,r.region,r.province].filter(Boolean).join(' × ');
+  const values=mode==='plan'?[['计划生产量',r.planned],['实际执行量',r.actual],['偏差量',gap(r)]]:[['初始提报',r.initialReportedDemand],['纠偏提报',r.reported],['实际下单',r.ordered],['分类缺货量',r.gap]];
+  return `<div class="reason-drilldown plan-drilldown"><div class="plan-drilldown-head"><div><div class="plan-drilldown-kicker">已选对象 · 需求变化分析</div><h4>${e(demandTitle)}</h4><div class="plan-drilldown-sub">候选原因与明细分开呈现；明细数量不自动归入任何候选原因。</div></div><div class="plan-drilldown-metrics">${values.map(([k,v])=>`<div class="plan-drilldown-metric"><span>${k}</span><strong>${q(v)}</strong></div>`).join('')}</div></div><div class="supply-checks"><details open><summary>需求变化原因核查（${facts.length}项）</summary><div class="check-content"><div class="plan-reason-grid">${facts.length?facts.map(f=>`<article class="plan-reason-card"><div class="plan-reason-card-top"><span class="reason-role">${e(f.object)}</span><span class="pill supported">${e(C.labels[f.status])}</span></div><div class="plan-reason-title"><h5>${e(f.fact)}</h5></div><p>证据：${e((f.evidence||[]).join('；'))}</p><p>边界：${e(f.boundary)}</p></article>`).join(''):'<p>— · 当前对象尚无可验证原因证据，不继承其他对象的原因。</p>'}</div></div></details>${demandDetailTable(r,sourceBank)}${children.length?`<details><summary>下级组织明细（${children.length}）</summary><div class="check-content"><div class="report-table-wrap"><table><thead><tr><th>对象</th><th>计划／提报（件）</th><th>实际／发货（件）</th><th>差额（件）</th><th>继续下钻</th></tr></thead><tbody>${children.map(c=>`<tr><td>${e(c.object)}</td><td class="number">${n(c.reported)}</td><td class="number">${n(c.shipped)}</td><td class="number">${n(c.gap)}</td><td><details><summary>查看分析</summary>${depth<10?drill(d,c,mode,depth+1,filter,sourceBank):'<p>更深明细见全量底表。</p>'}</details></td></tr>`).join('')}</tbody></table></div></div></details>`:''}</div></div>`;
+ }
+ function mount(host,d,selected,mode,view,allRows){
+  host.dataset.analysisMode=mode;
+  let expanded=null,detailAll=false,sort='gap',asc=false,reasonFilter='all';
+  const roots=selected?[selected]:allRows;
+  const r=selected||{object:mode==='plan'?'全部生产基地':'全部对象',reported:sum(roots,'reported'),ordered:sum(roots,'ordered'),shipped:sum(roots,'shipped'),gap:sum(roots,'gap')};
+  const items=mode==='plan'?roots.flatMap(x=>x.children?.length?x.children.map(c=>({...c,object:x.object+' × '+c.object})):([x])):roots.flatMap(x=>x.children?.length?x.children.flatMap(region=>region.children?.length?region.children.map(province=>({...province,object:x.object,region:region.object,province:province.object})):({...region,object:x.object,region:region.object})):([x]));
+  const prod=mode==='plan'?{...total(roots),...(!selected?d.productionMetric:{})}:null;
+  // Match only exact source objects. Do not invent base mappings for transfers.
+  const channelRows=key=>selected?(d[key]||[]).filter(x=>x.object===selected.object):(d[key]||[]);
+  const tr=total(channelRows('transferRows')),oe=total(channelRows('oeRows')),od=total(channelRows('odRows'));
+  function render(){
+   const sourceBank=new Map();
+   const filtered=mode==='plan'?items.filter(x=>root.ProductionReasons.matches(d,x,reasonFilter)):items;
+   const sorted=filtered.slice().sort((a,b)=>{const x=a[sort],y=b[sort];if(x==null)return 1;if(y==null)return -1;return(asc?1:-1)*(typeof x==='string'?x.localeCompare(y,'zh-CN'):x-y);});
+   const visible=detailAll?sorted:sorted.slice(0,10),denom=sum(items.filter(x=>!x.salesOnly),'gap');
+   const rowKey=x=>JSON.stringify([x.object,x.region??null,x.province??null,x.scopeKey??null]);
+   const header=(label,key)=>`<th aria-sort="${key===sort?(asc?'ascending':'descending'):'none'}"><button class="sort-button" data-detail-sort="${key}">${label} ${key===sort?(asc?'↑':'↓'):'↕'}</button></th>`;
+   const cols=mode==='plan'?8:13;
+   const head=mode==='plan'?`${header('执行对象（基地×品类）','object')}${header('日生产计划累计（件）','planned')}${header('实际生产累计（件）','actual')}${header('自产偏差量（件）','gap')}<th>生产计划达成率${help('生产计划达成率','采用发布生产达成率；仅显式选择比例复核模式时按实际÷计划计算。')}</th><th>当前范围偏差占比${help('当前范围偏差占比','本条非负生产偏差÷当前列表非负生产偏差之和，不是订单原因贡献。')}</th><th>原因线索</th><th>原因下钻</th>`:`${header(view==='base'?'基地':'品类','object')}<th>大区</th><th>省区</th><th>销售提报准确率</th>${header('初始提报（件）','initialReportedDemand')}${header('纠偏提报（件）','reported')}${header('实际下单（件）','ordered')}<th>计划偏差量（件）</th>${header('月度发货（件）','shipped')}${header('分类缺货量（件）','gap')}<th>缺口占比</th><th>原因线索</th><th>原因下钻</th>`;
+   const body=visible.map((x,i)=>{
+    const nums=mode==='plan'?[n(x.planned),n(x.actual),n(x.gap),productionRate(d,x),ratio(x.gap,denom)]:[e(x.region||'—'),e(x.province||'—'),accuracyCell(x),n(x.initialReportedDemand),n(x.reported),n(x.ordered),`<span title="${e(x.salesDemandPlanVarianceNote||'采用本次发布值')}">${n(x.salesDemandPlanVariance)}</span>`,n(x.shipped),n(x.gap),ratio(x.gap,denom)];
+    const isExpanded=expanded===rowKey(x);
+    return `<tr class="drill-row${isExpanded?' selected':''}" data-template-row="${i}"><td><strong>${e(x.object)}</strong></td>${nums.map(v=>`<td class="number">${v}</td>`).join('')}<td>${mode==='plan'?root.ProductionReasons.tagSummary(d,x):`<span class="pill supported">${evidence(d,x).length?'有线索 · 待核查':'—'}</span>`}</td><td><button class="btn drill-button" data-template-detail="${i}" aria-expanded="${isExpanded}">${isExpanded?'收起分析':'查看分析'}</button></td></tr>${isExpanded?`<tr class="inline-drill-row"><td colspan="${cols}">${drill(d,x,mode,0,reasonFilter,sourceBank)}</td></tr>`:''}`;
+   }).join('')||`<tr><td colspan="${cols}">— · 当前分类明细未取得，保留原模板结构，不填充模拟记录。</td></tr>`;
+   const metric=d.metric||{},scopeMetric=selected?{
+    initialReportedDemand:r.initialReportedDemand,
+    reportedDemand:r.reported,
+    need:r.ordered,
+    salesDemandPlanVariance:r.salesDemandPlanVariance,
+    shipped:r.shipped,
+    demandChangeShortage:r.gap
+   }:{
+    initialReportedDemand:metric.initialReportedDemand,
+    reportedDemand:metric.reportedDemand,
+    need:metric.need,
+    salesDemandPlanVariance:metric.salesDemandPlanVariance,
+    shipped:C.actualShipped(d),
+    demandChangeShortage:metric.demandChangeShortage
+   },scopeLabel=selected?`${r.object} · ${view==='base'?'基地':'品类'}月度口径`:'全国月度口径',monthlyMetrics=[
+    ['销售初始需求提报量（月度）',scopeMetric.initialReportedDemand,'与页面顶部同名指标使用同一销售口径；选择对象后读取该对象的数据契约字段，当前维度不支持时显示—，不得按比例分摊。'],
+    ['销售纠偏需求提报量（月度）',scopeMetric.reportedDemand,'与页面顶部同名指标使用同一销售口径；选择对象后读取该对象的数据契约字段，当前维度不支持时显示—。'],
+    ['已开订单需求量（月度）',scopeMetric.need,'与页面顶部同名指标使用同一订单池和统计期间；选择对象后切换为该对象汇总。'],
+    ['销售月度需求计划偏差量',scopeMetric.salesDemandPlanVariance,(selected?r.salesDemandPlanVarianceNote:metric.salesDemandPlanVarianceNote)||'只读取当前对象的数据契约字段；展示层不自行计算，缺失显示—。'],
+    ['已开订单发货量（月度）',scopeMetric.shipped,'与页面顶部同名指标使用同一订单池和统计期间；选择对象后切换为该对象汇总。'],
+    ['需求变化分类缺货量',scopeMetric.demandChangeShortage,'选择对象后显示该对象的需求变化分类量；与计划内缺货量共同接受分类完整性与勾稽校验。']
+   ];
+   const kpis=mode==='plan'?cards(d,selected?prod:{...prod,...d.productionMetric},tr,oe,od):`<div class="analysis-kpis six">${monthlyMetrics.map(([label,v,note])=>`<div class="analysis-kpi"><div class="analysis-kpi-title"><span>${label}</span>${help(label,note)}</div><strong>${q(v)}</strong><small class="kpi-scope">${e(scopeLabel)}</small></div>`).join('')}</div>${selected&&r.scopeNote?`<p class="check-meta demand-scope-note">${e(r.scopeNote)}</p>`:''}`;
+   const audit=mode==='plan'?`勾稽：日生产计划累计 ${q(prod.planned)} − 实际生产累计 ${q(prod.actual)} = 净差 ${q(prod.planned!=null&&prod.actual!=null?prod.planned-prod.actual:null)}；发布偏差汇总 ${q(prod.gap)}；列表非负偏差合计 ${q(denom)}。净差与各子项非负偏差不必相等，不作订单缺货归因。`:'勾稽：仅在唯一订单商品、最终计划版本及分类数据完整时验证。当前分类缺货量 '+q(r.gap)+'；缺失项不补零。';
+   host.innerHTML=`<div class="cause-analysis-head"><div><h3>${mode==='plan'?'C 生产计划供给':'A 需求变化月度复盘'}：${e(r.object)}${mode==='plan'?'的供给兑现情况':''}</h3><p>${mode==='plan'?'自产、调拨、OE、OD在同组指标卡内并列展示；缺失项显示“—”，不按0处理。':'未选择对象时六项与页面顶部全国月度指标同源同值；选择基地或品类后切换为当前对象，源模型不支持的维度显示“—”。两个视角不相加。'}</p></div><span class="pill supported">${mode==='plan'?'生产事实 · 订单因果待核':'分类证据待核'}</span></div>${kpis}${mode==='plan'?root.ProductionReasons.overview(d,roots,reasonFilter):''}<div class="analysis-body"><div class="analysis-section-title"><strong>${mode==='plan'?'基地×品类自产计划明细':'基地／品类→大区→省区需求复盘'}</strong><span class="hint">点击表头排序 · 原因下钻</span></div><div class="report-table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>${filtered.length>10?`<button class="btn detail-toggle" id="templateDetailToggle">${detailAll?'收起至 Top10':'展开全部'}（${filtered.length}）</button>`:''}<div class="audit-equation">${audit}</div></div>`;
+   host.querySelectorAll('[data-template-detail]').forEach(btn=>btn.onclick=ev=>{ev.stopPropagation();const x=visible[Number(btn.dataset.templateDetail)];expanded=expanded===rowKey(x)?null:rowKey(x);render();});
+   host.querySelectorAll('[data-template-row]').forEach(row=>row.onclick=ev=>{if(!ev.target.closest('button,details,summary'))row.querySelector('[data-template-detail]').click();});
+   host.querySelectorAll('[data-detail-sort]').forEach(btn=>btn.onclick=()=>{asc=sort===btn.dataset.detailSort?!asc:false;sort=btn.dataset.detailSort;render();});
+   host.querySelectorAll('[data-dictionary-filter]').forEach(btn=>btn.onclick=()=>{reasonFilter=reasonFilter===btn.dataset.dictionaryFilter?'all':btn.dataset.dictionaryFilter;detailAll=true;render();});
+   const toggle=host.querySelector('#templateDetailToggle');if(toggle)toggle.onclick=()=>{detailAll=!detailAll;render();};
+   bindSourceRecords(host,sourceBank);
+   root.ReportResponsive?.mount(host);
+  }
+  render();
+ }
+ root.TemplateComponents={mount};
+})(globalThis);
+</script>
+<!-- SHARED_REASON_UI_END -->
+<script>
+(function(root) {
+  'use strict';
+  const escape = value => String(value ?? '待补数据').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num = value => value == null ? '待补数据' : Number(value).toLocaleString('zh-CN', {maximumFractionDigits:1});
+  const qty = value => value == null ? '待补数据' : `${num(value)} 件`;
+  const pct = (a,b) => a == null || !b ? '待核验' : `${(a/b*100).toFixed(1)}%`;
+  const states = {verified:'已验证根因',supported_unverified:'有支持待验证',hypothesis:'待核查假设',data_missing:'数据缺失',definition_conflict:'口径冲突'};
+  const isQty = value => value == null || (Number.isFinite(value) && value >= 0);
+  function classifyOrderRow(row) {
+    const keys = ['finalPlan','totalOrder','totalShipped'];
+    if (keys.some(key => row?.[key] == null)) return null;
+    if (keys.some(key => !Number.isFinite(row[key]) || row[key] < 0)) throw Error(`订单商品数量无效：${row?.key || row?.object || '未命名记录'}`);
+    const monthlyShortage = Math.max(row.totalOrder-row.totalShipped,0);
+    const demandChangeShortage = Math.min(Math.max(row.totalOrder-row.finalPlan,0),monthlyShortage);
+    const inPlanShortage = Math.max(Math.min(row.totalOrder,row.finalPlan)-row.totalShipped,0);
+    return {...row,monthlyShortage,demandChangeShortage,inPlanShortage};
+  }
+  function classification(r) {
+    const m = r.metric || {}, sourceRows = Array.isArray(r.orderRows) ? r.orderRows : [];
+    const rows = sourceRows.map(classifyOrderRow), complete = rows.length > 0 && rows.every(Boolean);
+    const sum = key => rows.reduce((total,row)=>total+(row?.[key] || 0),0);
+    const derived = complete ? {monthlyShortage:sum('monthlyShortage'),demandChangeShortage:sum('demandChangeShortage'),inPlanShortage:sum('inPlanShortage')} : {};
+    const demandChangeShortage = derived.demandChangeShortage ?? m.demandChangeShortage ?? m.demandAssigned ?? null;
+    const inPlanShortage = derived.inPlanShortage ?? m.inPlanShortage ?? m.planAssigned ?? null;
+    const monthlyShortage = derived.monthlyShortage ?? m.monthlyShortage ?? (m.totalOrder != null && m.totalShipped != null ? Math.max(m.totalOrder-m.totalShipped,0) : null);
+    const provenExclusive = complete || m.classificationComplete === true || m.exclusiveAllocation === true;
+    const assigned = provenExclusive && demandChangeShortage != null && inPlanShortage != null ? demandChangeShortage+inPlanShortage : null;
+    const gapBase = m.businessGap ?? monthlyShortage;
+    return {rows,complete,monthlyShortage,demandChangeShortage,inPlanShortage,assigned,gapBase};
+  }
+  function validate(r) {
+    if (!r || !r.scope || !r.metric || !Array.isArray(r.findings) || !Array.isArray(r.actions)) throw Error('报告缺少 scope、metric、findings 或 actions');
+    const m = r.metric;
+    for (const key of ['need','shipped','businessGap','reportedDemand','initialReportedDemand','finalPlan','totalOrder','totalShipped','monthlyShortage','demandChangeShortage','inPlanShortage','demandAssigned','planAssigned']) {
+      if (!isQty(m[key])) throw Error(`无效数量：${key}`);
+    }
+    if (m.need != null && m.shipped != null && m.businessGap != null && Math.abs(m.need-m.shipped-m.businessGap)>0.001) throw Error('需求、发货与总缺货量不勾稽');
+    const c = classification(r);
+    if (c.assigned != null && m.businessGap != null && c.assigned>m.businessGap+0.001) throw Error('互斥归属超过业务缺口');
+    if (c.complete) {
+      if (m.monthlyShortage != null && Math.abs(m.monthlyShortage-c.monthlyShortage)>0.001) throw Error('订单商品月度缺货量未回到汇总');
+      if ((m.demandChangeShortage ?? m.demandAssigned) != null && Math.abs((m.demandChangeShortage ?? m.demandAssigned)-c.demandChangeShortage)>0.001) throw Error('订单商品需求变化缺货量未回到汇总');
+      if ((m.inPlanShortage ?? m.planAssigned) != null && Math.abs((m.inPlanShortage ?? m.planAssigned)-c.inPlanShortage)>0.001) throw Error('订单商品计划内缺货量未回到汇总');
+      if (Math.abs(c.monthlyShortage-c.demandChangeShortage-c.inPlanShortage)>0.001) throw Error('订单商品缺货分类不勾稽');
+    }
+    if (m.classificationComplete === true && c.monthlyShortage != null && c.assigned != null && Math.abs(c.monthlyShortage-c.assigned)>0.001) throw Error('完整分类未回到月度缺货量');
+    (r.planRows || []).forEach(row => { if (row.planned != null && row.actual != null && row.gap != null && Math.abs(Math.max(row.planned-row.actual,0)-row.gap)>0.001) throw Error(`计划实际不勾稽：${row.object}`); });
+    if (r.scope.fullPopulation) {
+      if (c.inPlanShortage != null && (r.planRows || []).length && Math.abs((r.planRows || []).reduce((sum,row)=>sum+(row.gap || 0),0)-c.inPlanShortage)>0.001) throw Error('全量计划明细未回到维度总量');
+      const views = new Set((r.demandRows || []).map(row=>row.view));
+      if (c.demandChangeShortage != null) for (const view of views) {
+        if (Math.abs(r.demandRows.filter(row=>row.view===view).reduce((sum,row)=>sum+(row.gap || 0),0)-c.demandChangeShortage)>0.001) throw Error(`全量需求视角不勾稽：${view}`);
+      }
+    }
+    r.findings.forEach(f => {
+      if (!states[f.status]) throw Error('未知证据状态');
+      if (f.status === 'verified' && (!f.evidence || !f.evidence.length || !f.mechanism || !f.counterEvidence)) throw Error('已验证根因必须有证据、机制与反证检查');
+    });
+    return r;
+  }
+  function model(r) {
+    validate(r);
+    const m = r.metric;
+    const c = classification(r);
+    const apparentGap = m.need != null && m.shipped != null ? Math.max(m.need-m.shipped,0) : null;
+    return {...c,apparentGap,rate:pct(m.shipped,m.need)};
+  }
+  function markdown(r) {
+    const s = model(r), m = r.metric;
+    const lines = [`# ${r.title || '订单满足率原因分析报告'}`, '', `${r.scope.object} · ${r.scope.period} · 截止 ${r.scope.cutoff}`, '', `报告性质：${r.scope.mock ? '模拟演示，不代表真实业务结果' : '基于已读取数据'}；${r.scope.closed ? '月度定稿' : '月内累计预览，需求复盘待月末定稿'}。`, '', '## 一、结论摘要', '', r.summary || '暂无足够证据形成原因结论。', '', `已开订单需求量 ${qty(m.need)}；已开订单发货量 ${qty(m.shipped)}；订单满足率 ${s.rate}；已开订单缺货量 ${qty(m.businessGap)}。`, '', `本轮重点分析需求变化 ${qty(s.demandChangeShortage)}、计划内缺货 ${qty(s.inPlanShortage)}。原因量不等于已验证根因量。`, '', '## 二、需求变化分析', '', r.demandNarrative || '待补数据。', '', '| 管理视角 | 对象 | 需求缺口 | 占本维度缺口 |', '| --- | --- | ---: | ---: |'];
+    (r.demandRows || []).forEach(row => lines.push(`| ${row.view} | ${row.object} | ${qty(row.gap)} | ${pct(row.gap,s.demandChangeShortage)} |`));
+    lines.push('', '基地与品类为同一批需求的不同切面，不相加，不据此认定基地责任。', '', '## 三、计划内缺货与供给核查', '', r.planNarrative || '待补数据。', '', '| 基地×品类 | 滚动周排产计划累计 | 每日实际生产累计 | 自产未兑现 | 占计划内缺货范围 |', '| --- | ---: | ---: | ---: | ---: |');
+    (r.planRows || []).forEach(row => lines.push(`| ${row.object} | ${qty(row.planned)} | ${qty(row.actual)} | ${qty(row.gap)} | ${pct(row.gap,s.inPlanShortage)} |`));
+    if (r.planPreparation) lines.push('', '### 计划与库存准备检查', '', r.planPreparation);
+    lines.push('', '## 四、原因证据与判断边界', '');
+    r.findings.forEach(f => lines.push(`### ${f.object} · ${states[f.status]}`, '', `${f.fact} ${f.mechanism || ''}`, '', `影响量：${qty(f.impact)}；${f.boundary}`, '', `证据：${(f.evidence || []).join('；') || '待补原始证据'}。`, '', `反证检查：${f.counterEvidence || '未完成'}。`, ''));
+    lines.push('## 五、行动与待补数据', '', '| 对象 / 优先级 | 建议行动 | 责任角色 | 触发 / 验收 |', '| --- | --- | --- | --- |');
+    r.actions.forEach(a => lines.push(`| ${a.object} / ${a.priority} | ${a.task} | ${a.owner} | ${a.acceptance} |`));
+    lines.push('', '## 六、口径与限制', '', r.method, '', '以上为分析建议，不代表已派发任务、已执行改善或已确认责任。');
+    return lines.join('\n');
+  }
+  function render(r) {
+    const s = model(r), m = r.metric;
+    const table = (headers,rows) => `<div class="report-table-wrap"><table><thead><tr>${headers.map(h=>`<th>${escape(h)}</th>`).join('')}</tr></thead><tbody>${rows.length ? rows.map(cells=>`<tr>${cells.map(v=>`<td>${escape(v)}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${headers.length}">待补数据，未生成虚构记录。</td></tr>`}</tbody></table></div>`;
+    const section = (index,title,content) => `<section class="report-block" id="report-section-${index}"><h3><span>SECTION ${index}</span>${escape(title)}</h3>${content}</section>`;
+    return `<article class="analysis-report"><header class="report-cover"><div class="report-overline">ORDER SATISFACTION ANALYSIS</div><h2>${escape(r.title || '订单满足率原因分析报告')}</h2><div class="report-meta"><span class="report-meta-item">分析对象：${escape(r.scope.object)}</span><span class="report-meta-item">报告期间：${escape(r.scope.period)}</span><span class="report-meta-item">数据截止：${escape(r.scope.cutoff)}</span><span class="report-meta-item">${r.scope.closed ? '月度定稿' : '月内累计预览'}</span><span class="report-meta-item">${r.scope.mock ? '模拟数据' : '业务分析'}</span></div><div class="report-scope-label">全量汇总 · 不受交互筛选、Top10及展开状态影响${r.scope.closed ? '' : ' · 需求复盘待月末定稿'}</div></header>
+      <nav class="report-nav" aria-label="报告目录"><span class="report-nav-title">报告目录</span><a href="#report-section-01">01 结论摘要</a><a href="#report-section-02">02 需求变化</a><a href="#report-section-03">03 计划内缺货</a><a href="#report-section-04">04 原因证据</a><a href="#report-section-05">05 行动与缺数</a><a href="#report-section-06">06 口径限制</a></nav>
+      ${section('01','结论摘要',`<p class="report-lead">${escape(r.summary || '暂无足够证据形成原因结论。')}</p><div class="report-measures">${[['订单满足率',s.rate],['已开订单缺货量',qty(m.businessGap)],['需求变化缺货量',qty(s.demandChangeShortage)],['计划内缺货量',qty(s.inPlanShortage)]].map(([label,value])=>`<div><small>${label}</small><strong>${value}</strong></div>`).join('')}</div><p class="report-boundary">两类原因量用于承接重点分析，不宣称覆盖全部总缺货量；原因归属量≠已验证根因量。</p>`)}
+      ${section('02','需求变化缺货量：哪些对象发生偏差',`<p>${escape(r.demandNarrative || '待补数据。')}</p>${table(['管理视角','重点对象','需求变化缺货量','占本类缺货'],(r.demandRows||[]).map(row=>[row.view,row.object,qty(row.gap),pct(row.gap,s.demandChangeShortage)]))}<p class="report-boundary">两种管理视角不相加。需求变化缺货量按订单商品逐行计算；基地是执行视角，不直接认定其为需求提报责任方。</p>`)}
+      ${section('03','计划内缺货量：供给责任继续核查',`<p>${escape(r.planNarrative || '待补数据。')}</p>${table(['基地×品类','滚动周排产计划累计','每日实际生产累计','自产未兑现','占计划内缺货范围'],(r.planRows||[]).map(row=>[row.object,qty(row.planned),qty(row.actual),qty(row.gap),pct(row.gap,s.inPlanShortage)]))}<p class="report-boundary">计划内缺货量是供给责任待核查范围，不直接等同于生产未达成；需继续排除库存、调拨、发运和替代供给。</p>${r.planPreparation ? `<div class="report-note"><strong>计划与库存准备检查</strong><p>${escape(r.planPreparation)}</p></div>` : ''}`)}
+      ${section('04','原因证据与判断边界',`<div class="report-findings">${r.findings.map(f=>`<section class="report-finding"><div class="report-finding-head"><strong>${escape(f.object)}</strong><span class="report-state ${f.status}">${states[f.status]}</span></div><p>${escape(f.fact)} ${escape(f.mechanism || '')}</p><p class="report-evidence">证据：${escape((f.evidence||[]).join('；') || '待补原始记录')}<br>影响量：${qty(f.impact)} · ${escape(f.boundary)}<br>反证：${escape(f.counterEvidence || '尚未完成')}</p></section>`).join('')}</div>`)}
+      ${section('05','行动与待补数据',`${table(['对象 / 优先级','建议行动','责任角色','触发 / 验收'],r.actions.map(a=>[`${a.object} / ${a.priority}`,a.task,a.owner,a.acceptance]))}<p class="report-boundary">已验证原因对应改善；待验证原因先核查。本报告不自动派发任务，不模拟恢复收益。</p>`)}
+      <details class="report-method" id="report-section-06"><summary>SECTION 06 · 计算口径与报告限制</summary><p>${escape(r.method)}</p></details><footer class="report-footer">${r.scope.mock ? '本报告所有数量、业务单据及证据均为模拟示例，不构成真实业务事实。' : '报告仅覆盖已读取并列示的数据；缺失数据不按零处理。'}</footer></article>`;
+  }
+  const api = {classifyOrderRow,classification,validate,model,render,markdown};
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.OrderReport = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<!-- REPORT_ENGINE_END -->
+<!-- REPORT_DATA_START -->
+<script>
+// 页面与 Skill 使用同一个报告数据契约和渲染器；始终取全量，不读取任何交互选择。
+function buildAnalysisReport() {
+  const demand = demandAnalysisData.totals, plan = planAnalysisData.totals;
+  return {
+    title:'订单满足率原因分析报告',
+    scope:{object:'全国冷冻面点',period:'2026-09-01 — 2026-09-22',cutoff:'2026-09-22 24:00',closed:false,mock:true,fullPopulation:true},
+    metric:{need:12400,shipped:10912,businessGap:1488,initialReportedDemand:null,reportedDemand:4780,monthlyShortage:1488,demandChangeShortage:520,inPlanShortage:402,classificationComplete:false,demandAssigned:520,planAssigned:402,exclusiveAllocation:true},
+    summary:'订单满足率为88.0%，低于95%参考线7.0个百分点，对应已开订单缺货量1,488 件。本例重点分析需求变化520 件和计划内缺货402 件；目前只有郑州×猪肉水饺的150 件具有完整的模拟根因证据。',
+    demandNarrative:`纠偏后提报${demand.reported.toLocaleString()} 件，实际下单${demand.ordered.toLocaleString()} 件，需求净增加${demand.change} 件；同范围发货${demand.shipped.toLocaleString()} 件，需求缺口${demand.gap} 件。郑州基地198 件占需求维度38.1%，品类侧汤圆132 件占25.4%。这些结果定位偏差对象，不等于已证明“提报不准导致全部缺口”。促销、补库、新品及订单释放时间可能共同作用，需逐条核验。`,
+    demandRows:[...demandAnalysisData.bases.map(row=>({view:'基地经理',object:row[0],gap:row[7]})),...demandAnalysisData.products.map(row=>({view:'品类经理',object:row[0],gap:row[7]}))],
+    planNarrative:`生产供给分自产兑现与调拨兑现。本例自产口径是实际执行的滚动周排产计划逐日累计，不是月度需求计划或月初生产计划：截至当前，周排产计划累计${plan.planned.toLocaleString()} 件，每日实际合格生产累计${plan.available} 件，自产未兑现${plan.gap} 件，达成率${(plan.available/plan.planned*100).toFixed(1)}%。郑州220 件占54.7%，猪肉水饺150 件为最大条目。调拨计划和可用到货记录待接入，不能视为零或从402 件中强行分摊。自产下钻人员、设备、物料、有具体证据的工艺/良率异常及销产计划协同偏差；销产协同需核对销售版本传递、排产调整窗口与订单需要时间。调拨下钻调出基地供给、分配、出库及运输接收。上游自产不足导致调拨失败是一条因果链，只归属一次。`,
+    planPreparation:'计划与库存准备单独检查：采用按库存生产策略，期末安全库存目标＝下月需求计划÷30×11；本月生产计划＝本月需求＋期末安全库存目标－期初库存。安全库存不属于需求计划，也不是第三种供给来源；期末库存不足不自动等于订单缺货。库存已含安全库存，不能重复加量。存在调入/调出时须核验库存平衡并避免本地产量与调入量重复；自产未完成或调拨未到位应回溯对应兑现链。当前条目库存数据未接入，只展示检查口径。',
+    planRows:causeData.plan.rows.map(row=>({object:row[0],planned:row[6].planned,actual:row[6].actual,gap:row[2]})),
+    findings:[
+      {object:'生产计划 · 郑州×猪肉水饺',status:'verified',fact:'包装膜到货延迟，造成150 件不能在订单需要日前形成可用产出。',mechanism:'缺料导致无法齐套投产；关联子生产单240 件、截止前可用90 件，属于组合计划330 件中的一部分。',impact:150,evidence:['模拟OMS订单商品 → MO-240913-018','PKG-800-FILM短缺15,000卷，按已验证单耗可解释150件产出','PO-88931：承诺09-14，收货及放行09-18，订单需要09-16'],counterEvidence:'已排查替代包材；其他仓库存为定制外箱且被占用，不构成可行替代供给。',boundary:'仅此150 件按本例证据验证；同条目其余五类枚举不再另分影响量，避免重复归因。'},
+      {object:'需求变化 · 全部基地 / 品类',status:'supported_unverified',fact:'提报与实际下单净差620 件，同范围未发货520 件；明细存在促销、补库、新品和释放时间线索。',mechanism:'需求规模偏差与供给调整窗口不足可能同时影响履约。',impact:null,evidence:['纠偏后需求版本与订单/发货汇总（模拟）','基地→大区→省区及品类→大区→省区明细'],counterEvidence:'尚需确认供给本身是否足够、订单是否在可响应窗口进入，以及供给调整决策。',boundary:'520 件是本例需求分组的缺口，不是促销或计划不准的已验证因果影响量；不能直接定责。'},
+      {object:'自产 · 其他条目252件',status:'data_missing',fact:'遂平×花卷92 件、郑州×牛肉水饺70 件、华东×汤圆20 件及其他组合70 件数量已勾稽。',mechanism:'自产二级原因需核查人员、设备、物料、工艺/良率及销产计划协同；调拨另查月初计划与实际到货，库存准备另查目标和执行。',impact:null,evidence:['模拟自产计划版本与截止前实际量'],counterEvidence:'人员在线下管理；设备备注仅为线索；物料与订单关联、销售版本传递时点、排产调整窗口及替代资源检查未完成。',boundary:'252 件为待核查自产差额，不代表调拨缺口或安全库存差额；不得据此直接认定订单因果影响量。'}
+    ],
+    actions:[
+      {priority:'优先改善',object:'郑州×猪肉水饺',task:'复核包装膜承诺与齐套机制，设计到货预警及替代供应方案。',owner:'采购 / 生产计划 / 基地经理',acceptance:'取得原始单据后执行；按订单需要日前合格可用量验收，不预设150 t必然恢复。'},
+      {priority:'月末复盘',object:'需求变化全量',task:'逐条对照大区、省区提报版本、促销/新品/补库记录和订单释放时点，区分多因素与主因。',owner:'需求计划 / 大区省区 / 品类经理',acceptance:'月结后形成行级证据；基地和品类视角回到同一520 件，影响量去重。'},
+      {priority:'补充证据',object:'计划其余252 件',task:'补订单—生产关联、排班出勤、停机、良率、调拨到货与备货记录。',owner:'生产计划 / 基地 / 设备与工艺',acceptance:'逐项记录事件时点、对象关联、影响量和替代供给，未补齐保持待验证。'}
+    ],
+    method:'订单满足率＝SUM(同口径发货数量)÷SUM(OMS原始需求量)，包含零发货订单；数量加权，不按订单张数。月度缺货量、需求变化缺货量和计划内缺货量必须在订单商品层逐行计算：月度缺货量＝MAX(总下单量−总发货量,0)；需求变化缺货量＝MIN(MAX(总下单量−最终计划,0),月度缺货量)；计划内缺货量＝MAX(MIN(总下单量,最终计划)−总发货量,0)。本例仅以需求变化与计划内缺货作为两条重点分析主线，不把两类数量表述为总缺货量的完整分类。计划内缺货量不直接等同生产未达成；库存、自生产、调拨、发运和替代供给需继续核查。自产未兑现＝MAX(实际执行的滚动周排产计划逐日累计−同截止日实际合格生产累计,0)。当前数据截止09-22，不是完整月度准确率结果；所有原始证据仍为模拟演示。'
+  };
+}
+function renderEvidenceConclusion() {
+  document.getElementById('reportDocument').innerHTML = AnalysisCore.report(AnalysisCore.normalize(buildAnalysisReport()));
+}
+</script>
+<!-- REPORT_DATA_END -->
+<script>
+  const steps = [...document.querySelectorAll('.step-btn:not([hidden])')];
+  const panels = [...document.querySelectorAll('.panel:not([hidden])')];
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const stepHint = document.getElementById('stepHint');
+  let currentStep = 0;
+
+  function showStep(index) {
+    currentStep = Math.max(0, Math.min(panels.length - 1, index));
+    steps.forEach((el, i) => el.classList.toggle('active', i === currentStep));
+    panels.forEach((el, i) => el.classList.toggle('active', i === currentStep));
+    prevBtn.disabled = currentStep === 0;
+    nextBtn.textContent = currentStep === panels.length - 1 ? '回到第一步' : '下一步 →';
+    stepHint.textContent = `第 ${currentStep + 1} / ${panels.length} 步`;
+    if (currentStep === 3) renderEvidenceConclusion();
+    panels[currentStep].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  steps.forEach((el, i) => el.addEventListener('click', () => showStep(i)));
+  prevBtn.addEventListener('click', () => showStep(currentStep - 1));
+  nextBtn.addEventListener('click', () => showStep(currentStep === panels.length - 1 ? 0 : currentStep + 1));
+  document.getElementById('downloadReport').addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([AnalysisCore.markdown(AnalysisCore.normalize(buildAnalysisReport()))], {type:'text/markdown;charset=utf-8'}));
+    const link = document.createElement('a'); link.href = url; link.download = '订单满足率原因分析报告_模拟.md';
+    document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    document.getElementById('reportExportStatus').textContent = '已生成全量报告下载文件';
+  });
+  document.getElementById('copyReport').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(AnalysisCore.markdown(AnalysisCore.normalize(buildAnalysisReport()))); document.getElementById('reportExportStatus').textContent = '已复制全量报告'; }
+    catch { document.getElementById('reportExportStatus').textContent = '当前环境不支持剪贴板，请使用下载报告'; }
+  });
+  document.getElementById('printReport').addEventListener('click', () => {
+    const method = document.querySelector('.report-method');
+    if (method) { method.dataset.wasOpen = String(method.open); method.open = true; }
+    document.body.classList.add('report-print'); window.print();
+  });
+  window.addEventListener('afterprint', () => {
+    document.body.classList.remove('report-print');
+    const method = document.querySelector('.report-method');
+    if (method && method.dataset.wasOpen) method.open = method.dataset.wasOpen === 'true';
+  });
+
+  const causeDefinitions = {
+    demand:'<strong>业务定义：</strong>月末比较销售纠偏后提报需求、实际下单需求和月度发货数量，识别需求变化及其形成的需求缺口。<br /><strong>数量公式：</strong>月度需求缺口ᵢ＝MAX（月度实际下单需求量ᵢ－月度发货数量ᵢ，0）。<br /><strong>管理视角：</strong>基地经理按基地→大区→省区澄清；品类经理按品类→大区→省区澄清。',
+    plan:'<strong>业务定义：</strong>按自产兑现、调拨兑现两条供给链核查数量与时间；人员、设备、物料、工艺/良率及产销进度比为自产候选二级原因。<br /><strong>数量公式：</strong>自产未兑现＝MAX（关联自产计划－需要日前合格可用实际，0）；调拨未兑现＝MAX（调入计划－需要日前实际可用到货，0）。缺数时不计算。<br /><strong>判定关键：</strong>本例402 t只覆盖现有模拟自产范围；原因归属仍需关联订单并排除替代供给。产销进度比异常须核对销售版本传递、排产调整窗口与订单需要时间；安全库存为独立准备检查，目标＝下月需求÷30×11，不与订单缺口相加。'
+  };
+
+  const causeData = {
+    demand: {
+      code:'A', label:'需求变化', amount:520,
+      dimensionOrder:['product','base'], dimensionLabels:{base:'基地视角',product:'品类视角'},
+      dimensions:{
+        base:[['郑州基地',198],['遂平基地',142],['华东基地',96],['其他基地',84]],
+        product:[['汤圆',132],['猪肉水饺',118],['其他',112],['花卷',98],['牛肉水饺',60]]
+      },
+      rows:[['华东×汤圆',204,132,'有支持待验证','supported','华东基地×华东大区×江苏省×汤圆'],['郑州×猪肉水饺',312,118,'有支持待验证','supported','郑州基地×华中大区×河南省×猪肉水饺'],['遂平×花卷',268,98,'待补活动记录','missing','遂平基地×华中大区×湖北省×花卷'],['郑州×牛肉水饺',176,60,'待补预测版本','missing','郑州基地×华北大区×河北省×牛肉水饺'],['其他组合',528,112,'待继续拆分','missing','其他基地×多大区/省区×其他品类']],
+      hint:'基地经理从基地下钻大区、省区；品类经理从品类下钻大区、省区，两种视角解释同一笔520 t月度需求缺口。',
+      trace:{
+        object:'华东基地×华东大区×江苏省×汤圆', total:204, amount:132, sku:'1004812', statusText:'132 件 有支持待验证', statusClass:'blue',
+        title:'追踪华东基地×汤圆 132 件需求缺口的原因', desc:'承接第三步定位对象，核对订单释放、活动报备和协同决策记录；当前业务决策证据尚未补齐。',
+        evidenceTitle:'华东基地×华东大区×江苏省×汤圆 132 件需求缺口', evidenceStatus:'supported_unverified', evidenceClass:'supported', evidenceText:'月度实际下单量与发货量差额已确认；尚缺区域提报版本与调整记录，暂不能认定具体责任环节。',
+        evidenceHtml:'月度复盘对象：华东基地×华东大区×江苏省×汤圆，月度需求缺口132 件。<br />计算口径：月度实际下单850 件－月度发货718 件＝132 件。<br />数据断点：缺少省区提报版本、促销报备时间及月度纠偏审批记录。',
+        nodes:[
+          ['宏观原因归属','有支持待验证','supported','A 需求变化归属 520 件，占总缺货量 34.9%；当前对象归属 132 件。',['当前父级分母 520 件','对象占原因 25.4%'],false],
+          ['月度需求与发货勾稽','已核对','verified','华东基地×华东大区×江苏省×汤圆：实际下单850 件、月度发货718 件，需求缺口132 件。',['SKU: 1004812','月度复盘 2026-09'],false],
+          ['候选异常事件：促销订单集中释放','有支持待验证','supported','132 件促销订单在供给冻结后进入，时间顺序和影响量成立，但尚不能证明活动报备或协同决策责任。',['影响量 132 件','作用机制：供给调整窗口不足'],true],
+          ['停止下钻：业务决策证据缺失','data_missing','missing','缺少活动报备时间、审批单及供需平衡会议决策记录；本分支停在“相关事件”，不写成已验证根因。',['待补：活动审批单','待补：S&OP决策记录'],false]
+        ]
+      }
+    },
+    plan: {
+      code:'C', label:'生产计划供给', amount:402,
+      dimensionOrder:['base'], dimensionLabels:{base:'生产基地'},
+      dimensions:{
+        base:[['郑州',220],['遂平',92],['其他基地',70],['华东',20]]
+      },
+      rows:[
+        ['郑州×猪肉水饺',312,150,'生产执行证据','verified',null,{base:'郑州',planned:330,actual:180,selfChecks:['人员不足','设备故障','物料未齐套','工艺 / 良率异常']}],
+        ['遂平×花卷',268,92,'生产执行证据','supported',null,{base:'遂平',planned:220,actual:128,selfChecks:['人员不足','设备故障','物料未齐套','工艺 / 良率异常']}],
+        ['郑州×牛肉水饺',176,70,'生产执行证据','missing',null,{base:'郑州',planned:170,actual:100,selfChecks:['人员不足','设备故障','物料未齐套','工艺 / 良率异常']}],
+        ['华东×汤圆',204,20,'生产执行证据','supported',null,{base:'华东',planned:130,actual:110,selfChecks:['人员不足','设备故障','物料未齐套','工艺 / 良率异常']}],
+        ['其他组合',528,70,'生产执行证据','missing',null,{base:'其他基地',planned:190,actual:120,selfChecks:['人员不足','设备故障','物料未齐套','工艺 / 良率异常']}]
+      ],
+      hint:'优先选择郑州×猪肉水饺：归属量最大，且已具备订单—生产—物料—采购事件关联。',
+      trace:{
+        object:'郑州×猪肉水饺', total:312, amount:150, sku:'1008732', statusText:'150 件 根因已验证', statusClass:'',
+        title:'追踪郑州×猪肉水饺 150 件供给缺口的原因', desc:'承接第三步定位对象，进入C2物料齐套链路，追踪生产单、缺料与采购收货事件。',
+        evidenceTitle:'包装膜延迟造成 150 件产出延后', evidenceStatus:'verified', evidenceClass:'verified', evidenceText:'订单、生产单、缺料和采购收货时间已贯通；影响量可量化，且已排除可用替代料。',
+        evidenceHtml:'OMS：23 条订单商品，需求日 09-16，原始需求 780 件。<br />供需匹配：需求关联 MO-240913-018，计划 240 件，实际可用 90 件。<br />物料记录：PKG-800-FILM 短缺 15,000 卷，按已验证单耗可解释 150 件产出。<br />采购事件：承诺 09-14，实际收货 09-18，质检放行 09-18 16:40。',
+        nodes:[
+          ['宏观原因归属','数量已核对','supported','C 生产计划供给归属 402 件，占总缺货量 27.0%；其中物料齐套分支 150 件有模拟根因证据，其余仍需核查。',['当前父级分母 402 件','C2 物料'],false],
+          ['订单商品与供给实体匹配','已验证','verified','郑州×猪肉水饺组合总缺口 312 件，其中 150 件归属生产计划供给；关联生产单计划 240 件、合格入库 90 件。',['SKU: 1008732','MO-240913-018','需要时间 09-16'],false],
+          ['具体异常事件：包装膜未按承诺到货','已验证','verified','PKG-800-FILM 需求 24,000 卷，09-15 可用 9,000 卷；PO-88931 实际 09-18 收货，造成 150 件产出延后。',['影响量 150 件','作用机制：无法齐套投产'],true],
+          ['反事实与替代供给检查','已排除','verified','华东仓同口味库存为 KA 定制外箱且已被占用；无合规替代包材，不能作为本缺口的可行供给。',['替代库存不可用','替代包材不存在'],false]
+        ]
+      }
+    },
+    atp: {
+      code:'D', label:'ATP/承诺规则', amount:60,
+      dimensionOrder:['channel','product','base'], dimensionLabels:{channel:'承诺渠道',product:'品类',base:'供给节点'},
+      dimensions:{
+        base:[['郑州',20],['其他基地',16],['华东',14],['遂平',10]],
+        product:[['其他',16],['汤圆',14],['猪肉水饺',12],['花卷',10],['牛肉水饺',8]],
+        channel:[['KA',24],['经销',14],['电商',10],['特通',7],['其他',5]]
+      },
+      rows:[['华东×汤圆',204,14,'规则版本已取','verified'],['郑州×猪肉水饺',312,12,'占用关系待核','supported'],['遂平×花卷',268,10,'优先级日志缺失','missing'],['郑州×牛肉水饺',176,8,'承诺快照缺失','missing'],['其他组合',432,16,'待继续拆分','missing']],
+      hint:'继续检查供给锁定、客户优先级、承诺版本与释放记录，确认“有货未承诺”的机制。',
+      trace:{
+        object:'华东×汤圆', total:204, amount:14, sku:'1004812', statusText:'14 件 有支持待验证', statusClass:'blue',
+        title:'沿 D ATP/承诺规则分支追踪 14 件', desc:'检查供给锁定、客户优先级、承诺版本与释放日志；规则快照不完整时不直接定责。',
+        evidenceTitle:'ATP优先级规则可能阻断 14 件可用供给', evidenceStatus:'supported_unverified', evidenceClass:'supported', evidenceText:'可用库存与承诺结果的数量差异已确认，但缺少当时生效的完整规则快照和人工覆盖日志。',
+        evidenceHtml:'ATP结果：华东×汤圆有 14 件可用供给未对当前订单承诺。<br />规则线索：当前版本显示 KA 优先级高于经销订单。<br />数据断点：缺少 09-15 运行时规则快照、锁定释放日志与人工覆盖记录。',
+        nodes:[
+          ['宏观原因归属','有支持待验证','supported','D ATP/承诺规则归属 60 件，占业务缺口 4.3%；当前对象归属 14 件。',['当前父级分母 60 件','对象占原因 23.3%'],false],
+          ['订单商品与ATP结果匹配','已核对','verified','华东×汤圆组合总缺口 204 件，其中 14 件存在可用供给但未形成订单承诺。',['SKU: 1004812','ATP运行 09-15 09:00'],false],
+          ['候选异常事件：优先级规则阻断','有支持待验证','supported','当前规则版本显示 KA 优先级高于经销订单，与 14 件未承诺结果一致。',['影响量 14 件','作用机制：供给被高优先级锁定'],true],
+          ['停止下钻：运行时规则快照缺失','data_missing','missing','缺少当时实际生效规则、锁定释放日志和人工覆盖记录，不能确认是系统规则还是人工操作。',['待补：规则快照','待补：覆盖日志'],false]
+        ]
+      }
+    },
+    warehouse: {
+      code:'E', label:'仓配执行', amount:110,
+      dimensionOrder:['base','channel','product'], dimensionLabels:{base:'仓配节点',channel:'渠道',product:'品类'},
+      dimensions:{
+        base:[['其他基地',58],['郑州',26],['华东',24],['遂平',2]],
+        product:[['其他',58],['汤圆',24],['牛肉水饺',14],['猪肉水饺',12],['花卷',2]],
+        channel:[['KA',38],['经销',28],['电商',20],['特通',14],['其他',10]]
+      },
+      rows:[['华东×汤圆',204,24,'出库事件已取','verified'],['郑州×牛肉水饺',176,14,'过账延迟已核','verified'],['郑州×猪肉水饺',312,12,'波次日志待核','supported'],['遂平×花卷',268,2,'装车记录缺失','missing'],['其他组合',432,58,'待继续拆分','missing']],
+      hint:'只有截止时点前未发货才影响满足率；若已发货但晚到，应转入准交率分析。',
+      trace:{
+        object:'华东×汤圆', total:204, amount:24, sku:'1004812', statusText:'24 件 根因已验证', statusClass:'',
+        title:'沿 E 仓配执行分支追踪 24 件', desc:'只追踪截止时点前尚未完成发货过账的数量；已发货但晚到应转入准交率。',
+        evidenceTitle:'出库波次延迟造成 24 件截止前未发货', evidenceStatus:'verified', evidenceClass:'verified', evidenceText:'可用库存、波次释放、装车与发货过账时间已贯通；24 件在履约截止后才完成发货过账。',
+        evidenceHtml:'库存状态：24 件于 09-15 10:20 已可用。<br />仓储事件：波次应在 09-15 12:00 释放，实际 09-16 08:40 释放。<br />发货事件：09-16 14:10 完成过账，晚于 09-15 24:00 履约截止。',
+        nodes:[
+          ['宏观原因归属','已验证','verified','E 仓配执行归属 110 件，占业务缺口 7.9%；当前对象归属 24 件。',['当前父级分母 110 件','对象占原因 21.8%'],false],
+          ['订单商品与可用库存匹配','已验证','verified','华东×汤圆组合总缺口 204 件，其中 24 件在履约截止前已有可用库存。',['SKU: 1004812','可用时间 09-15 10:20'],false],
+          ['具体异常事件：出库波次延迟','已验证','verified','波次计划 09-15 12:00 释放，实际 09-16 08:40 释放；24 件于截止后才完成发货过账。',['影响量 24 件','作用机制：截止前未出库'],true],
+          ['口径边界检查','已确认','verified','24 件在履约截止后过账，因此计入订单满足率缺口；若截止前已发货但运输晚到，应转入准交率。',['履约截止 09-15 24:00','发货过账 09-16 14:10'],false]
+        ]
+      }
+    }
+  };
+
+  const activeCauseKeys = ['demand','plan'];
+
+  const demandAnalysisData = {
+    totals:{reported:4780,ordered:5400,change:620,shipped:4880,gap:520},
+    bases:[
+      ['郑州基地','华中大区','河南省、湖北省',1700,1940,240,1742,198,'区域促销与经销补库'],
+      ['遂平基地','华东大区','江苏省、浙江省',1180,1350,170,1208,142,'早餐渠道临时加量'],
+      ['华东基地','华东大区','上海市、江苏省',900,1010,110,914,96,'KA促销与新品铺货'],
+      ['其他基地','多个大区','多个省区',1000,1100,100,1016,84,'多个长尾需求变化']
+    ],
+    products:[
+      ['汤圆','华东大区','江苏省',700,850,150,718,132,'华东区域KA促销订单'],
+      ['猪肉水饺','华中大区','河南省',1050,1190,140,1072,118,'经销商集中补库'],
+      ['花卷','华中大区','湖北省',620,730,110,632,98,'早餐渠道临时加量'],
+      ['牛肉水饺','华北大区','河北省',430,500,70,440,60,'新品铺货范围扩大'],
+      ['其他','多个大区','多个省区',1980,2130,150,2018,112,'多个长尾品类变化']
+    ],
+    baseDetails:[
+      ['郑州基地','华中大区','河南省',800,920,120,820,100,'区域促销与经销补库'],
+      ['郑州基地','华中大区','湖北省',500,570,70,515,55,'早餐渠道临时加量'],
+      ['郑州基地','华北大区','河北省',400,450,50,407,43,'新品铺货范围扩大'],
+      ['遂平基地','华东大区','江苏省',500,580,80,515,65,'早餐渠道临时加量'],
+      ['遂平基地','华东大区','浙江省',390,440,50,402,38,'经销商集中补库'],
+      ['遂平基地','华中大区','安徽省',290,330,40,291,39,'区域临时补货'],
+      ['华东基地','华东大区','上海市',350,390,40,355,35,'KA促销订单'],
+      ['华东基地','华东大区','江苏省',300,340,40,310,30,'新品渠道铺货'],
+      ['华东基地','华东大区','浙江省',250,280,30,249,31,'订单集中释放'],
+      ['其他基地','华南大区','广东省',400,450,50,412,38,'区域促销加量'],
+      ['其他基地','西南大区','四川省',320,350,30,322,28,'经销库存下降补库'],
+      ['其他基地','华北大区','山东省',280,300,20,282,18,'长尾订单变化']
+    ],
+    productDetails:[
+      ['汤圆','华东大区','江苏省',300,380,80,315,65,'KA促销订单'],
+      ['汤圆','华东大区','上海市',220,260,40,220,40,'节令订单集中释放'],
+      ['汤圆','华东大区','浙江省',180,210,30,183,27,'经销库存下降补库'],
+      ['猪肉水饺','华中大区','河南省',500,570,70,510,60,'经销商集中补库'],
+      ['猪肉水饺','华中大区','湖北省',320,360,40,330,30,'区域促销加量'],
+      ['猪肉水饺','华北大区','河北省',230,260,30,232,28,'订单晚于冻结窗口'],
+      ['花卷','华中大区','湖北省',350,420,70,360,60,'早餐渠道临时加量'],
+      ['花卷','华东大区','江苏省',270,310,40,272,38,'渠道铺货范围扩大'],
+      ['牛肉水饺','华北大区','河北省',250,290,40,252,38,'新品铺货范围扩大'],
+      ['牛肉水饺','华北大区','山东省',180,210,30,188,22,'经销商临时补货'],
+      ['其他','多个大区','重点省区',1000,1080,80,1020,60,'多个长尾品类变化'],
+      ['其他','多个大区','其他省区',980,1050,70,998,52,'订单集中释放']
+    ]
+  };
+
+  const planAnalysisData = {
+    totals:{planned:1040,available:638,gap:402},
+    dimensions:{
+      base:[['郑州',500,280,220],['遂平',220,128,92],['其他基地',190,120,70],['华东',130,110,20]]
+    },
+    lanes:[['self','自产兑现',1040,638,402,'既有模拟数据；物料为自产的二级原因']],
+    transfer:{planned:null,available:null,gap:null,status:'待接入DMS调拨计划与到货记录'},
+    checks:[
+      ['数量兑现','计划数量与合格可用量比较，缺口 402 件'],
+      ['时间兑现','实际可用时间必须不晚于订单需要时间'],
+      ['订单关联','通过pegging把订单商品关联到生产、物料或外协实体'],
+      ['反事实检查','确认库存、调拨、替代料与替代产能均不可用']
+    ]
+  };
+
+  let selectedCause = 'demand';
+  let selectedDimension = causeData[selectedCause].dimensionOrder[0];
+  const demandSelections = {base:'郑州基地', product:'汤圆'};
+  const planSelections = {base:'郑州'};
+  const demandDetailSelections = {base:null, product:null};
+  let planDetailSelection = null;
+  const demandSortStates = {base:{key:'gap',direction:'desc'}, product:{key:'gap',direction:'desc'}};
+  const demandSortColumns = {name:0,region:1,province:2,reported:3,ordered:4,change:5,shipped:6,gap:7};
+  const demandSortLabels = {name:'分析对象',region:'大区',province:'省区',reported:'纠偏后提报',ordered:'实际下单',change:'计划偏差量',shipped:'月度发货',gap:'月度订单缺口'};
+  let showAllDemandDetails = false;
+  const demandDetailKey = row => row.slice(0,3).join('|');
+  function salesReportAccuracy(row) {
+    const reported = row[3], ordered = row[4], shipped = row[6];
+    if (!reported) return null;
+    const deviation = ordered > reported ? shipped - reported : Math.max(ordered,shipped) - reported;
+    return Math.max(0, (1 - Math.abs(deviation) / reported) * 100);
+  }
+  function getDemandReasonDrilldown(row) {
+    const scene = row[8];
+    const profiles = {
+      '区域促销与经销补库':[
+        ['主因候选','区域促销临时加量','活动报备、促销门店及销量目标','有支持待验证','supported'],
+        ['伴随因素','经销渠道集中补库','渠道库存日快照与补货订单','有支持待验证','supported'],
+        ['时间因素','订单晚于冻结窗口释放','订单创建时间与供给冻结版本','待补证据','missing']
+      ],
+      '早餐渠道临时加量':[
+        ['主因候选','早餐渠道临时加量','渠道提报、门店增量与订单记录','有支持待验证','supported'],
+        ['伴随因素','订单集中释放','订单创建时间与释放批次','待核对','missing'],
+        ['需排查','基础预测偏低','预测版本、历史样本与新品信息','待补证据','missing']
+      ],
+      '新品铺货范围扩大':[
+        ['主因候选','新品铺货范围扩大','铺货门店清单与上市计划','有支持待验证','supported'],
+        ['伴随因素','订单晚于冻结窗口释放','订单创建时间与冻结版本','待核对','missing'],
+        ['需排查','新品基础预测偏低','新品预测假设与首轮动销','待补证据','missing']
+      ],
+      'KA促销订单':[
+        ['主因候选','KA促销临时加量','客户活动方案与订单记录','有支持待验证','supported'],
+        ['伴随因素','订单集中释放','客户订单创建与确认时间','待核对','missing'],
+        ['需排查','基础预测偏低','客户预测版本与活动输入','待补证据','missing']
+      ],
+      '经销库存下降补库':[
+        ['主因候选','渠道库存下降触发补库','渠道库存日快照与补货订单','有支持待验证','supported'],
+        ['伴随因素','补库订单集中释放','订单创建时间与释放批次','待核对','missing'],
+        ['需排查','补货参数设置偏低','安全库存与补货参数版本','待补证据','missing']
+      ]
+    };
+    return profiles[scene] || [
+      ['主因候选',scene,'业务提报、订单及对应事件记录','有支持待验证','supported'],
+      ['伴随因素','订单晚于冻结窗口释放','订单创建时间与供给冻结版本','待核对','missing'],
+      ['需排查','基础预测偏低','预测版本、历史样本与活动输入','待补证据','missing']
+    ];
+  }
+  function renderDemandSkuDetails(row) {
+    const [name,region,province,reported,ordered,,shipped,gap] = row;
+    const firstGap = Math.ceil(gap * 0.6), secondGap = gap - firstGap;
+    const rows = [
+      [`${name}-SKU01`,`${name}示例商品A`,Math.round(reported*.55),Math.round(ordered*.55),Math.round(shipped*.55),firstGap,firstGap,0,'09-08、09-18'],
+      [`${name}-SKU02`,`${name}示例商品B`,Math.round(reported*.45),ordered-Math.round(ordered*.55),shipped-Math.round(shipped*.55),secondGap,secondGap,0,'09-12、09-25']
+    ];
+    return `<details open class="demand-detail-block"><summary>需求变化明细（${rows.length}个SKU）</summary><div class="check-content"><p class="check-meta">当前${name} × ${region} × ${province}下钻至SKU；本模板为模拟演示，真实报告只绑定查询明细，缺失显示“—”。</p><div class="report-table-wrap"><table class="demand-detail-table"><thead><tr><th>SKU编码</th><th>商品名称</th><th>最终计划量（件）</th><th>实际下单量（件）</th><th>实际发货量（件）</th><th>总缺货量（件）</th><th>需求变化缺货量（件）</th><th>计划内缺货量（件）</th><th>日期明细</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td>${x.slice(2,8).map(v=>`<td class="number">${v}</td>`).join('')}<td><details><summary>查看记录</summary><p class="check-meta">订单日期：${x[8]}；模板仅示范交互。</p></details></td></tr>`).join('')}</tbody></table></div></div></details>`;
+  }
+  function getPlanReasonDrilldown(meta) {
+    const materialLinked = meta.base === '郑州' && meta.planned === 330;
+    return [
+      ['01','人员不足','人员评估目前在线下；需补排班、出勤、关键岗位及停线关联。','数据待补','missing'],
+      ['02','设备故障','从日生产达成备注获取线索，再核对故障时点、生产单和影响；备注不等于已验证根因。','备注待核','supported'],
+      ['03','物料未齐套','区分生产前未排产与生产中断料；保留原计划版本，核对需求、承诺、收货及齐套时间。',materialLinked ? '150 t模拟证据关联' : '待补物料关联',materialLinked ? 'supported' : 'missing','关联指标：物料到货及时率。用于核查应到物料是否按承诺时间到货并完成检验放行；需与生产单齐套时间、订单需要时间关联，不能仅凭到货率直接定因。'],
+      ['04','工艺 / 良率异常','仅在标准工时、换线、良率或报废记录有具体异常时分析，不以“工艺难”笼统解释。','条件性核查','missing'],
+      ['05','产销进度比','核对销售纠偏或订单变化是否在排产锁定前传达到生产，以及生产是否在可调整窗口内更新排产；需用版本、时点、未调整量和订单缺口建立关联。','待核版本时点','missing','产销进度比用于比较同一时间截点的销售需求进度与生产供给进度，识别节奏错位；具体分子、分母及目标值待业务确认，指标异常只作为线索。']
+    ];
+  }
+  function renderPlanDetailRow(row,totals) {
+    const [name,total,amount,status,statusClass,unused,meta] = row;
+    const expanded = name === planDetailSelection;
+    const line = `<tr class="drill-row${expanded?' selected':''}" data-plan-detail-row="${name}"><td><strong>${name}</strong></td><td>${meta.planned} 件</td><td>${meta.actual} 件</td><td>${amount} 件</td><td>${(meta.actual/meta.planned*100).toFixed(1)}%</td><td>${(amount/totals.gap*100).toFixed(1)}%</td><td>模拟原文线索</td><td><button class="btn" data-plan-detail="${name}">${expanded?'收起分析':'查看分析'}</button></td></tr>`;
+    if(!expanded)return line;
+    const findings=['模拟：包装膜未按承诺到货','模拟：包装机停机'].map((reasonText,i)=>({scopeKey:name,channel:'self',reasonText,status:'supported_unverified',records:[{date:'示例日期',sku:'DEMO-SKU',order:'DEMO-'+(i+1),planned:meta.planned*(i?0.4:0.6),actual:meta.actual*(i?0.4:0.6),gap:amount*(i?0.4:0.6)}]}));
+    return line+`<tr class="inline-drill-row"><td colspan="8">${ProductionReasons.render({findings},{object:name,scopeKey:name,planned:meta.planned,actual:meta.actual,findingIds:[0,1],children:[]})}</td></tr>`;
+  }
+  const barList = document.getElementById('barList');
+  const barTitle = document.getElementById('barTitle');
+  function renderDimensionTabs() {
+    const cause = causeData[selectedCause];
+    const tabsHost = document.getElementById('dimensionTabs');
+    tabsHost.innerHTML = cause.dimensionOrder.map(key => `<button class="tab${key === selectedDimension ? ' active' : ''}" data-dim="${key}">${cause.dimensionLabels[key]}</button>`).join('');
+    tabsHost.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+      selectedDimension = tab.dataset.dim;
+      if (selectedCause === 'demand') demandDetailSelections[selectedDimension] = null;
+      if (selectedCause === 'plan') planDetailSelection = null;
+      showAllDemandDetails = false;
+      tabsHost.querySelectorAll('.tab').forEach(item => item.classList.toggle('active', item === tab));
+      renderBars(selectedDimension);
+      renderSpecificAnalysis();
+    }));
+  }
+  function renderBars(key) {
+    selectedDimension = key;
+    const cause = causeData[selectedCause];
+    const rows = cause.dimensions[key];
+    const max = Math.max(...rows.map(r => r[1]));
+    const dimensionLabel = cause.dimensionLabels[key];
+    const selectionStore = selectedCause === 'demand' ? demandSelections : selectedCause === 'plan' ? planSelections : null;
+    const isLinkedDimension = Boolean(selectionStore && Object.prototype.hasOwnProperty.call(selectionStore,key));
+    barTitle.textContent = selectedCause === 'plan'
+      ? `${cause.code} ${cause.label} · ${dimensionLabel}自产未兑现量${isLinkedDimension ? '（点击联动）' : ''}`
+      : `${cause.code} ${cause.label} · ${dimensionLabel}归属量${isLinkedDimension ? '（点击联动）' : ''}`;
+    if (isLinkedDimension) {
+      const selectedMember = selectionStore[key];
+      barList.innerHTML = rows.map(([name,value]) => {
+        const selected = name === selectedMember;
+        return `<button class="bar-row${selected ? ' selected' : ''}" data-member="${name}" aria-pressed="${selected}"><span>${name}</span><div class="bar-track"><div class="bar-fill" style="width:${(value/max*100).toFixed(1)}%"></div></div><span class="bar-value">${value} 件</span></button>`;
+      }).join('');
+      barList.querySelectorAll('.bar-row').forEach(row => row.addEventListener('click', () => {
+        selectionStore[key] = selectionStore[key] === row.dataset.member ? null : row.dataset.member;
+        if (selectedCause === 'demand') demandDetailSelections[key] = null;
+        if (selectedCause === 'plan') planDetailSelection = null;
+        showAllDemandDetails = false;
+        renderBars(key);
+        renderSpecificAnalysis();
+      }));
+      return;
+    }
+    barList.innerHTML = rows.map(([name,value]) => `
+      <div class="bar-row static"><span>${name}</span><div class="bar-track"><div class="bar-fill" style="width:${(value/max*100).toFixed(1)}%"></div></div><span class="bar-value">${value} 件</span></div>
+    `).join('');
+  }
+
+  function renderSpecificAnalysis() {
+    const host = document.getElementById('specificAnalysis');
+    if (selectedCause === 'demand') {
+      const data = demandAnalysisData;
+      const isBaseView = selectedDimension === 'base';
+      const summaryRows = isBaseView ? data.bases : data.products;
+      const detailRows = isBaseView ? data.baseDetails : data.productDetails;
+      const selectedMember = demandSelections[selectedDimension];
+      const selectedSummary = summaryRows.find(row => row[0] === selectedMember);
+      const totals = selectedSummary ? {reported:selectedSummary[3],ordered:selectedSummary[4],change:selectedSummary[5],shipped:selectedSummary[6],gap:selectedSummary[7]} : data.totals;
+      const sortState = demandSortStates[selectedDimension];
+      const sortIndex = demandSortColumns[sortState.key];
+      const sortDirection = sortState.direction === 'asc' ? 1 : -1;
+      const allMatchedRows = detailRows.filter(row => !selectedMember || row[0] === selectedMember).sort((a,b) => {
+        const left = a[sortIndex];
+        const right = b[sortIndex];
+        const compared = typeof left === 'number' ? left - right : String(left).localeCompare(String(right),'zh-CN');
+        return compared * sortDirection;
+      });
+      const rows = showAllDemandDetails ? allMatchedRows : allMatchedRows.slice(0,10);
+      if (demandDetailSelections[selectedDimension] && demandDetailSelections[selectedDimension] !== '__collapsed__' && !rows.some(row => demandDetailKey(row) === demandDetailSelections[selectedDimension])) {
+        demandDetailSelections[selectedDimension] = '__collapsed__';
+      }
+      const managerLabel = isBaseView ? '基地视角' : '品类视角';
+      const objectLabel = isBaseView ? '基地' : '品类';
+      const viewTitle = selectedMember
+        ? `${managerLabel}：${selectedMember}对应哪些大区、省区需求变化最大`
+        : `${managerLabel}：全部${objectLabel}需求变化明细 Top10`;
+      const viewBadge = selectedMember ? `当前选中 · ${selectedMember} ${totals.gap} 件` : `全部${objectLabel} · 共${allMatchedRows.length}条`;
+      const shareDenominatorLabel = selectedMember ? `当前选中${objectLabel}“${selectedMember}”的需求缺口 ${totals.gap} 件` : `全部需求变化的需求缺口 ${totals.gap} 件`;
+      const sortHeader = (label,key,numberClass='') => {
+        const active = sortState.key === key;
+        const icon = active ? (sortState.direction === 'asc' ? '▲' : '▼') : '↕';
+        return `<th class="${numberClass}" aria-sort="${active ? (sortState.direction === 'asc' ? 'ascending' : 'descending') : 'none'}"><button class="sort-button${active ? ' active' : ''}" data-sort-key="${key}" title="点击切换升降序">${label}<span class="sort-icon">${icon}</span></button></th>`;
+      };
+      host.innerHTML = `
+        <div class="cause-analysis-head"><div><h3>A 需求变化月度复盘：${viewTitle}</h3><p>同一笔月度需求缺口提供两种管理视角：基地经理从基地下钻大区、省区；品类经理从品类下钻大区、省区。</p></div><span class="pill supported">${viewBadge}</span></div>
+        <div class="analysis-kpis five">
+          <div class="analysis-kpi"><div class="analysis-kpi-title"><span>销售月度纠偏后提报需求量</span><button type="button" class="kpi-help" aria-label="销售月度纠偏后提报需求量说明" aria-expanded="false" data-help="同DMS客户订单执行情况的：最终计划字段">?</button></div><strong>${totals.reported.toLocaleString()} 件</strong></div>
+          <div class="analysis-kpi"><div class="analysis-kpi-title"><span>月度下单量（需求量）</span><button type="button" class="kpi-help" aria-label="月度下单量（需求量）说明" aria-expanded="false" data-help="同DMS客户订单执行情况的：总下单量">?</button></div><strong>${totals.ordered.toLocaleString()} 件</strong></div>
+          <div class="analysis-kpi"><div class="analysis-kpi-title"><span>月度计划偏差量</span><button type="button" class="kpi-help" aria-label="月度计划偏差量说明" aria-expanded="false" data-help="销售月度纠偏后需求提报量-月度实际下单需求量">?</button></div><strong style="color:var(--primary);">${totals.change ? -totals.change : 0} 件</strong></div>
+          <div class="analysis-kpi"><div class="analysis-kpi-title"><span>月度发货量</span><button type="button" class="kpi-help" aria-label="月度发货量说明" aria-expanded="false" data-help="同DMS客户订单执行情况的：总发货量">?</button></div><strong>${totals.shipped.toLocaleString()} 件</strong></div>
+          <div class="analysis-kpi"><div class="analysis-kpi-title"><span>月度缺货量</span><button type="button" class="kpi-help" aria-label="月度缺货量说明" aria-expanded="false" data-help="月度实际下单需求量-实际发货量">?</button></div><strong>${totals.gap} 件</strong></div>
+        </div>
+        <div class="analysis-body">
+          <div><div class="analysis-section-title"><strong>${selectedMember || `全部${objectLabel}`}→大区→省区需求复盘</strong><span class="hint">按${demandSortLabels[sortState.key]}${sortState.direction === 'asc' ? '升序' : '降序'}${!selectedMember ? ' · 默认展示前10条' : ''}</span></div>
+            <table><thead><tr>${sortHeader(isBaseView ? '基地' : '品类','name')}${sortHeader('大区','region')}${sortHeader('省区','province')}<th class="number"><span class="th-with-help">销售提报准确率<span class="info-tip" tabindex="0" aria-label="销售提报准确率口径说明">?<span class="info-tip-pop">当前为纠偏版本的模拟预览：准确率＝1－Σ｜单品偏差量｜÷Σ单品计划量；偏差量＝IF（下单量＞计划量，发货量－计划量，MAX（下单量，发货量）－计划量）。表内按当前汇总行近似展示，正式结果须回到SKU明细计算；完整月度指标还需初版与月中纠偏各占50%，月结后确认。</span></span></span></th>${sortHeader('纠偏后提报','reported','number')}${sortHeader('实际下单','ordered','number')}${sortHeader('计划偏差量','change','number')}${sortHeader('月度发货','shipped','number')}${sortHeader('月度订单缺口','gap','number')}<th class="number"><span class="th-with-help">缺口占比<span class="info-tip" tabindex="0" aria-label="缺口占比口径说明">i<span class="info-tip-pop">缺口占比＝本条月度订单缺口 ÷ ${shareDenominatorLabel}。上方选择基地或品类后，分母随当前选择变化；取消选择后，分母恢复为全部需求变化。</span></span></span></th><th>原因线索</th><th>原因下钻</th></tr></thead><tbody>
+              ${rows.map(row => { const [name,region,province,reported,ordered,change,shipped,gap,scene] = row; const key = demandDetailKey(row); const accuracy = salesReportAccuracy(row); const expanded = key === demandDetailSelections[selectedDimension]; const reasons = expanded ? getDemandReasonDrilldown(row) : []; return `<tr class="drill-row${expanded ? ' selected' : ''}" data-demand-detail-row="${key}"><td><strong>${name}</strong></td><td>${region}</td><td>${province}</td><td class="number">${accuracy === null ? '--' : `${accuracy.toFixed(1)}%`}</td><td class="number">${reported}</td><td class="number">${ordered}</td><td class="number" style="color:var(--primary);">+${change}</td><td class="number">${shipped}</td><td class="number"><strong>${gap}</strong></td><td class="number">${(gap / totals.gap * 100).toFixed(1)}%</td><td>${scene}</td><td><button class="btn drill-button" data-demand-detail="${key}">${expanded ? '收起原因' : '查看原因'}</button></td></tr>${expanded ? `<tr class="inline-drill-row"><td colspan="12"><div class="reason-drilldown plan-drilldown"><div class="plan-drilldown-head"><div><div class="plan-drilldown-kicker">已选对象 · 需求变化分析</div><h4>${name} × ${region} × ${province}</h4><div class="plan-drilldown-sub">以下内容是该条目的候选原因与证据状态；明细数量不自动归入候选原因。</div></div><div class="plan-drilldown-metrics"><div class="plan-drilldown-metric"><span>纠偏后提报</span><strong>${reported} 件</strong></div><div class="plan-drilldown-metric"><span>实际下单</span><strong>${ordered} 件</strong></div><div class="plan-drilldown-metric"><span>月度订单缺口</span><strong style="color:var(--primary);">${gap} 件</strong></div></div></div><div class="supply-checks"><details open><summary>需求变化原因核查（${reasons.length}项）</summary><div class="check-content"><p class="check-meta">计划偏差量 ${change > 0 ? '+' : ''}${change} 件；该条目缺口占当前范围 ${(gap / totals.gap * 100).toFixed(1)}%。</p><div class="plan-reason-grid">${reasons.map(([role,reasonName,evidence,state,stateClass]) => `<article class="plan-reason-card"><div class="plan-reason-card-top"><span class="reason-role">${role}</span><span class="pill ${stateClass}">${state}</span></div><div class="plan-reason-title"><h5>${reasonName}</h5></div><p>归因依据：${evidence}</p></article>`).join('')}</div></div></details>${renderDemandSkuDetails(row)}</div></div></td></tr>` : ''}`; }).join('')}
+            </tbody></table>${allMatchedRows.length > 10 ? `<div style="margin-top:10px;text-align:center;"><button class="btn detail-toggle" id="demandDetailToggle">${showAllDemandDetails ? '收起至 Top10' : `展开其余 ${allMatchedRows.length - 10} 条`}</button></div>` : ''}
+          </div>
+          <div class="audit-equation">勾稽：${selectedMember ? `${selectedMember}实际下单 ${totals.ordered.toLocaleString()} − 月度发货 ${totals.shipped.toLocaleString()} = 月度订单缺口 ${totals.gap} 件` : `实际下单 5,400 − 月度发货 4,880 = 月度订单缺口 520 件`}；占比分母为${shareDenominatorLabel}。点击上方已选中的${objectLabel}可取消选择并查看全部${objectLabel}。</div>
+        </div>`;
+      const toggle = document.getElementById('demandDetailToggle');
+      if (toggle) toggle.addEventListener('click', () => { showAllDemandDetails = !showAllDemandDetails; renderSpecificAnalysis(); });
+      host.querySelectorAll('[data-demand-detail]').forEach(button => button.addEventListener('click', event => {
+        event.stopPropagation();
+        demandDetailSelections[selectedDimension] = demandDetailSelections[selectedDimension] === button.dataset.demandDetail ? '__collapsed__' : button.dataset.demandDetail;
+        renderSpecificAnalysis();
+      }));
+      host.querySelectorAll('[data-demand-detail-row]').forEach(row => row.addEventListener('click', () => {
+        demandDetailSelections[selectedDimension] = demandDetailSelections[selectedDimension] === row.dataset.demandDetailRow ? '__collapsed__' : row.dataset.demandDetailRow;
+        renderSpecificAnalysis();
+      }));
+      host.querySelectorAll('[data-sort-key]').forEach(button => button.addEventListener('click', () => {
+        const key = button.dataset.sortKey;
+        const state = demandSortStates[selectedDimension];
+        if (state.key === key) state.direction = state.direction === 'desc' ? 'asc' : 'desc';
+        else { state.key = key; state.direction = ['name','region','province'].includes(key) ? 'asc' : 'desc'; }
+        showAllDemandDetails = false;
+        renderSpecificAnalysis();
+      }));
+      renderEvidenceConclusion();
+      return;
+    }
+    if (selectedCause === 'plan') {
+      const data = planAnalysisData;
+      const selectedMember = planSelections[selectedDimension];
+      const dimensionSummary = data.dimensions[selectedDimension];
+      const selectedSummary = dimensionSummary.find(row => row[0] === selectedMember);
+      const totals = selectedSummary ? {planned:selectedSummary[1],available:selectedSummary[2],gap:selectedSummary[3]} : data.totals;
+      const rate = (totals.available / totals.planned * 100).toFixed(1);
+      const dimensionLabel = causeData.plan.dimensionLabels[selectedDimension];
+      const matchedRows = causeData.plan.rows.filter(row => !selectedMember || row[6]?.[selectedDimension] === selectedMember);
+      const objectRows = [...matchedRows].sort((a,b) => b[2] - a[2]);
+      const demo={findings:[],transferRows:[]},demoBases=new Map();
+      for(const row of objectRows){
+        const meta=row[6],baseName=meta.base||'示例基地';
+        if(!demoBases.has(baseName))demoBases.set(baseName,{object:baseName,scopeKey:'demo:'+baseName,planned:0,actual:0,gap:0,findingIds:[],children:[]});
+        const base=demoBases.get(baseName),child={object:row[0].split('×').pop(),scopeKey:'demo:'+row[0],planned:meta.planned,actual:meta.actual,gap:row[2],findingIds:[],children:[]};
+        ['模拟：包装膜不足','模拟：包装机故障'].forEach((reasonText,i)=>{
+          const f={scopeKey:child.scopeKey,channel:'self',reasonText,status:'supported_unverified',records:[{date:'模拟日期',sku:'DEMO-SKU',order:'DEMO-'+i,planned:meta.planned*(i?0.4:0.6),actual:meta.actual*(i?0.4:0.6),gap:row[2]*(i?0.4:0.6)}]};
+          child.findingIds.push(demo.findings.length);demo.findings.push(f);
+          base.findingIds.push(demo.findings.length);demo.findings.push({...f,scopeKey:base.scopeKey});
+        });
+        base.children.push(child);base.planned+=meta.planned;base.actual+=meta.actual;base.gap+=row[2];
+      }
+      TemplateComponents.mount(host,demo,null,'plan','base',[...demoBases.values()]);
+      renderEvidenceConclusion();
+      return;
+    }
+    host.innerHTML = '<div class="cause-analysis-head"><div><h3>当前原因不在本轮分析范围</h3><p>本轮仅开放A需求变化和C生产计划供给。</p></div><span class="pill missing">未纳入</span></div>';
+  }
+
+
+  function renderCauseDetail() {
+    const cause = causeData[selectedCause];
+    const isDemand = selectedCause === 'demand';
+    document.getElementById('causeTitle').textContent = isDemand ? '月度复盘“A 需求变化”的结构与来源' : `在“${cause.code} ${cause.label}”内部找重点对象`;
+    document.getElementById('causeContext').textContent = isDemand
+      ? `该模块在月末需求周期结束后使用：基地经理按基地→大区→省区、品类经理按品类→大区→省区复盘同一笔 ${cause.amount} 件月度需求缺口；两种视角不能相加。`
+      : `此处的所有贡献率只除以所选原因的 ${cause.amount} 件，不再用全局 1,488 件。不同维度仍是同一原因量的不同切面，不可相加。`;
+    document.getElementById('causeAmount').textContent = `当前分母 ${cause.amount} 件`;
+    document.getElementById('causeBreadcrumb').innerHTML = `<span>全国</span><span>›</span><span>总缺货量 1,488 件</span><span>›</span><b>${cause.code} ${cause.label} ${cause.amount} 件</b>`;
+    document.getElementById('causeDefinition').innerHTML = causeDefinitions[selectedCause];
+    const dimensionGrid = document.getElementById('causeDimensionGrid');
+    dimensionGrid.classList.add('single');
+    document.getElementById('causeStepNote').textContent = isDemand
+      ? '需求侧提供基地经理和品类经理两种管理视角；当前为月内预览，月末复盘再定稿。下一步汇总全部需求与生产计划分析，不限于当前选中对象。'
+      : '本例重点原因账本：郑州×猪肉水饺A118＋C150＝268 件。下一步生成全部需求与生产计划报告，数量缺口不等于已验证根因量。';
+    document.querySelectorAll('.cause-card').forEach(card => {
+      const active = card.dataset.cause === selectedCause;
+      card.classList.toggle('active', active);
+      card.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    renderDimensionTabs();
+    renderBars(selectedDimension);
+    renderSpecificAnalysis();
+    renderEvidenceConclusion();
+  }
+
+  renderCauseDetail();
+  document.querySelectorAll('.cause-card').forEach(card => card.addEventListener('click', event => {
+    if (event.target.closest?.('.kpi-help')) return;
+    selectedCause = card.dataset.cause;
+    selectedDimension = causeData[selectedCause].dimensionOrder[0];
+    if (selectedCause === 'demand') demandDetailSelections[selectedDimension] = null;
+    if (selectedCause === 'plan') planDetailSelection = null;
+    renderCauseDetail();
+    showStep(2);
+  }));
+  document.getElementById('backToCauses').addEventListener('click', () => showStep(1));
+
+  const transfer = document.getElementById('transfer');
+  const supply = document.getElementById('supply');
+  const priority = document.getElementById('priority');
+  function updateWhatIf() {
+    const t = Number(transfer.value);
+    const s = Number(supply.value);
+    const p = Number(priority.value);
+    const recovery = t + s + p;
+    const demand = 12400;
+    const shipped = 10912;
+    const newRate = Math.min(100, (shipped + recovery) / demand * 100);
+    const remaining = Math.max(0, 1488 - recovery);
+    const cost = t * .073 + s * .145 + p * .032;
+    const businessRecovery = t + s + p;
+    document.getElementById('transferValue').textContent = t;
+    document.getElementById('supplyValue').textContent = s;
+    document.getElementById('priorityValue').textContent = p;
+    document.getElementById('resultRate').textContent = `${newRate.toFixed(1)}%`;
+    document.getElementById('resultProgress').style.width = `${newRate}%`;
+    document.getElementById('recoverQty').textContent = `${recovery.toLocaleString()} 件`;
+    document.getElementById('remainQty').textContent = `${remaining.toLocaleString()} 件`;
+    document.getElementById('resultCost').textContent = `${cost.toFixed(1)} 万`;
+    document.getElementById('unitCost').textContent = businessRecovery ? `${(cost / businessRecovery).toFixed(3)} 万/件` : '--';
+    const target = document.getElementById('targetText');
+    target.textContent = newRate > 95 ? '达到 >95% 健康目标' : `距 95% 目标尚差 ${(95-newRate).toFixed(1)} 个百分点`;
+    target.style.color = newRate > 95 ? '#a8f0d2' : '#ffd0cc';
+  }
+  [transfer, supply, priority].forEach(el => el.addEventListener('input', updateWhatIf));
+  updateWhatIf();
+
+  function validateCaseLogic() {
+    const checks = [];
+    const assert = (condition, message) => { if (!condition) throw new Error(message); checks.push(message); };
+    assert(12400 - 10912 === 1488, '总缺货量勾稽');
+    const causes = activeCauseKeys.map(key => causeData[key]);
+    assert(activeCauseKeys.join(',') === 'demand,plan' && activeCauseKeys.every(key => causeDefinitions[key]), 'A/C动态原因定义完整');
+    assert(document.querySelectorAll('.definition-item').length === 2, 'A/C原因定义目录完整');
+    assert(activeCauseKeys.every(key => causeDefinitions[key].includes('数量公式')), 'A/C动态数量公式完整');
+    assert(document.querySelectorAll('.definition-item .formula').length === 2, 'A/C数量公式目录完整');
+    assert(causes.reduce((sum,cause) => sum + cause.amount, 0) === 922, '当前分析范围合计');
+    causes.forEach(cause => {
+      assert(cause.dimensionOrder.length === Object.keys(cause.dimensions).length && cause.dimensionOrder.every(key => cause.dimensions[key] && cause.dimensionLabels[key]), `${cause.code}-专属维度配置`);
+      Object.entries(cause.dimensions).forEach(([dimension,rows]) => {
+        assert(rows.reduce((sum,row) => sum + row[1], 0) === cause.amount, `${cause.code}-${dimension}切面合计`);
+      });
+      assert(cause.rows.every(row => row[2] <= row[1] && row[2] <= cause.amount), `${cause.code}-对象归属不越父级`);
+      assert(cause.rows.reduce((sum,row) => sum + row[2], 0) === cause.amount, `${cause.code}-对象归属合计`);
+      assert((cause.rows[0][5] || cause.rows[0][0]) === cause.trace.object && cause.rows[0][2] === cause.trace.amount, `${cause.code}-第三四步对象与数量一致`);
+    });
+    const objectLedger = new Map();
+    causes.forEach(cause => cause.rows.forEach(([name,total,amount]) => {
+      if (!objectLedger.has(name)) objectLedger.set(name,{total,amount:0});
+      const item = objectLedger.get(name);
+      assert(item.total === total, `${name}-对象总缺口一致`);
+      item.amount += amount;
+    }));
+    objectLedger.forEach((item,name) => assert(item.amount <= item.total, `${name}-本轮归属不超过对象总缺口`));
+    assert([...objectLedger.values()].reduce((sum,item) => sum + item.total, 0) === 1488, '对象总缺口合计');
+    assert([...objectLedger.values()].reduce((sum,item) => sum + item.amount, 0) === 922, '对象当前已分析量合计');
+    const sumDemandPerspective = rows => rows.reduce((sum,row) => ({
+      reported:sum.reported + row[3], ordered:sum.ordered + row[4], change:sum.change + row[5], shipped:sum.shipped + row[6], gap:sum.gap + row[7]
+    }),{reported:0,ordered:0,change:0,shipped:0,gap:0});
+    ['bases','products'].forEach(perspective => {
+      const totals = sumDemandPerspective(demandAnalysisData[perspective]);
+      Object.entries(demandAnalysisData.totals).forEach(([key,value]) => assert(totals[key] === value, `A需求-${perspective}-${key}合计`));
+    });
+    [['bases','baseDetails'],['products','productDetails']].forEach(([summaryKey,detailKey]) => {
+      demandAnalysisData[summaryKey].forEach(summary => {
+        const details = demandAnalysisData[detailKey].filter(row => row[0] === summary[0]);
+        const detailTotals = sumDemandPerspective(details);
+        ['reported','ordered','change','shipped','gap'].forEach((key,index) => assert(detailTotals[key] === summary[index + 3], `A需求-${summary[0]}-${key}明细回总`));
+      });
+      demandAnalysisData[detailKey].forEach(row => {
+        const reasons = getDemandReasonDrilldown(row);
+        assert(reasons.length >= 2 && reasons[0][0] === '主因候选', `A需求-${demandDetailKey(row)}-条目级多因素下钻`);
+        const accuracy = salesReportAccuracy(row);
+        assert(accuracy !== null && accuracy >= 0 && accuracy <= 100, `A需求-${demandDetailKey(row)}-销售提报准确率有效`);
+      });
+      const sortedGaps = demandAnalysisData[detailKey].map(row => row[7]).sort((a,b) => b-a);
+      assert(sortedGaps.slice(0,10).every((value,index,array) => index === 0 || array[index-1] >= value), `A需求-${detailKey}-Top10降序`);
+    });
+    assert(demandAnalysisData.totals.ordered - demandAnalysisData.totals.reported === demandAnalysisData.totals.change, 'A需求-净变化勾稽');
+    assert(demandAnalysisData.totals.ordered - demandAnalysisData.totals.shipped === demandAnalysisData.totals.gap, 'A需求-月度需求缺口勾稽');
+    assert(demandAnalysisData.totals.gap === causeData.demand.amount, 'A需求-专属分析回到宏观原因');
+    assert(causeData.demand.dimensionOrder.join(',') === 'product,base', 'A需求-品类视角位于基地视角前');
+    assert(Object.keys(demandSortColumns).length === 8 && demandSortStates.base.key === 'gap' && demandSortStates.product.key === 'gap', 'A需求-基地品类明细排序配置');
+    const planTotals = planAnalysisData.lanes.reduce((sum,row) => ({planned:sum.planned + row[2],available:sum.available + row[3],gap:sum.gap + row[4]}),{planned:0,available:0,gap:0});
+    Object.entries(planAnalysisData.totals).forEach(([key,value]) => assert(planTotals[key] === value, `C计划-${key}合计`));
+    Object.entries(planAnalysisData.dimensions).forEach(([dimension,rows]) => {
+      const totals = rows.reduce((sum,row) => ({planned:sum.planned + row[1],available:sum.available + row[2],gap:sum.gap + row[3]}),{planned:0,available:0,gap:0});
+      Object.entries(planAnalysisData.totals).forEach(([key,value]) => assert(totals[key] === value, `C计划-${dimension}-${key}回总`));
+      rows.forEach(row => assert(causeData.plan.rows.filter(item => item[6]?.[dimension] === row[0]).reduce((sum,item) => sum + item[2],0) === row[3], `C计划-${dimension}-${row[0]}对象回总`));
+    });
+    assert(planAnalysisData.totals.planned - planAnalysisData.totals.available === planAnalysisData.totals.gap, 'C计划-兑现差额勾稽');
+    assert(planAnalysisData.totals.gap === causeData.plan.amount, 'C计划-专属分析回到宏观原因');
+    assert(causeData.plan.dimensionOrder.join(',') === 'base', 'C计划-仅保留生产基地维度');
+    causeData.plan.rows.forEach(row => {
+      const meta = row[6];
+      assert(meta.planned - meta.actual === row[2], `C计划-${row[0]}计划实际缺货勾稽`);
+      assert(meta.actual / meta.planned >= 0 && meta.actual / meta.planned <= 1, `C计划-${row[0]}生产计划达成率有效`);
+      const reasons = getPlanReasonDrilldown(meta);
+      assert(reasons.length === 5 && reasons.every(item => !item[1].includes('安全库存') && !item[1].includes('调拨')), `C计划-${row[0]}自产二级原因独立`);
+    });
+    OrderReport.validate(buildAnalysisReport());
+    assert(planAnalysisData.transfer.planned === null && planAnalysisData.transfer.gap === null, '调拨缺数不记零');
+    assert(Math.abs(1100/30*11 - 403.3333333333333) < 0.001, '11天安全库存采用下月需求');
+    document.getElementById('logicAuditStatus').textContent = `逻辑勾稽 ${checks.length}/${checks.length} 通过`;
+  }
+  if (document.addEventListener) {
+    document.addEventListener('click', event => {
+      const trigger = event.target.closest?.('.kpi-help');
+      document.querySelectorAll('.kpi-help.open').forEach(button => {
+        if (button !== trigger) {
+          button.classList.remove('open');
+          button.setAttribute('aria-expanded','false');
+        }
+      });
+      if (!trigger) return;
+      event.stopPropagation();
+      const shouldOpen = !trigger.classList.contains('open');
+      trigger.classList.toggle('open',shouldOpen);
+      trigger.setAttribute('aria-expanded',String(shouldOpen));
+    });
+    document.addEventListener('keydown', event => {
+      if ((event.key === 'Enter' || event.key === ' ') && event.target.matches?.('.kpi-help[role="button"]')) {
+        event.preventDefault();
+        event.target.click();
+        return;
+      }
+      if (event.key !== 'Escape') return;
+      document.querySelectorAll('.kpi-help.open').forEach(button => {
+        button.classList.remove('open');
+        button.setAttribute('aria-expanded','false');
+      });
+    });
+  }
+  try {
+    validateCaseLogic();
+  } catch (error) {
+    document.getElementById('logicAuditStatus').textContent = `逻辑勾稽失败：${error.message}`;
+    console.error(error);
+  }
+</script>
+</body>
+</html>

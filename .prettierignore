@@ -41,3 +41,7 @@ business-resources/inventory-orderworkbench/skills/fulfillment-sales-confirmatio
 business-resources/inventory-orderworkbench/skills/operations-exception-root-cause/SKILL.md
 
 # Received fulfillment Skill assets retain SOURCE.json byte hashes.
+
+# Received client customization retains SOURCE.json byte hashes.
+business-resources/aps-client-profile/prompt.md
+business-resources/aps-client-profile/skills/
