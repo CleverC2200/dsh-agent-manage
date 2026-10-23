@@ -140,6 +140,29 @@ const enableOutcomes = [
   { name: 'request failed', copy: zh, initiallyEnabled: false, enabled: true, publication: 'ready', success: false, error: 'ENABLE_FAILED' }
 ] satisfies { name: string; copy: typeof zh; initiallyEnabled: boolean; enabled: boolean; publication: UserAgentView['publication']; success: boolean; error?: string }[]
 
+it.each([false, true])('clears plugin enable guidance when refreshing the workspace, including a failed refresh: %s', async failed => {
+  const list = vi.spyOn(userAgentApi, 'list').mockResolvedValueOnce([])
+  if (failed) list.mockRejectedValueOnce(Error('REFRESH_FAILED'))
+  else list.mockResolvedValueOnce([])
+  vi.spyOn(userAgentApi, 'pluginAgents').mockResolvedValue([{ ...pluginSource, enabled: false }])
+  vi.spyOn(userAgentApi, 'setPluginEnabled').mockResolvedValue(pluginSource)
+  const element = document.createElement('div')
+  document.body.append(element)
+  const root = createRoot(element)
+  try {
+    await act(async () => root.render(createElement(UserAgentWorkspace, { t: key => zh[key] })))
+    await act(async () => element.querySelector<HTMLButtonElement>('[role="switch"]')!.click())
+    expect(element.querySelector('[role="status"]')?.textContent).toBe(zh.agentPluginEnabled)
+    await act(async () => element.querySelector<HTMLButtonElement>(`[aria-label="${zh.refresh}"]`)!.click())
+    expect(element.querySelector('[role="status"]')).toBeNull()
+    expect(element.querySelector('[role="alert"]')?.textContent ?? '').toBe(failed ? 'REFRESH_FAILED' : '')
+  } finally {
+    await act(async () => root.unmount())
+    element.remove()
+    vi.restoreAllMocks()
+  }
+})
+
 for (const entry of ['list', 'editor']) {
   it.each(enableOutcomes)(`${entry} shows plugin enable guidance only after a ready enable: $name`, async outcome => {
     const source = { ...pluginSource, enabled: outcome.initiallyEnabled }

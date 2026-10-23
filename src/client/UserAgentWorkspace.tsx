@@ -96,7 +96,7 @@ export function UserAgentWorkspace({ t, startAgent, openEditor, surface = 'main'
         {agent.source && !agent.deletedAt && !agent.source.importPending && <button type="button" className={css.textButton} aria-label={t('agentSourceSync')} disabled={busy} onClick={() => { setAdding(false); setShowSources(true); setSourceRequest(previous => ({ id: agent.id, request: (previous?.request ?? 0) + 1 })) }}>{t('agentUpdate')}</button>}
         {!agent.deletedAt && enable(agent)}
       </article>)}
-      <TrustedPluginAgents onEdit={edit} t={t} />
+      <TrustedPluginAgents onEdit={edit} onMessage={setMessage} t={t} />
       {!agents.length && !adding && <p className={css.muted}>{t('agentEmpty')}</p>}
     </>}
     {error && <p role="alert" className={css.error}>{error}</p>}{message && <p role="status" className={css.muted}>{message}</p>}
