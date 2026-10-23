@@ -3,13 +3,15 @@ import os from 'node:os'
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import childProcess from 'node:child_process'
+import { syncBuiltinESMExports } from 'node:module'
 import { resolve, join } from 'node:path'
 import { mkdtempSync, existsSync, rmSync, readFileSync, writeFileSync, mkdirSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import process from 'node:process'
 import { pathToFileURL, URL } from 'node:url'
 import { Buffer } from 'node:buffer'
-import { verifyOfficialSource, verifyOfficialSDK, prepareOfficialSDK } from '../scripts/prepare-official-sdk.mjs'
+import { verifyOfficialSource, verifyOfficialSDK, prepareOfficialSDK, prepareOfficialWeb } from '../scripts/prepare-official-sdk.mjs'
 
 const supported = JSON.parse(readFileSync(new URL('../../dsh-gea-plugin/scripts/supported-cores.json', import.meta.url), 'utf8'))
 const alpha = supported.find(core => core.version === '0.2.1-alpha.1')
@@ -272,4 +274,54 @@ test('SDK artifact reuse installs cold dependencies and only reuses a matching i
   fs.unlinkSync(join(checkout, 'node_modules', dependency, 'package.json'))
   assert.match(run(), /"dependenciesReused":false/)
   assert.equal(readFileSync(calls, 'utf8'), 'install\ninstall\n')
+})
+
+test('Web preparation uses the Core official client environment and rejects a cached local build', t => {
+  if (!JSON.parse(readFileSync(join(checkout, 'package.json'))).scripts['build:official']) return t.skip('selected Core has no named client build profile')
+  const consumer = join(checkout, '.git', 'web-profile-consumer')
+  mkdirSync(consumer)
+  writeFileSync(join(consumer, 'tsconfig.official-paths.json'), JSON.stringify({ compilerOptions: { paths: {} } }))
+  const own = spawnSync('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], { cwd: checkout, encoding: 'utf8' })
+  assert.equal(own.status, 0, own.stderr)
+  const originalSpawn = childProcess.spawnSync
+  const previous = process.env.DSH_CLIENT_TITLE
+  process.env.DSH_CLIENT_TITLE = 'Ambient local title'
+  let buildEnvironment
+  t.mock.method(childProcess, 'spawnSync', (command, args, options) => {
+    if (String(command).endsWith(process.platform === 'win32' ? 'corepack.cmd' : 'corepack') && args.join(' ') === 'pnpm run build:web') {
+      buildEnvironment = options.env
+      const dist = join(checkout, 'apps/web/dist')
+      mkdirSync(join(dist, 'assets'), { recursive: true })
+      writeFileSync(join(dist, 'index.html'), '<script type="module" src="/assets/index.js"></script>')
+      writeFileSync(join(dist, 'assets/index.js'), 'export const ready = true;')
+      return { status: 0, stdout: '', stderr: '' }
+    }
+    return originalSpawn(command, args, options)
+  })
+  syncBuiltinESMExports()
+  try {
+    const options = { core: realpathSync(checkout), consumer, coreHead: selected.head }
+    const result = prepareOfficialWeb(options)
+    assert.equal(buildEnvironment?.DSH_CLIENT_BUILD_PROFILE, 'official')
+    assert.equal(buildEnvironment?.DSH_CLIENT_TITLE, 'DeepSeek Harness')
+    assert.equal(buildEnvironment?.DSH_CLIENT_COMMIT_HASH, selected.head.slice(0, 7))
+    assert.equal(buildEnvironment?.DSH_CLIENT_VERSION, JSON.parse(readFileSync(join(checkout, 'package.json'))).version)
+    assert.equal(buildEnvironment?.DSH_BUILD_CLIENT_PROFILE, undefined)
+    assert.equal(result.web.clientEnvironment.DSH_CLIENT_BUILD_PROFILE, 'official')
+    const receipt = join(checkout, '.git', 'dsh-sdk-web.json')
+    const record = JSON.parse(readFileSync(receipt, 'utf8'))
+    writeFileSync(receipt, JSON.stringify({ ...record, clientEnvironment: { ...record.clientEnvironment, DSH_CLIENT_BUILD_PROFILE: 'local' } }))
+    assert.throws(() => verifyOfficialSDK({ ...options, withWeb: true }), /SDK_WEB_SOURCE_MISMATCH/)
+    const legacy = { ...record }
+    delete legacy.clientEnvironment
+    writeFileSync(receipt, JSON.stringify(legacy))
+    assert.throws(() => verifyOfficialSDK({ ...options, withWeb: true }), /SDK_WEB_SOURCE_MISMATCH/)
+    writeFileSync(receipt, JSON.stringify(record))
+    assert.equal(verifyOfficialSDK({ ...options, withWeb: true }).web.status, 'prepared')
+  } finally {
+    if (previous === undefined) delete process.env.DSH_CLIENT_TITLE
+    else process.env.DSH_CLIENT_TITLE = previous
+    t.mock.restoreAll()
+    syncBuiltinESMExports()
+  }
 })
