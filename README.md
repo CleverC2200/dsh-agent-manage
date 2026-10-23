@@ -52,7 +52,7 @@ dsh plugin --profile <name> add github:CleverC2200/dsh-agent-manage
 
 ## Everyday use
 
-Company presets keep the official standard tools and commands, with a complete system prompt made from the fixed assistant sentence plus the selected Agent prompt. Automatic workspace instructions and runtime-context snapshots are omitted. Tool schemas and on-demand Skill loading retain their existing behavior.
+Company presets keep the official standard tools and commands, with a complete system prompt made from the fixed assistant instructions plus the selected Agent prompt. The fixed instructions request Simplified Chinese reasoning and replies in the language of the user's latest substantive question, preserving code, identifiers, paths, commands and original error messages. Automatic workspace instructions and runtime-context snapshots are omitted. Tool schemas and on-demand Skill loading retain their existing behavior.
 
 The Agent list shows source, personal changes, enablement and availability. Source synchronization compares base, personal configuration and upstream, then asks for an explicit conflict resolution. A failed update keeps the previous usable preset. Disabling or deleting a personal Agent preserves recoverable configuration, Session history and drafts.
 
