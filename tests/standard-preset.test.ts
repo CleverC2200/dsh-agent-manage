@@ -351,7 +351,7 @@ it('keeps standard capabilities while replacing the company persona and automati
   expect(actual.find(row => row.name === 'dsh-agent-manage/user-agent-skills')).toMatchObject({ id: 'user-agent-skills', config: { inheritSkills: true } })
 })
 
-it('sends only the minimal system sentence and selected user persona while retaining tool schemas', async () => {
+it('sends only the fixed system instructions and selected user persona while retaining tool schemas', async () => {
   const { ctx } = await presetHarness()
   const requests = await completion(ctx)
   await ctx.agentPresets.register(await composeStandardPreset(ctx.agentPresets, { id: 'minimal-business' }, { personaPrefix: '用户配置的业务角色正文。' }))
