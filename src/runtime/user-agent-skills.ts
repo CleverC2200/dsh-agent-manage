@@ -26,6 +26,7 @@ export function apply(ctx: Context, config: { skills: UserAgentSkill[]; inheritS
       async list(options) {
         // Explicitly read the global source layer, never recursively read this preset scope.
         const sources = await ctx.skills.list({ cwd: options.cwd, signal: options.signal })
+        let complete = true
         const candidates: SkillCandidate[] = sources.map(source => {
           const choice = selected.get(source.name)
           const enabled =
@@ -39,29 +40,39 @@ export function apply(ctx: Context, config: { skills: UserAgentSkill[]; inheritS
         })
         for (const choice of config.skills) {
           if (choice.directory) {
-            if (
-              choice.kind === 'reference' &&
-              choice.enabled &&
-              !sources.some(source => source.name === choice.name && source.provider === choice.provider && (choice.path === undefined || source.path === choice.path))
-            )
-              throw Error(`AGENT_SKILL_SOURCE_MISSING: ${choice.name}`)
-            const directory = directories.find(row => row.name === `directory-${choice.directory!.id}`)!
-            const listed = await directory.list(options)
-            const entries = Array.isArray(listed) ? listed : listed.candidates
-            const entryFile = await realpath(join(choice.directory.bundle, 'tree', choice.directory.entry, 'SKILL.md'))
-            const entry = entries.find(row => row.name === choice.name && row.path === entryFile)
-            if (!entry) throw Error(`AGENT_SKILL_DIRECTORY_INVALID: ${choice.name}`)
-            const index = candidates.findIndex(row => row.name === choice.name)
-            if (index >= 0) candidates.splice(index, 1)
-            candidates.push({ ...entry, provider, rank: -1000, invocation: choice.enabled ? entry.invocation : { modelInvocable: false, userInvocable: false } })
+            if (!choice.enabled) continue
+            try {
+              if (
+                choice.kind === 'reference' &&
+                !sources.some(source => source.name === choice.name && source.provider === choice.provider && (choice.path === undefined || source.path === choice.path))
+              )
+                throw Error(`AGENT_SKILL_SOURCE_MISSING: ${choice.name}`)
+              const directory = directories.find(row => row.name === `directory-${choice.directory!.id}`)!
+              const listed = await directory.list(options)
+              if (!Array.isArray(listed) && !listed.complete) complete = false
+              const entries = Array.isArray(listed) ? listed : listed.candidates
+              const entryFile = await realpath(join(choice.directory.bundle, 'tree', choice.directory.entry, 'SKILL.md'))
+              const entry = entries.find(row => row.name === choice.name && row.path === entryFile)
+              if (!entry) throw Error(`AGENT_SKILL_DIRECTORY_INVALID: ${choice.name}`)
+              const index = candidates.findIndex(row => row.name === choice.name)
+              if (index >= 0) candidates.splice(index, 1)
+              candidates.push({ ...entry, provider, rank: -1000 })
+            } catch (error) {
+              options.signal?.throwIfAborted()
+              control.signal.throwIfAborted()
+              complete = false
+              ctx.logger.warn(`AGENT_SKILL_DIRECTORY_INVALID: ${choice.name}`, error)
+            }
             continue
           }
           if (choice.kind === 'reference') {
             if (
               choice.enabled &&
               !sources.some(source => source.name === choice.name && source.provider === choice.provider && (choice.path === undefined || source.path === choice.path))
-            )
-              throw Error(`AGENT_SKILL_SOURCE_MISSING: ${choice.name}`)
+            ) {
+              complete = false
+              ctx.logger.warn(`AGENT_SKILL_SOURCE_MISSING: ${choice.name}`)
+            }
             continue
           }
           const existing = candidates.findIndex(skill => skill.name === choice.name)
@@ -76,7 +87,7 @@ export function apply(ctx: Context, config: { skills: UserAgentSkill[]; inheritS
             invocation: { modelInvocable: choice.enabled, userInvocable: choice.enabled }
           })
         }
-        return candidates
+        return { candidates, complete }
       },
       async get(candidate: SkillCandidate, options: SkillLookupOptions): Promise<SkillDefinition | undefined> {
         const choice = selected.get(candidate.name)

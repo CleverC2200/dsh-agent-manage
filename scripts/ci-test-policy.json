@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "versionTests": ["tests/plugin-package-version.test.mjs"],
   "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
   "tests": ["tests/*.test.ts", "tests/*.test.mjs", "scripts/source-quality.test.mjs", "scripts/workflow-preflight.test.mjs"],
   "sourceFixtures": {

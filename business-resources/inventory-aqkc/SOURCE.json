@@ -3,8 +3,8 @@
   "sourcePromptSha256": "93f7a4bae051b80ddc8b7247f709f5b7c26255c05fe961f1ef53411ca1582a5f",
   "sourceArchive": "base-inventory-agent-skill-p1.zip",
   "sourceArchiveSha256": "b1ae5be166b1724e60112638dcccdab99a8246e2cccc967844782cd99fe28b08",
-  "personaSha256": "8eb8e529b76edb6d971f858183b3dfddf706035883a3afbeb2dbf395281acf94",
-  "retainedSkillSha256": "34e9c04d41f861304a2e2d79013480e2d33457c7941b531951de2ce14ab5c31a",
+  "personaSha256": "157d3f8555c61227c9e723980bdb2ad5c3cfae865cfd1c6868e878fb2a0681fe",
+  "retainedSkillSha256": "863de24e291ab40c5e1717de12211369422078c12aa2786b3dc2389967214ac0",
   "files": {
     "skills/aging-stagnation-monitoring/SKILL.md": "2841aa1df0d79b57984e759fa859827be278e0e33cbe807bab92f6dd466dfa76",
     "skills/aging-stagnation-monitoring/rules.md": "d17ebf85ff9042570239a6f461514347e79175083183d275a3234618f8cc059b",
@@ -13,19 +13,20 @@
     "skills/inventory-deviation-monitoring/SKILL.md": "5bd53c2b3bc3a678cc92bc062127e41ac7713b7d3e1a585c5b4f591d55095c9c",
     "skills/inventory-deviation-monitoring/rules.md": "cc53076574102f8ede96c295603eed8fc14001a3b4e65a6b08793c3109f9ab2f",
     "skills/inventory-policy/SKILL.md": "4dbc4397e89c205eb7d4e8a6e8d7b0197b7d538dc7d240944c5bde9c5dc5f165",
-    "skills/inventory-policy/rules/data-access-contract.md": "e399fe6ddc09ad9db31e461099d3dc6b0a599bd9af64065ee0aa5f00639173e1",
+    "skills/inventory-policy/rules/data-access-contract.md": "a68abf06eaee878bec4882245711637c5f7c1f8dc37f41c2b104810294751202",
     "skills/inventory-policy/rules/data-boundary.md": "c7978d01b700908fda42b39925d316949ac8c7d3d8bf67c8efc694c19d9fe476",
     "skills/inventory-policy/rules/evidence-and-action-boundary.md": "e1713f4ab513c68cd9f62811d57e6dd1d0e5d929ab287d7c605848b5f156d4c0",
     "skills/inventory-policy/rules/metric-catalog.md": "dca1480d070f31912836b7f6adfe457595702069b66bd28bc1ab38e5d0249287",
     "skills/inventory-policy/rules/output-guide.md": "397845b81128454b591cfdfd4aa81ce8b2dd12a64cf38160297d5b289e11cc42",
     "skills/report-templates/SKILL.md": "df1f964e090e753154c982d6bfef41216782347cfde94679aeded249ebb02252",
-    "skills/shortage-monitoring/SKILL.md": "b0e1735b5000b4b718a122134fe8a592f67368aa7558c3459610a330406977c9",
+    "skills/shortage-monitoring/SKILL.md": "d507ddcd165612023cfab81dff6b98ffbdb2326a015ae20edec96a2afae943fd",
     "skills/shortage-monitoring/rules.md": "eff678c2c40c5d4c0f7c42d1b805d1b1119e4af2b8c220c327be87579f7148b7"
   },
   "adaptations": [
     "2026-10-19：按用户要求移除主提示词、输出指南及四个分析 Skill 中的四档固定输出结构与对应字数限制。",
     "2026-10-22：按用户确认更新当前缺货为订单、库存池与 SKU、地点三层计算；补充同源未备单状态、占用、关联与统一 GEA SQL 约束，保留原始提示词及 Skill 文件来源摘要。",
-    "2026-10-22：按用户确认同步当前缺货 Skill 与指标目录为订单、库存池与 SKU、地点三层计算，去除近60天及已备单完成需求；来源归档摘要不变，保留原自带 Skill 摘要，更新适配文件的交付摘要。"
+    "2026-10-22：按用户确认同步当前缺货 Skill 与指标目录为订单、库存池与 SKU、地点三层计算，去除近60天及已备单完成需求；来源归档摘要不变，保留原自带 Skill 摘要，更新适配文件的交付摘要。",
+    "2026-10-22：按用户确认将当前订单与缺货问数接入 gea_current_shortage，复用页面固定 SQL 和实际 Session Consumer；更新适配后提示词、Skill 与访问契约交付摘要，原始提示词/归档及 originalRetainedSkillSha256 保持不变。"
   ],
   "originalRetainedSkillSha256": "41b8fb11d166ff89afb926f0e5632b0a4f4c0da3866e3ddaafc654597aa29454"
 }

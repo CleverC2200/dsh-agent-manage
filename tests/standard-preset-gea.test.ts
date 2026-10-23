@@ -7,32 +7,59 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { MINIMAL_SYSTEM_PROMPT } from '../src/runtime/standard-preset.js'
 
-it('keeps general Session tools across the GEA hooks and rejects unprofiled business execution', async () => {
-  const { mountBusinessPrompts } = await import('preset-integration-gea/host/prompt-runtime')
-  const { createCapabilityRegistry } = await import('preset-integration-gea/capability/registry')
-  const { ctx, home } = await presetHarness()
+it('keeps orchestration general capabilities while using its managed Workbench source and revoking MCP access', async () => {
+  const { baseInventoryHarness } = await import('./base-inventory-harness.js')
+  const { sessionConsumer } = await import('preset-integration-gea/host/business-identity')
+  const f = await baseInventoryHarness()
+  const { ctx } = f
   const requests = await completion(ctx, 262_144, true)
   const agent = await agentOn(ctx, 'gea-general', 'auto-negotiation')
-  const standardTools = ctx.tools.schemas(agent).map(row => row.name)
-  const identity = { config: { runtimeDir: home }, watchIdentity: () => () => {} }
-  const release = mountBusinessPrompts(ctx, identity as never, createCapabilityRegistry([]))
-  onTestFinished(release)
+  const standard = await agentOn(ctx, 'gea-standard', 'standard')
+  const standardPrompt = await ctx.systemPrompt.assemble({ scope: standard, agent: standard } as never)
+  const standardTools = standardPrompt.tools.map(row => row.name)
+  expect(f.resources.cubeSource('auto-negotiation')).toMatchObject({ consumerCode: 'workbench' })
+  expect(sessionConsumer(ctx, f.business, agent.id)).toBe('workbench')
   await turn(ctx, agent, 'Organize the general task with the official todo tool.')
   const finalTools = requests.at(-1)?.tools?.map(row => row.name) ?? []
   expect(finalTools).toEqual(expect.arrayContaining(standardTools))
   expect(agent.session.snapshotEvents().map(row => row.type)).toContain('todo/write')
-  const denied = await ctx.tools.execute({
-    callId: 'unprofiled-gea-call' as never,
-    name: 'gea_evidence_read',
-    arguments: { artifact: 'no-business-grant' },
-    agent,
-    signal: new AbortController().signal
-  })
+  const originalPrompt = await readFile(resolve(import.meta.dirname, '../business-resources/orchestration/prompt.md'), 'utf8')
+  expect(JSON.stringify(requests.at(-1)?.messages)).toContain(JSON.stringify(originalPrompt).slice(1, -1))
+  await f.login(false)
+  const assembled = await ctx.systemPrompt.assemble({ scope: agent, agent } as never)
+  expect(assembled.tools.map(row => row.name)).toContain('mcp__gea-gateway__query_business_data')
+  expect(ctx.tools.schemas(standard).map(row => row.name)).not.toContain('mcp__gea-gateway__query_business_data')
+  expect(JSON.stringify(await f.query(undefined, agent))).toContain('42')
+  expect(JSON.stringify(await f.query('forged', agent))).toContain('GEA_MCP_PLATFORM_ARGUMENT_REJECTED')
+  const denied = await f.execute('gea_evidence_read', { artifact: 'no-business-grant' }, agent)
   expect(JSON.stringify(denied)).toContain('GEA_BUSINESS_PROFILE_REQUIRED')
+  const held = Promise.withResolvers<void>()
+  const started = Promise.withResolvers<void>()
+  f.block(held.promise, started.resolve)
+  const pending = f.query(undefined, agent)
+  await started.promise
+  await f.resources.setCubeEnabled('auto-negotiation', false)
+  expect((await pending).isError).toBe(true)
+  held.resolve()
+  f.block(Promise.resolve(), () => {})
+  expect(ctx.tools.schemas(agent).map(row => row.name)).not.toContain('mcp__gea-gateway__query_business_data')
+  const beforeDisabledCall = f.network.length
+  expect((await f.query(undefined, agent)).isError).toBe(true)
+  expect(f.network).toHaveLength(beforeDisabledCall)
+  expect((await f.execute('todo_write', { todos: [] }, agent)).isError).toBe(false)
+  await f.resources.setCubeEnabled('auto-negotiation', true)
+  await ctx.systemPrompt.assemble({ scope: agent, agent } as never)
+  expect(JSON.stringify(await f.query(undefined, agent))).toContain('42')
+  expect(f.network.filter(row => row.body.method === 'tools/call').every(row => row.body.params._meta.agentCode === 'workbench')).toBe(true)
+  f.business.logout({})
+  const beforeLogoutCall = f.network.length
+  expect((await f.query(undefined, agent)).isError).toBe(true)
+  expect(f.network).toHaveLength(beforeLogoutCall)
   await record('gea-hook', {
     inputs: { gea: process.env.DSH_GEA_CHECKOUT, workbench: process.env.DSH_WORKBENCH_CHECKOUT },
     finalTools,
     toolEvents: agent.session.snapshotEvents().filter(row => row.type === 'todo/write'),
+    network: f.network,
     denied
   })
 })
