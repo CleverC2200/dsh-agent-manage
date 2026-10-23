@@ -49,8 +49,8 @@ test('client snapshot retains the three selected skills and their enabled states
 test('received resource bytes are protected from checkout line ending conversion', () => {
   const attributes = fs.readFileSync(new URL('../.gitattributes', import.meta.url), 'utf8')
   for (const rule of [
-    'business-resources/aps-client-profile/prompt.md -text',
-    'business-resources/aps-client-profile/skills/** -text',
+    'business-resources/aps-client-profile/prompt.md -text whitespace=cr-at-eol,-blank-at-eof',
+    'business-resources/aps-client-profile/skills/** -text whitespace=cr-at-eol,-blank-at-eof',
     'business-resources/aps-client-profile/profile.json text eol=lf'
   ]) {
     assert.ok(attributes.split(/\r?\n/).includes(rule), rule)
