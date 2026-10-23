@@ -30,10 +30,11 @@ const json = file => JSON.parse(readFileSync(file, 'utf8'))
 function refuse(code, detail) {
   throw new Error(`${code}: ${detail}`)
 }
-function run(command, args, cwd, capture = false) {
+function run(command, args, cwd, capture = false, env = process.env) {
   const windows = process.platform === 'win32' && ['corepack', 'git'].includes(command)
   const result = spawnSync(windows && command === 'corepack' ? 'corepack.cmd' : command, args, {
     cwd,
+    env,
     encoding: 'utf8',
     stdio: capture ? 'pipe' : 'inherit',
     shell: windows && command === 'corepack'
@@ -80,6 +81,13 @@ const webSources = [
 ]
 const webReceipt = core => resolve(run('git', ['rev-parse', '--absolute-git-dir'], core, true), 'dsh-sdk-web.json')
 
+function clientBuild(core) {
+  if (!json(resolve(core, 'package.json')).scripts['build:official']) return undefined
+  const { officialClientBuildEnvironment, clientBuildProcessEnvironment } = createRequire(import.meta.url)(resolve(core, 'scripts/client-build-environment.ts'))
+  const clientEnvironment = officialClientBuildEnvironment(core, {})
+  return { clientEnvironment, env: clientBuildProcessEnvironment(process.env, clientEnvironment) }
+}
+
 function webFile(core, path) {
   const dist = resolve(core, 'apps/web/dist')
   const file = resolve(core, path)
@@ -110,6 +118,7 @@ function verifyWeb(core, coreHead) {
     record.coreCommit !== coreCommit ||
     record.coreLock !== coreLock ||
     record.command !== 'corepack pnpm run build:web' ||
+    JSON.stringify(record.clientEnvironment) !== JSON.stringify(clientBuild(core)?.clientEnvironment) ||
     json(resolve(core, 'package.json')).scripts['build:web'] !== webScript
   )
     refuse('SDK_WEB_SOURCE_MISMATCH', receipt)
@@ -261,7 +270,8 @@ export function prepareOfficialWeb(options) {
   ownedSource(core, coreHead)
   const before = verifyOfficialSDK({ ...options, withWeb: false })
   if (json(resolve(core, 'package.json')).scripts['build:web'] !== webScript) refuse('SDK_WEB_SOURCE_MISMATCH', 'official build:web script')
-  run('corepack', ['pnpm', 'run', 'build:web'], core)
+  const build = clientBuild(core)
+  run('corepack', ['pnpm', 'run', 'build:web'], core, false, build?.env)
   source(core, true, coreHead)
   const after = verifyOfficialSDK({ ...options, withWeb: false })
   if (JSON.stringify(before.artifacts) !== JSON.stringify(after.artifacts)) refuse('SDK_WEB_CHANGED_SDK', 'static Web preparation changed SDK targets')
@@ -285,6 +295,7 @@ export function prepareOfficialWeb(options) {
         coreCommit,
         coreLock,
         command: 'corepack pnpm run build:web',
+        clientEnvironment: build?.clientEnvironment,
         sourceHashes: webSources.map(path => ({ path, sha256: hash(resolve(core, path)) })),
         artifacts: artifacts.sort((a, b) => a.path.localeCompare(b.path))
       },
@@ -401,7 +412,7 @@ export function prepareOfficialSDK(options) {
       run(process.execPath, ['--max-old-space-size=4096', tsc, '-b', 'tsconfig.host.json'], core)
       run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'host'], core)
       run(process.execPath, [tsc, '-b', 'tsconfig.client.json'], core)
-      run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'], core)
+      run('corepack', ['pnpm', 'exec', 'tsdown', '--config-loader', 'native', '--env.DSH_BUILD_FACE', 'client'], core, false, clientBuild(core)?.env)
       writeSDKArtifacts(core, identity)
     }
     if (options.withWeb) {
