@@ -62,6 +62,7 @@ export function UserAgentWorkspace({ t, startAgent, openEditor, surface = 'main'
     const result = await (agent.origin === 'plugin' ? userAgentApi.setPluginEnabled(agent.id, !agent.enabled) : userAgentApi.setEnabled(agent.id, !agent.enabled))
     if (selected?.id === agent.id) { setSelected(result); setDraft(value => ({ ...value, enabled: result.enabled })) }
     await refresh()
+    if (agent.origin === 'plugin' && !agent.enabled && result.enabled && result.publication === 'ready') setMessage(t('agentPluginEnabled'))
   })
   const start = (agent: UserAgentView) => void run(async () => {
     if (!startAgent) throw Error(t('agentHostUnavailable'))

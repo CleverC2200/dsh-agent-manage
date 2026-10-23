@@ -3,10 +3,26 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { expect, it, vi } from 'vitest'
 import { UserAgentWorkspace } from '../src/client/UserAgentWorkspace.js'
-import { userAgentApi } from '../src/client/user-agent-api.js'
-import { zh } from '../src/client/locales.js'
+import { userAgentApi, type UserAgentView } from '../src/client/user-agent-api.js'
+import { en, zh } from '../src/client/locales.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+const pluginSource = {
+  id: 'trusted-cube',
+  preset: 'trusted-cube',
+  name: 'Trusted plugin',
+  enabled: true,
+  publication: 'ready',
+  prompt: 'PLUGIN_PROMPT',
+  description: '',
+  skills: [],
+  origin: 'plugin',
+  customized: false,
+  revision: 1,
+  defaultUnavailable: false,
+  pluginSource: { sourceRef: 'trusted-cube', version: 'source-1' },
+  cube: { sourceRef: 'trusted-cube', enabled: true }
+} satisfies UserAgentView
 it('opens an inline form, cancels without saving and starts an enabled Agent through the public host action', async () => {
   const saved = {
     id: 'b575551f-6614-4e1b-813a-640d881631c8',
@@ -56,22 +72,7 @@ it('opens an inline form, cancels without saving and starts an enabled Agent thr
 })
 
 it('shows trusted plugin presets with a Cube switch and explicit personal copy', async () => {
-  const source = {
-    id: 'trusted-cube',
-    preset: 'trusted-cube',
-    name: 'Trusted plugin',
-    enabled: true,
-    publication: 'ready' as const,
-    prompt: 'PLUGIN_PROMPT',
-    description: '',
-    skills: [],
-    origin: 'plugin' as const,
-    customized: false,
-    revision: 1,
-    defaultUnavailable: false,
-    pluginSource: { sourceRef: 'trusted-cube', version: 'source-1' },
-    cube: { sourceRef: 'trusted-cube', enabled: true }
-  }
+  const source = pluginSource
   const copied = {
     id: 'a7e2da91-cac0-4093-9b8e-61123a67be90',
     name: 'Trusted plugin',
@@ -128,3 +129,74 @@ it('shows trusted plugin presets with a Cube switch and explicit personal copy',
     vi.restoreAllMocks()
   }
 })
+
+const enableOutcomes = [
+  { name: 'ready in Chinese', copy: zh, initiallyEnabled: false, enabled: true, publication: 'ready', success: true },
+  { name: 'ready in English', copy: en, initiallyEnabled: false, enabled: true, publication: 'ready', success: true },
+  { name: 'disabled', copy: zh, initiallyEnabled: true, enabled: false, publication: 'disabled', success: false },
+  { name: 'disable returned enabled', copy: zh, initiallyEnabled: true, enabled: true, publication: 'ready', success: false },
+  { name: 'enable returned disabled', copy: zh, initiallyEnabled: false, enabled: false, publication: 'ready', success: false },
+  { name: 'mount failed', copy: zh, initiallyEnabled: false, enabled: true, publication: 'failed', success: false },
+  { name: 'request failed', copy: zh, initiallyEnabled: false, enabled: true, publication: 'ready', success: false, error: 'ENABLE_FAILED' }
+] satisfies { name: string; copy: typeof zh; initiallyEnabled: boolean; enabled: boolean; publication: UserAgentView['publication']; success: boolean; error?: string }[]
+
+for (const entry of ['list', 'editor']) {
+  it.each(enableOutcomes)(`${entry} shows plugin enable guidance only after a ready enable: $name`, async outcome => {
+    const source = { ...pluginSource, enabled: outcome.initiallyEnabled }
+    vi.spyOn(userAgentApi, 'list').mockResolvedValue([])
+    vi.spyOn(userAgentApi, 'pluginAgents').mockResolvedValue([source])
+    const toggle = vi.spyOn(userAgentApi, 'setPluginEnabled')
+    if (outcome.error) toggle.mockRejectedValue(Error(outcome.error))
+    else toggle.mockResolvedValue({ ...source, enabled: outcome.enabled, publication: outcome.publication })
+    const startAgent = vi.fn(async () => {})
+    const element = document.createElement('div')
+    document.body.append(element)
+    const root = createRoot(element)
+    try {
+      await act(async () => root.render(createElement(UserAgentWorkspace, { t: key => outcome.copy[key], startAgent, surface: 'settings' })))
+      if (entry === 'editor') await act(async () => element.querySelector<HTMLButtonElement>('article button')!.click())
+      await act(async () => element.querySelector<HTMLButtonElement>('[role="switch"]')!.click())
+      expect(toggle).toHaveBeenCalledExactlyOnceWith(source.id, !source.enabled)
+      expect(element.querySelector('[role="status"]')?.textContent ?? '').toBe(outcome.success ? outcome.copy.agentPluginEnabled : '')
+      if (outcome.error) expect(element.querySelector('[role="alert"]')?.textContent).toBe(outcome.error)
+      expect(element.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe(String(outcome.error ? source.enabled : outcome.enabled))
+      expect(element.querySelector('h2')?.textContent).toBe(entry === 'editor' ? source.name : outcome.copy.agentConfiguration)
+      expect(startAgent).not.toHaveBeenCalled()
+    } finally {
+      await act(async () => root.unmount())
+      element.remove()
+      vi.restoreAllMocks()
+    }
+  })
+
+  it(`${entry} clears previous enable guidance while the next toggle is pending and preserves its failure`, async () => {
+    const source = { ...pluginSource, enabled: false, publication: 'disabled' as const }
+    vi.spyOn(userAgentApi, 'list').mockResolvedValue([])
+    vi.spyOn(userAgentApi, 'pluginAgents').mockResolvedValue([source])
+    let rejectToggle!: (error: Error) => void
+    const pending = new Promise<UserAgentView>((_, reject) => {
+      rejectToggle = reject
+    })
+    const toggle = vi.spyOn(userAgentApi, 'setPluginEnabled').mockResolvedValueOnce(pluginSource).mockReturnValueOnce(pending)
+    const element = document.createElement('div')
+    document.body.append(element)
+    const root = createRoot(element)
+    try {
+      await act(async () => root.render(createElement(UserAgentWorkspace, { t: key => zh[key] })))
+      if (entry === 'editor') await act(async () => element.querySelector<HTMLButtonElement>('article button')!.click())
+      await act(async () => element.querySelector<HTMLButtonElement>('[role="switch"]')!.click())
+      expect(element.querySelector('[role="status"]')?.textContent).toBe(zh.agentPluginEnabled)
+      await act(async () => element.querySelector<HTMLButtonElement>('[role="switch"]')!.click())
+      expect(toggle).toHaveBeenLastCalledWith(source.id, false)
+      expect(element.querySelector('[role="status"]')).toBeNull()
+      expect(element.querySelector<HTMLButtonElement>('[role="switch"]')?.disabled).toBe(true)
+      await act(async () => rejectToggle(Error('DISABLE_FAILED')))
+      expect(element.querySelector('[role="alert"]')?.textContent).toBe('DISABLE_FAILED')
+      expect(element.querySelector('[role="status"]')).toBeNull()
+    } finally {
+      await act(async () => root.unmount())
+      element.remove()
+      vi.restoreAllMocks()
+    }
+  })
+}

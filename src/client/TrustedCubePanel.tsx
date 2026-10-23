@@ -55,6 +55,7 @@ export function TrustedPluginAgents({ t, onEdit }: { t: Translate; onEdit(agent:
   const [sources, setSources] = useState<UserAgentView[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const mounted = useRef(true)
   useEffect(() => {
     let active = true
@@ -63,7 +64,7 @@ export function TrustedPluginAgents({ t, onEdit }: { t: Translate; onEdit(agent:
     return () => { active = false; mounted.current = false }
   }, [])
   const run = async (action: () => Promise<void>) => {
-    setBusy(true); setError('')
+    setBusy(true); setError(''); setMessage('')
     try { await action() } catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : String(reason)) }
     finally { if (mounted.current) setBusy(false) }
   }
@@ -72,8 +73,9 @@ export function TrustedPluginAgents({ t, onEdit }: { t: Translate; onEdit(agent:
     <h3 className={css.sectionTitle}>{t('agentPluginPresets')}</h3>
     {sources.map(source => <article key={source.id} className={`${css.row} ${css.pluginRow}`}>
       <button type="button" className={css.identity} disabled={busy} onClick={() => onEdit(source)}><span className={css.icon}>{agentIcon}</span><span><strong>{source.name}</strong><span className={css.description}>{source.description || t('agentMcpPlugin')}{source.customized ? ` · ${t('agentSourceCustomized')}` : ''}{source.publication === 'failed' ? ` · ${t('agentUnavailable')}` : ''}</span></span></button>
-      <button type="button" role="switch" aria-label={t('agentEnabled', { name: source.name })} aria-checked={source.enabled} className={source.enabled ? css.switchOn : css.switchOff} disabled={busy} onClick={() => void run(async () => { const saved = await userAgentApi.setPluginEnabled(source.id, !source.enabled); if (mounted.current) setSources(rows => rows.map(row => row.id === saved.id ? saved : row)) })}><span /></button>
+      <button type="button" role="switch" aria-label={t('agentEnabled', { name: source.name })} aria-checked={source.enabled} className={source.enabled ? css.switchOn : css.switchOff} disabled={busy} onClick={() => void run(async () => { const saved = await userAgentApi.setPluginEnabled(source.id, !source.enabled); if (mounted.current) { setSources(rows => rows.map(row => row.id === saved.id ? saved : row)); if (!source.enabled && saved.enabled && saved.publication === 'ready') setMessage(t('agentPluginEnabled')) } })}><span /></button>
     </article>)}
     {error && <p role="alert" className={css.error}>{error}</p>}
+    {message && <p role="status" className={css.muted}>{message}</p>}
   </section>
 }
