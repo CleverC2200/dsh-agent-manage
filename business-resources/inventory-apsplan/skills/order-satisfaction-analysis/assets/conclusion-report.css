@@ -1,0 +1,25 @@
+.dual-conclusion{color:#555d68;font-size:14px;line-height:1.8}
+.dual-conclusion .report-cover{padding:24px;background:#fff;border:1px solid #e3e6ea;border-radius:10px}
+.dual-conclusion .report-block{padding:24px;margin:18px 0;background:#fff;border:1px solid #e3e6ea;border-radius:10px;scroll-margin-top:140px}
+.dual-conclusion h3{font-size:19px;color:#20232a;margin:0 0 18px}
+.dual-conclusion h4{font-size:16px;color:#20232a;margin:22px 0 10px}
+.dual-conclusion p{white-space:pre-line;margin:12px 0 18px}
+.conclusion-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0 0 22px}
+.conclusion-metric{padding:18px;border:1px solid #e3e6ea;border-radius:10px;background:#f7f8fa}
+.conclusion-metric span{display:block;color:#7b8493;font-size:12px}
+.conclusion-metric strong{display:block;margin-top:6px;font-size:23px;color:#20232a}
+.conclusion-columns{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.dual-conclusion .conclusion-evidence{border:1px solid #e3e6ea;border-radius:8px;margin:18px 0;padding:12px 16px}
+.conclusion-evidence>summary{cursor:pointer;font-weight:600;color:#555d68}
+.dual-conclusion .report-table-wrap{margin:18px 0;overflow-x:auto}
+.dual-conclusion th,.dual-conclusion td{padding:12px 14px;text-align:left;vertical-align:top}
+.dual-conclusion th{background:#f7f8fa;color:#7b8493}
+.dual-conclusion .conclusion-footnote{font-size:12px;color:#7b8493}
+.report-nav a:focus-visible,.conclusion-evidence>summary:focus-visible{outline:2px solid #df1732;outline-offset:3px}
+.conclusion-filters{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.conclusion-filters .btn.selected{color:#df1732;background:#fff0f2;border-color:#df1732}
+.dual-conclusion [hidden]{display:none!important}
+.dual-conclusion .report-cover,.dual-conclusion .report-block{min-width:0;max-width:100%}
+.dual-conclusion .report-table-wrap table{min-width:760px}
+@media(max-width:700px){.conclusion-metrics,.conclusion-columns{grid-template-columns:1fr}.dual-conclusion .report-block{padding:18px 14px}.dual-conclusion .report-nav{display:flex;overflow-x:auto;white-space:nowrap}.dual-conclusion .report-nav a{flex-shrink:0}}
+@media print{.dual-conclusion .report-nav{position:static}.dual-conclusion .report-block{break-inside:auto}.dual-conclusion .conclusion-evidence{display:block}}

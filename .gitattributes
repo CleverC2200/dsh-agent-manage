@@ -2,3 +2,7 @@
 business-resources/aps-client-profile/prompt.md -text whitespace=cr-at-eol,-blank-at-eof
 business-resources/aps-client-profile/skills/** -text whitespace=cr-at-eol,-blank-at-eof
 business-resources/aps-client-profile/profile.json text eol=lf
+
+business-resources/inventory-apsplan/skills/plan-operations-weekly-report/** -text whitespace=cr-at-eol,-blank-at-eof
+business-resources/inventory-apsplan/skills/answer-visualization/** -text whitespace=cr-at-eol,-blank-at-eof
+business-resources/inventory-apsplan/skills/order-satisfaction-analysis/** -text whitespace=cr-at-eol,-blank-at-eof

@@ -4,7 +4,9 @@
   "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
   "tests": ["tests/*.test.ts", "tests/*.test.mjs", "scripts/source-quality.test.mjs", "scripts/workflow-preflight.test.mjs"],
   "sourceFixtures": {
-    "tests/aps-client-profile.test.mjs": { "dependencies": false },
+    "tests/aps-client-profile.test.mjs": {
+      "dependencies": false
+    },
     "scripts/workflow-preflight.test.mjs": {
       "dependencies": false
     },
@@ -19,9 +21,18 @@
     },
     "tests/mps-workflow.test.mjs": {
       "dependencies": false
+    },
+    "tests/aps-default-resources.test.mjs": {
+      "dependencies": false
     }
   },
   "rules": [
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^business-resources/inventory-apsplan/",
+      "tests": ["tests/aps-resources.test.ts", "tests/aps-default-resources.test.mjs"],
+      "sourceTests": ["tests/aps-default-resources.test.mjs"]
+    },
     {
       "repo": "dsh-agent-manage",
       "pattern": "^(?:business-resources/aps-client-profile/|\\.gitattributes$)",
