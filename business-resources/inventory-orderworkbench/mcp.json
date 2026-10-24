@@ -5,7 +5,9 @@
     "consumerType": "AGENT",
     "consumerCode": "order"
   },
-  "capabilities": [],
+  "capabilities": [
+    "governed-sql-read"
+  ],
   "transport": "host-provided",
   "contract": "gea-html-v2"
 }
