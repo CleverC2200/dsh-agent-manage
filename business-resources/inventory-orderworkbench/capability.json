@@ -23,11 +23,7 @@
     "mock": false
   },
   "maxEffect": "submit",
-  "layers": [
-    "read",
-    "draft",
-    "submit"
-  ],
+  "layers": ["read", "draft", "submit"],
   "skills": [
     "inventory-orderworkbench",
     "fulfillment-query-orchestrator",
@@ -42,10 +38,7 @@
     "improvement-action-closure"
   ],
   "routing": {
-    "keywords": [
-      "订单工作台",
-      "inventory-orderworkbench"
-    ],
+    "keywords": ["订单工作台", "inventory-orderworkbench"],
     "summary": "订单工作台指标达成、异常归因和改善闭环分析；以当前页面或用户提供的证据为准，保持已安装的数据与执行边界。"
   }
 }

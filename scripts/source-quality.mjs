@@ -143,8 +143,10 @@ function checkResources(result) {
           profile.pageAgents.some(id => typeof id !== 'string' || !/^gea-html-inventory-[a-z]+$/.test(id))))
     )
       throw Error(`RESOURCE_AGENT_IDENTITY: ${source}`)
-    const orderReport = group === 'business-resources/inventory-orderworkbench/' &&
-      capability.data?.consumerCode === 'order' && capability.data?.mock === false &&
+    const orderReport =
+      group === 'business-resources/inventory-orderworkbench/' &&
+      capability.data?.consumerCode === 'order' &&
+      capability.data?.mock === false &&
       capability.data?.tables?.includes('agents_order_workbench_report')
     if (
       capability.id !== group.split('/')[1] ||
@@ -155,9 +157,8 @@ function checkResources(result) {
       typeof capability.data?.consumerCode !== 'string' ||
       !/^[a-z][a-z0-9_-]+$/.test(capability.data.consumerCode) ||
       capability.maxEffect !== (orderReport ? 'submit' : 'view') ||
-      (capability.layers !== undefined && (orderReport
-        ? JSON.stringify(capability.layers) !== '["read","draft","submit"]'
-        : (!Array.isArray(capability.layers) || capability.layers.some(layer => layer !== 'read'))))
+      (capability.layers !== undefined &&
+        (orderReport ? JSON.stringify(capability.layers) !== '["read","draft","submit"]' : !Array.isArray(capability.layers) || capability.layers.some(layer => layer !== 'read')))
     )
       throw Error(`RESOURCE_CAPABILITY: ${group}capability.json`)
     const references = capability.resourceReferences
