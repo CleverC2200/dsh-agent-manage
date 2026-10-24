@@ -1,0 +1,16 @@
+{
+  "period": "2026-09",
+  "scope": "本次授权的月度业务范围",
+  "cutoff": "由本次任务填写",
+  "classificationMode": "positive-row-reference-v1",
+  "salesAccuracyWeights": null,
+  "orderRateDefinition": null,
+  "scheduleSupplyMetadata": {"unitMapping": {}},
+  "datasets": {
+    "orders": {"status":"pending","period":"2026-09","model":"ai_db.agents_scm_order_plan_exe_m","retrievedAt":null,"querySummary":null,"grain":["fromorderno_month","belong_base","region_code","province_region_code","material_code"],"files":["raw/orders-page-1.json"],"rowsPath":"rows","completion":{"file":"raw/orders-count.json","countPath":"rows.0.row_count"},"unit":"件","unitStatus":"unverified","fields":{}},
+    "sales": {"status":"pending","period":"2026-09","model":"ai_db.agents_scm_demand_sales_f","retrievedAt":null,"querySummary":"source_flag=销售口径","grain":["stat_month","belong_name","region_code","province_region_code","material_code"],"files":["raw/sales-page-1.json"],"rowsPath":"rows","completion":{"file":"raw/sales-count.json","countPath":"rows.0.row_count"},"unit":"件","unitStatus":"unverified","fields":{}},
+    "mapping": {"status":"pending","period":"2026-09","model":"ai_db.agents_scm_demand_sales_f","retrievedAt":null,"querySummary":"source_flag=基地口径，仅维度映射","grain":["stat_month","material_code","product_categ_name","material_group"],"files":["raw/mapping-page-1.json"],"rowsPath":"rows","completion":{"file":"raw/mapping-count.json","countPath":"rows.0.row_count"},"fields":{}},
+    "production": {"status":"pending","period":"2026-09","model":"ai_db.agents_mes_prod_oee_line_result_d","retrievedAt":null,"querySummary":null,"grain":["zdate","factory_name","material_code","order_code","batch_no","workcenter","deviation_reason"],"files":["raw/production-page-1.json"],"rowsPath":"rows","completion":{"file":"raw/production-count.json","countPath":"rows.0.row_count"},"unit":"件","unitStatus":"unverified","fields":{}},
+    "schedule": {"status":"pending","period":"2026-09","model":"ai_db.agents_prod_schedule_detail_d","retrievedAt":null,"querySummary":null,"grain":["base_finish_day","factory_name","material_code","order_no","data_source","measure_unit"],"files":["raw/schedule-page-1.json"],"rowsPath":"rows","completion":{"file":"raw/schedule-count.json","countPath":"rows.0.row_count"},"unitStatus":"unverified","fields":{}}
+  }
+}

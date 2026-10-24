@@ -45,3 +45,8 @@ business-resources/inventory-orderworkbench/skills/operations-exception-root-cau
 # Received client customization retains SOURCE.json byte hashes.
 business-resources/aps-client-profile/prompt.md
 business-resources/aps-client-profile/skills/
+
+# Approved client Skills preserve source bytes.
+business-resources/inventory-apsplan/skills/plan-operations-weekly-report/
+business-resources/inventory-apsplan/skills/answer-visualization/
+business-resources/inventory-apsplan/skills/order-satisfaction-analysis/

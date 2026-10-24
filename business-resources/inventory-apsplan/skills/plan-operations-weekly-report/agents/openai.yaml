@@ -1,0 +1,18 @@
+interface:
+  display_name: "计划运营周度管理报告"
+  short_description: "按固定管理结构生成指标达成、原因诊断与改善闭环周报"
+  default_prompt: "Use $plan-operations-weekly-report to generate this week's plan operations management report from the available business data."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "cube_new"
+      description: "查询 Cube 语义模型中的指标和维度数据"
+      transport: "streamable_http"
+      url: "http://127.0.0.1:19443/mcp"
+    - type: "mcp"
+      value: "gea_kb"
+      description: "核对指标口径、制度规则和业务背景资料"
+      transport: "streamable_http"
+      url: "http://127.0.0.1:19444/mcp"
+policy:
+  allow_implicit_invocation: true
