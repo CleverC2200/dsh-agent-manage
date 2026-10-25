@@ -11,12 +11,12 @@
       "agents_scm_branch_pending_order",
       "agents_scm_execute_detail_d",
       "agents_scm_inventory_sku_data_d",
-      "agents_scm_material_in_out_summary_d"
+      "agents_scm_material_in_out_summary_d",
+      "agents_scm_goods_inventory_turnover_data_m"
     ],
     "rules": [
-      "当前库存使用最新货龄快照的基地仓记录，排除分仓仓库；缺失不补零。",
-      "先锁定基地、物料、快照、目标月份与版本；同月纠偏、月初、滚动依次优先。截断或分页不能替代全量。",
-      "- 当前未备单订单缺货：仅取等待组波、组波中、组波完成、组波失败、提交成功、提交中、提交失败、上传验证、人工释放占用、撤回待改单、创建；短拨和调账已在同步层排除。需求为 agents_scm_execute_detail_d.adjust_order_qty，占用为同一状态同订单的 qtyallocated，均按已确认箱口径。先在订单+SKU累计后计算 max(需求-自身占用,0)，再按基地库存池/具体分仓+SKU累计，扣一次同池可用库存并截零，地点上卷只求和。库存总占用、月累计缺货、已下发WMS订单都不能替代。基地01/02按belong_base合池，分仓20按warehouseid独立；订单pickup_point通过出入库表唯一映射关联，不能直接等于warehouseid。保留较早创建但仍有效的订单；本指标是当前状态，不能重建历史。页面继续使用统一GEA受控SQL，卡片读SQL全范围汇总，列表默认10行翻页重查；不得对当前页重算全量缺口或将共享库存缺口分摊到订单。"
+      "指标公式、版本、缺数与输出规则读取 inventory-policy，其余业务 Skill 按该规范执行；权限、数据源不可达与字段局部缺失分别处理。",
+      "当前缺货沿 gea_current_shortage 的同源订单与占用、库存池和 SKU 三层计算，保留当前有效订单，不按创建月份或近 60 天截断。页面或固定工具测算与规则不一致时标注待复核，不互相替代。"
     ]
   },
   "maxEffect": "view",
