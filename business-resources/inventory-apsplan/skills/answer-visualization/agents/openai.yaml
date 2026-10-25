@@ -1,0 +1,7 @@
+interface:
+  display_name: "回答可视化生成"
+  short_description: "将复杂业务问答生成符合产销协同视觉规范的交互式 HTML"
+  default_prompt: "Use $answer-visualization to turn this business answer into a concise interactive HTML visualization."
+policy:
+  allow_implicit_invocation: true
+

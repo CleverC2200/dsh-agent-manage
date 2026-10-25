@@ -51,7 +51,7 @@ export async function presetHarness(options: PresetHarnessOptions = {}) {
   const bundle = join(dir, 'node_modules/test-bundle')
   await mkdir(bundle, { recursive: true })
   await mkdir(join(dir, 'node_modules/@deepseek-ai'), { recursive: true })
-  await symlink(join(core, 'packages/preset/agent-preset'), join(dir, 'node_modules/@deepseek-ai/dsh-agent-preset'))
+  await symlink(join(core, 'packages/preset/agent-preset'), join(dir, 'node_modules/@deepseek-ai/dsh-agent-preset'), process.platform === 'win32' ? 'junction' : 'dir')
   await writeFile(join(home, 'package.json'), '{"name":"preset-test-installation"}\n')
   await writeFile(join(bundle, 'package.json'), JSON.stringify({ name: 'test-bundle', version: '1.0.0', dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
   const base = load(await readFile(join(core, 'packages/bundle/base/cordis.patch.yml'), 'utf8'), { schema: entryListSchema }) as { insert: { id: string; config?: unknown }[] }[]

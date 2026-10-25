@@ -36,13 +36,9 @@
   },
   "maxEffect": "view",
   "layers": ["read"],
-  "skills": ["inventory-apsplan", "sales-forecast-result-analysis", "sales-ops-problem-analysis"],
-  "resourceReferences": {
-    "skills": ["sales-forecast-result-analysis", "sales-ops-problem-analysis"],
-    "consumers": ["sales_forecast"]
-  },
+  "skills": ["plan-operations-weekly-report", "answer-visualization", "order-satisfaction-analysis"],
   "routing": {
     "keywords": ["产销协同", "经营指标", "inventory-apsplan", "aps"],
-    "summary": "读取当前授权范围的产销经营指标、来源和缺失信息；保留现有预测及问题分析资源引用。"
+    "summary": "读取当前授权范围的产销经营指标；按需生成计划运营周报、可视化回答和订单满足率分析。"
   }
 }
