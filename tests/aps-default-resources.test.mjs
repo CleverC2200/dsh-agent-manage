@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, existsSync } from 'node:fs'
+import { URL } from 'node:url'
 const root = new URL('../business-resources/inventory-apsplan/', import.meta.url)
 const profile = JSON.parse(readFileSync(new URL('prompt.json', root)))
 const expected = ['plan-operations-weekly-report', 'answer-visualization', 'order-satisfaction-analysis']

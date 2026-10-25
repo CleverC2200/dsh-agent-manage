@@ -30,8 +30,7 @@
     {
       "repo": "dsh-agent-manage",
       "pattern": "^business-resources/inventory-apsplan/",
-      "tests": ["tests/aps-resources.test.ts", "tests/aps-default-resources.test.mjs"],
-      "sourceTests": ["tests/aps-default-resources.test.mjs"]
+      "tests": ["tests/aps-resources.test.ts", "tests/aps-default-resources.test.mjs"]
     },
     {
       "repo": "dsh-agent-manage",
