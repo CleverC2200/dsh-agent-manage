@@ -2,8 +2,10 @@
   "schemaVersion": 1,
   "sourceCommit": "797d33881a494fd0316e3f2241440830da7954a0",
   "sourcePath": "business-resources/inventory-mps",
-  "originalMcpCapabilities": ["governed-sql-read"],
-  "reception": "The seven-step MPS page uses one local evaluation draft and governed source reads. Stage two reads actual shipments through a cutoff and a separate recent range; missing order and inventory sources remain null. Current category-demand inputs, sales-submission shares and last-year shipment shares feed deterministic split results when complete. Same-version closing inventory, local safety days, constraint descriptions and individual capacity candidates feed the assessment and report projection. Unconfirmed formulas and missing sources remain null with reasons. Constraints are local descriptions, not applied scheduling rules. Formal business saving and final report templates remain pending. Original provenance hashes and existing Sessions are preserved.",
+  "originalMcpCapabilities": [
+    "governed-sql-read"
+  ],
+  "reception": "The seven-step MPS page uses one local evaluation draft and governed source reads. Stage two reads actual shipments through a cutoff and a separate recent range; missing order and inventory sources remain null. Current category-demand inputs, sales-submission shares and last-year shipment shares feed deterministic split results when complete. Same-version closing inventory, local safety days, constraint descriptions and individual capacity candidates feed the assessment and report projection. Unconfirmed formulas and missing sources remain null with reasons. Constraints are local descriptions, not applied scheduling rules. Formal business saving and final report templates remain pending. Original provenance hashes and existing Sessions are preserved. New governed source declarations cover one fixed monthly forecast batch and independently displayed base-dimension delivery indicators. Missing values, business-key duplicates and unconfirmed units remain explicit. Source fiscal-share and year/month growth fields do not define SKU split weights or unresolved planning formulas. Runtime grants and live reception remain separately verified.",
   "originalFilesSha256": {
     "prompt.json": "f0ef0755d5aca303ce3a73c9e5cf3f7261f46860033f4a9483e094d64b9c50ed",
     "capability.json": "de4ffe4b1a5b206608a9262238d8455a39b682664c43cd0fa85a4de713e8a6f2",
@@ -11,9 +13,9 @@
     "skills/inventory-mps/SKILL.md": "d9fdc49299a505dd91c0e8150a4da63aa602620e02315e5207ac98253b5a74f9"
   },
   "receivedFilesSha256": {
-    "prompt.json": "a3db379ae9f50df14fc8ba2ccb28d25aa0ced66c64e962d5a6318c07c35dd4c5",
-    "capability.json": "e72227b3679be7ec1fce029e80ead0937786842f5dc772bfa4ba9b7ba147bd54",
+    "prompt.json": "e416dc7817249d44b01ce415f494bd2264e0d987f5d961c740c0e16a3d1f698a",
+    "capability.json": "b6a0022401aa91344a87ea2ae9b0b4f2f5df9f6f93f1ed64b908bad8545a597c",
     "mcp.json": "289cdf2e44b9ba43599bb09a7ad2455b42cff596e959679e6eab63500cfd0b97",
-    "skills/inventory-mps/SKILL.md": "497f2d5e886bdf055a277e86284d91337c9a86d14150a469cfee0f40f213ace9"
+    "skills/inventory-mps/SKILL.md": "1f14aef0df7c5d2eb77ac9d2dc647443f0ad8c1f6fc732b71bfae17a7124fc81"
   }
 }
