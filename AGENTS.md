@@ -1,5 +1,7 @@
 # Agent Manage 开发导航
 
+在插件拆分项目内修改功能、调试界面或本地启动时，先读取项目根 `docs/agents/dependency-preparation.md` 的“源码调试与安装验收”，按当前任务选择源码反馈或安装验收，再执行构建。
+
 `dsh-agent-manage` 管理 Agent、Prompt、Skill、MCP/LSP 资源及库存、APS 的纯计算。Workbench 拥有业务页面与官方 Session 的关联，Core 持有 Session 和用户草稿，GEA Host 统一持有业务身份、凭据与授权。
 
 先读[当前开发入口](docs/current-development.md)，核本项目登记的 checkout、固定官方输入和检查范围。术语沿用 [CONTEXT.md](CONTEXT.md)。改资源接口时读[原生资源选用决定](.agents/notes/implemented/feature/2026-10-04-selected-business-resources.md)；改计算时读[库存合同](docs/design/inventory-compute.md)及[APS 归属](.agents/notes/implemented/architecture/2026-10-08-aps-ownership.md)。
