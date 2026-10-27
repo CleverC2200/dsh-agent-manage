@@ -20,7 +20,7 @@ export async function inventoryRoleInput(role: (typeof inventoryRoles)[number]) 
     prompt: 'prompt.json',
     capability: 'capability.json',
     profile,
-    skillFiles: { [role.id]: `skills/${role.skillDirectory}/SKILL.md` }
+    skillFiles: Object.fromEntries(role.skills.map(name => [name, `skills/${name === role.id ? role.skillDirectory : name}/SKILL.md`]))
   }
   const contract = JSON.parse(await readFile(resolve(root, 'capability.json'), 'utf8'))
   return { resource, contract }
