@@ -3,8 +3,21 @@
   "label": "基地库存",
   "data": {
     "consumerCode": "base-safety-stock",
-    "tables": ["agents_scm_safety_stock", "agents_scm_inventory_age", "agents_scm_branch_inventory_snapshot", "agents_scm_order_fulfillment", "agents_scm_branch_pending_order"],
-    "rules": ["当前库存使用最新货龄快照的基地仓记录，排除分仓仓库；缺失不补零。", "先锁定基地、物料、快照、目标月份与版本；同月纠偏、月初、滚动依次优先。截断或分页不能替代全量。"]
+    "tables": [
+      "agents_scm_safety_stock",
+      "agents_scm_inventory_age",
+      "agents_scm_branch_inventory_snapshot",
+      "agents_scm_order_fulfillment",
+      "agents_scm_branch_pending_order",
+      "agents_scm_execute_detail_d",
+      "agents_scm_inventory_sku_data_d",
+      "agents_scm_material_in_out_summary_d",
+      "agents_scm_goods_inventory_turnover_data_m"
+    ],
+    "rules": [
+      "指标公式、版本、缺数与输出规则读取 inventory-policy，其余业务 Skill 按该规范执行；权限、数据源不可达与字段局部缺失分别处理。",
+      "当前缺货沿 gea_current_shortage 的同源订单与占用、库存池和 SKU 三层计算，保留当前有效订单，不按创建月份或近 60 天截断。页面或固定工具测算与规则不一致时标注待复核，不互相替代。"
+    ]
   },
   "maxEffect": "view",
   "layers": ["read"],

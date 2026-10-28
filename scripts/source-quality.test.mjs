@@ -30,7 +30,7 @@ function fixture(t, files, changed) {
   git('commit', '-qm', 'change')
   const head = git('rev-parse', 'HEAD')
   const event = join(root, '.git/event.json')
-  writeFileSync(event, JSON.stringify({ pull_request: { base: { sha: base }, head: { sha: head } } }))
+  writeFileSync(event, JSON.stringify({ pull_request: { base: { ref: 'main', sha: base }, head: { sha: head } } }))
   const env = { ...process.env, GITHUB_EVENT_NAME: 'pull_request', GITHUB_EVENT_PATH: event }
   return { root, git, base, head, run: (phase, extra = {}) => spawnSync(process.execPath, [cli, '--phase', phase], { cwd: root, encoding: 'utf8', env: { ...env, ...extra } }) }
 }
@@ -40,6 +40,22 @@ test('a README-only pull request needs no engineering checks, including Markdown
   const result = repo.run('plan')
   assert.equal(result.status, 0, result.stderr)
   assert.equal(JSON.parse(result.stdout).mode, 'docs')
+})
+
+test('a frozen release PR target is rejected and retargeting to main is admitted', t => {
+  const repo = fixture(t, { 'README.md': 'Before\n' }, { 'README.md': 'After\n' })
+  const path = join(repo.root, '.git/event.json')
+  const event = JSON.parse(readFileSync(path, 'utf8'))
+  event.action = 'edited'
+  event.pull_request.base.ref = 'codex/windows-frozen-20261021-2'
+  writeFileSync(path, JSON.stringify(event))
+  const blocked = repo.run('plan')
+  assert.notEqual(blocked.status, 0)
+  assert.match(blocked.stderr, /SOURCE_PR_TARGET_MAIN_REQUIRED.*main/)
+  event.pull_request.base.ref = 'main'
+  writeFileSync(path, JSON.stringify(event))
+  assert.equal(repo.run('plan').status, 0)
+  assert.match(readFileSync(new URL('../.github/workflows/source-quality.yml', import.meta.url), 'utf8'), /pull_request:\s+types: \[[^\]]*\bedited\b/)
 })
 
 test('packaged Skills and consumed agent inputs stay resources despite Markdown suffixes', t => {
@@ -161,6 +177,8 @@ test('packaged Agent resources reject missing assembly inputs and invalid runtim
   const valid = fixture(t, files, { [prefix + 'prompt.json']: JSON.stringify({ ...prompt, persona: 'Use updated evidence.' }) })
   assert.equal(JSON.parse(valid.run('plan').stdout).engineering, false)
   assert.equal(valid.run('check').status, 0)
+  const cube = fixture(t, files, { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: ['governed-sql-read', 'governed-cube-read'] }) })
+  assert.equal(cube.run('check').status, 0)
   for (const changed of [
     { [prefix + 'prompt.json']: JSON.stringify({ ...prompt, persona: '' }) },
     { [prefix + 'prompt.json']: JSON.stringify({ ...prompt, consumerCode: 'another' }) },
@@ -170,7 +188,13 @@ test('packaged Agent resources reject missing assembly inputs and invalid runtim
     { [prefix + 'skills/demo/SKILL.md']: null },
     { [prefix + 'capability.json']: JSON.stringify({ ...capability, id: 'another' }) },
     { [prefix + 'capability.json']: JSON.stringify({ ...capability, maxEffect: 'approve' }) },
-    { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: [] }) }
+    { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: [] }) },
+    { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: ['governed-cube-read'] }) },
+    { [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: ['governed-sql-read', 'arbitrary-write'] }) },
+    {
+      [prefix + 'capability.json']: JSON.stringify({ ...capability, data: { ...capability.data, mock: true } }),
+      [prefix + 'mcp.json']: JSON.stringify({ ...mcp, capabilities: ['governed-sql-read', 'governed-cube-read'] })
+    }
   ]) {
     const repo = fixture(t, files, changed)
     const plan = JSON.parse(repo.run('plan').stdout)

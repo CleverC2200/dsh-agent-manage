@@ -1,26 +1,32 @@
 {
   "sourcePrompt": "base-inventory-agent_PROMPT.md",
-  "sourcePromptSha256": "93f7a4bae051b80ddc8b7247f709f5b7c26255c05fe961f1ef53411ca1582a5f",
+  "sourcePromptSha256": "984556e7d3074c8427682fc0570772ca8a5589a8ca1672abbd4224515f7d1d9f",
   "sourceArchive": "base-inventory-agent-skill-p1.zip",
-  "sourceArchiveSha256": "b1ae5be166b1724e60112638dcccdab99a8246e2cccc967844782cd99fe28b08",
-  "personaSha256": "a897eb321ddcea6290588aed26af894be7a431aae92a2d5d1e5b1de89bd27fcf",
-  "retainedSkillSha256": "41b8fb11d166ff89afb926f0e5632b0a4f4c0da3866e3ddaafc654597aa29454",
+  "sourceArchiveSha256": "31baf965ea0f689260e906ca3ee418326361d4b06382797c0a06636a33cc98e8",
+  "personaSha256": "b4efaa32ebe074110ef8c10ac285fb873e6fd8813c8a9e63c21fc648aa178d9f",
+  "retainedSkillSha256": "d60e791fc1b90eb789539a5637b6d6d9135c0b5ad191aab5c599d2644c08337f",
+  "originalRetainedSkillSha256": "9833180e2587755d05a5820121421c33531c71658069ea8fc531d2124027191d",
   "files": {
-    "skills/aging-stagnation-monitoring/SKILL.md": "2841aa1df0d79b57984e759fa859827be278e0e33cbe807bab92f6dd466dfa76",
-    "skills/aging-stagnation-monitoring/rules.md": "d17ebf85ff9042570239a6f461514347e79175083183d275a3234618f8cc059b",
-    "skills/future-aging-projection/SKILL.md": "48dc60b245902e758c83760de73b429f8022f33d53fea6b8bbc3b4e8b64ef4d8",
-    "skills/future-aging-projection/rules.md": "4f451fd8c1f06ffc8f219a7ddf137e08cead0dcbe64b3d0baf4a634e4870a282",
-    "skills/inventory-deviation-monitoring/SKILL.md": "5bd53c2b3bc3a678cc92bc062127e41ac7713b7d3e1a585c5b4f591d55095c9c",
-    "skills/inventory-deviation-monitoring/rules.md": "cc53076574102f8ede96c295603eed8fc14001a3b4e65a6b08793c3109f9ab2f",
-    "skills/inventory-policy/SKILL.md": "4dbc4397e89c205eb7d4e8a6e8d7b0197b7d538dc7d240944c5bde9c5dc5f165",
-    "skills/inventory-policy/rules/data-access-contract.md": "e399fe6ddc09ad9db31e461099d3dc6b0a599bd9af64065ee0aa5f00639173e1",
-    "skills/inventory-policy/rules/data-boundary.md": "c7978d01b700908fda42b39925d316949ac8c7d3d8bf67c8efc694c19d9fe476",
-    "skills/inventory-policy/rules/evidence-and-action-boundary.md": "e1713f4ab513c68cd9f62811d57e6dd1d0e5d929ab287d7c605848b5f156d4c0",
-    "skills/inventory-policy/rules/metric-catalog.md": "e68b09e2070ff83af38065b244a6ec15a13f53682676838934789c40c81acad7",
-    "skills/inventory-policy/rules/output-guide.md": "397845b81128454b591cfdfd4aa81ce8b2dd12a64cf38160297d5b289e11cc42",
-    "skills/report-templates/SKILL.md": "df1f964e090e753154c982d6bfef41216782347cfde94679aeded249ebb02252",
-    "skills/shortage-monitoring/SKILL.md": "9bfa9adc5e2bb119babc79fdeb571a9ce52b492cf137f29e28cd7434df7fe083",
-    "skills/shortage-monitoring/rules.md": "d4bf09688455a738cbc607e58f0cc7bb23315c3365d03f3c56a0769bcb298847"
+    "skills/aging-stagnation-monitoring/SKILL.md": "bb34f3d675b61ab461526beeb9de43ab1739a8e6e8801a712da2d8e994bbd409",
+    "skills/aging-stagnation-monitoring/rules.md": "3f5861eb611e740050897c18afa8f9dd68fce97168fe7a7612fb920c2a84c173",
+    "skills/future-aging-projection/SKILL.md": "66fc8dd2c9b0328fe99887923d9bb1a8d4c146dfa878b431c6363e4d21c46525",
+    "skills/future-aging-projection/rules.md": "cb64d58fd33e15f4ebacb2bc1a3c74188767fd6e06ed83874e389187e5d082b9",
+    "skills/inventory-deviation-monitoring/SKILL.md": "2b3399e78c3c0c6f0114ba3c5339453eb136d5333aa1e73965e03a631eb9768d",
+    "skills/inventory-deviation-monitoring/rules.md": "73a7ba828be13dc48edd8fff2e8634433e9229d7a2ea394eee0613efaa2c67a2",
+    "skills/inventory-policy/SKILL.md": "1856bdc6051c3d50f778d197f2140a75e010f1c1a5c89e154aa8ea2dc1ca6401",
+    "skills/inventory-policy/rules/data-access-contract.md": "ff8856ab6e0c2bd4b811728f8c26cb87bdf97c70291a85ce6329490f50b3dc4e",
+    "skills/inventory-policy/rules/data-boundary.md": "0d0a9487c350775f17a69fde3b6329175680fcabd9b02d38cea165932a23dcf2",
+    "skills/inventory-policy/rules/evidence-and-action-boundary.md": "313accd6a9d9b974e6a3ba324e7399ba4268608913443f0353062b9611f5bce5",
+    "skills/inventory-policy/rules/metric-catalog.md": "1bf73e6cc5fb2dbcd31616ab3f00ef3f3040fe3a9f70501bc92d01222ca0c25d",
+    "skills/inventory-policy/rules/output-guide.md": "a8f2b5fbb05e01d45903535e17c02b428cd8aa064696a26e51a3f63f6b295861",
+    "skills/report-templates/SKILL.md": "cf4b3d35db18e7b5f41516391ae99bf21d5b68c5136dfc8358b026def96650b4",
+    "skills/shortage-monitoring/SKILL.md": "2b26a44f58be1ca1e6f4f2d2a7e06b1f325771ff25262621a83b84842ec86007",
+    "skills/shortage-monitoring/rules.md": "998eeb2b4f4eef97db10b4aeb346735cb4c92554e4f2e16d08bab4c7608833f9"
   },
-  "adaptations": ["2026-10-19：按用户要求移除主提示词、输出指南及四个分析 Skill 中的四档固定输出结构与对应字数限制。"]
+  "adaptations": [
+    "2026-10-25：以用户提供的最新提示词与 Skill 包替换对应业务资源，保留既有 Agent ID、Consumer 与跨业务授权声明。",
+    "将附件的独立 Cube/知识工具名适配为 GEA Gateway；固定查询、知识库发现和证据回读沿当前公开工具，不增加授权。",
+    "保留当前缺货固定入口与当前有效订单范围，修正附件的近60天旧描述、截零层级矛盾和无效章节引用。",
+    "业务规则与当前页面/固定补货测算口径不一致时分列并标注待复核，本次不修改计算引擎、SQL 或业务写入能力。"
+  ]
 }

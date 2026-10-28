@@ -1,5 +1,7 @@
 # Agent Manage 开发导航
 
+在插件拆分项目内修改功能、调试界面或本地启动时，先读取项目根 `docs/agents/dependency-preparation.md` 的“源码调试与安装验收”，按当前任务选择源码反馈或安装验收，再执行构建。
+
 `dsh-agent-manage` 管理 Agent、Prompt、Skill、MCP/LSP 资源及库存、APS 的纯计算。Workbench 拥有业务页面与官方 Session 的关联，Core 持有 Session 和用户草稿，GEA Host 统一持有业务身份、凭据与授权。
 
 先读[当前开发入口](docs/current-development.md)，核本项目登记的 checkout、固定官方输入和检查范围。术语沿用 [CONTEXT.md](CONTEXT.md)。改资源接口时读[原生资源选用决定](.agents/notes/implemented/feature/2026-10-04-selected-business-resources.md)；改计算时读[库存合同](docs/design/inventory-compute.md)及[APS 归属](.agents/notes/implemented/architecture/2026-10-08-aps-ownership.md)。
@@ -30,5 +32,6 @@
 | 普通空 Home 必须发现原销售 Skill 及其完整引用资产；新任务默认智能编排并保留用户显式选择 | `check:capabilities` 的 standard-skill lane 运行 `bundled-sales-skills.test.ts` 和 `manage-bundle-default.test.ts`；quality workflow 按 `docs/clean-ci.md` 运行互不重复的静态、普通测试与能力集合 |
 | 当前包版本只由 package.json 维护，测试不固定某次发行的当前版本 | 生成器 `--check` 与 `test:package-version` 对照清单验证 Host/client 类型及实际编译后的不可变标识 |
 | 客户端能力验收使用的 Workbench 必须提供测试实际导入的接口 | `vitest.preset-client.config.ts` 调用 TypeScript 导出符号校验；`test:ci-inputs` 保留旧接口被前置拒绝的回归 |
+| 修复 PR 统一以 main 为目标，冻结交付使用固定提交 | `source-quality.mjs --phase plan` 拒绝非 main 的 PR；工作流覆盖目标分支变更，`source-quality.test.mjs` 验证错误目标 |
 
 该检查证明受控源码行为。实际三包安装及官方 Loader 接收仍由 GEA 的普通交付接收入口负责，不能用离线通过替代。

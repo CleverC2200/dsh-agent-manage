@@ -12,14 +12,14 @@ if (
   plan !== undefined &&
   (!plan ||
     plan.schemaVersion !== 1 ||
-    plan.mode !== 'required-and-affected' ||
+    !['required-and-affected', 'source-affected'].includes(plan.mode) ||
     plan.repo !== 'dsh-agent-manage' ||
     !Array.isArray(plan.files) ||
     !plan.files.length ||
     new Set(plan.files).size !== plan.files.length ||
-    plan.files.some(file => typeof file !== 'string' || !/^tests\/[^/]+\.test\.(?:ts|mjs)$/.test(file) || !existsSync(resolve(file))))
+    plan.files.some(file => typeof file !== 'string' || !/^(?:tests|scripts)\/[^/]+\.test\.(?:ts|mjs)$/.test(file) || !existsSync(resolve(file))))
 )
-  throw Error('CAPABILITY_PLAN_REQUIRED: expected the Manage required-and-affected test plan')
+  throw Error('CAPABILITY_PLAN_REQUIRED: expected the Manage affected test plan')
 if (plan?.files.some(file => Object.hasOwn(presetHostOwners, file))) throw Error('CAPABILITY_PLAN_UNOWNED_HOST: use the client execution owner')
 for (const file of Object.values(presetLanes).flatMap(lane => Object.keys(lane))) {
   if (!existsSync(resolve(file))) throw Error(`CAPABILITY_FILE_REQUIRED: ${file}`)
@@ -83,7 +83,7 @@ for (const [name, files] of phases) {
 const result = {
   at: new Date().toISOString(),
   stage: 'offline-capability',
-  mode: plan ? 'required-and-affected' : 'complete',
+  mode: plan ? plan.mode : 'complete',
   selection: plan,
   status: !phases.length ? 'not-applicable' : results.every(phase => phase.passed) ? 'passed' : 'failed',
   passed: results.every(phase => phase.passed),

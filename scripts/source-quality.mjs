@@ -25,6 +25,8 @@ const workingTree = process.argv.includes('--working-tree')
 const availableFiles = () => listed('ls-files', '--cached', ...(workingTree ? ['--others', '--exclude-standard'] : []), '-z').filter(file => existsSync(file))
 function plan() {
   const event = !workingTree && process.env.GITHUB_EVENT_PATH ? JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')) : {}
+  if (!workingTree && event.pull_request && event.pull_request.base?.ref !== 'main')
+    throw Error('SOURCE_PR_TARGET_MAIN_REQUIRED: retarget the PR to main; freeze build inputs by SHA')
   const head = (!workingTree && process.env.SOURCE_HEAD_SHA) || event.pull_request?.head?.sha || event.after || git('rev-parse', 'HEAD').trim()
   if (git('rev-parse', head) !== git('rev-parse', 'HEAD')) throw Error('SOURCE_HEAD_MISMATCH')
   const base = process.env.SOURCE_BASE_SHA || event.pull_request?.base?.sha || event.before || (workingTree ? head : undefined)
@@ -141,6 +143,11 @@ function checkResources(result) {
           profile.pageAgents.some(id => typeof id !== 'string' || !/^gea-html-inventory-[a-z]+$/.test(id))))
     )
       throw Error(`RESOURCE_AGENT_IDENTITY: ${source}`)
+    const orderReport =
+      group === 'business-resources/inventory-orderworkbench/' &&
+      capability.data?.consumerCode === 'order' &&
+      capability.data?.mock === false &&
+      capability.data?.tables?.includes('agents_order_workbench_report')
     if (
       capability.id !== group.split('/')[1] ||
       typeof capability.label !== 'string' ||
@@ -149,8 +156,9 @@ function checkResources(result) {
       (capability.enabled !== undefined && typeof capability.enabled !== 'boolean') ||
       typeof capability.data?.consumerCode !== 'string' ||
       !/^[a-z][a-z0-9_-]+$/.test(capability.data.consumerCode) ||
-      capability.maxEffect !== 'view' ||
-      (capability.layers !== undefined && (!Array.isArray(capability.layers) || capability.layers.some(layer => layer !== 'read')))
+      capability.maxEffect !== (orderReport ? 'submit' : 'view') ||
+      (capability.layers !== undefined &&
+        (orderReport ? JSON.stringify(capability.layers) !== '["read","draft","submit"]' : !Array.isArray(capability.layers) || capability.layers.some(layer => layer !== 'read')))
     )
       throw Error(`RESOURCE_CAPABILITY: ${group}capability.json`)
     const references = capability.resourceReferences
@@ -187,7 +195,9 @@ function checkResources(result) {
       mcp.contract !== 'gea-html-v2' ||
       mcp.consumer?.consumerType !== 'AGENT' ||
       mcp.consumer.consumerCode !== profile.consumerCode ||
-      JSON.stringify(mcp.capabilities) !== JSON.stringify(capability.data.mock === true ? [] : ['governed-sql-read'])
+      !(capability.data.mock === true
+        ? JSON.stringify(mcp.capabilities) === '[]'
+        : ['["governed-sql-read"]', '["governed-sql-read","governed-cube-read"]'].includes(JSON.stringify(mcp.capabilities)))
     )
       throw Error(`RESOURCE_CAPABILITY: ${group}mcp.json`)
   }

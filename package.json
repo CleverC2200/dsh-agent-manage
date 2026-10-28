@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
   "description": "配置个人智能体、技能和 MCP 连接，管理原生预设与资源。",
-  "version": "0.6.3-company.27",
+  "version": "0.6.3-company.33",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -43,7 +43,12 @@
       "types": "./lib/types/runtime/standard-preset.d.ts",
       "default": "./lib/runtime/standard-preset.js"
     },
-    "./locale/*.json": "./locale/*.json"
+    "./locale/*.json": "./locale/*.json",
+    "./mps-compute/*": {
+      "source": "./src/mps-compute/*.ts",
+      "types": "./lib/types/mps-compute/*.d.ts",
+      "default": "./lib/mps-compute/*.js"
+    }
   },
   "files": [
     "lib",
@@ -56,13 +61,14 @@
     "business-resources",
     "src/inventory-compute",
     "src/aps-compute",
+    "src/mps-compute",
     "locale/"
   ],
   "scripts": {
     "typecheck": "node scripts/generate-plugin-package-version.mjs --check && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "build": "node scripts/build.mjs",
     "build:client": "node scripts/build.mjs --client",
-    "test": "pnpm run test:package-version && vitest run && pnpm run test:preset-client",
+    "test": "pnpm run test:mps-compute && pnpm run test:package-version && vitest run && pnpm run test:preset-client",
     "test:contract": "vitest run tests/routes.test.ts tests/agent-mcp.test.ts",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src tests",
@@ -83,9 +89,10 @@
     "quality:ci": "node scripts/run-quality-ci.mjs",
     "test:ci-inputs": "node --test tests/ci-applicability.test.mjs tests/plugin-package-version.test.mjs tests/sdk-input-cli.test.mjs tests/quality-ci-cli.test.mjs tests/run-quality-checks.test.mjs tests/preset-capabilities-cli.test.mjs tests/sdk-artifact-cache.test.mjs tests/download-cache.test.mjs",
     "check:static": "pnpm run check:knowledge && pnpm run test:knowledge && pnpm run test:ci-inputs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
-    "test:ci-unit": "pnpm run test:package-version && vitest run --config vitest.ci-unit.config.ts",
+    "test:ci-unit": "pnpm run test:mps-compute && pnpm run test:package-version && vitest run --config vitest.ci-unit.config.ts",
     "test:agent-browser": "vitest run --config vitest.agent-browser.config.ts",
-    "check:static:ci": "pnpm run check:knowledge && node scripts/generate-plugin-package-version.mjs --check && tsc -p tsconfig.client.json --noEmit && pnpm run lint && pnpm run format:check && pnpm run check:architecture"
+    "check:static:ci": "pnpm run check:knowledge && node scripts/generate-plugin-package-version.mjs --check && tsc -p tsconfig.client.json --noEmit && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
+    "test:mps-compute": "node --experimental-strip-types --test tests/mps-workflow.test.mjs"
   },
   "dsh": {
     "bundle": {

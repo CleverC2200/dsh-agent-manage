@@ -62,6 +62,7 @@ export function UserAgentWorkspace({ t, startAgent, openEditor, surface = 'main'
     const result = await (agent.origin === 'plugin' ? userAgentApi.setPluginEnabled(agent.id, !agent.enabled) : userAgentApi.setEnabled(agent.id, !agent.enabled))
     if (selected?.id === agent.id) { setSelected(result); setDraft(value => ({ ...value, enabled: result.enabled })) }
     await refresh()
+    if (agent.origin === 'plugin' && !agent.enabled && result.enabled && result.publication === 'ready') setMessage(t('agentPluginEnabled'))
   })
   const start = (agent: UserAgentView) => void run(async () => {
     if (!startAgent) throw Error(t('agentHostUnavailable'))
@@ -95,7 +96,7 @@ export function UserAgentWorkspace({ t, startAgent, openEditor, surface = 'main'
         {agent.source && !agent.deletedAt && !agent.source.importPending && <button type="button" className={css.textButton} aria-label={t('agentSourceSync')} disabled={busy} onClick={() => { setAdding(false); setShowSources(true); setSourceRequest(previous => ({ id: agent.id, request: (previous?.request ?? 0) + 1 })) }}>{t('agentUpdate')}</button>}
         {!agent.deletedAt && enable(agent)}
       </article>)}
-      <TrustedPluginAgents onEdit={edit} t={t} />
+      <TrustedPluginAgents onEdit={edit} onMessage={setMessage} t={t} />
       {!agents.length && !adding && <p className={css.muted}>{t('agentEmpty')}</p>}
     </>}
     {error && <p role="alert" className={css.error}>{error}</p>}{message && <p role="status" className={css.muted}>{message}</p>}

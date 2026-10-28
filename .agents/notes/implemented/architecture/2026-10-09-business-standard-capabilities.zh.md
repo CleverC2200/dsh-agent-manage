@@ -12,6 +12,8 @@ Manage 使用 `composeStandardPreset` 发布所选业务提示词，将业务 pe
 
 普通 Manage bundle 将官方 registry 的 `config.default` 设为 `auto-negotiation`。Core 用户 `selectedDefault` 保留优先级。移除 bundle 同时撤销该配置层；未保存用户选择时恢复 Core 的 `standard`，已保存的公司预设选择保持原值，由 Core 返回既有缺失预设诊断。此范围是官方 bundle 开关，不包括独立禁用底层 Host entry。不改写用户选择、既有 Session 或草稿。
 
+智能编排预设声明 Consumer 为 `workbench` 的受管 Cube 来源。GEA 从实际 Core 预设解析该来源，智能编排继续使用通用预设组合，模型请求与网关 MCP 调用采用同一声明编码。来源可用性控制 Cube 与知识库 MCP 接入，原 persona、Skills 和标准通用能力沿用既有组合。服务端授权与本地来源就绪分别判断。
+
 `BusinessResourceDefinition.presetName` 和 `description` 是可信、可选的 Agent 目录元数据。资源发现和官方预设目录显示相同内容。未显式提供时，采用可信执行 profile 的 label 与同一函数生成的描述。页面标题仍归 Workbench。
 
 GEA 只限制未声明的 `gea_` 工具；执行守卫也会在模型 pre-step 之前检查业务工具声明。业务调用与证据额度只计 GEA 工具执行；Core 通用工具与可选插件继续遵循各自策略。结果与证据转换只作用于 GEA 和既有本地预测计算器，保留通用工具的官方结果。资源撤销仍可阻断整个业务 Session。Consumer 路由、身份代际、取消与业务 effect 限制继续归 GEA。

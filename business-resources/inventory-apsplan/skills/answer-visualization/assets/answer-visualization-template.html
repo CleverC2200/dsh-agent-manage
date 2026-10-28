@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>产销协同数字人｜通用可视化回答模板</title>
+  <style>
+    :root{--page:#f7f8fa;--surface:#fff;--subtle:#fafafa;--muted-surface:#f5f6f8;--text:#20232a;--body:#555d68;--muted:#858c96;--faint:#a0a4ac;--border:#e3e6ea;--strong-border:#d9dde3;--divider:#eceef1;--brand:#df1732;--brand-hover:#c91029;--brand-soft:#fff0f2;--hover:#fffafb;--hover-border:#efabb4;--success:#168e58;--success-soft:#eaf7ef;--warning:#956900;--warning-soft:#fff4d9;--risk:#c8112a;--risk-soft:#ffe9ec;--neutral:#667085;--neutral-soft:#eef1f5;--shadow:0 2px 10px #20273308;--shadow-hover:0 8px 20px #20273312;--radius:10px}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--page);color:var(--text);font:400 12px/1.7 "Microsoft YaHei UI","PingFang SC","Noto Sans CJK SC",Arial,sans-serif}button{font:inherit}button:focus-visible,a:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+    .topbar{height:52px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-bottom:1px solid var(--border)}.brand{display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px;font-weight:700}.brand-mark{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--brand);color:#fff;font-size:10px;font-weight:800}.toolbar{display:flex;align-items:center;gap:8px}.toolbar button,.chart-action{height:36px;padding:0 12px;border:1px solid var(--strong-border);border-radius:8px;color:var(--body);background:var(--surface);font-size:11px;font-weight:700;cursor:pointer;transition:160ms ease}.toolbar button:hover,.chart-action:hover{color:var(--brand);background:var(--hover);border-color:var(--hover-border)}.filter-state{color:var(--muted);font-size:10px}
+    .layout{width:min(1180px,calc(100% - 32px));margin:20px auto 48px}
+    main{min-width:0}.hero{padding:20px 24px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}.eyebrow{color:var(--brand);font-size:9px;line-height:1.35;letter-spacing:.08em;font-weight:700}.hero h1{margin:4px 0 5px;font-size:23px;line-height:1.15;font-weight:700;letter-spacing:-.02em}.hero-question{max-width:920px;margin:0;color:var(--body);font-size:13px;font-weight:600}.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.meta span{padding:3px 7px;border-radius:999px;background:var(--neutral-soft);color:var(--neutral);font-size:8px;font-weight:700}.demo-note{margin-top:10px;display:inline-flex;padding:3px 7px;border-radius:999px;color:var(--warning);background:var(--warning-soft);font-size:8px;font-weight:700}.hero-answer{margin-top:16px;padding-top:16px;border-top:1px solid var(--divider)}
+    #visualSections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px;row-gap:0}.section{min-width:0;scroll-margin-top:62px;margin-top:24px;grid-column:1/-1}.section.half{grid-column:span 1}.section-head{min-height:64px;padding:10px 0;display:grid;grid-template-columns:minmax(290px,1fr) auto;column-gap:8px;row-gap:3px;align-items:end}.section-kicker{color:var(--brand);font-size:9px;line-height:1.35;font-weight:700}.section h2{margin:2px 0 0;font-size:18px;line-height:1.35;font-weight:700}.section-desc{max-width:680px;margin-top:3px;color:var(--muted);font-size:9px;line-height:13px;text-align:left}.section-insight{margin:0 0 12px;color:var(--body);font-size:12px;line-height:1.7}.section-insight:before{content:"结论  ";color:var(--brand);font-size:9px;font-weight:800}.chart-actions{display:flex;gap:8px;justify-content:flex-end}.chart-action[aria-pressed="true"]{color:var(--brand);background:var(--brand-soft);border-color:var(--brand)}
+    .answer-summary{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,.5fr);gap:16px}.answer-card{padding:0 16px 0 0}.answer-card h2{margin:8px 0 0;font-size:20px;line-height:1.45}.answer-card p{margin:8px 0 0;color:var(--body);font-size:13px;line-height:1.75}.signal-list{display:grid;grid-template-columns:1fr;gap:8px}.signal{padding:10px 12px;border-radius:8px;background:var(--subtle)}.signal b{display:block;font-size:11px}.signal span{color:var(--muted);font-size:10px}.kpi,.evidence-item,.action-item,.visual-host{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
+    .kpis{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px}.kpi{min-height:132px;padding:14px;transition:160ms ease}.kpi:hover{transform:translateY(-1px);border-color:var(--hover-border);background:var(--hover);box-shadow:var(--shadow-hover)}.kpi-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.kpi-name{font-size:11px;font-weight:700}.status-group{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px}.status{display:inline-flex;gap:3px;align-items:center;padding:2px 6px;border-radius:999px;font-size:8px;line-height:1.25;font-weight:700;white-space:nowrap}.status.healthy{color:var(--success);background:var(--success-soft)}.status.warning{color:var(--warning);background:var(--warning-soft)}.status.severe{color:var(--risk);background:var(--risk-soft)}.status.info{color:var(--neutral);background:var(--neutral-soft)}.kpi-value{margin-top:16px;font-size:23px;font-weight:700;line-height:1.15;letter-spacing:-.04em;font-variant-numeric:tabular-nums}.kpi-sub{margin-top:6px;color:var(--muted);font-size:9px}.kpi-delta{margin-top:10px;color:var(--body);font-size:10px;font-weight:600}.good{color:var(--success)}.bad{color:var(--risk)}
+    .visual-host{min-height:250px;padding:18px}.section.half .visual-host{min-height:310px}.section.half .svg-chart{min-width:520px}.chart-view{display:block}.table-view{display:none}.show-table .chart-view{display:none}.show-table .table-view{display:block}.bar-chart{display:grid;gap:12px;padding:4px 0}.bar-row{display:grid;grid-template-columns:minmax(90px,160px) minmax(180px,1fr) 82px 48px;gap:12px;align-items:center;font-size:11px}.bar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:20px;border-radius:6px;background:var(--muted-surface);overflow:hidden}.bar-fill{height:100%;min-width:2px;border-radius:6px;background:#f4cdcf;transition:width 180ms ease}.bar-value{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+    .svg-wrap{width:100%;overflow-x:auto}.svg-chart{width:100%;min-width:660px;height:auto;display:block}.axis{stroke:#a0a4ac;stroke-width:1}.grid-line{stroke:var(--divider);stroke-width:1}.axis-label{fill:var(--muted);font-size:10px}.point-label{fill:var(--body);font-size:10px}.legend{display:flex;flex-wrap:wrap;gap:12px;margin:4px 0 12px;color:var(--body);font-size:10px}.legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:9px;height:9px;border-radius:3px;display:inline-block}.stack-list{display:grid;gap:12px}.stack-row{display:grid;grid-template-columns:130px 1fr;gap:12px;align-items:center;font-size:10px}.stack-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;background:var(--muted-surface)}.stack-seg{display:grid;place-items:center;min-width:1px;color:#fff;font-size:8px;font-weight:700;overflow:hidden}
+    .heatmap{display:grid;gap:4px;align-items:stretch;overflow-x:auto}.heat-label,.heat-cell{min-height:42px;padding:7px;display:grid;place-items:center;border-radius:6px;font-size:9px;text-align:center}.heat-label{color:#56677d;background:var(--muted-surface);font-weight:700}.heat-cell{font-weight:700}.heat-cell.healthy{color:#234a35;background:#b8d9c5}.heat-cell.warning{color:#7a5700;background:#fff2cc}.heat-cell.severe{color:#72121e;background:#ed999e}.heat-cell.info{color:var(--neutral);background:var(--neutral-soft)}
+    .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius)}table{width:100%;border-collapse:collapse;min-width:680px;font-size:10px}th{height:38px;padding:0 14px;text-align:left;color:#747b86;background:var(--muted-surface);border-bottom:1px solid var(--border);white-space:nowrap;font-size:9px;font-weight:800}td{height:44px;padding:0 14px;color:var(--body);border-bottom:1px solid var(--divider);vertical-align:middle}tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:var(--hover)}.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}.disclosure{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow);overflow:hidden}.disclosure summary{height:44px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;color:var(--body);font-size:11px;font-weight:700;list-style:none}.disclosure summary::-webkit-details-marker{display:none}.disclosure summary:after{content:"展开";color:var(--brand);font-size:10px}.disclosure[open] summary{border-bottom:1px solid var(--divider);background:var(--hover)}.disclosure[open] summary:after{content:"收起"}.disclosure-body{padding:12px}.evidence-list,.action-list{display:grid;gap:8px}.evidence-item,.action-item{display:grid;grid-template-columns:120px 1fr auto;gap:12px;align-items:start;padding:12px}.evidence-source,.action-owner{font-size:11px;font-weight:700}.evidence-text,.action-text{font-size:12px}.evidence-limit,.action-meta{color:var(--muted);font-size:10px}.empty{min-height:54px;padding:16px;display:grid;place-items:center;text-align:center;color:var(--muted);border:1px dashed var(--strong-border);border-radius:9px;background:#fafbfc;font-size:10px}.footer{padding:24px 6px 0;color:var(--muted);font-size:9px;text-align:center}.hidden{display:none!important}
+    @media(max-width:1200px){.kpis{grid-template-columns:repeat(2,1fr)}}@media(max-width:900px){#visualSections{grid-template-columns:1fr}.section.half{grid-column:1/-1}.answer-summary{grid-template-columns:1fr}.answer-card{padding-right:0}.signal-list{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:750px){.layout{width:min(100% - 20px,720px)}.topbar{padding:0 10px}.section-head{grid-template-columns:1fr}.section-desc{text-align:left}.chart-actions{justify-content:flex-start}.bar-row{grid-template-columns:90px minmax(120px,1fr) 64px 44px;gap:8px}.stack-row{grid-template-columns:90px 1fr}.evidence-item,.action-item{grid-template-columns:1fr}.signal-list{grid-template-columns:1fr}.toolbar .wide{display:none}}@media(max-width:520px){.kpis{grid-template-columns:1fr}.hero{padding:16px}.visual-host{padding:12px}.bar-row{grid-template-columns:76px minmax(92px,1fr) 58px}.bar-row .status{display:none}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.bar-fill,.kpi,.toolbar button,.chart-action{transition:none}}@media print{@page{size:A4 landscape;margin:12mm}body{background:#fff}.topbar,.chart-actions{display:none!important}.layout{width:100%;margin:0}.hero,.answer-card,.signal,.kpi,.evidence-item,.action-item,.visual-host,.disclosure{box-shadow:none}.section{margin-top:16px;break-inside:avoid}.table-view{display:block!important}.chart-view{display:none!important}.kpis{grid-template-columns:repeat(4,1fr)}details:not([open])>*:not(summary){display:block!important}.footer{page-break-before:avoid}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">AI</span><span>产销协同数字人</span></div>
+    <div class="toolbar"><span class="filter-state wide" id="filterState" aria-live="polite">当前：全部状态卡片</span><button class="wide" id="riskFilter" type="button" aria-pressed="false">仅看风险卡片</button><button type="button" onclick="window.print()">打印 / 导出 PDF</button></div>
+  </header>
+  <div class="layout">
+    <main>
+      <section class="hero" id="hero">
+        <div class="eyebrow">BUSINESS ANSWER · VISUAL EVIDENCE</div>
+        <h1 id="pageTitle"></h1>
+        <p class="hero-question" id="question"></p>
+        <div class="meta" id="meta"></div>
+        <div class="demo-note" id="demoNote"></div>
+        <div class="hero-answer" id="heroAnswer"></div>
+      </section>
+      <section class="section" id="kpiSection"></section>
+      <div id="visualSections"></div>
+      <section class="section" id="evidence"></section>
+      <section class="section" id="actions"></section>
+      <div class="footer" id="footer"></div>
+    </main>
+  </div>
+
+  <script>
+    /*
+      使用方式：只替换 ANSWER_DATA。正式输出应删除所有演示数据，并只配置回答问题所需的 1–3 张图。
+      详细选择规则见 visualization-selection-rules.md。
+    */
+    /* ANSWER_DATA_START */
+    const ANSWER_DATA = {
+      meta: {
+        title: "订单满足率异常分析",
+        question: "用户问题：本周订单满足率为什么下降，主要受哪些对象影响？",
+        scope: "全国｜示例范围",
+        period: "2026.10.05-10.11",
+        cutoff: "2026.10.12 08:00",
+        mode: "深度分析",
+        version: "DEMO-V1",
+        dataState: "演示数据，不代表正式经营结果"
+      },
+      summary: {
+        status: "severe",
+        headline: "满足率未达目标，缺口主要集中在西南基地与水饺品项",
+        text: "示例结果显示，本周满足率为 92.86%，较上周下降 1.24 pct。当前只能确认风险集中对象，原因仍需订单商品与供给实体关联验证。",
+        signals: [
+          {label:"最大风险",value:"西南基地",note:"满足率 88.91%"},
+          {label:"最大贡献品项",value:"水饺",note:"演示缺口占比 38%"},
+          {label:"证据状态",value:"待验证",note:"缺少供给匹配记录"}
+        ]
+      },
+      kpis: [
+        {label:"订单满足率",value:"92.86%",target:"目标 ≥95%",delta:"较上周 -1.24 pct",status:"severe",achievement:"未达",risk:"严重"},
+        {label:"未满足数量",value:"12.4万件",target:"未配置权威目标",delta:"较上周 +2.1万件",status:"severe",achievement:"无目标",risk:"严重"},
+        {label:"准交率",value:"95.81%",target:"目标 ≥98.5%",delta:"较上周 -0.86 pct",status:"warning",achievement:"未达",risk:"预警"},
+        {label:"可发货天数",value:"10.2天",target:"目标 ≤12天",delta:"较上周 -0.4天",status:"healthy",achievement:"达标",risk:"健康"}
+      ],
+      sections: [
+        {
+          id:"comparison",type:"bar",layout:"full",title:"基地满足率对比",kicker:"主图 · 对象比较",unit:"%",
+          insight:"横向柱状图用于无时间顺序的对象排名；西南基地为最低对象。",
+          data:{labels:["华东基地","华南基地","中原基地","西南基地"],values:[96.42,93.88,92.47,88.91],statuses:["healthy","warning","warning","severe"]}
+        },
+        {
+          id:"trend",type:"line",layout:"half",title:"近六周满足率趋势",kicker:"辅助图 · 时间变化",unit:"%",
+          insight:"折线图只用于连续可比期间；本周下降幅度扩大。",
+          data:{labels:["W36","W37","W38","W39","W40","W41"],series:[{name:"全国",color:"#ed999e",values:[95.4,95.1,94.8,95.2,94.1,92.86]},{name:"目标",color:"#c9ced7",values:[95,95,95,95,95,95]}]}
+        },
+        {
+          id:"matrix",type:"heatmap",layout:"half",title:"基地 × 品项风险矩阵",kicker:"辅助图 · 异常定位",unit:"风险状态",
+          insight:"热力图适合定位交叉异常；颜色同时配有文字状态，不能单独作为根因证据。",
+          data:{columns:["水饺","汤圆","面点","预制食材"],rows:[{label:"华东",cells:["healthy","healthy","healthy","warning"]},{label:"华南",cells:["warning","healthy","healthy","severe"]},{label:"中原",cells:["warning","warning","healthy","warning"]},{label:"西南",cells:["severe","warning","healthy","severe"]}]}
+        },
+        {
+          id:"details",type:"table",layout:"full",collapsed:true,title:"重点对象明细",kicker:"按需展开 · 精确查数",unit:"",
+          insight:"字段多、需要精确查数或审计时使用表格，不把大表强行画成图。",
+          data:{columns:[{key:"object",label:"对象"},{key:"rate",label:"满足率",align:"num"},{key:"gap",label:"未满足量",align:"num"},{key:"status",label:"风险状态"},{key:"evidence",label:"证据状态"}],rows:[{object:"西南基地×水饺",rate:"85.72%",gap:"2.9万件",status:"严重",evidence:"待验证"},{object:"西南基地×预制食材",rate:"89.14%",gap:"1.8万件",status:"严重",evidence:"数据不足"},{object:"华南基地×预制食材",rate:"91.26%",gap:"0.9万件",status:"预警",evidence:"待验证"}]}
+        }
+      ],
+      evidence: [
+        {source:"Cube｜示例",status:"info",text:"基地与品项指标结果",limit:"页面演示，未执行真实工具调用"},
+        {source:"gea_kb｜示例",status:"warning",text:"指标定义和目标值",limit:"页面演示，正式使用时必须替换为有 ASK 权限知识库返回的实际引用"}
+      ],
+      actions: [
+        {owner:"计划管理",status:"info",text:"核对西南基地重点订单商品与生产、库存和调拨供给的匹配关系",meta:"建议动作｜取得关联记录后再判定原因"},
+        {owner:"数据管理",status:"warning",text:"补充订单商品—供给实体关联与事件时间字段",meta:"数据缺口｜用于验证影响量和时间先后"}
+      ]
+    };
+    /* ANSWER_DATA_END */
+
+    const COLORS={healthy:"#168e58",warning:"#956900",severe:"#c8112a",info:"#667085"};
+    const CHART_FILLS={healthy:"#b8d9c5",warning:"#fff2cc",severe:"#ed999e",info:"#d9dde3"};
+    const STATUS_TEXT={healthy:"健康",warning:"预警",severe:"严重",info:"待验证"};
+    const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n};
+    const fmt=(v,unit="")=>typeof v==="number"?`${Number.isInteger(v)?v:v.toFixed(2).replace(/0+$/,'').replace(/\.$/,'')}${unit}`:`${v??"—"}${unit}`;
+    function badge(status,text){return el("span",`status ${status||"info"}`,`● ${text||STATUS_TEXT[status]||"信息"}`)}
+    function sectionHead(kicker,title,desc="") {const head=el("div","section-head"),left=el("div");left.append(el("div","section-kicker",kicker),el("h2",null,title));if(desc)left.append(el("div","section-desc",desc));head.append(left);return head}
+    function makeTable(columns,rows){const wrap=el("div","table-wrap"),table=el("table"),thead=el("thead"),trh=el("tr");columns.forEach(c=>trh.append(el("th",c.align||"",c.label)));thead.append(trh);const tbody=el("tbody");rows.forEach(row=>{const tr=el("tr");columns.forEach(c=>tr.append(el("td",c.align||"",row[c.key]??"—")));tbody.append(tr)});table.append(thead,tbody);wrap.append(table);return wrap}
+    function chartTable(section){const d=section.data;if(section.type==="bar"){const columns=[{key:"label",label:"对象"},{key:"value",label:`数值（${section.unit}）`,align:"num"}];if(d.statuses)columns.push({key:"status",label:"风险状态"});return makeTable(columns,d.labels.map((x,i)=>({label:x,value:fmt(d.values[i],section.unit),status:d.statuses?STATUS_TEXT[d.statuses[i]]:"—"})))}
+      if(section.type==="line"||section.type==="stacked"){const cols=[{key:"label",label:"期间／对象"},...d.series.map((s,i)=>({key:`s${i}`,label:`${s.name}（${section.unit}）`,align:"num"}))];return makeTable(cols,d.labels.map((x,i)=>{const r={label:x};d.series.forEach((s,j)=>r[`s${j}`]=fmt(s.values[i],section.unit));return r}))}
+      if(section.type==="scatter")return makeTable([{key:"label",label:"对象"},{key:"x",label:d.xLabel,align:"num"},{key:"y",label:d.yLabel,align:"num"},{key:"statusText",label:"状态"}],d.points.map(p=>({...p,statusText:STATUS_TEXT[p.status]})));
+      if(section.type==="heatmap"){return makeTable([{key:"row",label:"对象"},...d.columns.map((x,i)=>({key:`c${i}`,label:x}))],d.rows.map(r=>{const o={row:r.label};r.cells.forEach((c,i)=>o[`c${i}`]=STATUS_TEXT[c]);return o}))}
+      if(section.type==="waterfall"){let total=d.start;const rows=[{item:d.startLabel,delta:"—",total:fmt(total,section.unit)}];d.items.forEach(x=>{total+=x.delta;rows.push({item:x.label,delta:fmt(x.delta,section.unit),total:fmt(total,section.unit)})});rows.push({item:d.endLabel,delta:"—",total:fmt(d.end,section.unit)});return makeTable([{key:"item",label:"项目"},{key:"delta",label:"贡献",align:"num"},{key:"total",label:"累计",align:"num"}],rows)}
+      return makeTable(d.columns,d.rows)}
+    function renderBar(section){const host=el("div","bar-chart"),d=section.data,max=Math.max(...d.values,0);d.labels.forEach((label,i)=>{const row=el("div","bar-row"),track=el("div","bar-track"),fill=el("div","bar-fill"),state=d.statuses?.[i];fill.style.width=`${max?d.values[i]/max*100:0}%`;fill.style.background=CHART_FILLS[state]||"#f4cdcf";fill.title=`${label}：${fmt(d.values[i],section.unit)}`;track.append(fill);row.append(el("div","bar-label",label),track,el("div","bar-value",fmt(d.values[i],section.unit)),state?badge(state,STATUS_TEXT[state]):el("span"));host.append(row)});return host}
+    function svgBase(){const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("viewBox","0 0 760 320");svg.classList.add("svg-chart");return svg}
+    function svgEl(tag,attrs={}){const n=document.createElementNS("http://www.w3.org/2000/svg",tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));return n}
+    function renderLine(section){const d=section.data,wrap=el("div"),legend=el("div","legend"),svg=svgBase(),L=52,R=22,T=26,B=46,W=760-L-R,H=320-T-B,vals=d.series.flatMap(s=>s.values.filter(v=>v!=null)),min=Math.min(...vals),max=Math.max(...vals),pad=(max-min||1)*.12,ymin=min-pad,ymax=max+pad,x=i=>L+(d.labels.length===1?W/2:i*W/(d.labels.length-1)),y=v=>T+(ymax-v)/(ymax-ymin)*H;
+      d.series.forEach(s=>{const item=el("span");const sw=el("i");sw.style.background=s.color;item.append(sw,document.createTextNode(s.name));legend.append(item)});for(let i=0;i<5;i++){const yy=T+i*H/4;svg.append(svgEl("line",{x1:L,y1:yy,x2:L+W,y2:yy,class:"grid-line"}));const tx=svgEl("text",{x:L-8,y:yy+4,"text-anchor":"end",class:"axis-label"});tx.textContent=(ymax-i*(ymax-ymin)/4).toFixed(1);svg.append(tx)}d.labels.forEach((lab,i)=>{const tx=svgEl("text",{x:x(i),y:T+H+24,"text-anchor":"middle",class:"axis-label"});tx.textContent=lab;svg.append(tx)});d.series.forEach(s=>{let seg=[];const flush=()=>{if(seg.length>1)svg.append(svgEl("polyline",{points:seg.join(" "),fill:"none",stroke:s.color,"stroke-width":3,"stroke-linejoin":"round","stroke-linecap":"round"}));seg=[]};s.values.forEach((v,i)=>{if(v==null){flush();return}seg.push(`${x(i)},${y(v)}`);const c=svgEl("circle",{cx:x(i),cy:y(v),r:4.5,fill:s.color,tabindex:0});const title=svgEl("title");title.textContent=`${s.name} ${d.labels[i]}：${fmt(v,section.unit)}`;c.append(title);svg.append(c)});flush()});svg.append(svgEl("line",{x1:L,y1:T+H,x2:L+W,y2:T+H,class:"axis"}));const box=el("div","svg-wrap");box.append(svg);wrap.append(legend,box);return wrap}
+    function renderStacked(section){const d=section.data,wrap=el("div"),legend=el("div","legend"),list=el("div","stack-list");d.series.forEach(s=>{const item=el("span"),sw=el("i");sw.style.background=s.color;item.append(sw,document.createTextNode(s.name));legend.append(item)});d.labels.forEach((lab,i)=>{const row=el("div","stack-row"),bar=el("div","stack-bar"),total=d.series.reduce((a,s)=>a+(s.values[i]||0),0);d.series.forEach(s=>{const seg=el("div","stack-seg",total?`${Math.round(s.values[i]/total*100)}%`:"");seg.style.width=`${total?s.values[i]/total*100:0}%`;seg.style.background=s.color;seg.title=`${s.name}：${fmt(s.values[i],section.unit)}`;bar.append(seg)});row.append(el("div",null,`${lab} · ${fmt(total,section.unit)}`),bar);list.append(row)});wrap.append(legend,list);return wrap}
+    function renderHeatmap(section){
+      const d=section.data,grid=el("div","heatmap");
+      grid.style.gridTemplateColumns=`130px repeat(${d.columns.length},minmax(85px,1fr))`;
+      grid.append(el("div","heat-label","对象"));
+      d.columns.forEach(c=>grid.append(el("div","heat-label",c)));
+      d.rows.forEach(r=>{
+        grid.append(el("div","heat-label",r.label));
+        r.cells.forEach(c=>grid.append(el("div",`heat-cell ${c}`,STATUS_TEXT[c])));
+      });
+      return grid;
+    }
+    function renderScatter(section){const d=section.data,svg=svgBase(),L=58,R=28,T=24,B=54,W=760-L-R,H=320-T-B,xvals=d.points.map(p=>p.x),yvals=d.points.map(p=>p.y),xmin=Math.min(...xvals),xmax=Math.max(...xvals),ymin=Math.min(...yvals),ymax=Math.max(...yvals),xp=(xmax-xmin||1)*.12,yp=(ymax-ymin||1)*.12,x=v=>L+(v-(xmin-xp))/(xmax-xmin+2*xp)*W,y=v=>T+(ymax+yp-v)/(ymax-ymin+2*yp)*H;for(let i=0;i<5;i++){const yy=T+i*H/4;svg.append(svgEl("line",{x1:L,y1:yy,x2:L+W,y2:yy,class:"grid-line"}));const yt=svgEl("text",{x:L-8,y:yy+4,"text-anchor":"end",class:"axis-label"});yt.textContent=(ymax+yp-i*(ymax-ymin+2*yp)/4).toFixed(1);svg.append(yt)}d.points.forEach(p=>{const c=svgEl("circle",{cx:x(p.x),cy:y(p.y),r:7,fill:COLORS[p.status]||COLORS.info,opacity:.9,tabindex:0});const t=svgEl("title");t.textContent=`${p.label}｜${d.xLabel} ${p.x}｜${d.yLabel} ${p.y}`;c.append(t);svg.append(c);const tx=svgEl("text",{x:x(p.x)+9,y:y(p.y)-8,class:"point-label"});tx.textContent=p.label;svg.append(tx)});svg.append(svgEl("line",{x1:L,y1:T+H,x2:L+W,y2:T+H,class:"axis"}),svgEl("line",{x1:L,y1:T,x2:L,y2:T+H,class:"axis"}));const xl=svgEl("text",{x:L+W/2,y:310,"text-anchor":"middle",class:"axis-label"});xl.textContent=d.xLabel;svg.append(xl);const box=el("div","svg-wrap");box.append(svg);return box}
+    function renderWaterfall(section){const d=section.data,items=[{label:d.startLabel,value:d.start,type:"total"},...d.items.map(x=>({label:x.label,value:x.delta,type:x.delta>=0?"up":"down"})),{label:d.endLabel,value:d.end,type:"total"}],svg=svgBase(),L=48,R=20,T=25,B=54,W=760-L-R,H=320-T-B;let running=d.start;const totals=[0,d.start,...d.items.map(x=>x.delta),d.end],min=Math.min(0,d.start,d.end,d.start+Math.min(0,...d.items.map(x=>x.delta))),max=Math.max(d.start,d.end,d.start+Math.max(0,...d.items.map(x=>x.delta))),pad=(max-min||1)*.15,y=v=>T+(max+pad-v)/(max-min+2*pad)*H,bw=W/items.length*.58,x=i=>L+(i+.5)*W/items.length-bw/2;items.forEach((item,i)=>{let a,b;if(item.type==="total"){a=0;b=item.value;if(i===items.length-1)running=item.value}else{a=running;b=running+item.value;running=b}const top=y(Math.max(a,b)),bottom=y(Math.min(a,b)),rect=svgEl("rect",{x:x(i),y:top,width:bw,height:Math.max(2,bottom-top),rx:4,fill:item.type==="up"?COLORS.healthy:item.type==="down"?COLORS.severe:COLORS.info});const title=svgEl("title");title.textContent=`${item.label}：${fmt(item.value,section.unit)}`;rect.append(title);svg.append(rect);const lab=svgEl("text",{x:x(i)+bw/2,y:T+H+23,"text-anchor":"middle",class:"axis-label"});lab.textContent=item.label;svg.append(lab);if(i<items.length-1&&item.type!=="total"||i===0){const yy=y(i===0?d.start:running);svg.append(svgEl("line",{x1:x(i)+bw,y1:yy,x2:x(i+1),y2:yy,stroke:"#a0a4ac","stroke-dasharray":"3 3"}))}});svg.append(svgEl("line",{x1:L,y1:y(0),x2:L+W,y2:y(0),class:"axis"}));const box=el("div","svg-wrap");box.append(svg);return box}
+    function renderVisual(section){if(section.type==="bar")return renderBar(section);if(section.type==="line")return renderLine(section);if(section.type==="stacked")return renderStacked(section);if(section.type==="heatmap")return renderHeatmap(section);if(section.type==="scatter")return renderScatter(section);if(section.type==="waterfall")return renderWaterfall(section);return makeTable(section.data.columns,section.data.rows)}
+    function makeDisclosure(label,body,open=false){const box=el("details","disclosure"),summary=el("summary",null,label);box.open=open;box.append(summary,body);return box}
+    function renderPage(data){document.title=`${data.meta.title}｜产销协同数字人`;document.getElementById("pageTitle").textContent=data.meta.title;document.getElementById("question").textContent=data.meta.question;const meta=document.getElementById("meta");[["范围",data.meta.scope],["期间",data.meta.period],["截止",data.meta.cutoff],["模式",data.meta.mode],["版本",data.meta.version]].forEach(([k,v])=>meta.append(el("span",null,`${k}：${v}`)));const note=document.getElementById("demoNote");note.textContent=`⚠ ${data.meta.dataState}`;if(!data.meta.dataState)note.classList.add("hidden");
+      const summary=document.getElementById("heroAnswer"),sg=el("div","answer-summary"),card=el("div","answer-card");card.append(badge(data.summary.status),el("h2",null,data.summary.headline),el("p",null,data.summary.text));const signals=el("div","signal-list");data.summary.signals.forEach(s=>{const n=el("div","signal");n.append(el("b",null,`${s.label}：${s.value}`),el("span",null,s.note));signals.append(n)});sg.append(card,signals);summary.append(sg);
+      const kp=document.getElementById("kpiSection");kp.append(sectionHead("KEY METRICS","关键指标","达成状态与风险状态分别展示"));const kg=el("div","kpis");data.kpis.forEach(k=>{const c=el("article",`kpi ${k.status}`),top=el("div","kpi-top"),badges=el("div","status-group");if(k.achievement)badges.append(badge(k.achievement==="达标"?"healthy":k.achievement==="未达"?"severe":"info",k.achievement));if(k.risk)badges.append(badge(k.status,k.risk));top.append(el("div","kpi-name",k.label),badges);c.append(top,el("div","kpi-value",k.value),el("div","kpi-sub",k.target),el("div",`kpi-delta ${/\-|下降|恶化/.test(k.delta)&&k.status!=="healthy"?"bad":""}`,k.delta));kg.append(c)});kp.append(kg);
+      const visual=document.getElementById("visualSections");data.sections.forEach((s,index)=>{const sec=el("section",`section ${s.layout==="half"?"half":"full"}`);sec.id=s.id;const head=sectionHead(s.kicker,s.title,`${data.meta.period} · 单位：${s.unit||"见表"}`),actions=el("div","chart-actions");if(s.type!=="table"){const btn=el("button","chart-action","查看数据表");btn.type="button";btn.setAttribute("aria-pressed","false");btn.addEventListener("click",()=>{sec.classList.toggle("show-table");const showing=sec.classList.contains("show-table");btn.textContent=showing?"返回图表":"查看数据表";btn.setAttribute("aria-pressed",String(showing))});actions.append(btn);head.append(actions)}sec.append(head);const body=el("div",s.collapsed?"disclosure-body":""),insight=el("p","section-insight",s.insight),host=el("div","visual-host"),cv=el("div","chart-view"),tv=el("div","table-view");cv.append(renderVisual(s));tv.append(chartTable(s));host.append(cv,tv);body.append(insight,host);sec.append(s.collapsed?makeDisclosure(`查看${s.title}`,body):body);visual.append(sec)});
+      const ev=document.getElementById("evidence");ev.append(sectionHead("EVIDENCE","证据与限制","按需展开，区分已验证事实、待验证线索和数据缺口"));const evBody=el("div","disclosure-body"),evl=el("div","evidence-list");if(data.evidence.length)data.evidence.forEach(e=>{const n=el("div","evidence-item");n.dataset.status=e.status;n.append(el("div","evidence-source",e.source),el("div","evidence-text",e.text),badge(e.status));n.append(el("div"),el("div","evidence-limit",e.limit));evl.append(n)});else evl.append(el("div","empty","暂无可展示证据"));evBody.append(evl);ev.append(makeDisclosure(`查看 ${data.evidence.length} 条证据与限制`,evBody));
+      const ac=document.getElementById("actions");ac.append(sectionHead("NEXT ACTION","建议与下一步","已验证原因给改善建议，待验证原因只给核查建议"));const acBody=el("div","disclosure-body"),acl=el("div","action-list");if(data.actions.length)data.actions.forEach(a=>{const n=el("div","action-item");n.dataset.status=a.status;n.append(el("div","action-owner",a.owner),el("div","action-text",a.text),badge(a.status));n.append(el("div"),el("div","action-meta",a.meta));acl.append(n)});else acl.append(el("div","empty","当前问题无需行动建议"));acBody.append(acl);ac.append(makeDisclosure(`查看 ${data.actions.length} 条建议`,acBody));document.getElementById("footer").textContent=`生成范围：${data.meta.scope}｜数据截止：${data.meta.cutoff}｜${data.meta.dataState||"数据状态已核验"}`;
+      bindRiskFilter();}
+    function bindRiskFilter(){let risk=false;const btn=document.getElementById("riskFilter"),state=document.getElementById("filterState");btn.addEventListener("click",()=>{risk=!risk;btn.textContent=risk?"显示全部卡片":"仅看风险卡片";btn.setAttribute("aria-pressed",String(risk));state.textContent=risk?"当前：预警、严重及待验证卡片":"当前：全部状态卡片";document.querySelectorAll(".kpi,.evidence-item,.action-item").forEach(n=>{const status=n.dataset.status||[...n.classList].find(x=>["healthy","warning","severe","info"].includes(x));n.classList.toggle("hidden",risk&&status==="healthy")})})}
+    renderPage(ANSWER_DATA);
+  </script>
+</body>
+</html>

@@ -2,13 +2,28 @@
   "id": "inventory-orderworkbench",
   "label": "订单工作台",
   "data": {
-    "consumerCode": "orderworkbench-preview",
-    "tables": [],
-    "rules": [],
-    "mock": true
+    "consumerCode": "order",
+    "tables": [
+      "agents_order_cancel_change_di",
+      "agents_order_execute_isontime_mi",
+      "agents_scm_stock_detail_d",
+      "agents_scm_inventory_sku_data_d",
+      "agents_scm_material_in_out_summary_d",
+      "agents_scm_execute_detail_d",
+      "agents_order_workbench_report"
+    ],
+    "rules": [
+      "仅通过当前order授权范围读取；拒权不回退模拟数据，不扩大权限。",
+      "按2026-10-23指标表：作废/改单分类型1/2汇总cancel_qty除order_qty；数量空值按0，保留正负。满足率1−sum(outqty)/sum(need_qty_origin)，不按exp_flag排除；准交sum(is_ontime)/count(is_ontime)，空判定排除，非订单去重张数。",
+      "满足率和可发货天数使用Manage公共计算。可发货天数取库存快照滚动销售计划加0.5调出计划除当月自然天数，再用可用库存除日均需求；不混用目标库存表的缺失关联。",
+      "货龄只取基地01/02批次≥60天占比；按指标表排除零库存或无生产日期批次，保留源数量正负；非零库存生产日期异常保持未知。源快照日单列，不能把当天批次说成昨日。",
+      "订单累计截至T-1，库存使用当前筛选内最新源快照。环比同比为同长度已完成周期；没有历史来源保持未知。总监按本期基地SKU唯一映射，共同责任分别显示，不相加。",
+      "页面evidence提供全量汇总、数据日期、查询状态和有限明细样本；禁止用样本重算全量。人工结论、改善、任务随周期报告保存到agents_order_workbench_report，仅在网关授权成功并回读核对后确认保存。"
+    ],
+    "mock": false
   },
-  "maxEffect": "view",
-  "layers": ["read"],
+  "maxEffect": "submit",
+  "layers": ["read", "draft", "submit"],
   "skills": [
     "inventory-orderworkbench",
     "fulfillment-query-orchestrator",

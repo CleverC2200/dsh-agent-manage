@@ -1,8 +1,12 @@
 {
   "schemaVersion": 1,
+  "versionTests": ["tests/plugin-package-version.test.mjs"],
   "required": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
   "tests": ["tests/*.test.ts", "tests/*.test.mjs", "scripts/source-quality.test.mjs", "scripts/workflow-preflight.test.mjs"],
   "sourceFixtures": {
+    "tests/aps-client-profile.test.mjs": {
+      "dependencies": false
+    },
     "scripts/workflow-preflight.test.mjs": {
       "dependencies": false
     },
@@ -14,9 +18,37 @@
     },
     "tests/official-source-alias.test.mjs": {
       "dependencies": true
+    },
+    "tests/mps-workflow.test.mjs": {
+      "dependencies": false
+    },
+    "tests/aps-default-resources.test.mjs": {
+      "dependencies": false
     }
   },
   "rules": [
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^business-resources/inventory-apsplan/",
+      "tests": ["tests/aps-resources.test.ts", "tests/aps-default-resources.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:business-resources/aps-client-profile/|\\.gitattributes$)",
+      "tests": ["tests/aps-client-profile.test.mjs"],
+      "sourceTests": ["tests/aps-client-profile.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^business-resources/inventory-mps/",
+      "tests": ["tests/mps-resource-reception.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^src/mps-compute/",
+      "tests": ["tests/mps-workflow.test.mjs"],
+      "sourceTests": ["tests/mps-workflow.test.mjs"]
+    },
     {
       "repo": "dsh-agent-manage",
       "pattern": "^\\.codex/environments/environment\\.toml$",
@@ -264,6 +296,7 @@
   "sourceTools": {
     "tests/quality-ci-cli.test.mjs": ["yaml"],
     "tests/official-source-alias.test.mjs": ["zod"],
-    "tests/order-agents-resource-package.test.mjs": []
+    "tests/order-agents-resource-package.test.mjs": [],
+    "tests/mps-workflow.test.mjs": []
   }
 }

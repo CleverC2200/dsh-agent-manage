@@ -1,0 +1,201 @@
+{
+  "kind": "runtime",
+  "files": [
+    {
+      "file": "SKILL.md",
+      "sha256": "13ee9598d225a50d50e6ea01f059cbb7ba7ab9b46104c5eb8b5220264af48e97"
+    },
+    {
+      "file": "agents/openai.yaml",
+      "sha256": "88ccd97b223676640faac5e246c44ded34d9e1bc2d821615890515aa9c4efa46"
+    },
+    {
+      "file": "scripts/audit-bindings.cjs",
+      "sha256": "6a42f87dffa2d8ec532d696a766ebf3a9a90d7e6cce6b6cb58c86c1537b73ffe"
+    },
+    {
+      "file": "scripts/audit-report-data.cjs",
+      "sha256": "aa99cf5feba0f16ea35eaddaa8c82b1439fb11e2e0b44756da15374a0c73417e"
+    },
+    {
+      "file": "scripts/business-conclusion.cjs",
+      "sha256": "b289fb5aa2de9ea075895926272a34e6f2e52a762bd58e7ef8469869e2a15045"
+    },
+    {
+      "file": "scripts/check-template-coverage.cjs",
+      "sha256": "ec1bf37e1da47f39e2de31eb3e3aeea767ff5b08070726f1640f1b0f60629efd"
+    },
+    {
+      "file": "scripts/conclusion-report.js",
+      "sha256": "fd9c2f6016b4f91dbced895e5237d25e00faf1847f02da4a62003c3cdb6017aa"
+    },
+    {
+      "file": "scripts/generate-report.cjs",
+      "sha256": "6c79976207b22b5b1522978f5e0f0a4c4b340fe63baa54a26b50b303b25b6583"
+    },
+    {
+      "file": "scripts/guided-report.cjs",
+      "sha256": "b79b6f91753b1b396276dcbc1d94ec26a804c93a7e169f5a972238a877075672"
+    },
+    {
+      "file": "scripts/ingest-mcp-result.cjs",
+      "sha256": "ef47297a8f783178ff4ea0a4b9a9a984682a7c729080c17a8b0bfcb7acb3cf0d"
+    },
+    {
+      "file": "scripts/interactive-runtime.js",
+      "sha256": "38878456048ab5c1eff77edb9c68fe011e47a2d306122fcf62125c218700db38"
+    },
+    {
+      "file": "scripts/make-query-plan.cjs",
+      "sha256": "c749e7fb56ee0f778c260d083bbd1342aea6b850efcd0066d054fd188336358e"
+    },
+    {
+      "file": "scripts/prepare-report-data.cjs",
+      "sha256": "f4cf92a6b4737c135a44d4f0086612f409619532ea779992a556124b51321e8a"
+    },
+    {
+      "file": "scripts/prepare-source-bundle.cjs",
+      "sha256": "b59998bf69da79daf741fa90fd68b12e8350fb252384de5e3613f2695cd73327"
+    },
+    {
+      "file": "scripts/production-reason-dictionary.js",
+      "sha256": "ddbc3338f281d95e6a8ec054ebc8c6171abafdc7f2d3f0681adbdc861babd4a7"
+    },
+    {
+      "file": "scripts/production-reasons.js",
+      "sha256": "4e61003012b66ec560f79c97769cb3c5ea6baf8f0e46b1a7a76283ec2b29f9eb"
+    },
+    {
+      "file": "scripts/query-evidence.cjs",
+      "sha256": "747b28cf52f4d136b5e21b5a4f601ad1760af67f895f21febad3d8a928d15b67"
+    },
+    {
+      "file": "scripts/report-controls.js",
+      "sha256": "948919489cadc241e10e8e9014578fbff82c1359bdb23c016f92ad1473a66c8f"
+    },
+    {
+      "file": "scripts/report-core.js",
+      "sha256": "92cfd0cafae66870eb74a1befe696df94f9139de9c0d7968e5039b9439e1d197"
+    },
+    {
+      "file": "scripts/report-environment.cjs",
+      "sha256": "d6b16129d5f6d674f9d1513ffeea6bde7a9a7e835004231a563b70bd1f05d7ea"
+    },
+    {
+      "file": "scripts/report-responsive.js",
+      "sha256": "5396f06bfd33b16647c02aec5c5db99a0ac6a592ae856af18faad5d82b3860ee"
+    },
+    {
+      "file": "scripts/sales-reporting.js",
+      "sha256": "b6a5068a4e728ef91919a8381ade7f347f1ae2aaf2b19317cc6f617f64485e83"
+    },
+    {
+      "file": "scripts/self-check.cjs",
+      "sha256": "97ba6002ee4d8d0ab4ca28f32306fc979f5a8e488e99e0e6d80e9c2be11bc635"
+    },
+    {
+      "file": "scripts/source-data-view.js",
+      "sha256": "e8c3092154ffa5cd92404af039fb0e07a5cb29dea9114534cb0609ac3bb9572a"
+    },
+    {
+      "file": "scripts/supply-scope.js",
+      "sha256": "1c545a3901dbd7c3fa0ba0b70881c3b0d978dc5ba6373997f101dcfdc00d84dd"
+    },
+    {
+      "file": "scripts/template-components.js",
+      "sha256": "beb1e1c5a3430ff5450161a7502a1c5514193e885749addd7d71423285718057"
+    },
+    {
+      "file": "scripts/test-source-pipeline.cjs",
+      "sha256": "1ad71694f6c060687339b412f655a6e7514786d37f3828dede6cf1b1baf0d7f9"
+    },
+    {
+      "file": "scripts/test-supply-ui.cjs",
+      "sha256": "8b256171e715233156a7f4eae07af7938a0f88baf14d784ba593bd1e256c277a"
+    },
+    {
+      "file": "assets/conclusion-report.css",
+      "sha256": "83bff8f062a61647480a733667ac93d9e9852a6ecc437906e45b87a3cd45d86a"
+    },
+    {
+      "file": "assets/data-binding.css",
+      "sha256": "c73dd690f5aafaa6d55b6fa0fc20e5e77330618f5a9623714534eb792eb27e64"
+    },
+    {
+      "file": "assets/订单满足率分析模板.html",
+      "sha256": "6a2f25b72a90e8920bf0176f7209314e0e748f422ee604fc44c40a6c88731f06"
+    },
+    {
+      "file": "references/2026-09-source-reconciliation.md",
+      "sha256": "2aacf58dc5ca679effccd80b7a1c0e86a8066560601c7f09277207a82f6f1cb8"
+    },
+    {
+      "file": "references/acceptance-checklist.md",
+      "sha256": "6fa709e21d9259a1683a2939114f859d09f41011ad88b362512133e2625c4c69"
+    },
+    {
+      "file": "references/analysis-worked-example.md",
+      "sha256": "08dcabfd4f86576ded1794615551b65adf0e89caf2502371234405026d9107cf"
+    },
+    {
+      "file": "references/conclusion-review.md",
+      "sha256": "8eee4229f98fa31a4836edfe620a182da470d6f08320036d8553a90fd70a8484"
+    },
+    {
+      "file": "references/diagnosis-paths.md",
+      "sha256": "046d09285eb9dbf5e53d1e098b423e675e44799b2a244f8a88848b3f40cb3582"
+    },
+    {
+      "file": "references/evidence-and-output-contract.md",
+      "sha256": "f20ef6c13ebf493b36125b0b6b45f776933ce6e8e8d8aa70b158e4ada958472e"
+    },
+    {
+      "file": "references/failure-lessons.md",
+      "sha256": "6a39b91fc82e1ca6e96a6b0f248aeb9e67914e76f2ecaeb69592817ced080a18"
+    },
+    {
+      "file": "references/gap-triage.md",
+      "sha256": "ab024d93bc0a86eca6c05d90d8fe56827eb09f62a97468afc9c6c3c2153ff2ad"
+    },
+    {
+      "file": "references/historical-business-patterns.md",
+      "sha256": "80edf5e3d184eb28ea824426764d6bd2208575932ec7e39d8de01986b4f80c01"
+    },
+    {
+      "file": "references/input-preparation.md",
+      "sha256": "31b3e9a769059b2796ec5b052f55ef67f2ba41f2969ce4e7fc529f93e3840553"
+    },
+    {
+      "file": "references/interactive-analysis-contract.md",
+      "sha256": "b6646b872cd4342078de74d174faf1ca6e9a696b9db45985a73588aa22483af4"
+    },
+    {
+      "file": "references/metric-and-data-contract.md",
+      "sha256": "1cc980e4983ca59d5b63173b4b7fc0f47b5a1522d3ce932182d912c5eb094749"
+    },
+    {
+      "file": "references/query-recipes.md",
+      "sha256": "a1b249dac348ecfa088e8e37058fb791f33faa3539a9ca9efaac7373ff009d9c"
+    },
+    {
+      "file": "references/report-contract.md",
+      "sha256": "9959e8e9e51fc49120d38dbc2cfd5c116266c8733d7f5b8b53112aa85c421814"
+    },
+    {
+      "file": "references/runbook.md",
+      "sha256": "70de86dc011f6f4e922b5029f6088da8b951a73d84b0f951209d75b7b5270a0c"
+    },
+    {
+      "file": "references/source-to-report-map.md",
+      "sha256": "7301a53aa14faa71728e73713dbac2916eba21f62a2ee3e721211868a78185bc"
+    },
+    {
+      "file": "references/template-walkthrough.md",
+      "sha256": "4a7d405b9d702023c734261625358ce9b65d3efb752b036cdfde01bf4d2df051"
+    },
+    {
+      "file": "scripts/package.json",
+      "sha256": "337c421af135f6534462004073120ee84b7e007e1373e3b49290f237f59222af"
+    }
+  ]
+}

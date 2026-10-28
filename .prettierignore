@@ -28,6 +28,8 @@ business-resources/sales-plan/agents/
 business-resources/sales-plan/skills/
 
 business-resources/inventory-aqkc/skills/
+business-resources/inventory-fc/skills/
+business-resources/inventory-mps/SOURCE.json
 
 business-resources/orchestration/skills/
 
@@ -39,3 +41,14 @@ business-resources/inventory-orderfulfillment/skills/fulfillment-sales-confirmat
 business-resources/inventory-orderfulfillment/skills/operations-exception-root-cause/SKILL.md
 business-resources/inventory-orderworkbench/skills/fulfillment-sales-confirmation-automation/SKILL.md
 business-resources/inventory-orderworkbench/skills/operations-exception-root-cause/SKILL.md
+
+# Received fulfillment Skill assets retain SOURCE.json byte hashes.
+
+# Received client customization retains SOURCE.json byte hashes.
+business-resources/aps-client-profile/prompt.md
+business-resources/aps-client-profile/skills/
+
+# Approved client Skills preserve source bytes.
+business-resources/inventory-apsplan/skills/plan-operations-weekly-report/
+business-resources/inventory-apsplan/skills/answer-visualization/
+business-resources/inventory-apsplan/skills/order-satisfaction-analysis/

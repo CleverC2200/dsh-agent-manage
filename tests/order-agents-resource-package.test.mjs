@@ -27,8 +27,8 @@ test('both order Agents publish the complete shared Skill tree with valid header
     const capability = await json(root, 'capability.json')
     assert.deepEqual(profile.skills, [`inventory-${module}`, ...shared])
     assert.deepEqual(capability.skills, profile.skills)
-    assert.equal(capability.maxEffect, 'view')
-    assert.deepEqual(capability.layers, ['read'])
+    assert.equal(capability.maxEffect, module === 'orderworkbench' ? 'submit' : 'view')
+    assert.deepEqual(capability.layers, module === 'orderworkbench' ? ['read', 'draft', 'submit'] : ['read'])
     const provenance = await json(root, 'SOURCE.json')
     for (const file of provenance.files) {
       const bytes = await readFile(new URL(file.path, root))
@@ -49,16 +49,18 @@ test('both order Agents publish the complete shared Skill tree with valid header
   }
 })
 
-test('new workbench prompt keeps its source and preserves the existing preview capability boundary', async () => {
+test('workbench prompt keeps its source and the governed report capability without arbitrary SQL writes', async () => {
   const root = rootFor('orderworkbench')
   const profile = await json(root, 'prompt.json')
   const prompt = await readFile(new URL('agent-prompt.md', root))
   assert.equal(hash(prompt), (await json(root, 'SOURCE.json')).promptSha256)
   assert.ok(profile.persona.startsWith(prompt.toString('utf8')))
   assert.match(profile.persona, /订单工作台 Agent/)
-  assert.equal(profile.consumerCode, 'orderworkbench-preview')
-  assert.equal((await json(root, 'capability.json')).data.mock, true)
-  assert.deepEqual((await json(root, 'mcp.json')).capabilities, [])
+  assert.equal(profile.consumerCode, 'order')
+  const capability = await json(root, 'capability.json')
+  assert.equal(capability.data.mock, false)
+  assert.ok(capability.data.tables.includes('agents_order_workbench_report'))
+  assert.deepEqual((await json(root, 'mcp.json')).capabilities, ['governed-sql-read'])
   const fulfillment = rootFor('orderfulfillment')
   assert.equal((await json(fulfillment, 'prompt.json')).consumerCode, 'order01')
   assert.deepEqual((await json(fulfillment, 'mcp.json')).capabilities, ['governed-sql-read'])
