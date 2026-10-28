@@ -3,9 +3,9 @@
   "label": "客户库存",
   "data": {
     "consumerCode": "customer_inventory",
-    "tables": ["agents_scm_cust_jxc_ai_daliy_d", "agents_dim_dealer_data_d"],
+    "tables": ["agents_scm_cust_plan_order_analysis_d", "agents_scm_cust_jxc_ai_daliy_d", "agents_dim_dealer_data_d"],
     "rules": [
-      "只读最新客户库存日快照；业务身份、行列权限和凭据由GEA Host执行。",
+      "客户库存以计划分析表为主；原库存表仅补充组织信息。右侧Cube问数固定实际可用单日、单月份并注明快照日期，不以本声明证明每日快照已冻结；业务身份、行列权限和凭据由GEA Host执行。",
       "以当前页面发布的指标定义、源字段和覆盖范围解释数据；缺失字段及未定义的风险标准保持未知，不补成零或样例。",
       "页面不得直连数据库或持有数据库凭据。",
       "城市筛选使用经销商卸货地址中的城市成员关系；一个客户可以属于多个卸货城市，城市结果展示相关客户整体库存，不可跨城市相加。"
