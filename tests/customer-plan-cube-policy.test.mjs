@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
+import { URL } from 'node:url'
 
 const resource = new URL('../business-resources/inventory-customer/', import.meta.url)
 const prompt = JSON.parse(fs.readFileSync(new URL('prompt.json', resource), 'utf8'))
