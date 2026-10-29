@@ -59,8 +59,21 @@ function compareSnapshots(now: ReturnType<typeof metricValues>, prev: ReturnType
 }
 export const formatNumber = (value: number | null | undefined, digits = 2) => (typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '—')
 
-// Cache only inside one immutable set of query results. A refresh, new period,
-// comparison response or identity change creates a new reader and drops old data.
+// Results are immutable snapshots. Keep each period's scoped computation while
+// another period progresses; weak keys release obsolete or cleared identities.
+const snapshotValues = new WeakMap<MetricData, Map<string, ReturnType<typeof metricValues>>>()
+function snapshotMetricValues(data: MetricData | null | undefined, scope: Scope, key: string) {
+  if (!data) return metricValues(data, scope)
+  let scopes = snapshotValues.get(data)
+  if (!scopes) snapshotValues.set(data, (scopes = new Map()))
+  let values = scopes.get(key)
+  if (!values) {
+    values = metricValues(data, scope)
+    scopes.set(key, values)
+  }
+  return values
+}
+
 export function createMetricReader(data?: MetricData | null, previous?: MetricData | null, annual?: MetricData | null) {
   const cache = new Map<string, ReturnType<typeof metricValues> & { __comparison: ReturnType<typeof comparisonValues> }>()
   return (scope: Scope = {}) => {
@@ -71,10 +84,10 @@ export function createMetricReader(data?: MetricData | null, previous?: MetricDa
     )
     let value = cache.get(key)
     if (!value) {
-      const now = metricValues(data, scope),
-        prev = metricValues(previous, scope),
-        same = metricValues(annual, scope)
-      value = Object.assign(now, { __comparison: compareSnapshots(now, prev, same) })
+      const now = snapshotMetricValues(data, scope, key),
+        prev = snapshotMetricValues(previous, scope, key),
+        same = snapshotMetricValues(annual, scope, key)
+      value = Object.assign({ ...now }, { __comparison: compareSnapshots(now, prev, same) })
       cache.set(key, value)
     }
     return value

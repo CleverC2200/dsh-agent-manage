@@ -31,3 +31,7 @@ Page briefings label daily-source shipment sums as period shipments when start a
 ## Configured zero-fill policy (2026-10-20)
 
 At the user's request, configured APS snapshots opt into `missingValuePolicy: 'zero'`. SQL coalesces numeric inputs before deviations and sums each quantity independently; Manage treats returned null numeric values as zero without suppressing the total because a completeness counter is nonzero. Production uses all independent planned/actual totals, and budget uses independent income/budget totals rather than matched-key observations. This policy supersedes the strict completeness rules above for configured APS metrics only; legacy inputs without the flag retain those rules. Zero denominators, non-finite values, loading, failed or denied queries and unsupported date windows remain unavailable. Dimensions and source identities are not zero-filled or allocated; scoped totals include only records assigned to that scope. Workbench disables partial-observation fallback under this policy and labels missing numeric values as zero.
+
+## Immutable metric snapshot reuse (2026-10-29)
+
+`createMetricReader` reuses scoped results per immutable period snapshot through weak keys. A newly arriving comparison period does not rescan unchanged current rows. Each reader owns its comparison object; refresh and identity changes supply new snapshots or null, never a date-only global cache. Public `metricValues` remains uncached. Workbench continues to own lazy list rendering and paging; business formulas and governed SQL are unchanged.
