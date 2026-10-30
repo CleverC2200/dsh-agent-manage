@@ -20,6 +20,7 @@ export interface MpsQuantityRow {
   quantity: MpsQuantity
 }
 export interface MpsCategoryDemand {
+  systemQuantity?: MpsQuantity
   month: string
   category: string
   quantity: MpsQuantity
@@ -173,18 +174,20 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const categoryRows = months.flatMap(month =>
     categories.map(category => {
       const matches = input.categoryDemand.filter(row => row.month === month && row.category === category)
-      const systemQuantity = matches.length === 1 ? quantity(matches) : null
+      const effectiveQuantity = matches.length === 1 ? quantity(matches) : null
+      const baseline = matches.length === 1 ? matches[0].systemQuantity : undefined
+      const systemQuantity = baseline === undefined ? effectiveQuantity : quantity([{ quantity: baseline }])
       const edits = (input.adjustments?.categoryDemand ?? []).filter(row => row.month === month && row.category === category)
       const edit = edits[0]
       const accepted = edits.length === 1 && edit !== undefined && finite(edit.quantity) && edit.quantity >= 0
       if (edits.length && !accepted) adjustmentIssues.push(`${month} ${category} 大类需求调整无效或重复`)
-      const value = accepted ? edit.quantity : systemQuantity
+      const value = accepted ? edit.quantity : effectiveQuantity
       return {
         month,
         category,
         quantity: value,
         systemQuantity,
-        adjusted: accepted,
+        adjusted: accepted || value !== systemQuantity,
         missing: value === null ? ['缺大类需求，本月有效值不可用'] : []
       }
     })
