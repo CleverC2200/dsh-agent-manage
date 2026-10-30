@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
   "description": "配置个人智能体、技能和 MCP 连接，管理原生预设与资源。",
-  "version": "0.6.3-company.39",
+  "version": "0.6.3-company.40",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -92,7 +92,7 @@
     "test:ci-unit": "pnpm run test:mps-compute && pnpm run test:package-version && vitest run --config vitest.ci-unit.config.ts",
     "test:agent-browser": "vitest run --config vitest.agent-browser.config.ts",
     "check:static:ci": "pnpm run check:knowledge && node scripts/generate-plugin-package-version.mjs --check && tsc -p tsconfig.client.json --noEmit && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
-    "test:mps-compute": "node --experimental-strip-types --test tests/mps-workflow.test.mjs"
+    "test:mps-compute": "node --experimental-strip-types --test tests/mps-workflow.test.mjs tests/mps-category-demand.test.mjs"
   },
   "dsh": {
     "bundle": {
