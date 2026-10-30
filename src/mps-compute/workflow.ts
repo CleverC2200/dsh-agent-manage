@@ -145,7 +145,7 @@ const daysInMonth = (month: string) => {
   date.setUTCMonth(date.getUTCMonth() + 1, 0)
   return date.getUTCDate()
 }
-const periodKey = (row: MpsQuantityRow) => JSON.stringify([row.month, row.base, row.code])
+const periodKey = (row: Pick<MpsQuantityRow, 'month' | 'base' | 'code'>) => JSON.stringify([row.month, row.base, row.code])
 function groupBy<T>(rows: T[], keyOf: (row: T) => string) {
   const result = new Map<string, T[]>()
   for (const row of rows) {
@@ -194,8 +194,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   )
   const rows: MpsWorkflowRow[] = months.slice(0, 3).flatMap(month =>
     input.products.map(product => {
-      const reportQuantity = quantity(reportIndex.get(periodKey({ ...product, month, quantity: null })) ?? [])
-      const historyQuantity = quantity(historyIndex.get(periodKey({ ...product, month: monthOffset(month, -12), quantity: null })) ?? [])
+      const reportQuantity = quantity(reportIndex.get(periodKey({ ...product, month })) ?? [])
+      const historyQuantity = quantity(historyIndex.get(periodKey({ ...product, month: monthOffset(month, -12) })) ?? [])
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
       const days = daysIndex.get(product.base) ?? []
       const safetyDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
@@ -253,6 +253,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   for (const category of categoryRows) {
     const group = rows.filter(row => row.month === category.month && row.category === category.category)
     if (!group.length) continue
+    const materialGroups = groupBy(group, row => row.group)
+    const skuGroups = new Map([...materialGroups].map(([name, entries]) => [name, groupBy(entries, row => row.code)]))
     const duplicate = group.some(row => (productIndex.get(key(row))?.length ?? 0) > 1)
     const identityMissing = group.some(row => !row.base || !row.code || !row.category || !row.group)
     for (const source of ['report', 'history'] as const) {
@@ -268,11 +270,15 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         ...(duplicate ? ['产品拆分键重复'] : []),
         ...(total === null ? ['同大类明细数量不完整'] : total === 0 ? ['同大类合计为0，占比未定义'] : [])
       ]
+      const groupTotals = new Map([...materialGroups].map(([name, entries]) => [name, quantity(entries.map(row => ({ quantity: row[field] })))]))
+      const skuTotals = new Map(
+        [...skuGroups].map(([name, codes]) => [name, new Map([...codes].map(([code, entries]) => [code, quantity(entries.map(row => ({ quantity: row[field] })))]))])
+      )
       for (const row of group) {
         row.missing[shareField] = issues
         row[shareField] = !issues.length && total !== null ? (row[field] ?? 0) / total : null
-        const groupTotal = quantity(group.filter(item => item.group === row.group).map(item => ({ quantity: item[field] })))
-        const skuTotal = quantity(group.filter(item => item.group === row.group && item.code === row.code).map(item => ({ quantity: item[field] })))
+        const groupTotal = groupTotals.get(row.group) ?? null
+        const skuTotal = skuTotals.get(row.group)?.get(row.code) ?? null
         const groupShare = !issues.length && total !== null && total > 0 && groupTotal !== null ? groupTotal / total : null
         const skuShare = !issues.length && groupTotal !== null && groupTotal > 0 && skuTotal !== null ? skuTotal / groupTotal : null
         const baseShare = !issues.length && skuTotal !== null && skuTotal > 0 && row[field] !== null ? row[field] / skuTotal : null
@@ -296,7 +302,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       if ([row.reportLayers, row.historyLayers].some(layer => layer.skuShare === null || layer.baseShare === null))
         row.layerMissing = ['中间分母为0或来源不完整，分层连乘未定义；完整大类中的真实零数量仍保留零占比']
     }
-    for (const materialGroup of groupBy(group, row => row.group).values()) {
+    for (const materialGroup of materialGroups.values()) {
       const codes = [...groupBy(materialGroup, row => row.code).entries()]
       const ranked = codes.map(([code, entries]) => ({ code, value: quantity(entries.map(row => ({ quantity: row.historyQuantity }))) }))
       const complete = ranked.every(row => row.value !== null) && materialGroup.every(row => row.historyShare !== null)
@@ -344,9 +350,10 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     const value = matches[0]?.days ?? null
     return matches.length === 1 && finite(value) && value >= 0 && value <= daysInMonth(month) ? value : null
   }
+  const rowIndex = groupBy(rows, periodKey)
   for (const row of rows) {
     const nextMonth = monthOffset(row.month, 1)
-    const nextRow = rows.find(candidate => candidate.month === nextMonth && key(candidate) === key(row))
+    const nextRow = rowIndex.get(periodKey({ month: nextMonth, base: row.base, code: row.code }))?.[0]
     const nextCategory = categoryRows.find(candidate => candidate.month === nextMonth && candidate.category === row.category)
     row.nextMonthDemand = nextRow
       ? nextRow.demand
@@ -357,7 +364,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       row.safetyDays === 0 ? 0 : row.safetyDays !== null && row.nextMonthDemand !== null ? safe((row.safetyDays * row.nextMonthDemand) / daysInMonth(nextMonth)) : null
     row.missing.targetInventory = row.targetInventory === null ? ['缺安全天数或下月有效需求，安全库存无法计算'] : []
     if (row.month !== input.context.month) {
-      const previous = rows.find(candidate => candidate.month === monthOffset(row.month, -1) && key(candidate) === key(row))
+      const previous = rowIndex.get(periodKey({ month: monthOffset(row.month, -1), base: row.base, code: row.code }))?.[0]
       row.openingInventory = previous?.projectedClosing ?? null
     }
     row.missing.openingInventory = row.openingInventory === null ? ['缺上月结存或上月无约束期末参考'] : []
