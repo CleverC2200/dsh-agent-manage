@@ -72,7 +72,7 @@ it('selects the received MPS persona and Skill, then withdraws only its installe
     expect(skill).toContain('未发送文字')
     expect(skill).toContain('七步使用同一评估草稿与计算结果')
     expect(skill).not.toContain('③⑤⑥仍为原模拟内容')
-    expect(skill).toContain('后续月份来源、计划达成率分母与历史参数口径尚未裁决的结果保持空')
+    expect(skill).toContain('M+3/M+4按上月需求乘年度分月环比')
     expect(skill).toContain('不沿用旧40/40/20权重')
     expect(skill).toContain('评估月份对应M+1')
     expect(persona).toContain('第二步本月预估发货支持本地输入、测算与人工调整')
