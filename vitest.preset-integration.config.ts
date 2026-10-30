@@ -21,6 +21,7 @@ export default defineConfig({
     alias: [
       ...base.resolve.alias,
       { find: /^preset-integration-gea\/(.*)$/, replacement: resolve(gea, 'src/$1.ts') },
+      { find: '@cleverc2200/dsh-agent-workbench/sales-plan', replacement: resolve(workbench, 'src/sales-plan.ts') },
       { find: 'dsh-agent-manage/forecast-source', replacement: resolve(import.meta.dirname, 'src/runtime/forecast-source.ts') },
       { find: '@cleverc2200/dsh-agent-workbench/page-interaction/reference', replacement: resolve(workbench, 'src/page-interaction/reference.ts') },
       { find: '@cleverc2200/dsh-agent-workbench/page-interaction/payload-budget', replacement: resolve(workbench, 'src/page-interaction/shared/payload-budget.ts') }
