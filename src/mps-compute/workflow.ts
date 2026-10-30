@@ -36,7 +36,46 @@ export interface MpsConstraints {
   safetyDays: { base: string; days: MpsQuantity }[]
   rules: Record<string, unknown>
 }
+export interface MpsDemandAdjustment {
+  month: string
+  category: string
+  quantity: number
+}
+export interface MpsResource {
+  id: string
+  base: string
+  kind: 'tunnel' | 'forming'
+  name: string
+  dailyTons: MpsQuantity
+}
+export interface MpsResourceAssignment {
+  month: string
+  base: string
+  code: string
+  resourceId: string
+  share: number
+}
+export interface MpsResourceLoad extends MpsResource {
+  resourceId: string
+  month: string
+  productionDays: MpsQuantity
+  requiredTons: MpsQuantity
+  requiredDays: MpsQuantity
+  load: MpsQuantity
+  overloadDays: MpsQuantity
+  gapTons: MpsQuantity
+  status: 'normal' | 'warning' | 'overload' | 'unknown'
+  missing: string[]
+}
 export interface MpsWorkflowInput {
+  productionDays?: { base: string; month: string; days: MpsQuantity }[]
+  unitWeights?: { base: string; code: string; tonsPerPiece: MpsQuantity }[]
+  resources?: MpsResource[]
+  resourceAssignments?: MpsResourceAssignment[]
+  adjustments?: {
+    categoryDemand?: MpsDemandAdjustment[]
+    shares?: { rowId: string; share: number }[]
+  }
   context: MpsContext
   products: MpsProduct[]
   categoryDemand: MpsCategoryDemand[]
@@ -47,7 +86,29 @@ export interface MpsWorkflowInput {
   capacities: MpsCapacity[]
   constraints: MpsConstraints
 }
+export interface MpsShareLayers {
+  groupQuantity: MpsQuantity
+  categoryQuantity: MpsQuantity
+  skuQuantity: MpsQuantity
+  baseQuantity: MpsQuantity
+  groupShare: MpsQuantity
+  skuShare: MpsQuantity
+  baseShare: MpsQuantity
+  product: MpsQuantity
+}
 export interface MpsWorkflowRow extends MpsProduct {
+  evaluation: 'unconstrained'
+  nextMonthDemand: MpsQuantity
+  requiredProduction: MpsQuantity
+  projectedClosing: MpsQuantity
+  requiredProductionTons: MpsQuantity
+  productionDays: MpsQuantity
+  reportLayers: MpsShareLayers
+  historyLayers: MpsShareLayers
+  layerMissing: string[]
+  systemShare: MpsQuantity
+  fallback: boolean
+  groupShare: MpsQuantity
   id: string
   month: string
   reportQuantity: MpsQuantity
@@ -78,6 +139,11 @@ const monthOffset = (month: string, offset: number) => {
   date.setUTCMonth(date.getUTCMonth() + offset)
   return date.toISOString().slice(0, 7)
 }
+const daysInMonth = (month: string) => {
+  const date = new Date(`${month}-01T00:00:00Z`)
+  date.setUTCMonth(date.getUTCMonth() + 1, 0)
+  return date.getUTCDate()
+}
 const periodKey = (row: MpsQuantityRow) => JSON.stringify([row.month, row.base, row.code])
 function groupBy<T>(rows: T[], keyOf: (row: T) => string) {
   const result = new Map<string, T[]>()
@@ -91,6 +157,7 @@ function groupBy<T>(rows: T[], keyOf: (row: T) => string) {
 
 export function computeMpsWorkflow(input: MpsWorkflowInput) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.context.month)) throw Error('评估月份无效')
+  const adjustmentIssues: string[] = []
   const months = Array.from({ length: 4 }, (_, offset) => monthOffset(input.context.month, offset))
   const reportIndex = groupBy(input.report, periodKey)
   const historyIndex = groupBy(input.history, periodKey)
@@ -106,12 +173,19 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const categoryRows = months.flatMap(month =>
     categories.map(category => {
       const matches = input.categoryDemand.filter(row => row.month === month && row.category === category)
-      const value = matches.length === 1 ? quantity(matches) : null
+      const systemQuantity = matches.length === 1 ? quantity(matches) : null
+      const edits = (input.adjustments?.categoryDemand ?? []).filter(row => row.month === month && row.category === category)
+      const edit = edits[0]
+      const accepted = edits.length === 1 && edit !== undefined && finite(edit.quantity) && edit.quantity >= 0
+      if (edits.length && !accepted) adjustmentIssues.push(`${month} ${category} 大类需求调整无效或重复`)
+      const value = accepted ? edit.quantity : systemQuantity
       return {
         month,
         category,
         quantity: value,
-        missing: value === null ? ['缺大类需求，第一步计算口径待确认'] : []
+        systemQuantity,
+        adjusted: accepted,
+        missing: value === null ? ['缺大类需求，本月有效值不可用'] : []
       }
     })
   )
@@ -129,6 +203,18 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         month,
         reportQuantity,
         historyQuantity,
+        evaluation: 'unconstrained',
+        nextMonthDemand: null,
+        requiredProduction: null,
+        projectedClosing: null,
+        requiredProductionTons: null,
+        productionDays: null,
+        layerMissing: [],
+        systemShare: null,
+        fallback: false,
+        groupShare: null,
+        reportLayers: { groupQuantity: null, categoryQuantity: null, skuQuantity: null, baseQuantity: null, groupShare: null, skuShare: null, baseShare: null, product: null },
+        historyLayers: { groupQuantity: null, categoryQuantity: null, skuQuantity: null, baseQuantity: null, groupShare: null, skuShare: null, baseShare: null, product: null },
         reportShare: null,
         historyShare: null,
         share: null,
@@ -182,21 +268,222 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       for (const row of group) {
         row.missing[shareField] = issues
         row[shareField] = !issues.length && total !== null ? (row[field] ?? 0) / total : null
+        const groupTotal = quantity(group.filter(item => item.group === row.group).map(item => ({ quantity: item[field] })))
+        const skuTotal = quantity(group.filter(item => item.group === row.group && item.code === row.code).map(item => ({ quantity: item[field] })))
+        const groupShare = !issues.length && total !== null && total > 0 && groupTotal !== null ? groupTotal / total : null
+        const skuShare = !issues.length && groupTotal !== null && groupTotal > 0 && skuTotal !== null ? skuTotal / groupTotal : null
+        const baseShare = !issues.length && skuTotal !== null && skuTotal > 0 && row[field] !== null ? row[field] / skuTotal : null
+        row[source === 'report' ? 'reportLayers' : 'historyLayers'] = {
+          groupQuantity: issues.length ? null : groupTotal,
+          categoryQuantity: issues.length ? null : total,
+          skuQuantity: issues.length ? null : skuTotal,
+          baseQuantity: row[field],
+          groupShare,
+          skuShare,
+          baseShare,
+          product: groupShare !== null && skuShare !== null && baseShare !== null ? groupShare * skuShare * baseShare : null
+        }
       }
     }
     for (const row of group) {
       row.missing.share = [...new Set([...row.missing.reportShare, ...row.missing.historyShare])]
-      row.share = row.reportShare !== null && row.historyShare !== null ? (row.reportShare + row.historyShare) / 2 : null
+      row.systemShare = row.reportShare !== null && row.historyShare !== null ? (row.reportShare + row.historyShare) / 2 : null
+      row.share = row.systemShare
+      row.groupShare = row.reportLayers.groupShare !== null && row.historyLayers.groupShare !== null ? (row.reportLayers.groupShare + row.historyLayers.groupShare) / 2 : null
+      if ([row.reportLayers, row.historyLayers].some(layer => layer.skuShare === null || layer.baseShare === null))
+        row.layerMissing = ['中间分母为0或来源不完整，分层连乘未定义；完整大类中的真实零数量仍保留零占比']
+    }
+    for (const materialGroup of groupBy(group, row => row.group).values()) {
+      const codes = [...groupBy(materialGroup, row => row.code).entries()]
+      const ranked = codes.map(([code, entries]) => ({ code, value: quantity(entries.map(row => ({ quantity: row.historyQuantity }))) }))
+      const complete = ranked.every(row => row.value !== null) && materialGroup.every(row => row.historyShare !== null)
+      const top = complete ? ranked.sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || a.code.localeCompare(b.code, 'en'))[0] : undefined
+      const fallback = materialGroup.filter(row => row.code === top?.code)
+      fallback.forEach(row => {
+        row.fallback = true
+      })
+      const edits = (input.adjustments?.shares ?? []).filter(edit => materialGroup.some(row => row.id === edit.rowId))
+      const edited = new Map<string, number>()
+      let valid = true
+      for (const edit of edits) {
+        if (edited.has(edit.rowId) || !finite(edit.share) || edit.share < 0 || edit.share > 1) valid = false
+        edited.set(edit.rowId, edit.share)
+      }
+      const groupShare = materialGroup[0]?.groupShare ?? null
+      if (edits.length && (!complete || groupShare === null || materialGroup.some(row => row.systemShare === null))) valid = false
+      const candidates = fallback.filter(row => !edited.has(row.id))
+      const fixed = materialGroup.filter(row => !candidates.includes(row))
+      const fixedTotal = fixed.length ? quantity(fixed.map(row => ({ quantity: edited.get(row.id) ?? row.systemShare }))) : 0
+      const residual = groupShare !== null && fixedTotal !== null ? groupShare - fixedTotal : null
+      if (residual === null || residual < -1e-12 || (!candidates.length && Math.abs(residual) > 1e-12)) valid = false
+      const weights = candidates.map(row => row.systemShare)
+      const weightTotal = weights.length ? quantity(weights.map(value => ({ quantity: value }))) : 0
+      if (candidates.length && (weightTotal === null || (weightTotal === 0 && residual !== 0))) valid = false
+      if (valid && residual !== null && weightTotal !== null) {
+        for (const row of fixed) row.share = edited.get(row.id) ?? row.systemShare
+        candidates.forEach((row, index) => {
+          row.share = weightTotal === 0 ? 0 : (Math.max(0, residual) * (weights[index] ?? 0)) / weightTotal
+        })
+      } else if (edits.length && !valid) adjustmentIssues.push(`${category.month} ${materialGroup[0]?.group} 占比调整拒绝：来源不完整、重复或会产生负托底`)
+    }
+    for (const row of group) {
       row.missing.demand = [...category.missing, ...row.missing.share]
       row.demand = category.quantity !== null && row.share !== null ? safe(category.quantity * row.share) : null
       if (row.demand === null && !row.missing.demand.length) row.missing.demand.push('需求超出可靠计算范围')
     }
     if (category.quantity !== null && group.every(row => row.demand !== null)) {
-      const last = group.findLast(row => row.share !== 0) ?? group[group.length - 1]
+      const last = group.findLast(row => row.fallback && row.share !== 0) ?? group.findLast(row => row.share !== 0) ?? group[group.length - 1]
       last.demand = safe(category.quantity - group.filter(row => row !== last).reduce((sum, row) => sum + (row.demand ?? 0), 0))
     }
   }
+  const productionDays = (base: string, month: string) => {
+    const matches = (input.productionDays ?? []).filter(row => row.base === base && row.month === month)
+    const value = matches[0]?.days ?? null
+    return matches.length === 1 && finite(value) && value >= 0 && value <= daysInMonth(month) ? value : null
+  }
+  for (const row of rows) {
+    const nextMonth = monthOffset(row.month, 1)
+    const nextRow = rows.find(candidate => candidate.month === nextMonth && key(candidate) === key(row))
+    const nextCategory = categoryRows.find(candidate => candidate.month === nextMonth && candidate.category === row.category)
+    row.nextMonthDemand = nextRow
+      ? nextRow.demand
+      : nextCategory?.quantity !== null && nextCategory?.quantity !== undefined && row.share !== null
+        ? safe(nextCategory.quantity * row.share)
+        : null
+    row.targetInventory =
+      row.safetyDays === 0 ? 0 : row.safetyDays !== null && row.nextMonthDemand !== null ? safe((row.safetyDays * row.nextMonthDemand) / daysInMonth(nextMonth)) : null
+    row.missing.targetInventory = row.targetInventory === null ? ['缺安全天数或下月有效需求，安全库存无法计算'] : []
+    if (row.month !== input.context.month) {
+      const previous = rows.find(candidate => candidate.month === monthOffset(row.month, -1) && key(candidate) === key(row))
+      row.openingInventory = previous?.projectedClosing ?? null
+    }
+    row.missing.openingInventory = row.openingInventory === null ? ['缺上月结存或上月无约束期末参考'] : []
+    row.requiredProduction =
+      row.demand !== null && row.targetInventory !== null && row.openingInventory !== null ? safe(Math.max(0, row.demand + row.targetInventory - row.openingInventory)) : null
+    row.projectedClosing =
+      row.requiredProduction !== null && row.openingInventory !== null && row.demand !== null ? safe(row.openingInventory + row.requiredProduction - row.demand) : null
+    row.missing.requiredProduction = row.requiredProduction === null ? ['缺需求、安全库存或期初结存'] : []
+    row.missing.projectedClosing = row.projectedClosing === null ? ['缺无约束所需生产或库存数据'] : []
+    row.missing.mainPlan = ['所需生产仅为无约束参考，未生成可执行主计划']
+    row.missing.transfer = ['调拨、外协需人工决策，未自动生成']
+    row.productionDays = productionDays(row.base, row.month)
+    const weights = (input.unitWeights ?? []).filter(weight => key(weight) === key(row))
+    const weight = weights[0]?.tonsPerPiece ?? null
+    row.requiredProductionTons = weights.length === 1 && finite(weight) && weight > 0 && row.requiredProduction !== null ? safe(row.requiredProduction * weight) : null
+    row.missing.requiredProductionTons = row.requiredProductionTons === null ? ['缺明确SKU件吨系数或所需生产，禁止由日产吨/日产件推断重量'] : []
+    row.missing.productionDays = row.productionDays === null ? ['缺基地月份显式可用生产天数'] : row.productionDays === 0 ? ['可用生产天数为0，负荷比率未定义'] : []
+    row.missing.resourceAssignments = []
+    row.missing.monthlyCapacity = ['按唯一资源评估共享产能，不生成SKU可加总月产能']
+    row.missing.load = ['负荷及缺口见隧道、成型机逐资源评估']
+    row.missing.gap = ['缺口见隧道、成型机逐资源评估，SKU缺口未分配']
+  }
+  const resources = groupBy(input.resources ?? [], resource => resource.id)
+  const allocations = input.resourceAssignments ?? []
+  const invalidAssignments = new Map<string, Set<MpsResource['kind'] | 'unknown'>>()
+  for (const row of rows) {
+    const invalidKinds = new Set<MpsResource['kind'] | 'unknown'>()
+    invalidAssignments.set(row.id, invalidKinds)
+    for (const kind of ['tunnel', 'forming'] as const) {
+      const candidates = [...resources.values()].flat().filter(resource => resource.base === row.base && resource.kind === kind)
+      const assigned = allocations.filter(
+        assignment => assignment.month === row.month && key(assignment) === key(row) && candidates.some(resource => resource.id === assignment.resourceId)
+      )
+      const total = assigned.reduce((sum, assignment) => sum + assignment.share, 0)
+      const valid =
+        candidates.length > 0 &&
+        assigned.length > 0 &&
+        assigned.every(assignment => finite(assignment.share) && assignment.share >= 0 && assignment.share <= 1 && resources.get(assignment.resourceId)?.length === 1) &&
+        new Set(assigned.map(assignment => assignment.resourceId)).size === assigned.length &&
+        Math.abs(total - 1) <= 1e-12
+      if (!valid) {
+        invalidKinds.add(kind)
+        row.missing.resourceAssignments.push(`${kind === 'tunnel' ? '隧道' : '成型机'}资源缺失、重复或未明确分配，不能认定全约束通过`)
+      }
+    }
+    const unknown = allocations.some(
+      assignment =>
+        assignment.month === row.month &&
+        key(assignment) === key(row) &&
+        !(input.resources ?? []).some(resource => resource.id === assignment.resourceId && resource.base === row.base)
+    )
+    if (unknown) {
+      invalidKinds.add('unknown')
+      row.missing.resourceAssignments.push('资源分配指向未知资源或其他基地')
+    }
+  }
+  const resourceLoads: MpsResourceLoad[] = []
+  for (const entries of resources.values()) {
+    const resource = entries[0]
+    if (!resource) continue
+    for (const month of months.slice(0, 3)) {
+      const applicable = rows.filter(row => row.base === resource.base && row.month === month)
+      const missing: string[] = []
+      if (!resource.id || !resource.base || entries.length !== 1) missing.push('资源唯一键缺失或重复')
+      if (!finite(resource.dailyTons) || resource.dailyTons <= 0) missing.push('缺有效资源日产吨数')
+      const days = productionDays(resource.base, month)
+      if (days === null || days === 0) missing.push('缺有效基地月份生产天数或天数为0')
+      if (!applicable.length) missing.push('资源基地没有本版产品范围')
+      for (const row of applicable) {
+        const kindLabel = resource.kind === 'tunnel' ? '隧道' : '成型机'
+        if (invalidAssignments.get(row.id)?.has(resource.kind) || invalidAssignments.get(row.id)?.has('unknown')) missing.push(`${row.code} 缺有效${kindLabel}资源分配`)
+        if (row.requiredProductionTons === null) missing.push(`${row.code} 所需生产吨数未知`)
+      }
+      const quantities = applicable.map(row => {
+        const assigned = allocations.filter(assignment => assignment.month === month && key(assignment) === key(row) && assignment.resourceId === resource.id)
+        const assignedShare = assigned.reduce((sum, assignment) => sum + assignment.share, 0)
+        return { quantity: row.requiredProductionTons !== null ? safe(row.requiredProductionTons * assignedShare) : null }
+      })
+      const allocationComplete =
+        Boolean(resource.id && resource.base) &&
+        entries.length === 1 &&
+        applicable.length > 0 &&
+        applicable.every(row => !invalidAssignments.get(row.id)?.has(resource.kind) && !invalidAssignments.get(row.id)?.has('unknown') && row.requiredProductionTons !== null)
+      const requiredTons = allocationComplete ? quantity(quantities) : null
+      const requiredDays = requiredTons !== null && finite(resource.dailyTons) && resource.dailyTons > 0 ? safe(requiredTons / resource.dailyTons) : null
+      const load = !missing.length && requiredDays !== null && days !== null && days > 0 ? safe(requiredDays / days) : null
+      const overloadDays = requiredDays !== null && days !== null ? safe(Math.max(0, requiredDays - days)) : null
+      const gapTons =
+        requiredTons !== null && days !== null && finite(resource.dailyTons) && resource.dailyTons >= 0 ? safe(Math.max(0, requiredTons - resource.dailyTons * days)) : null
+      resourceLoads.push({
+        ...resource,
+        resourceId: resource.id,
+        month,
+        productionDays: days,
+        requiredTons,
+        requiredDays,
+        load,
+        overloadDays,
+        gapTons,
+        status: load === null ? 'unknown' : load < 0.9 ? 'normal' : load <= 1.05 ? 'warning' : 'overload',
+        missing: [...new Set(missing)]
+      })
+    }
+  }
+  for (const edit of input.adjustments?.shares ?? []) {
+    if (!rows.some(row => row.id === edit.rowId)) adjustmentIssues.push('占比调整不属于本版月份或产品范围')
+  }
+  for (const edit of input.adjustments?.categoryDemand ?? []) {
+    if (!categoryRows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('大类需求调整不属于本版月份或分类范围')
+  }
+  const summaryMissing = [...new Set(rows.flatMap(row => [...row.missing.requiredProductionTons, ...row.missing.productionDays, ...row.missing.resourceAssignments]))]
+  const summary = {
+    requiredProductionTons: quantity(rows.map(row => ({ quantity: row.requiredProductionTons }))),
+    knownRequiredProductionTons: safe(rows.reduce((sum, row) => sum + (row.requiredProductionTons ?? 0), 0)),
+    evaluatedRows: rows.filter(
+      row =>
+        row.requiredProductionTons !== null &&
+        row.productionDays !== null &&
+        row.productionDays > 0 &&
+        !row.missing.resourceAssignments.length &&
+        !resourceLoads.some(resource => resource.month === row.month && resource.base === row.base && resource.load === null)
+    ).length,
+    totalRows: rows.length,
+    missing: [...new Set([...(rows.length ? [] : ['缺本版产品范围']), ...summaryMissing, ...resourceLoads.flatMap(resource => resource.missing)])]
+  }
   return {
+    adjustmentIssues,
+    resourceLoads,
+    summary,
     context: { ...input.context },
     months,
     shipmentMonth: monthOffset(input.context.month, -1),
@@ -206,6 +493,6 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       safetyDays: input.constraints.safetyDays.map(row => ({ ...row })),
       rules: { ...input.constraints.rules }
     },
-    missing: ['第一步大类需求完整公式待确认', '安全库存、工作日、主计划及调拨规则待确认', '正式约束表与保存接口尚未就绪']
+    missing: ['所需生产与期末库存为无约束参考，可执行主计划、调拨及外协未生成', '正式约束表与保存接口尚未就绪']
   }
 }
