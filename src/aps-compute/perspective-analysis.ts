@@ -1,5 +1,7 @@
 /** The four V0.2 analysis views use the same evidence and boundary rules as the
  * business prompts. This pure function never fills missing measures with demo data. */
+import { sumMetricQuantity, type MetricData } from './metrics.js'
+import { productionOutputMetric } from './production-output.js'
 export type AnalysisMetric = { name: string; value: number; unit: string; previous?: number | null }
 export type AnalysisScope = 'overview' | 'production' | 'sales'
 export type AnalysisResult = { title: string; copy: string; score: number; total: number; question: string }
@@ -55,8 +57,8 @@ export function analyzeProductionMatrix(metric: string, period: string, cells: M
   const valid = cells.filter(c => c.scope && finite(c.value))
   if (!valid.length)
     return {
-      title: '生产履约整体情况',
-      copy: `${period}可先依据汇总指标观察生产与订单表现，再按已显示的业务范围核查重点对象。`,
+      title: `${metric}暂无可评价组合`,
+      copy: `${period}当前范围暂无可核实的基地 × 品类${metric}明细；请核对来源读取状态、分类与对应数量，不依据公司汇总推断组合表现。`,
       score: 0,
       total: 0,
       question: '当前周期哪些基地和品类需要优先核查订单履约？'
@@ -82,36 +84,36 @@ export function analyzeProductionMatrix(metric: string, period: string, cells: M
 }
 
 /** Matrix cells are recomputed from mutually exclusive base/category source rows. */
-export function matrixCellsFromData(data: { sections: { id: string; status: string; rows: Record<string, unknown>[] }[] } | null | undefined, metric: string): MatrixCell[] {
-  if (!['订单满足率', '可发货天数', '库存量'].includes(metric)) return []
-  const section = data?.sections.find(s => s.id === (metric === '订单满足率' ? 'orders' : 'stock') && s.status === 'ready')
-  if (!section) return []
-  const grouped = new Map<string, { amount: number; denominator: number; valid: boolean }>()
+export function matrixCellsFromData(data: Pick<MetricData, 'sections' | 'missingValuePolicy'> | null | undefined, metric: string): MatrixCell[] {
+  if (!['订单满足率', '可发货天数', '库存量', '生产计划达成率'].includes(metric)) return []
+  const source = metric === '订单满足率' ? 'orders' : metric === '生产计划达成率' ? 'production' : metric === '可发货天数' ? 'shippable' : 'stock'
+  // An explicit failed shippable source cannot fall back to another section.
+  const section = data?.sections.find(s => s.id === source) ?? (source === 'shippable' ? data?.sections.find(s => s.id === 'stock') : undefined)
+  if (!section || section.status !== 'ready') return []
+  const grouped = new Map<string, Record<string, unknown>[]>()
   for (const row of section.rows) {
     const base = typeof row.base === 'string' ? row.base.trim() : ''
     const category = typeof row.category === 'string' ? row.category.trim() : ''
     if (!base || !category) continue
     const key = `${base} × ${category}`
-    const item = grouped.get(key) ?? { amount: 0, denominator: 0, valid: true }
-    const amount = metric === '订单满足率' ? row.shortage : row.inventory
-    const denominator = row.demand
-    if (!finite(amount) || amount < 0 || (metric !== '库存量' && (!finite(denominator) || denominator <= 0)) || (row.invalid !== 0 && row.invalid !== undefined)) {
-      item.valid = false
-    } else {
-      item.amount += amount
-      if (finite(denominator)) item.denominator += denominator
-    }
-    grouped.set(key, item)
+    const rows = grouped.get(key) ?? []
+    rows.push(row)
+    grouped.set(key, rows)
   }
-  return [...grouped].flatMap(([scope, item]) =>
-    item.valid && (metric === '库存量' || item.denominator > 0)
-      ? [
-          {
-            scope,
-            value: metric === '订单满足率' ? (1 - item.amount / item.denominator) * 100 : metric === '库存量' ? item.amount / 10000 : item.amount / item.denominator,
-            weight: item.denominator
-          }
-        ]
-      : []
-  )
+  return [...grouped].flatMap(([scope, rows]) => {
+    if (metric === '生产计划达成率') {
+      const result = productionOutputMetric(rows, data?.missingValuePolicy)
+      return result.value === null ? [] : [{ scope, value: result.value }]
+    }
+    const aggregate = (key: string) => sumMetricQuantity(rows, key, data?.missingValuePolicy)
+    const amount = aggregate(metric === '订单满足率' ? 'shortage' : metric === '可发货天数' ? 'available' : 'inventory')
+    if (amount === null) return []
+    // Inventory does not depend on plan completeness. Ratios follow the same
+    // configured policy as headline metrics; failed sources never become zero.
+    if (metric === '库存量') return [{ scope, value: amount / 10000 }]
+    if (data?.missingValuePolicy !== 'zero' && rows.some(row => finite(row.invalid) && row.invalid !== 0)) return []
+    const denominator = aggregate('demand')
+    if (denominator === null || denominator <= 0) return []
+    return [{ scope, value: metric === '订单满足率' ? (1 - amount / denominator) * 100 : amount / denominator, weight: denominator }]
+  })
 }

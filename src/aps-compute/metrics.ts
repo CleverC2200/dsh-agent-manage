@@ -7,6 +7,12 @@ const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFi
 function sum(rows: Row[], key: string) {
   return rows.length && rows.every(r => finite(r[key])) ? rows.reduce((n, r) => n + (r[key] as number), 0) : null
 }
+/** Shared quantity aggregation for headline and dimensional metrics. */
+export function sumMetricQuantity(rows: Row[], key: string, missingValuePolicy?: 'zero') {
+  if (missingValuePolicy !== 'zero') return sum(rows, key)
+  if (!rows.length || rows.some(row => row[key] != null && !finite(row[key]))) return null
+  return rows.reduce((total, row) => total + (row[key] == null ? 0 : (row[key] as number)), 0)
+}
 const missing = (rows: Row[], key: string) => rows.reduce((n, r) => n + (finite(r[key]) ? r[key] : 0), 0)
 export function accuracy(planned: number | null, actual: number | null) {
   return planned !== null && actual !== null && planned >= 0 && actual > 0 ? (1 - Math.abs(planned - actual) / actual) * 100 : null
@@ -21,11 +27,7 @@ export function change(current: Metric, previous?: Metric) {
 export function deriveMetrics(data: MetricData): Record<string, Metric> {
   const zero = data.missingValuePolicy === 'zero'
   const sumValues = sum
-  const sumZero = (rows: Row[], key: string) => {
-    if (!rows.length || rows.some(row => row[key] != null && !finite(row[key]))) return null
-    return rows.reduce((total, row) => total + (row[key] == null ? 0 : (row[key] as number)), 0)
-  }
-  const aggregate = zero ? sumZero : sumValues
+  const aggregate = (rows: Row[], key: string) => sumMetricQuantity(rows, key, data.missingValuePolicy)
   const get = (id: string) => {
     const section = data.sections.find(s => s.id === id)
     if (zero && section?.status === 'empty') return [{}]

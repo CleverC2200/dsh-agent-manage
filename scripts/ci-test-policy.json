@@ -29,6 +29,12 @@
   "rules": [
     {
       "repo": "dsh-agent-manage",
+      "pattern": "^src/inventory-compute/full-chain-(?:category-structure|workspace-service)\\.ts$",
+      "tests": ["tests/full-chain-inventory-basis.test.ts"],
+      "sourceTests": ["tests/full-chain-inventory-basis.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-manage",
       "pattern": "^business-resources/inventory-apsplan/",
       "tests": ["tests/aps-resources.test.ts", "tests/aps-default-resources.test.mjs"]
     },
