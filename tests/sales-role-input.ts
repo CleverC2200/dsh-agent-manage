@@ -19,7 +19,7 @@ export async function salesRoleInput(id: string): Promise<BusinessPresetHarnessI
       contract: workbenchContract({ surface: 'gea-workbench', pageIds: ['gea-workbench'] }),
       externalResponse: async url =>
         url.pathname === '/sales-plan/plans'
-          ? Response.json({ success: true, result: { records: [{ id: 'offline-plan', periodId: 'offline-period', orderType: 'M', qty: 42 }], total: 1 } })
+          ? Response.json({ success: true, result: { records: [{ id: 'offline-plan', planId: 'offline-plan', periodId: 'offline-period', orderType: 'M', qty: 42 }], total: 1 } })
           : undefined
     }
   const root = resolve(import.meta.dirname, '../business-resources/inventory-apsplan')
