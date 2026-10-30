@@ -25,8 +25,7 @@ export function summarizeStructure(rows: StructureRow[], key: string, label: str
     differenceQty: targetQty == null ? null : currentQty - targetQty,
     turnoverDemand30d: demand,
     plannedDailyQty: plan,
-    turnoverDays:
-      demand != null && demand > 0 && (first.layer !== 'branch' || availableQty != null) ? ((first.layer === 'branch' ? availableQty! : currentQty) * 30) / demand : null,
+    turnoverDays: demand != null && demand > 0 ? (currentQty * 30) / demand : null,
     targetTurnoverDays: targetQty != null && plan != null && plan > 0 ? targetQty / plan : null,
     projectedTurnoverDays: null,
     forecastInventoryQty: completeTotal(rows.map(r => r.forecastInventoryQty)),
