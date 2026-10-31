@@ -437,12 +437,15 @@ export class SkillDirectories {
       }
       const snapshot = changed ? await this.snapshot(files, target.directory.entry, dirname(this.ownerBase(target.directory))) : snapshotOf(target.directory)
       const definition = await this.validateRoot(snapshot.root, plan.name, join(snapshot.bundle, 'tree'))
-      const directory = { ...target.directory, ...snapshot, source: plan.source, ...(changed ? { previous: snapshotOf(target.directory) } : {}) }
+      const source = { ...plan.source, base: await this.snapshot(await readTree(join(plan.upstream.bundle, 'tree')), plan.source.path, dirname(this.ownerBase(target.directory))) }
+      const directory = { ...target.directory, ...snapshot, source, ...(changed ? { previous: snapshotOf(target.directory) } : {}) }
       const skill = { ...target.skill, content: definition.content, ...(target.skill.kind === 'personal' ? { description: definition.description } : {}), directory }
       const skills = target.agent.skills.map(row => (row.name === plan.name ? skill : row))
       await this.preserveWork(target.agent.skills, skills)
-      await this.save(plan.id, skills, target.agent.revision)
+      const saved = await this.save(plan.id, skills, target.agent.revision)
+      if (saved.publication === 'failed') throw Error(saved.error ?? 'SKILL_PUBLICATION_FAILED')
       this.sourcePlans.delete(value.token)
+      await rm(plan.upstream.bundle, { recursive: true, force: true })
       if (changed) {
         await rm(target.cwd, { recursive: true, force: true })
         await writeTree(files, target.cwd)
