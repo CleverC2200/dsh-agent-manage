@@ -505,9 +505,24 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   for (const edit of input.adjustments?.categoryDemand ?? []) {
     if (!categoryRows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('大类需求调整不属于本版月份或分类范围')
   }
+  const demandCategories = new Set(
+    [
+      ...input.products,
+      ...input.categoryDemand.filter(row => months.slice(0, 3).includes(row.month)),
+      ...(input.adjustments?.categoryDemand ?? []).filter(row => months.slice(0, 3).includes(row.month))
+    ].map(row => row.category)
+  )
+  const demandScope = categoryRows.filter(category => months.slice(0, 3).includes(category.month) && demandCategories.has(category.category))
+  const categoryScopeIssues = demandScope.flatMap(category => {
+    if (rows.some(row => row.month === category.month && row.category === category.category)) return []
+    if (category.quantity === null) return [`${category.month} ${category.category} 缺大类需求，完整生产吨数未知`]
+    if (category.quantity > 0) return [`${category.month} ${category.category} 缺月度SKU域，大类需求未拆分`]
+    return []
+  })
   const summaryMissing = [...new Set(rows.flatMap(row => [...row.missing.requiredProductionTons, ...row.missing.productionDays, ...row.missing.resourceAssignments]))]
   const summary = {
-    requiredProductionTons: scopeIssues.length ? null : quantity(rows.map(row => ({ quantity: row.requiredProductionTons }))),
+    requiredProductionTons:
+      scopeIssues.length || categoryScopeIssues.length ? null : rows.length ? quantity(rows.map(row => ({ quantity: row.requiredProductionTons }))) : demandScope.length ? 0 : null,
     knownRequiredProductionTons: safe(rows.reduce((sum, row) => sum + (row.requiredProductionTons ?? 0), 0)),
     evaluatedRows: rows.filter(
       row =>
@@ -518,7 +533,15 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         !resourceLoads.some(resource => resource.month === row.month && resource.base === row.base && resource.load === null)
     ).length,
     totalRows: rows.length,
-    missing: [...new Set([...(rows.length ? [] : ['缺本版产品范围']), ...scopeIssues, ...summaryMissing, ...resourceLoads.flatMap(resource => resource.missing)])]
+    missing: [
+      ...new Set([
+        ...(rows.length || demandScope.length ? [] : ['缺本版产品范围']),
+        ...scopeIssues,
+        ...categoryScopeIssues,
+        ...summaryMissing,
+        ...resourceLoads.flatMap(resource => resource.missing)
+      ])
+    ]
   }
   return {
     scopeCoverage: input.scopeCoverage ?? 'in-scope',

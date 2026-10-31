@@ -323,6 +323,84 @@ test('零安全天数不要求未知下月需求，缺失天数仍为未知', ()
   assert.equal(computeMpsWorkflow(sample).rows[0].targetInventory, null)
 })
 
+test('有大类需求但缺月度SKU域时完整吨数未知，已知小计不丢失', () => {
+  const sample = input()
+  sample.products = [sample.products[0]]
+  sample.productMonths = [{ month: '2026-12', base: '甲', code: 'A' }]
+  sample.categoryDemand = ['2026-12', '2027-01', '2027-02'].map(month => ({ month, category: '点心', quantity: 100 }))
+  sample.report = [{ month: '2026-12', base: '甲', code: 'A', quantity: 100 }]
+  sample.history = [{ month: '2025-12', base: '甲', code: 'A', quantity: 100 }]
+  sample.constraints.safetyDays = [{ base: '甲', days: 0 }]
+  sample.unitWeights = [{ base: '甲', code: 'A', tonsPerPiece: 1 }]
+  const result = computeMpsWorkflow(sample)
+  assert.equal(result.summary.requiredProductionTons, null)
+  assert.equal(result.summary.knownRequiredProductionTons, 100)
+  assert.equal(result.summary.totalRows, 1)
+  assert.match(result.summary.missing.join('、'), /2027-01 点心.*缺.*SKU.*未拆分/)
+  assert.match(result.summary.missing.join('、'), /2027-02 点心.*缺.*SKU.*未拆分/)
+  assert.deepEqual(
+    result.rows.map(row => [row.month, row.requiredProduction]),
+    [['2026-12', 100]]
+  )
+})
+
+test('同月缺大类域的NULL需求阻断完整性，真实0与未使用占位类不阻断', () => {
+  const sample = input()
+  sample.products = [sample.products[0]]
+  sample.productMonths = [{ month: '2026-12', base: '甲', code: 'A' }]
+  sample.categoryDemand = [
+    { month: '2026-12', category: '点心', quantity: 100 },
+    { month: '2027-01', category: '点心', quantity: 0 },
+    { month: '2027-02', category: '点心', quantity: 0 },
+    { month: '2026-12', category: '汤圆', quantity: null },
+    { month: '2027-01', category: '汤圆', quantity: 0 },
+    { month: '2027-02', category: '汤圆', quantity: 0 }
+  ]
+  sample.report = [{ month: '2026-12', base: '甲', code: 'A', quantity: 100 }]
+  sample.history = [{ month: '2025-12', base: '甲', code: 'A', quantity: 100 }]
+  sample.constraints.safetyDays = [{ base: '甲', days: 0 }]
+  sample.unitWeights = [{ base: '甲', code: 'A', tonsPerPiece: 1 }]
+  const unknown = computeMpsWorkflow(sample)
+  assert.equal(unknown.summary.requiredProductionTons, null)
+  assert.equal(unknown.summary.knownRequiredProductionTons, 100)
+  assert.match(unknown.summary.missing.join('、'), /2026-12 汤圆.*缺大类需求/)
+  sample.categoryDemand[3].quantity = 0
+  const zero = computeMpsWorkflow(sample)
+  assert.equal(zero.summary.requiredProductionTons, 100)
+  assert.equal(zero.summary.totalRows, 1)
+  assert.equal(
+    zero.summary.missing.some(reason => /汤圆|饺子|2027-01|2027-02/.test(reason)),
+    false
+  )
+  sample.categoryDemand[3].quantity = 20
+  assert.match(computeMpsWorkflow(sample).summary.missing.join('、'), /2026-12 汤圆.*缺.*SKU.*未拆分/)
+})
+
+test('显式零需求范围可汇总为0，空输入和范围内缺月需求仍未知，M+4不计入完整性', () => {
+  const sample = input()
+  sample.products = []
+  sample.productMonths = []
+  sample.report = []
+  sample.history = []
+  sample.categoryDemand = ['2026-12', '2027-01', '2027-02'].map(month => ({ month, category: '汤圆', quantity: 0 }))
+  sample.categoryDemand.push({ month: '2027-03', category: '汤圆', quantity: 100 })
+  const zero = computeMpsWorkflow(sample)
+  assert.equal(zero.summary.requiredProductionTons, 0)
+  assert.equal(zero.summary.knownRequiredProductionTons, 0)
+  assert.equal(zero.summary.totalRows, 0)
+  assert.deepEqual(zero.summary.missing, [])
+  sample.categoryDemand = []
+  assert.equal(computeMpsWorkflow(sample).summary.requiredProductionTons, null)
+  sample.categoryDemand = [{ month: '2026-12', category: '汤圆', quantity: 0 }]
+  assert.equal(computeMpsWorkflow(sample).summary.requiredProductionTons, null)
+  sample.products = [input().products[0]]
+  sample.categoryDemand = [{ month: '2026-12', category: '点心', quantity: 0 }]
+  const absent = computeMpsWorkflow(sample)
+  assert.equal(absent.summary.requiredProductionTons, null)
+  assert.match(absent.summary.missing.join('、'), /2027-01 点心.*缺大类需求/)
+  assert.match(absent.summary.missing.join('、'), /2027-02 点心.*缺大类需求/)
+})
+
 const resourceInput = () => {
   const sample = input()
   sample.products = ['A', 'B'].map(code => ({ ...sample.products[0], code }))

@@ -16,3 +16,11 @@ Manage owns `src/inventory-compute`. Its package exports `./inventory-compute/*`
 Workbench imports these public modules directly. Its build resolves the declared `source` export and records every consumed Manage source/configuration hash plus package metadata in `build-inputs.json`. Results are bundled into the page; the browser does not import a host runtime. Workbench continues to own fixture loading, source permission cropping, page state, pagination, cancellation, references and snapshot lifetime. GEA remains the data authorization owner.
 
 Fixed Git golden checks and existing Personal age/partial and full-chain tests remain the independent expectations. Personal's original daily-report variant differs from the first-batch AQKC report in source selection and risk truncation; this migration does not replace that first-batch rule version. The calculation modules do not verify real business grants.
+
+## MPS monthly scope
+
+The public [`mps-compute/workflow`](../../src/mps-compute/workflow.ts) contract owns MPS calculations. `productMonths` supplies the month, base and SKU domain for the first three months. Omitting it retains the legacy product domain in each month; an explicit empty array supplies no SKU domain. M+4 supplies category inventory reference only and creates no production rows.
+
+Complete production tons require coverage of all three months for categories in the supplied product catalog or explicit first-three-month category demand/adjustments. Positive demand without a monthly SKU domain and missing or NULL demand keep the strict total NULL; the known subtotal remains available. Unused built-in category placeholders do not establish scope. An empty domain totals zero only when every relevant category has an explicit effective zero in all three months. No missing SKU rows or quantities are generated.
+
+`scopeCoverage` defaults to `in-scope`. A caller may supply `national` only after obtaining actual nationwide coverage evidence; the calculation does not verify that evidence or grant business authorization.
