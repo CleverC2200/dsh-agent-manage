@@ -18,6 +18,7 @@ export interface MpsQuantityRow {
   base: string
   code: string
   quantity: MpsQuantity
+  category?: string
 }
 export interface MpsCategoryDemand {
   systemQuantity?: MpsQuantity
@@ -69,6 +70,8 @@ export interface MpsResourceLoad extends MpsResource {
   missing: string[]
 }
 export interface MpsWorkflowInput {
+  productMonths?: Pick<MpsQuantityRow, 'month' | 'base' | 'code'>[]
+  scopeCoverage?: 'national' | 'in-scope'
   productionDays?: { base: string; month: string; days: MpsQuantity }[]
   unitWeights?: { base: string; code: string; tonsPerPiece: MpsQuantity }[]
   resources?: MpsResource[]
@@ -166,10 +169,37 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const capacityIndex = groupBy(input.capacities, key)
   const daysIndex = groupBy(input.constraints.safetyDays, row => row.base)
   const productIndex = groupBy(input.products, key)
-  const unmatchedMonths = {
-    report: new Set(input.report.filter(row => !productIndex.has(key(row))).map(row => row.month)),
-    history: new Set(input.history.filter(row => !productIndex.has(key(row))).map(row => row.month))
+  const productsByMonth = new Map(
+    months.slice(0, 3).map(month => [
+      month,
+      input.productMonths === undefined
+        ? input.products
+        : input.productMonths
+            .filter(row => row.month === month)
+            .flatMap(assignment => {
+              const matches = productIndex.get(key(assignment)) ?? productIndex.get(key({ base: '', code: assignment.code })) ?? []
+              return matches.map(product => ({ ...product, base: assignment.base }))
+            })
+    ])
+  )
+  const monthlyProductIndexes = new Map([...productsByMonth].map(([month, products]) => [month, groupBy(products, key)]))
+  const catalogByCode = groupBy(input.products, row => row.code)
+  const unmatchedMonths = { report: new Map<string, Set<string>>(), history: new Map<string, Set<string>>() }
+  for (const source of ['report', 'history'] as const) {
+    for (const fact of input[source]) {
+      const month = source === 'history' && /^\d{4}-(0[1-9]|1[0-2])$/.test(fact.month) ? monthOffset(fact.month, 12) : fact.month
+      const domain = monthlyProductIndexes.get(month)
+      if (!domain || domain.has(key(fact))) continue
+      const categories = new Set([fact.category ?? '', ...(catalogByCode.get(fact.code) ?? []).map(product => product.category)].filter(Boolean))
+      const category = categories.size === 1 ? [...categories][0] : ''
+      const unmatched = unmatchedMonths[source].get(month) ?? new Set<string>()
+      unmatched.add(category)
+      unmatchedMonths[source].set(month, unmatched)
+    }
   }
+  const scopeIssues = [...unmatchedMonths.report, ...unmatchedMonths.history].flatMap(([month, categories]) =>
+    [...categories].map(category => `${month} ${category || '分类未知'} 源明细存在池外产品，${category ? '该大类' : '当月'}拆分范围不完整`)
+  )
   const categories = [...new Set([...mpsCategories, ...[...input.products, ...input.categoryDemand].map(row => row.category)])]
   const categoryRows = months.flatMap(month =>
     categories.map(category => {
@@ -193,7 +223,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     })
   )
   const rows: MpsWorkflowRow[] = months.slice(0, 3).flatMap(month =>
-    input.products.map(product => {
+    (productsByMonth.get(month) ?? []).map(product => {
       const reportQuantity = quantity(reportIndex.get(periodKey({ ...product, month })) ?? [])
       const historyQuantity = quantity(historyIndex.get(periodKey({ ...product, month: monthOffset(month, -12) })) ?? [])
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
@@ -255,17 +285,17 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     if (!group.length) continue
     const materialGroups = groupBy(group, row => row.group)
     const skuGroups = new Map([...materialGroups].map(([name, entries]) => [name, groupBy(entries, row => row.code)]))
-    const duplicate = group.some(row => (productIndex.get(key(row))?.length ?? 0) > 1)
+    const duplicate = group.some(row => (monthlyProductIndexes.get(category.month)?.get(key(row))?.length ?? 0) > 1)
     const identityMissing = group.some(row => !row.base || !row.code || !row.category || !row.group)
     for (const source of ['report', 'history'] as const) {
       const field = source === 'report' ? 'reportQuantity' : 'historyQuantity'
       const shareField = source === 'report' ? 'reportShare' : 'historyShare'
       const total = quantity(group.map(row => ({ quantity: row[field] })))
-      const sourceMonth = source === 'report' ? category.month : monthOffset(category.month, -12)
-      const unmatched = unmatchedMonths[source].has(sourceMonth)
+      const unmatched = unmatchedMonths[source].get(category.month)
       const issues = [
         ...input.sourceIssues[source],
-        ...(unmatched ? ['源明细存在未对应产品，拆分范围不完整'] : []),
+        ...(unmatched?.has('') ? ['源明细存在池外产品且分类未知，当月拆分范围不完整'] : []),
+        ...(unmatched?.has(category.category) ? ['源明细存在同大类池外产品，该大类拆分范围不完整'] : []),
         ...(identityMissing ? ['缺基地、物料组或产品分类，拆分范围不完整'] : []),
         ...(duplicate ? ['产品拆分键重复'] : []),
         ...(total === null ? ['同大类明细数量不完整'] : total === 0 ? ['同大类合计为0，占比未定义'] : [])
@@ -357,7 +387,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     const nextCategory = categoryRows.find(candidate => candidate.month === nextMonth && candidate.category === row.category)
     row.nextMonthDemand = nextRow
       ? nextRow.demand
-      : nextCategory?.quantity !== null && nextCategory?.quantity !== undefined && row.share !== null
+      : row.month === months[2] && nextCategory?.quantity !== null && nextCategory?.quantity !== undefined && row.share !== null
         ? safe(nextCategory.quantity * row.share)
         : null
     row.targetInventory =
@@ -477,7 +507,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   }
   const summaryMissing = [...new Set(rows.flatMap(row => [...row.missing.requiredProductionTons, ...row.missing.productionDays, ...row.missing.resourceAssignments]))]
   const summary = {
-    requiredProductionTons: quantity(rows.map(row => ({ quantity: row.requiredProductionTons }))),
+    requiredProductionTons: scopeIssues.length ? null : quantity(rows.map(row => ({ quantity: row.requiredProductionTons }))),
     knownRequiredProductionTons: safe(rows.reduce((sum, row) => sum + (row.requiredProductionTons ?? 0), 0)),
     evaluatedRows: rows.filter(
       row =>
@@ -488,9 +518,10 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         !resourceLoads.some(resource => resource.month === row.month && resource.base === row.base && resource.load === null)
     ).length,
     totalRows: rows.length,
-    missing: [...new Set([...(rows.length ? [] : ['缺本版产品范围']), ...summaryMissing, ...resourceLoads.flatMap(resource => resource.missing)])]
+    missing: [...new Set([...(rows.length ? [] : ['缺本版产品范围']), ...scopeIssues, ...summaryMissing, ...resourceLoads.flatMap(resource => resource.missing)])]
   }
   return {
+    scopeCoverage: input.scopeCoverage ?? 'in-scope',
     adjustmentIssues,
     resourceLoads,
     summary,
@@ -503,6 +534,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       safetyDays: input.constraints.safetyDays.map(row => ({ ...row })),
       rules: { ...input.constraints.rules }
     },
-    missing: ['所需生产与期末库存为无约束参考，可执行主计划、调拨及外协未生成', '正式约束表与保存接口尚未就绪']
+    missing: [
+      ...new Set(scopeIssues),
+      ...(input.scopeCoverage === 'national' ? [] : ['产品池全国覆盖尚未取得实际证明，仅报告范围内结果']),
+      '所需生产与期末库存为无约束参考，可执行主计划、调拨及外协未生成',
+      '正式约束表与保存接口尚未就绪'
+    ]
   }
 }

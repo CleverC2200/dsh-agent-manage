@@ -23,6 +23,79 @@ const input = () => ({
   constraints: { safetyDays: [], rules: {} }
 })
 
+test('月度基地SKU范围限定分母与Top1，不把其他月份或产能复制为当月需求', () => {
+  const sample = input()
+  sample.productMonths = [
+    { month: '2026-12', base: '甲', code: 'A' },
+    { month: '2027-01', base: '乙', code: 'B' }
+  ]
+  sample.report = [sample.report[0], { month: '2027-01', base: '乙', code: 'B', quantity: 80 }]
+  sample.history = [sample.history[0], { month: '2026-01', base: '乙', code: 'B', quantity: 40 }]
+  sample.categoryDemand.push({ month: '2027-01', category: '点心', quantity: 200 })
+  sample.capacities = [{ base: '丙', code: 'A', line: '一线', dailyPieces: 100, dailyTons: 10, missing: [] }]
+  const result = computeMpsWorkflow(sample)
+  assert.deepEqual(
+    result.rows.map(row => [row.month, row.base, row.code]),
+    [
+      ['2026-12', '甲', 'A'],
+      ['2027-01', '乙', 'B']
+    ]
+  )
+  assert.equal(result.rows[0].reportLayers.categoryQuantity, 30)
+  assert.equal(result.rows[0].historyLayers.categoryQuantity, 60)
+  assert.equal(result.rows[0].share, 1)
+  assert.equal(result.rows[0].fallback, true)
+  assert.equal(result.rows[0].demand, 120)
+  assert.equal(result.rows[0].nextMonthDemand, null)
+})
+
+test('池外事实保留源分类，只阻断对应大类，未知分类仍阻断当月完整性', () => {
+  const sample = input()
+  sample.products[1].category = '汤圆'
+  sample.products[1].group = '汤圆组'
+  sample.productMonths = [{ month: '2026-12', base: '甲', code: 'A' }]
+  sample.report.push({ month: '2026-12', base: '丙', code: 'C', category: '汤圆', quantity: 500 })
+  const classified = computeMpsWorkflow(sample)
+  assert.equal(classified.rows[0].reportShare, 1)
+  assert.equal(classified.rows[0].historyShare, 1)
+  assert.equal(classified.rows[0].demand, 120)
+  assert.match(classified.missing.join(''), /2026-12.*汤圆.*池外/)
+  sample.report.push({ month: '2026-12', base: '丁', code: 'X', quantity: 1 })
+  const unknown = computeMpsWorkflow(sample)
+  assert.equal(unknown.rows[0].reportShare, null)
+  assert.equal(unknown.rows[0].historyShare, 1)
+  assert.equal(unknown.rows[0].demand, null)
+  assert.match(unknown.rows[0].missing.demand.join(''), /分类未知/)
+})
+
+test('月度正式归属范围内的缺行和NULL仍缺数，未证明全国时仅报告范围内结果', () => {
+  const sample = input()
+  sample.productMonths = sample.products.map(({ base, code }) => ({ month: '2026-12', base, code }))
+  sample.report.pop()
+  sample.history[1].quantity = null
+  const result = computeMpsWorkflow(sample)
+  assert.equal(result.rows.length, 2)
+  assert.equal(result.rows[1].reportQuantity, null)
+  assert.equal(result.rows[1].historyQuantity, null)
+  assert.equal(result.rows[0].share, null)
+  assert.equal(result.scopeCoverage, 'in-scope')
+  assert.match(result.missing.join(''), /全国覆盖.*实际证明.*范围内/)
+  sample.scopeCoverage = 'national'
+  assert.equal(computeMpsWorkflow(sample).scopeCoverage, 'national')
+})
+
+test('M+4只供大类库存参考，该月事实不扩充或污染前三月SKU范围', () => {
+  const sample = input()
+  sample.productMonths = sample.products.map(({ base, code }) => ({ month: '2026-12', base, code }))
+  sample.report.push({ month: '2027-03', base: '丙', code: 'C', quantity: 500 })
+  const result = computeMpsWorkflow(sample)
+  assert.equal(result.rows.length, 2)
+  assert.equal(
+    result.missing.some(reason => reason.includes('2027-03') && reason.includes('池外')),
+    false
+  )
+})
+
 test('两套占比平均拆分使用同月大类需求并保留四月大类', () => {
   const result = computeMpsWorkflow(input())
   assert.deepEqual(result.months, ['2026-12', '2027-01', '2027-02', '2027-03'])
