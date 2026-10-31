@@ -109,9 +109,8 @@ export class SkillDirectories {
       const agent = await this.getAgent(value.id)
       if (agent.skills.some(row => row.name === candidate.name) && !value.replace) throw Error('SKILL_NAME_EXISTS')
       const id = randomUUID()
-      const bundle = join(this.store, id, 'versions', randomUUID())
-      await copySafe(source.root, join(bundle, 'tree'))
-      const snapshot = snapshotFor(bundle, value.path)
+      const snapshot = await this.snapshot(await readTree(source.root), value.path)
+      const bundle = snapshot.bundle
       const definition = await this.validateRoot(snapshot.root, candidate.name, join(bundle, 'tree'))
       const skill: UserAgentSkill = {
         kind: 'personal',
@@ -133,18 +132,19 @@ export class SkillDirectories {
         if (skill.directory) {
           const old = previous.find(row => row.name === skill.name)
           if (!old || (old.content === skill.content && (old.kind !== 'personal' || skill.kind !== 'personal' || old.description === skill.description))) return skill
-          const bundle = join(dirname(dirname(skill.directory.bundle)), 'versions', randomUUID())
-          await copySafe(join(skill.directory.bundle, 'tree'), join(bundle, 'tree'))
-          const snapshot = snapshotFor(bundle, skill.directory.entry)
-          const file = join(bundle, 'tree', snapshot.entry, 'SKILL.md')
-          const text = await readFile(file, 'utf8')
+          const tree = await readTree(join(skill.directory.bundle, 'tree'))
+          const path = skill.directory.entry === '.' ? 'SKILL.md' : `${skill.directory.entry}/SKILL.md`
+          const original = tree.get(path)
+          const text = original?.data.toString('utf8') ?? ''
           const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
           if (!frontmatter) throw Error('SKILL_DIRECTORY_INVALID')
           const metadata = parseDocument(frontmatter[1])
           if (skill.kind === 'personal') metadata.set('description', skill.description)
-          await writeFile(file, `---\n${metadata.toString()}---\n${skill.content}`)
+          tree.set(path, { data: Buffer.from(`---\n${metadata.toString()}---\n${skill.content}`), mode: original!.mode })
+          const snapshot = await this.snapshot(tree, skill.directory.entry, dirname(this.ownerBase(skill.directory)))
+          const bundle = snapshot.bundle
           const definition = await this.validateRoot(snapshot.root, skill.name, join(bundle, 'tree'))
-          const work = join(dirname(dirname(skill.directory.bundle)), 'work')
+          const work = join(this.ownerBase(skill.directory), 'work')
           if (await stat(work).catch(() => undefined)) {
             const draft = await readTree(work),
               base = await readTree(join(skill.directory.bundle, 'tree'))
@@ -163,25 +163,23 @@ export class SkillDirectories {
         }
         const oldDirectory = previous.find(row => row.name === skill.name)?.directory
         const id = oldDirectory?.id ?? randomUUID()
-        const bundle = join(this.store, id, 'versions', randomUUID())
         const sourceDirectory = source?.resourceBase?.kind === 'directory' ? source.resourceBase.path : undefined
         const roots = [sourceRoot, await this.sourceRoot?.(skill)]
         const origin = roots.find(root => root && sourceDirectory && inside(resolve(root), resolve(sourceDirectory))) ?? sourceDirectory
         const entry = origin && sourceDirectory ? relative(origin, sourceDirectory).replaceAll(sep, '/') || '.' : '.'
-        const directory = join(bundle, 'tree', entry)
-        if (origin) await copySafe(origin, join(bundle, 'tree'))
-        else await mkdir(directory, { recursive: true })
+        const tree = origin ? await readTree(origin) : new Map<string, Entry>()
+        const path = entry === '.' ? 'SKILL.md' : `${entry}/SKILL.md`
         const content = skill.content ?? source?.content ?? ''
-        if (!sourceDirectory || skill.content !== undefined || !(await stat(join(directory, 'SKILL.md')).catch(() => undefined))) {
-          const existing = source?.path ? await readFile(source.path, 'utf8').catch(() => '') : await readFile(join(directory, 'SKILL.md'), 'utf8').catch(() => '')
+        if (!sourceDirectory || skill.content !== undefined || !tree.has(path)) {
+          const existing = source?.path ? await readFile(source.path, 'utf8').catch(() => '') : (tree.get(path)?.data.toString('utf8') ?? '')
           const frontmatter = existing.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)?.[0]
-          await writeFile(
-            join(directory, 'SKILL.md'),
+          const data = Buffer.from(
             `${frontmatter ?? `---\n${dump({ name: skill.name, description: skill.kind === 'personal' ? skill.description : (source?.description ?? skill.name) })}---\n`}${content}`
           )
+          tree.set(path, { data, mode: tree.get(path)?.mode ?? 0o644 })
         }
-        const snapshot = snapshotFor(bundle, entry)
-        const definition = await this.validateRoot(snapshot.root, skill.name, join(bundle, 'tree'))
+        const snapshot = await this.snapshot(tree, entry)
+        const definition = await this.validateRoot(snapshot.root, skill.name, join(snapshot.bundle, 'tree'))
         return { ...skill, content: definition.content, directory: { id, ...snapshot, ...(oldDirectory ? { previous: snapshotOf(oldDirectory) } : {}) } }
       })
     )
@@ -298,9 +296,8 @@ export class SkillDirectories {
     return this.serialize(async () => {
       const target = await this.target(value)
       await this.check(target, value.revision)
-      const bundle = join(dirname(dirname(target.directory.bundle)), 'versions', randomUUID())
-      await copySafe(target.cwd, join(bundle, 'tree'))
-      const snapshot = snapshotFor(bundle, target.directory.entry)
+      const snapshot = await this.snapshot(await readTree(target.cwd), target.directory.entry, dirname(this.ownerBase(target.directory)))
+      const bundle = snapshot.bundle
       const definition = await this.validateRoot(snapshot.root, value.name, join(bundle, 'tree'))
       const skill = {
         ...target.skill,
@@ -371,7 +368,7 @@ export class SkillDirectories {
         }
       const acquired = await this.acquire({ kind: 'git', url: source.url, ...(source.branch ? { branch: source.branch } : {}) })
       const staged = this.acquisitions.get(acquired.token)!
-      const bundle = join(dirname(dirname(target.directory.bundle)), 'versions', randomUUID())
+      const bundle = join(this.ownerBase(target.directory), 'versions', randomUUID())
       try {
         if (!staged.candidates.some(row => row.path === source.path && row.name === value.name) || !staged.source) throw Error('SKILL_SOURCE_ENTRY_MISSING')
         await copySafe(staged.root, join(bundle, 'tree'))
@@ -438,15 +435,17 @@ export class SkillDirectories {
         await rm(plan.upstream.bundle, { recursive: true, force: true })
         return this.openTarget({ id: plan.id, name: plan.name })
       }
-      const snapshot = changed ? snapshotFor(join(dirname(dirname(target.directory.bundle)), 'versions', randomUUID()), target.directory.entry) : snapshotOf(target.directory)
-      if (changed) await writeTree(files, join(snapshot.bundle, 'tree'))
+      const snapshot = changed ? await this.snapshot(files, target.directory.entry, dirname(this.ownerBase(target.directory))) : snapshotOf(target.directory)
       const definition = await this.validateRoot(snapshot.root, plan.name, join(snapshot.bundle, 'tree'))
-      const directory = { ...target.directory, ...snapshot, source: plan.source, ...(changed ? { previous: snapshotOf(target.directory) } : {}) }
+      const source = { ...plan.source, base: await this.snapshot(await readTree(join(plan.upstream.bundle, 'tree')), plan.source.path, dirname(this.ownerBase(target.directory))) }
+      const directory = { ...target.directory, ...snapshot, source, ...(changed ? { previous: snapshotOf(target.directory) } : {}) }
       const skill = { ...target.skill, content: definition.content, ...(target.skill.kind === 'personal' ? { description: definition.description } : {}), directory }
       const skills = target.agent.skills.map(row => (row.name === plan.name ? skill : row))
       await this.preserveWork(target.agent.skills, skills)
-      await this.save(plan.id, skills, target.agent.revision)
+      const saved = await this.save(plan.id, skills, target.agent.revision)
+      if (saved.publication === 'failed') throw Error(saved.error ?? 'SKILL_PUBLICATION_FAILED')
       this.sourcePlans.delete(value.token)
+      await rm(plan.upstream.bundle, { recursive: true, force: true })
       if (changed) {
         await rm(target.cwd, { recursive: true, force: true })
         await writeTree(files, target.cwd)
@@ -469,7 +468,7 @@ export class SkillDirectories {
   async preserveWork(previous: UserAgentSkill[], next: UserAgentSkill[]): Promise<void> {
     for (const skill of previous) {
       if (!skill.directory || next.find(row => row.name === skill.name)?.directory?.root === skill.directory.root) continue
-      const work = join(dirname(dirname(skill.directory.bundle)), 'work')
+      const work = join(this.ownerBase(skill.directory), 'work')
       if (!(await stat(work).catch(() => undefined))) continue
       const [local, published] = await Promise.all([readTree(work), readTree(join(skill.directory.bundle, 'tree'))])
       if ([...new Set([...local.keys(), ...published.keys()])].some(path => !equalEntry(local.get(path), published.get(path)))) throw Error('SKILL_EDIT_CONFLICT')
@@ -481,9 +480,8 @@ export class SkillDirectories {
       skills.map(async skill => {
         if (!skill.directory) return (await this.migrate([skill]))[0]
         const id = randomUUID()
-        const bundle = join(this.store, id, 'versions', randomUUID())
-        await copySafe(join(skill.directory.bundle, 'tree'), join(bundle, 'tree'))
-        return { ...skill, directory: { id, ...snapshotFor(bundle, skill.directory.entry), ...(skill.directory.source ? { source: skill.directory.source } : {}) } }
+        const snapshot = await this.snapshot(await readTree(join(skill.directory.bundle, 'tree')), skill.directory.entry)
+        return { ...skill, directory: { id, ...snapshot, ...(skill.directory.source ? { source: skill.directory.source } : {}) } }
       })
     )
   }
@@ -493,6 +491,40 @@ export class SkillDirectories {
     const { directory, ...metadata } = skill
     if (!directory) return metadata
     return { ...metadata, files: await skillDirectoryFiles(join(directory.bundle, 'tree')) }
+  }
+
+  private ownerBase(directory: NonNullable<UserAgentSkill['directory']>): string {
+    if (!dirname(directory.bundle).endsWith(`${sep}snapshots`)) return dirname(dirname(directory.bundle))
+    if (!/^[a-zA-Z0-9_-]+$/.test(directory.id)) throw Error('SKILL_DIRECTORY_OWNER_MISMATCH')
+    return join(dirname(dirname(directory.bundle)), directory.id)
+  }
+
+  private async snapshot(tree: Tree, entry: string, store = this.store): Promise<SkillDirectorySnapshot> {
+    const key = treeDigest(tree)
+    const bundle = join(store, 'snapshots', key)
+    const verify = async () => {
+      if (!(await lstat(bundle)).isDirectory() || !(await lstat(join(bundle, 'tree'))).isDirectory()) throw Error('SKILL_PATH_ESCAPE')
+      if (key !== treeDigest(await readTree(join(bundle, 'tree')))) throw Error('SKILL_SNAPSHOT_CORRUPTED')
+    }
+    try {
+      await verify()
+    } catch (error) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
+      const staging = join(store, `.staging-${randomUUID()}`)
+      try {
+        await writeTree(tree, join(staging, 'tree'))
+        await mkdir(dirname(bundle), { recursive: true })
+        try {
+          await rename(staging, bundle)
+        } catch (error) {
+          if (!(error instanceof Error && 'code' in error && ['EEXIST', 'ENOTEMPTY'].includes(String(error.code)))) throw error
+        }
+        await verify()
+      } finally {
+        await rm(staging, { recursive: true, force: true })
+      }
+    }
+    return snapshotFor(bundle, entry)
   }
 
   private async target(value: z.infer<typeof targetInput>) {
@@ -505,9 +537,10 @@ export class SkillDirectories {
     }
     if (!skill.directory) throw Error('AGENT_SKILL_SOURCE_MISSING')
     const directory = skill.directory
-    const base = dirname(dirname(directory.bundle))
+    const base = this.ownerBase(directory)
     if (!inside(resolve(dirname(this.store)), resolve(directory.bundle)) || dirname(base).endsWith('versions') || !base.endsWith(`${sep}${directory.id}`))
       throw Error('SKILL_DIRECTORY_OWNER_MISMATCH')
+    await mkdir(base, { recursive: true })
     const cwd = join(base, 'work')
     const stateFile = join(base, 'work-state.json')
     let state: z.infer<typeof stateSchema>
@@ -558,7 +591,7 @@ export class SkillDirectories {
 
   private async advance(target: Awaited<ReturnType<SkillDirectories['target']>>): Promise<void> {
     const revision = target.state.revision + 1
-    await copySafe(target.cwd, join(dirname(dirname(target.directory.bundle)), 'draft-history', String(revision)))
+    await copySafe(target.cwd, join(this.ownerBase(target.directory), 'draft-history', String(revision)))
     await writeFile(target.stateFile, JSON.stringify({ revision, root: target.directory.root }))
   }
 
@@ -703,4 +736,13 @@ function snapshotOf(value: SkillDirectorySnapshot): SkillDirectorySnapshot {
 
 function digest(value: Buffer): string {
   return createHash('sha256').update(value).digest('hex')
+}
+
+function treeDigest(tree: Tree): string {
+  const hash = createHash('sha256')
+  for (const [path, file] of [...tree].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    hash.update(JSON.stringify([path, file.mode & 0o777, file.data.length]))
+    hash.update(file.data)
+  }
+  return hash.digest('hex')
 }
