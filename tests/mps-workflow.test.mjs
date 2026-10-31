@@ -401,6 +401,32 @@ test('显式零需求范围可汇总为0，空输入和范围内缺月需求仍�
   assert.match(absent.summary.missing.join('、'), /2027-02 点心.*缺大类需求/)
 })
 
+test('拒绝负数或重复大类调整不污染系统汇总范围，有效新类调整仍需月度域', () => {
+  const sample = input()
+  sample.products = []
+  sample.productMonths = []
+  sample.report = []
+  sample.history = []
+  sample.categoryDemand = ['2026-12', '2027-01', '2027-02'].map(month => ({ month, category: '汤圆', quantity: 0 }))
+  assert.equal(computeMpsWorkflow(sample).summary.requiredProductionTons, 0)
+  for (const quantities of [[-1], [10, 20]]) {
+    sample.adjustments = { categoryDemand: quantities.map(quantity => ({ month: '2026-12', category: '饺子', quantity })) }
+    const result = computeMpsWorkflow(sample)
+    assert.match(result.adjustmentIssues.join('、'), /2026-12 饺子.*调整无效或重复/)
+    assert.equal(result.summary.requiredProductionTons, 0)
+    assert.equal(result.summary.knownRequiredProductionTons, 0)
+    assert.equal(result.summary.totalRows, 0)
+    assert.deepEqual(result.summary.missing, [])
+  }
+  sample.adjustments = { categoryDemand: [{ month: '2026-12', category: '饺子', quantity: 10 }] }
+  const accepted = computeMpsWorkflow(sample)
+  assert.deepEqual(accepted.adjustmentIssues, [])
+  assert.equal(accepted.summary.requiredProductionTons, null)
+  assert.equal(accepted.summary.knownRequiredProductionTons, 0)
+  assert.equal(accepted.summary.totalRows, 0)
+  assert.match(accepted.summary.missing.join('、'), /2026-12 饺子.*缺月度SKU域.*未拆分/)
+})
+
 const resourceInput = () => {
   const sample = input()
   sample.products = ['A', 'B'].map(code => ({ ...sample.products[0], code }))

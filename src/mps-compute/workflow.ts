@@ -509,7 +509,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     [
       ...input.products,
       ...input.categoryDemand.filter(row => months.slice(0, 3).includes(row.month)),
-      ...(input.adjustments?.categoryDemand ?? []).filter(row => months.slice(0, 3).includes(row.month))
+      ...categoryRows.filter(row => months.slice(0, 3).includes(row.month) && row.adjusted)
     ].map(row => row.category)
   )
   const demandScope = categoryRows.filter(category => months.slice(0, 3).includes(category.month) && demandCategories.has(category.category))
