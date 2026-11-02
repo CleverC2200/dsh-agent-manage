@@ -1,6 +1,7 @@
 /** Required capability cases and client-owned Host helpers share one discovery policy. */
 export const presetLanes = {
   'standard-skill': {
+    'tests/business-resource-snapshot-race.test.ts': true,
     'tests/standard-preset.test.ts': true,
     'tests/skill-preset.test.ts': true,
     'tests/manage-cold-boot.test.ts': true,
