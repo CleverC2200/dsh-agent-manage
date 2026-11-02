@@ -1,0 +1,71 @@
+name: Windows Skill snapshot regression
+run-name: 'Windows Session creation — ${{ github.event.pull_request.head.sha || github.sha }}'
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - src/runtime/skill-directories.ts
+      - src/runtime/business-resources.ts
+      - tests/business-resource-snapshot-race.test.ts
+      - tests/skill-snapshot-reuse.test.ts
+      - scripts/verify-windows-skill-snapshot.mjs
+      - .github/workflows/windows-skill-snapshot.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-skill-snapshot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-session:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate/dsh-agent-manage
+    steps:
+      - name: Preserve original source and lock bytes
+        working-directory: ${{ github.workspace }}
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          path: candidate/dsh-agent-manage
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/dsh-gea-plugin
+          ref: 12e9be37e648c46f17a559d60bac2c086287cd43
+          path: candidate/dsh-gea-plugin
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.22.0
+      - uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/deepseek-harness
+          ref: a0c0d2ff884b1808eccb9bb254a1659281364d7d
+          path: source/official-core
+          persist-credentials: false
+      - name: Enable the declared package manager
+        run: corepack enable
+      - name: Prepare the registered SDK and native Session writer
+        run: node scripts/prepare-official-sdk.mjs --prepare --with-flock --core "$GITHUB_WORKSPACE/official-latest-standard" --core-head a0c0d2ff884b1808eccb9bb254a1659281364d7d --source "$GITHUB_WORKSPACE/source/official-core"
+      - name: Install the original consumer lock without lifecycle builds
+        run: corepack pnpm install --frozen-lockfile --ignore-scripts
+      - name: Reproduce the original failure and verify fixed Session creation
+        env:
+          DSH_CORE_CHECKOUT: ${{ github.workspace }}/official-latest-standard
+          MANAGE_SNAPSHOT_BASELINE: 9ff34335ce6e87fc231a554173b0c4593dc53641
+        run: node scripts/verify-windows-skill-snapshot.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-skill-snapshot-${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate/dsh-agent-manage/.runtime/windows-skill-snapshot
+          if-no-files-found: warn
