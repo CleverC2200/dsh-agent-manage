@@ -35,3 +35,9 @@ At the user's request, configured APS snapshots opt into `missingValuePolicy: 'z
 ## Immutable metric snapshot reuse (2026-10-29)
 
 `createMetricReader` reuses scoped results per immutable period snapshot through weak keys. A newly arriving comparison period does not rescan unchanged current rows. Each reader owns its comparison object; refresh and identity changes supply new snapshots or null, never a date-only global cache. Public `metricValues` remains uncached. Workbench continues to own lazy list rendering and paging; business formulas and governed SQL are unchanged.
+
+## Cross-matrix quantity alignment (2026-10-30)
+
+`matrixCellsFromData` groups only returned base/category records. Inventory uses inventory quantity regardless of unrelated demand completeness; shippable days uses the shippable source's available quantity divided by summed planned daily demand. An explicitly failed shippable source cannot fall back to stock. Production now consumes the same `productionOutputMetric` MES quantity contract as the headline. `sumMetricQuantity` owns the common strict/configured-zero aggregation used by headline and dimensional quantities; invalid formats, failed sources and zero denominators remain unavailable. Unknown dimension assignments are not invented or allocated. Empty matrix analysis stays within the selected metric and does not substitute company-wide conclusions.
+
+Workbench owns stable axes from returned dimensions, dynamic column sizing, risk colors, neutral inventory observations and source snapshot labels. It does not fill absent combinations with zero or use mock classifications. Production risk thresholds remain the existing >99% / >95% rules and shippable thresholds remain the existing 8–12 day healthy interval, excluding boundaries.

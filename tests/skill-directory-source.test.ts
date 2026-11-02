@@ -94,6 +94,16 @@ if (!isolatedHome) {
     const unchanged = await post('source-preview', target)
     expect(unchanged.changed).toBe(false)
     expect((await post('source-commit', { token: unchanged.token, resolutions: {} })).revision).toBe(synced.revision)
+    const baseline = () => agents.list().then(rows => rows.find(row => row.id === agent.id)!.skills.find(row => row.name === target.name)!.directory!.source!.base.bundle)
+    const sharedBase = await baseline()
+    let expectedCommit = preview.commit
+    for (let update = 0; update < 2; update++) {
+      await run('git', ['-C', root, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '--allow-empty', '-m', 'Metadata only'])
+      const metadataOnly = await post('source-preview', target)
+      await post('source-commit', { token: metadataOnly.token, resolutions: {} })
+      expect(await baseline()).toBe(sharedBase)
+      expectedCommit = metadataOnly.commit
+    }
     const largeManual = await post('source-preview', target)
     await post('source-commit', {
       token: largeManual.token,
@@ -104,7 +114,7 @@ if (!isolatedHome) {
     await ctx.fiber.dispose()
     const restored = new UserAgents(await start(), file)
     await restored.load()
-    expect((await restored.directories.open(target)).source).toMatchObject({ kind: 'git', commit: preview.commit })
+    expect((await restored.directories.open(target)).source).toMatchObject({ kind: 'git', commit: expectedCommit })
     const nextPreview = await restored.directories.sourcePreview(target)
     await restored.directories.sourceCancel({ token: nextPreview.token })
     await expect(restored.directories.sourceCommit({ token: nextPreview.token, resolutions: {} })).rejects.toThrow('SKILL_SOURCE_PREVIEW_EXPIRED')

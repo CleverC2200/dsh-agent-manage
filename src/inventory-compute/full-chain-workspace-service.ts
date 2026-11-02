@@ -184,7 +184,7 @@ function fulfillmentRate(rows: FullChainData['orders']) {
 function branchTurnover(data: FullChainData, branch?: string, category?: string, sku?: string) {
   const stock = data.branchInventory.filter(row => (!branch || row.branch === branch) && (!category || row.category === category) && (!sku || row.sku === sku))
   const outbound = data.branchOutbound?.filter(row => (!branch || row.branch === branch) && (!category || row.category === category) && (!sku || row.sku === sku))
-  return ratioDays(completeSum(stock.map(row => row.availableQty)), completeSum(outbound?.map(row => row.qty) ?? []))
+  return ratioDays(completeSum(stock.map(row => row.currentQty)), completeSum(outbound?.map(row => row.qty) ?? []))
 }
 
 function branchFulfillmentRate(data: FullChainData) {
@@ -307,8 +307,8 @@ function structureRows(data: FullChainData, includeCustomer: boolean): Structure
       availableQty: row.currentQty,
       targetQty: row.targetQty,
       differenceQty: row.targetQty != null ? round(row.currentQty - row.targetQty) : null,
-      turnoverDays: ratioDays(row.currentQty, row.plannedDailyQty == null ? null : row.plannedDailyQty * 30),
-      turnoverDemand30d: row.plannedDailyQty == null ? null : row.plannedDailyQty * 30,
+      turnoverDays: ratioDays(row.currentQty, row.externalDemand30d),
+      turnoverDemand30d: row.externalDemand30d,
       ...age,
       ...decision('base', row.targetQty != null ? round(row.currentQty - row.targetQty) : null, age.bigDateQty),
       sourceDate: row.snapshotDate,
@@ -329,7 +329,7 @@ function structureRows(data: FullChainData, includeCustomer: boolean): Structure
       availableQty: row.availableQty ?? null,
       targetQty: row.targetQty,
       differenceQty: row.targetQty != null ? round(row.currentQty - row.targetQty) : null,
-      turnoverDays: ratioDays(row.availableQty ?? null, row.externalDemand30d),
+      turnoverDays: ratioDays(row.currentQty, row.externalDemand30d),
       turnoverDemand30d: row.externalDemand30d,
       ...age,
       ...decision('branch', row.targetQty != null ? round(row.currentQty - row.targetQty) : null, age.bigDateQty),
@@ -658,7 +658,7 @@ export function buildFullChainWorkspace(input: FullChainData, request: BuildWork
   const data = applyTrustedScope(input, request)
   const includeCustomer = request.scope === 'all-channel'
   const companyRows = [...data.baseInventory, ...data.branchInventory]
-  const companyCurrent = completeSum([...data.baseInventory.map(row => row.currentQty), ...data.branchInventory.map(row => row.availableQty)])
+  const companyCurrent = completeSum(companyRows.map(row => row.currentQty))
   const customerCurrent = sum(data.customerInventory.map(row => row.currentQty))
   const planCustomerRows = data.customerPlanInventory ?? []
   const planCustomerTotal =
@@ -672,10 +672,7 @@ export function buildFullChainWorkspace(input: FullChainData, request: BuildWork
     : data.baseInventory.some(row => row.targetQty != null)
       ? sum(data.baseInventory.map(row => row.targetQty))
       : null
-  const baseTurnover = ratioDays(
-    completeSum(data.baseInventory.map(row => row.currentQty)),
-    data.baseInventory.some(row => row.plannedDailyQty != null) ? sum(data.baseInventory.map(row => row.plannedDailyQty)) * 30 : null
-  )
+  const baseTurnover = ratioDays(completeSum(data.baseInventory.map(row => row.currentQty)), completeSum(data.baseInventory.map(row => row.externalDemand30d)))
   const branchTurnoverValue = branchTurnover(data)
   const mixedLayers = data.baseInventory.length > 0 && data.branchInventory.length > 0
   const turnover = mixedLayers ? null : data.baseInventory.length ? baseTurnover : branchTurnoverValue
@@ -822,9 +819,7 @@ export function buildFullChainWorkspace(input: FullChainData, request: BuildWork
           companyCurrent,
           companyTarget,
           '件',
-          includeCustomer
-            ? '主值为公司系统库存；客户总量取最新预订单快照在仓加在途，客户明细与货龄仍为库存日快照观察'
-            : '基地当前库存 + 分仓可用库存（与分仓 Agent 库存卡一致）；实物库存另见结构明细',
+          includeCustomer ? '主值为公司系统库存；客户总量取最新预订单快照在仓加在途，客户明细与货龄仍为库存日快照观察' : '基地当前库存 + 分仓当前库存；可用库存另见结构明细',
           byDomain.inventory
         ),
         companyCurrent,
@@ -838,10 +833,10 @@ export function buildFullChainWorkspace(input: FullChainData, request: BuildWork
         null,
         '天',
         mixedLayers
-          ? '基地按库存/计划日均需求，分仓按可用库存/近30天实际日均出库；口径不同，分别展示，不合成公司周转'
+          ? '基地、分仓各按当前库存/同范围近30日日均动销分别展示，不合成公司周转'
           : data.baseInventory.length
-            ? '基地库存合计 / 已提供计划日均需求合计，与安全库存 Agent 一致；缺失计划不补值'
-            : '分仓可用库存 / 近30天实际日均出库；分母含已售罄SKU，不使用计划代替',
+            ? '基地当前库存合计 / 同范围近30日日均动销；缺失动销不补值'
+            : '分仓当前库存 / 近30天实际日均动销；分母含已售罄SKU，不使用计划代替',
         byDomain.inventory
       ),
       aging: metric(

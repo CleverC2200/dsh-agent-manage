@@ -27,6 +27,7 @@
 
 | 规则 | 执行机制 |
 | --- | --- |
+| SDK 缓存命中后仅安装依赖按 prepare 准入；SDK、Web、flock 生成仍按 sdk 准入 | `prepareOfficialSDK`、`tests/sdk-input-cli.test.mjs`，由 `test:ci-inputs` 和日常选测执行 |
 | 固定 Core、原锁、工具链与冷 runner 输入 | `sdk:verify` / `sdk:prepare`、`test:ci-inputs` 和 rc.2 quality、适用 archives 阻断门禁；alpha 为独立手动兼容检查，共用 GEA `scripts/ci-core-policy.json` |
 | 当前导航与历史缺文档反例 | `check:refactor` 串接 `check:knowledge` 与 `test:knowledge` |
 | 普通空 Home 必须发现原销售 Skill 及其完整引用资产；新任务默认智能编排并保留用户显式选择 | `check:capabilities` 的 standard-skill lane 运行 `bundled-sales-skills.test.ts` 和 `manage-bundle-default.test.ts`；quality workflow 按 `docs/clean-ci.md` 运行互不重复的静态、普通测试与能力集合 |
