@@ -1,0 +1,118 @@
+name: Windows Skill snapshot regression
+run-name: 'Windows Session creation — ${{ github.event.pull_request.head.sha || github.sha }}'
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - src/runtime/skill-directories.ts
+      - src/runtime/business-resources.ts
+      - tests/business-resource-snapshot-race.test.ts
+      - tests/skill-snapshot-reuse.test.ts
+      - .github/workflows/windows-skill-snapshot.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-skill-snapshot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-session:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: candidate/dsh-agent-manage
+    steps:
+      - name: Preserve original source and lock bytes
+        working-directory: ${{ github.workspace }}
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          path: candidate/dsh-agent-manage
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/dsh-gea-plugin
+          ref: 12e9be37e648c46f17a559d60bac2c086287cd43
+          path: candidate/dsh-gea-plugin
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.22.0
+      - uses: actions/checkout@v7
+        with:
+          repository: CleverC2200/deepseek-harness
+          ref: a0c0d2ff884b1808eccb9bb254a1659281364d7d
+          path: source/official-core
+          persist-credentials: false
+      - name: Enable the declared package manager
+        run: corepack enable
+      - name: Prepare the registered SDK
+        run: node scripts/prepare-official-sdk.mjs --prepare --core "$GITHUB_WORKSPACE/official-latest-standard" --core-head a0c0d2ff884b1808eccb9bb254a1659281364d7d --source "$GITHUB_WORKSPACE/source/official-core"
+      - name: Install the original consumer lock without lifecycle builds
+        run: corepack pnpm install --frozen-lockfile --ignore-scripts
+      - name: Reproduce the original failure and verify fixed Session creation
+        env:
+          DSH_CORE_CHECKOUT: ${{ github.workspace }}/official-latest-standard
+          MANAGE_SNAPSHOT_BASELINE: 9ff34335ce6e87fc231a554173b0c4593dc53641
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { spawnSync, execFileSync } from 'node:child_process'
+          import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+          import { resolve } from 'node:path'
+
+          assert.equal(process.platform, 'win32', 'Native Windows is required')
+          const evidence = resolve('.runtime/windows-skill-snapshot')
+          mkdirSync(evidence, { recursive: true })
+          const source = resolve('src/runtime/skill-directories.ts')
+          const fixed = readFileSync(source)
+          const baseline = process.env.MANAGE_SNAPSHOT_BASELINE
+          assert.match(baseline ?? '', /^[a-f0-9]{40}$/)
+          const run = (name, files, extra = []) => {
+            const output = resolve(evidence, name + '.json')
+            const result = spawnSync(process.execPath, ['node_modules/vitest/vitest.mjs', 'run', ...files, ...extra, '--reporter=json', '--outputFile=' + output], { encoding: 'utf8' })
+            writeFileSync(resolve(evidence, name + '.log'), (result.stdout ?? '') + (result.stderr ?? ''))
+            if (result.error) throw result.error
+            return { status: result.status, report: JSON.parse(readFileSync(output, 'utf8')) }
+          }
+          let before
+          try {
+            writeFileSync(source, execFileSync('git', ['show', baseline + ':src/runtime/skill-directories.ts']))
+            before = run('before', ['tests/business-resource-snapshot-race.test.ts'], ['-t', 'publishes intelligent orchestration'])
+          } finally {
+            writeFileSync(source, fixed)
+          }
+          assert.notEqual(before.status, 0, 'The original Windows failure must reproduce')
+          assert.match(JSON.stringify(before.report), /Unknown agent preset: auto-negotiation/)
+          const after = run('after', ['tests/business-resource-snapshot-race.test.ts', 'tests/skill-snapshot-reuse.test.ts', 'tests/manage-bundle-default.test.ts'])
+          assert.equal(after.status, 0, JSON.stringify(after.report))
+          assert.equal(after.report.numFailedTests, 0)
+          assert.equal(after.report.numPendingTests, 0)
+          const result = {
+            platform: process.platform,
+            arch: process.arch,
+            node: process.version,
+            head: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+            baseline,
+            originalFailureReproduced: true,
+            testsPassed: after.report.numPassedTests,
+            testsFailed: after.report.numFailedTests,
+            nativeRenameConflict: 'EPERM',
+            sessionCreation: 'passed'
+          }
+          writeFileSync(resolve(evidence, 'result.json'), JSON.stringify(result, null, 2) + '\n')
+          console.log(JSON.stringify(result))
+          NODE
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-skill-snapshot-${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate/dsh-agent-manage/.runtime/windows-skill-snapshot
+          if-no-files-found: warn

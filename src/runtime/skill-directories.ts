@@ -517,7 +517,8 @@ export class SkillDirectories {
         try {
           await rename(staging, bundle)
         } catch (error) {
-          if (!(error instanceof Error && 'code' in error && ['EEXIST', 'ENOTEMPTY'].includes(String(error.code)))) throw error
+          if (!(error instanceof Error && 'code' in error && ['EEXIST', 'ENOTEMPTY', 'EPERM'].includes(String(error.code)))) throw error
+          if (!(await lstat(bundle).catch(() => undefined))?.isDirectory()) throw error
         }
         await verify()
       } finally {
