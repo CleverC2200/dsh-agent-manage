@@ -78,7 +78,7 @@ test('capability CLI accepts complete passed required files', () => {
   assert.equal(result.receipt.mode, 'complete')
   assert.deepEqual(
     result.receipt.phases.map(phase => phase.requiredFiles.length),
-    [6, 8, 7]
+    [7, 8, 7]
   )
 })
 

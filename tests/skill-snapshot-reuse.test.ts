@@ -46,7 +46,7 @@ it('reuses identical full resource trees across skills, restarts and concurrent 
   const changed = (await create().migrate(skills, [], source))[0].directory!
   expect(changed.bundle).not.toBe(old.bundle)
   expect(await readFile(join(old.bundle, 'tree/shared.txt'), 'utf8')).toBe('RESOURCE')
-  await chmod(join(source, 'shared.txt'), 0o755)
+  await chmod(join(source, 'shared.txt'), process.platform === 'win32' ? 0o444 : 0o755)
   expect((await create().migrate(skills, [], source))[0].directory!.bundle).not.toBe(changed.bundle)
   expect((await readdir(join(home, 'store'))).filter(name => name.startsWith('.staging-'))).toEqual([])
   await writeFile(join(changed.bundle, 'tree/shared.txt'), 'CORRUPTED')
