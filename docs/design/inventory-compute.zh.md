@@ -16,3 +16,11 @@ Manage 拥有 `src/inventory-compute`。package 的 `./inventory-compute/*` 提�
 Workbench 直接引用这些公开模块。构建从声明的 `source` 导出解析源码，并在 `build-inputs.json` 记录实际消费的全部 Manage 源码、配置及 package 元数据 hash。计算随页面编译，浏览器不导入 Host runtime。Workbench 继续持有固定输入加载、来源权限裁切、页面状态、分页、取消、引用和快照生命周期。数据授权仍归 GEA。
 
 固定 Git golden、现有个人库存货龄/部分输入和全链测试继续提供独立预期。个人库存原日报与首批 AQKC 日报在来源选取和风险截断上采用不同规则，本次迁移不替换首批规则版本。计算模块不验证真实业务授权。
+
+## MPS 月度范围
+
+公开 [`mps-compute/workflow`](../../src/mps-compute/workflow.ts) 合同持有 MPS 计算。`productMonths` 指定前三月的月份、基地、SKU 域。省略时保留每月复用产品域的旧输入兼容；显式空数组表示没有 SKU 域。M+4 只供大类库存参考，不生成生产行。
+
+完整生产吨数须覆盖所传产品目录或前三月显式大类需求、调整涉及的大类及全部三个月。正需求缺月度 SKU 域，或需求缺行、NULL 时，严格总量保持 NULL，已知小计保留。内置但未使用的大类占位不构成范围。空域只有在所有相关大类的三个月有效需求均为显式 0 时才汇总为 0，不生成缺失的 SKU 行或数量。
+
+`scopeCoverage` 默认 `in-scope`。调用者只有取得实际全国覆盖证明后才可传 `national`；计算不验证该证明，也不授予业务权限。

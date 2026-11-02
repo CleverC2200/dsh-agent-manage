@@ -65,3 +65,24 @@ test('incomplete DMS classification does not hide valid BI methods', () => {
   assert.equal(result.rows[0].shareMethod, 100)
   assert.equal(result.rows[0].quantity, null)
 })
+
+test('有效大类调整向后传递年度分月环比，保留系统值并拒绝重复或负数', () => {
+  const sample = fixture()
+  sample.adjustments = [{ month: '2026-11', category: '汤圆', quantity: 200 }]
+  const result = computeMpsCategoryDemand(sample)
+  assert.deepEqual(
+    result.rows.map(row => row.quantity),
+    [125, 200, 300, 600]
+  )
+  assert.deepEqual(
+    result.rows.map(row => row.systemQuantity),
+    [125, 125, 187.5, 375]
+  )
+  assert.equal(result.rows[1].adjusted, true)
+  sample.adjustments[0].quantity = -1
+  assert.deepEqual(
+    computeMpsCategoryDemand(sample).rows.map(row => row.quantity),
+    [125, 125, 187.5, 375]
+  )
+  assert.match(computeMpsCategoryDemand(sample).adjustmentIssues.join(''), /调整/)
+})

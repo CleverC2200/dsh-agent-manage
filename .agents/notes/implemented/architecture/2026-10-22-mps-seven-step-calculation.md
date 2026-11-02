@@ -20,4 +20,4 @@ This partially supersedes the MPS execution portion of [received mock business r
 
 ## Consequences
 
-Local safety days and constraint descriptions remain isolated draft inputs. Unconfirmed rules and missing sources produce null results with reasons. Capacity candidates remain separate; repeated combination capacities are not added. Formal saving, applied scheduling rules, final report templates and client acceptance remain separate work.
+Local constraints and effective category/share adjustments remain supplied draft inputs. The module returns system values, effective values and rejected-adjustment reasons; persistence stays with the caller. Confirmed calendar-day safety inventory and signed inventory rollover produce unconstrained required-production references. Explicit weights, unique tunnel/forming resources, monthly days and allocation shares support resource load and gap evaluation. Legacy capacity candidates remain separate; repeated SKU capacities are not added. Missing sources preserve null values and incomplete evaluation scope. Formal saving, executable scheduling, transfer/outsourcing decisions and client acceptance remain separate work.

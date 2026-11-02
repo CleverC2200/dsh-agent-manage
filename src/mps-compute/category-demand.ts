@@ -1,6 +1,7 @@
-import type { MpsQuantity } from './workflow.ts'
+import type { MpsDemandAdjustment, MpsQuantity } from './workflow.ts'
 
 export interface MpsCategoryDemandInput {
+  adjustments?: MpsDemandAdjustment[]
   month: string
   pull: 'monthly' | 'adjust'
   categories: string[]
@@ -34,6 +35,7 @@ const mean = (values: MpsQuantity[]) => (values.length === 3 ? divide(sum(values
 
 export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.month)) throw Error('评估月份无效')
+  const adjustmentIssues: string[] = []
   const end = offset(input.month, input.pull === 'monthly' ? -2 : -1)
   const recent = [-2, -1, 0].map(amount => offset(end, amount))
   const categories = [...new Set(input.categories)]
@@ -76,6 +78,7 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
   const rows = bases.flatMap(basis => {
     const category = basis.category
     let previous: MpsQuantity = null
+    let previousSystem: MpsQuantity = null
     return Array.from({ length: 4 }, (_, index) => {
       const month = offset(input.month, index)
       const factors = historical.find(row => row.category === category && row.month === month)
@@ -100,6 +103,13 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
         quantity = multiply(previous, chain)
         momMethod = quantity
       }
+      const systemQuantity = index < 2 ? quantity : multiply(previousSystem, chain)
+      const edits = (input.adjustments ?? []).filter(row => row.month === month && row.category === category)
+      const edit = edits[0]
+      const adjusted = edits.length === 1 && edit !== undefined && finite(edit.quantity) && edit.quantity >= 0
+      if (edits.length && !adjusted) adjustmentIssues.push(`${month} ${category} 大类需求调整无效或重复`)
+      if (adjusted) quantity = edit.quantity
+      previousSystem = systemQuantity
       previous = quantity
       return {
         category,
@@ -111,9 +121,14 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
         shareMethod,
         weighted,
         quantity,
+        systemQuantity,
+        adjusted,
         method: index < 2 ? '两法平均后除计划达成率' : '上月需求×年度分月环比'
       }
     })
   })
-  return { month: input.month, endMonth: end, recent, historical, bases, rows }
+  for (const edit of input.adjustments ?? []) {
+    if (!rows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('大类需求调整不属于本版月份或分类范围')
+  }
+  return { adjustmentIssues, month: input.month, endMonth: end, recent, historical, bases, rows }
 }

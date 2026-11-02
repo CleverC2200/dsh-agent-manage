@@ -1,7 +1,7 @@
 {
   "receivedAt": "2026-10-21",
   "promptFileName": "订单履约 Agent提示词.txt",
-  "promptSha256": "219d4c2d0cb92fea37e09c23c80cd77fed2cb93d1e836b50026e7c4c74767f5d",
+  "promptSha256": "64ac04cd23e2090625fc67258bc106d11e13b3d256b7e0e326c18530cf5edc54",
   "archiveFileName": "订单履约_工作台Skills.zip",
   "archiveSha256": "7985892cbee35c3a0aa94fd6971a021d9d86a1ccac2210995ee353da39a8cd18",
   "transformations": [
@@ -14,7 +14,8 @@
     "Reuse the accepted semantic reference without machine-specific user paths",
     "Represent Markdown hard breaks without trailing whitespace for CI",
     "Clarify fulfillable quantity versus independent shipments and current governed page evidence on 2026-11-02; retain original received source hashes",
-    "Make report sections conditional and restrict unsupported counts, causes and cross-metric conclusions on 2026-11-02; retain received provenance"
+    "Make report sections conditional and restrict unsupported counts, causes and cross-metric conclusions on 2026-11-02; retain received provenance",
+    "Normalize packaged prompt soft line breaks for CI on 2026-11-02; retain all business text and original received source hashes"
   ],
   "files": [
     {
