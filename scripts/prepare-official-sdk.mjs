@@ -400,8 +400,9 @@ export function prepareOfficialSDK(options) {
       if (error.code !== 'ENOENT') throw error
     }
   }
-  const needsPreparation = !reused || !dependenciesReused || (options.withWeb && !existsSync(webReceipt(core))) || (options.withFlock && !existsSync(flockReceipt(core)))
-  const release = needsPreparation ? acquireBuild({ operation: 'sdk', cwd: core }) : () => {}
+  const needsBuild = !reused || (options.withWeb && !existsSync(webReceipt(core))) || (options.withFlock && !existsSync(flockReceipt(core)))
+  const operation = needsBuild ? 'sdk' : !dependenciesReused ? 'prepare' : undefined
+  const release = operation ? acquireBuild({ operation, cwd: core }) : () => {}
   try {
     if (!dependenciesReused) {
       run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], core)
