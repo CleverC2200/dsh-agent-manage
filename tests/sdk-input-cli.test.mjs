@@ -206,7 +206,7 @@ test('omitted Core head selects the registered current adaptation while explicit
   }
 })
 
-test('SDK artifact reuse installs cold dependencies and only reuses a matching installation receipt', t => {
+test('SDK artifact reuse installs cold dependencies with the preparation budget and only reuses a matching installation receipt', t => {
   const fixture = mkdtempSync(join(tmpdir(), 'sdk-dependency-boundary-'))
   t.after(() => rmSync(fixture, { recursive: true, force: true }))
   const hook = join(fixture, 'commands.mjs')
@@ -219,7 +219,7 @@ test('SDK artifact reuse installs cold dependencies and only reuses a matching i
     import { join, dirname } from 'node:path'; import { registerHooks, syncBuiltinESMExports } from 'node:module';
     const core = ${JSON.stringify(checkout)};
     const manifest = JSON.parse(fs.readFileSync(join(core, 'package.json'), 'utf8'));
-    fs.statfsSync = () => ({ bavail: 100 * 1024 ** 3, bsize: 1 });
+    fs.statfsSync = () => ({ bavail: 10 * 1024 ** 3, bsize: 1 });
     os.tmpdir = () => ${JSON.stringify(fixture)};
     const original = cp.spawnSync;
     cp.spawnSync = (command, args, options) => {
@@ -244,7 +244,7 @@ test('SDK artifact reuse installs cold dependencies and only reuses a matching i
   )
   const own = spawnSync('git', ['config', '--local', 'dsh.sdkPreparation', 'independent-fixed-core'], { cwd: checkout, encoding: 'utf8' })
   assert.equal(own.status, 0, own.stderr)
-  const run = () => {
+  const run = (args = [], expectedError = /SDK_MATERIAL_REQUIRED/) => {
     const result = spawnSync(
       process.execPath,
       [
@@ -258,13 +258,16 @@ test('SDK artifact reuse installs cold dependencies and only reuses a matching i
         '--consumer',
         process.cwd(),
         '--core-head',
-        selected.head
+        selected.head,
+        ...args
       ],
       { encoding: 'utf8' }
     )
-    assert.match(result.stderr, /SDK_MATERIAL_REQUIRED/, result.stdout + result.stderr)
+    assert.match(result.stderr, expectedError, result.stdout + result.stderr)
     return result.stdout
   }
+  run(['--with-web'], /BUILD_CAPACITY_INSUFFICIENT/)
+  assert.equal(existsSync(calls), false)
   assert.match(run(), /"dependenciesReused":false/)
   assert.equal(readFileSync(calls, 'utf8'), 'install\n')
   assert.match(run(), /"dependenciesReused":true/)
