@@ -36,3 +36,5 @@ description: 基地库存 Agent 的跨技能规范层。涉及指标口径与算
 ## 不在包内
 
 输出校验脚本（`output_lint.py`）由开发侧维护，不随 Skill 包交付。
+
+用户询问历史趋势、同比或环比时，先读 [历史比较规则](rules/historical-comparison.md)，再核本轮真实已发布目录和权限；不得以当前页面只有快照为由断言没有历史。
