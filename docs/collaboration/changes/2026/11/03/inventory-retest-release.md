@@ -8,6 +8,7 @@
   "status": "已验证待发布"
 }
 -->
+
 # Verify historical inventory before refusing comparisons
 
 Base inventory and orchestration resources now inspect the published historical catalog and authorization before refusing a historical comparison. Both periods must use the same source, scope and units. A current page snapshot does not prove historical data is absent. Missing movement or fulfillment evidence still prevents unsupported ratios.
