@@ -15,13 +15,14 @@
     "Represent Markdown hard breaks without trailing whitespace for CI",
     "Clarify fulfillable quantity versus independent shipments and current governed page evidence on 2026-11-02; retain original received source hashes",
     "Make report sections conditional and restrict unsupported counts, causes and cross-metric conclusions on 2026-11-02; retain received provenance",
-    "Normalize packaged prompt soft line breaks for CI on 2026-11-02; retain all business text and original received source hashes"
+    "Normalize packaged prompt soft line breaks for CI on 2026-11-02; retain all business text and original received source hashes",
+    "Update KPI analysis and add KPI details from user supplied Skills on 2026-11-03; preserve installed evidence/authorization boundaries and current published metric definitions"
   ],
   "files": [
     {
       "path": "README.md",
       "sourceSha256": "f2a990ebcf68cedf475c8934ccf7a3cc0dea13f83de7ce7537b83ed9bcf5a6e7",
-      "packagedSha256": "042a09e980599e35f9f9022a69bd93dbb412065261a0f0f7f2717860b8289155"
+      "packagedSha256": "d1ab82208815347332c769b5e460daf9fa94f0731ccc948dff06e6aa079cd928"
     },
     {
       "path": "skills/production-fulfillment-progress/SKILL.md",
@@ -60,8 +61,9 @@
     },
     {
       "path": "skills/operations-kpi-performance-analysis/SKILL.md",
-      "sourceSha256": "d43eda67717f593ba46f2c0fd9b1d48d0c5c74768e4d836fc20d2645a540bf51",
-      "packagedSha256": "90c02d16e9a8ad11ee849e17a660f3f54852abf7b4242ba13cae27346d4629c6"
+      "sourceSha256": "4ffea0fb3eaa810250260429ebb090ea1becad8d4f22f8ddd6f25eb3069f7549",
+      "packagedSha256": "157479f3b2a6b9f80dabc306460009d9bf2183809a982b59096981b3c8257fc3",
+      "sourceFileName": "operations-kpi-performance-analysis/SKILL.md"
     },
     {
       "path": "skills/improvement-action-closure/SKILL.md",
@@ -79,6 +81,12 @@
       "packagedSha256": "713923aa5a4c505f517c547f7428d9e5b36980f96195523f98ff3005bd054f53",
       "archivePath": "skills/fulfillment-query-orchestrator/references/Φ«óσìòσ╖ÑΣ╜£σÅ░σÅèΦ«óσìòσ▒Ñτ║ªΦ»¡Σ╣ë.md",
       "sourceArchiveFileName": "订单履约skill.zip"
+    },
+    {
+      "path": "skills/operations-order-kpi-details/SKILL.md",
+      "sourceSha256": "e76f88f62a747cac122deb8bce765b3ef57db868f5e88119ffc0398efbe9d2fd",
+      "sourceFileName": "operations-order-kpi-details/SKILL.md",
+      "packagedSha256": "1f8f49c8dd52476d618eeb3513797a19ce2c18cfb64d87e1401cb7367b00c74c"
     }
   ],
   "promptSourceSha256": "21b037d2db97cd4bb3bab719902d4ceb279bedcef6c492d180d5f43a0a9b62e6"

@@ -13,6 +13,7 @@ const shared = [
   'sales-organization-analysis',
   'fulfillment-sales-confirmation-automation',
   'operations-kpi-performance-analysis',
+  'operations-order-kpi-details',
   'operations-exception-root-cause',
   'improvement-action-closure'
 ]
@@ -64,4 +65,17 @@ test('workbench prompt keeps its source and the governed report capability witho
   const fulfillment = rootFor('orderfulfillment')
   assert.equal((await json(fulfillment, 'prompt.json')).consumerCode, 'order01')
   assert.deepEqual((await json(fulfillment, 'mcp.json')).capabilities, ['governed-sql-read'])
+})
+
+test('KPI details preserve current published definitions and route to actual order and inventory tables', async () => {
+  const root = rootFor('orderworkbench')
+  const details = await readFile(new URL('skills/operations-order-kpi-details/SKILL.md', root), 'utf8')
+  assert.match(details, /age_days≥60/)
+  assert.match(details, /全国\/品项日均需求.*不加调拨/)
+  assert.match(details, /订单号｜渠道\/大区\/省区\/销售组/)
+  assert.match(details, /产品信息｜总库存｜60天以上库存件数/)
+  assert.match(details, /不得从汇总拼造订单或商品行/)
+  const analysis = await readFile(new URL('skills/operations-kpi-performance-analysis/SKILL.md', root), 'utf8')
+  assert.match(analysis, /operations-order-kpi-details\/SKILL\.md/)
+  assert.match(analysis, /已有指标为空时的解释/)
 })
