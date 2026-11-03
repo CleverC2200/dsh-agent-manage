@@ -304,14 +304,21 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const total = quantity(entries.map(row => ({ quantity: row[field] })))
       const issues = [
         ...input.sourceIssues[source],
-        ...(unassignedBases.has(JSON.stringify([source, category.month, category.category])) || unassignedBases.has(JSON.stringify([source, category.month, ''])) ? ['当前产品的源数量缺基地，范围内分母不可确认'] : []),
+        ...(unassignedBases.has(JSON.stringify([source, category.month, category.category])) || unassignedBases.has(JSON.stringify([source, category.month, '']))
+          ? ['当前产品的源数量缺基地，范围内分母不可确认']
+          : []),
         ...(identityMissing ? ['缺基地、物料组或产品分类，拆分范围不完整'] : []),
         ...(duplicate ? ['产品拆分键重复'] : []),
         ...(total === null ? ['同大类明细数量不完整'] : total === 0 ? ['同大类合计为0，占比未定义'] : [])
       ]
-      const groupTotals = new Map([...materialGroups].map(([name, entries]) => [name, quantity(entries.filter(row => index.has(periodKey(row))).map(row => ({ quantity: row[field] })))]))
+      const groupTotals = new Map(
+        [...materialGroups].map(([name, entries]) => [name, quantity(entries.filter(row => index.has(periodKey(row))).map(row => ({ quantity: row[field] })))])
+      )
       const skuTotals = new Map(
-        [...skuGroups].map(([name, codes]) => [name, new Map([...codes].map(([code, entries]) => [code, quantity(entries.filter(row => index.has(periodKey(row))).map(row => ({ quantity: row[field] })))]))])
+        [...skuGroups].map(([name, codes]) => [
+          name,
+          new Map([...codes].map(([code, entries]) => [code, quantity(entries.filter(row => index.has(periodKey(row))).map(row => ({ quantity: row[field] })))]))
+        ])
       )
       const largestGroup = [...groupTotals].filter((entry): entry is [string, number] => entry[1] !== null).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'en'))[0]?.[0]
       for (const row of group) {
@@ -319,11 +326,12 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         row[shareField] = !row.missing[shareField].length && total !== null && row[field] !== null ? row[field] / total : null
         const groupTotal = groupTotals.get(row.group) ?? null
         const skuTotal = skuTotals.get(row.group)?.get(row.code) ?? null
-        const groupShare = !issues.length && total !== null && total > 0 && groupTotal !== null
-          ? row.group === largestGroup
-            ? 1 - [...groupTotals].filter(([name, value]) => name !== largestGroup && value !== null).reduce((sum, [, value]) => sum + (value ?? 0) / total, 0)
-            : groupTotal / total
-          : null
+        const groupShare =
+          !issues.length && total !== null && total > 0 && groupTotal !== null
+            ? row.group === largestGroup
+              ? 1 - [...groupTotals].filter(([name, value]) => name !== largestGroup && value !== null).reduce((sum, [, value]) => sum + (value ?? 0) / total, 0)
+              : groupTotal / total
+            : null
         const skuShare = !issues.length && groupTotal !== null && groupTotal > 0 && skuTotal !== null ? skuTotal / groupTotal : null
         const baseShare = !issues.length && skuTotal !== null && skuTotal > 0 && row[field] !== null ? row[field] / skuTotal : null
         row[source === 'report' ? 'reportLayers' : 'historyLayers'] = {
@@ -535,8 +543,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   })
   const summaryMissing = [...new Set(rows.flatMap(row => [...row.missing.requiredProductionTons, ...row.missing.productionDays, ...row.missing.resourceAssignments]))]
   const summary = {
-    requiredProductionTons:
-      categoryScopeIssues.length ? null : rows.length ? quantity(rows.map(row => ({ quantity: row.requiredProductionTons }))) : demandScope.length ? 0 : null,
+    requiredProductionTons: categoryScopeIssues.length ? null : rows.length ? quantity(rows.map(row => ({ quantity: row.requiredProductionTons }))) : demandScope.length ? 0 : null,
     knownRequiredProductionTons: safe(rows.reduce((sum, row) => sum + (row.requiredProductionTons ?? 0), 0)),
     evaluatedRows: rows.filter(
       row =>
