@@ -56,11 +56,13 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
           annualQuantity: complete && annual.length === 1 && rows.every(row => row.fiscalYear) && new Set(rows.map(row => row.fiscalYear)).size === 1 ? (annual[0] ?? null) : null
         }
       })
+      const yoyYears = years.filter(year => divide(year.quantity, year.priorYearQuantity) !== null)
       return {
         category,
         month,
         years,
-        yoy: mean(years.map(year => divide(year.quantity, year.priorYearQuantity))),
+        yoyYears: yoyYears.map(year => year.month),
+        yoy: divide(sum(yoyYears.map(year => divide(year.quantity, year.priorYearQuantity))), yoyYears.length),
         mom: mean(years.map(year => divide(year.quantity, year.priorMonthQuantity))),
         share: mean(years.map(year => divide(year.quantity, year.annualQuantity)))
       }

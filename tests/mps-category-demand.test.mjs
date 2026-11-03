@@ -86,3 +86,37 @@ test('有效大类调整向后传递年度分月环比，保留系统值并拒�
   )
   assert.match(computeMpsCategoryDemand(sample).adjustmentIssues.join(''), /调整/)
 })
+
+test('同比在最近三年中按有效年份等权平均，标明实际样本年份，其他系数不改口径', () => {
+  for (const count of [3, 2, 1, 0]) {
+    const sample = fixture()
+    for (const row of sample.historical) {
+      if (!row.month.endsWith('-10')) continue
+      const index = Number(row.month.slice(0, 4)) - 2023
+      row.quantity = (index + 1) * 100
+      row.priorYearQuantity = index < 3 - count ? null : 100
+    }
+    const row = computeMpsCategoryDemand(sample).historical.find(row => row.month === '2026-10')
+    assert.equal(row.yoy, [null, 3, 2.5, 2][count])
+    assert.equal(row.yoyYears.length, count)
+    assert.equal(row.mom, 2)
+    assert.equal(row.share, 1 / 6)
+  }
+})
+
+test('同比零分母和无效年度跳过，真实零分子仍参与平均', () => {
+  const sample = fixture()
+  const year = sample.historical.find(row => row.month === '2023-10')
+  year.quantity = 0
+  const factors = () => computeMpsCategoryDemand(sample).historical.find(row => row.month === '2026-10')
+  assert.equal(factors().yoy, 2 / 3)
+  assert.equal(factors().yoyYears.length, 3)
+  year.priorYearQuantity = 0
+  assert.equal(factors().yoy, 1)
+  assert.deepEqual(factors().yoyYears, ['2025-10', '2024-10'])
+  year.priorYearQuantity = 100
+  year.valid = false
+  assert.equal(factors().yoy, 1)
+  assert.equal(factors().mom, null)
+  assert.equal(factors().share, null)
+})
