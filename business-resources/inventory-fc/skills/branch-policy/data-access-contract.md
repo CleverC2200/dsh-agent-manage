@@ -3,7 +3,7 @@
 ## 当前宿主接线
 
 - 当前业务工具由 GEA Host 提供，使用本轮工具清单中的 `mcp__gea-gateway__inspect_cube_model`、`mcp__gea-gateway__query_business_data`。角色、Skill 和页面可见性不授予权限，不能自行传入身份、凭据或直连地址。
-- 当前订单与缺货优先使用 `gea_current_shortage`，保留当前有效未备单完成订单，不加本月或近 60 天创建时间限制。`view=summary` 取完整范围，`view=locations` 取地点排行，`view=detail` 按地点与 SKU 分页；基地用 `base`，分仓用返回的 `location_code` 传 `warehouseCode`，商品用 `sku`。数量按返回单位，当前已确认 1 件等于 1 箱。固定工具不拼 Cube 时间条件，不自行重建其 SQL。
+- 当前订单与缺货优先使用 `gea_current_shortage`，保留当前有效未发货完成的下游客户订单，不加本月或近 60 天创建时间限制。`view=summary` 取完整范围，`view=locations` 取地点排行，`view=detail` 按地点与 SKU 分页；基地用 `base`，分仓用返回的 `location_code` 传 `warehouseCode`，商品用 `sku`。数量按返回单位，当前已确认 1 件等于 1 箱。固定工具不拼 Cube 时间条件，不自行重建其 SQL。
 - 其余指标按本文的语义与查询契约读取。表名仅是预期来源，说明书与实际授权均通过后才能查询；字段局部缺数与来源、快照、权限或映射失败分别处理，后者保持未知。
 - 企业知识先用 `mcp__gea-gateway__weknora_list_knowledge_bases` 取得当前可用库，再用 `mcp__gea-gateway__weknora_ask` 传 `query` 和已返回的 `knowledgeBaseIds`。不猜知识库 ID，不调用旧的独立知识服务或改写知识。
 - 业务行已完整展示时直接使用；只在返回的 `nextRead` 非空时按其参数调用 `gea_evidence_read`。读取完制品不代表源数据全量。授权或来源失败保留原错误，相同条件下不切换身份或通道重试。
@@ -86,7 +86,7 @@
 | 风险库存量 | 大日期与滞库风险同一批次重叠只计一次 | 两段直接相加造成重复计数 |
 | 在途 | 已下单未发货量与已发货未入库量分别取数、分别展示 | 合并为一个在途量 |
 | 计划版本与来源 | 先按 分仓 + 目标月份 整体选定版本（月初优先滚动）与来源（人工优先 BI），再按 SKU 取数 | 按 SKU 混用版本或来源 |
-| 满足率 | 分别取本月已发货订单量与本月有效订单总量 | 用当前未发货订单推算 |
+| 满足率 | 取当月下游已发货订单池的逐行限额发货量和同池订货量 | 用当前未发货订单推算 |
 | 值 / 原值类度量（比率、天数、单值） | 与说明书 `required_scope` 的粒度维度一起查询 | 只取总值（缺粒度）→ `CUBE_VALUE_GRAIN_REQUIRED` |
 | 快照类数量（库存类） | 单日取值或按月分组 | 跨快照日直接累加 |
 
