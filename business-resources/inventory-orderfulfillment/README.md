@@ -1,6 +1,6 @@
 # 订单履约 Agent Skills
 
-本包包含 1 个问数编排 Skill、5 个订单履约业务分析 Skill、3 个订单工作台运营管理 Skill 和 1 个订单确认自动化 Skill，服务于订单履约页面的交付/销售、仓配、品项三个区域及订单工作台。
+本包包含 1 个问数编排 Skill、5 个订单履约业务分析 Skill、4 个订单工作台运营管理 Skill 和 1 个订单确认自动化 Skill，服务于订单履约页面的交付/销售、仓配、品项三个区域及订单工作台。
 
 ## Skill 清单
 
@@ -15,6 +15,8 @@
 9. `operations-exception-root-cause`：经营异常的影响量化、证据归因、待验证假设与分级改善建议。
 10. `improvement-action-closure`：短期改善与长期机制的责任、时限、证据、验收和升级闭环。
 
+11. `operations-order-kpi-details`：六项指标卡的订单/库存明细表，以及拆单关联、改单商品明细。
+
 ## 调用原则
 
 - Agent 核心负责意图识别、查询计划和多 Skill 协调；业务计算由对应专业 Skill 负责。
@@ -23,3 +25,9 @@
 - 页面上的演示数据只用于原型展示。未连接真实数据源前，所有结果必须明确标成演示/模拟数据，不得伪装成实时事实。
 - 自动化执行由人工触发，不监听新订单自动发起。每次提醒、订单变更和下发均基于当前订单版本并保留审计记录。
 - 订单工作台遵循“指标达成 → 异常归因 → 改善闭环”的链路；根因、措施与关闭结论均应有可追溯证据。
+
+## 指标卡明细 / KPI card details
+
+`operations-kpi-performance-analysis` 负责指标总览，`operations-order-kpi-details` 负责六项卡片的订单或库存明细表、拆单与改单商品明细。订单工作台点击指标卡向当前页面 Agent 发送明细请求；请求携带本期、本周实际边界、指标定义和来源状态，明细仅从已授权来源读取。
+
+The analysis Skill routes card drill-downs to `operations-order-kpi-details`. Card clicks send the current period, metric and source evidence to the associated Agent, which queries authorized details and renders the matching table.
