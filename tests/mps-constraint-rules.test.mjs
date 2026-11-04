@@ -24,7 +24,7 @@ const rule = (effect, extra = {}) => ({ id: 'R', description: '规则验证', st
 
 test('inventory rules affect only their month and SKU, recompute production and carry closing stock; soft rules need adoption', () => {
   const input = sample()
-  const original = structuredClone(input)
+  const original = globalThis.structuredClone(input)
   input.constraints.rules.local = [rule({ kind: 'inventory-days', value: 12 }, { code: 'A' })]
   const result = computeMpsWorkflow(input)
   assert.equal(result.rows[0].requiredProduction, 310)
