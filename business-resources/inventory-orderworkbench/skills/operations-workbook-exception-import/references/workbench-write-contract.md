@@ -2,7 +2,7 @@
 
 1. 读取当前页面上下文 importPreview.period 与 importPreview.scope；period.end 为不含的结束日。必须使用原样周期，不把本周和月累计混用。优先读取动作目录 report:import-scope 的授权基地说明；上下文 scope.bases 可能被裁剪为样本，不能把样本当完整授权列表。使用用户明确指定的基地生成预览，服务端按完整授权集合校验；拒权时停止，不改写成别的基地。濮阳不进入基地卡片。
 2. 使用实际可用的页面动作工具，先读目录。目标 report:import-preview，kind=invoke，action=preview，value 为下述 JSON 的字符串。此步骤不保存业务内容。不臆造工具名。
-3. 预览成功后页面自动打开“工作台内容填充预览”弹窗。读取更新后的 importPreview：previewId、canCommit、counts、status、awaitingUserConfirmation。confirmationMode=dialog-only；canCommit 只表示内容校验通过，不表示 Agent 有提交权限。
+3. 预览动作先打开“工作台内容填充预览”弹窗并启动后台校验；动作回执 applied=true 只表示已启动，不表示校验完成或已保存。importPreview.processing=true 时只读回查状态，保持原批次，不重复下发；processing=false 后以 previewId、canCommit、counts、status、awaitingUserConfirmation 判断预览是否成功。校验失败必须报告具体 status，不把已启动当成成功。confirmationMode=dialog-only；canCommit 只表示内容校验通过，不表示 Agent 有提交权限。
 4. Agent 到此停止，提示用户在弹窗点击“确认导入”或“取消”。即使用户在聊天中授权或回复确认，也不得调用提交动作或代点确认按钮；目录不提供 report:import-commit 是预期行为，不代表保存功能缺失。用户点击确认后，页面核对周期和版本并实际保存；取消、关闭或 Escape 会清除待导入预览，不写入。
 5. 用户操作后可只读查询 importPreview.status 核验结果：数据库成功回执才可说已保存；等待确认、预览和 pending 均不算保存。失败或超时不宣称成功，保持逻辑批次重试并重新由用户在弹窗确认。
 
