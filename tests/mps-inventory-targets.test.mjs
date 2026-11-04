@@ -29,12 +29,13 @@ test('missing, zero denominators, duplicate records and failed reads never becom
     fact('A', '2026-11', '纠偏', 0, 10),
     fact('B', '2026-11', '纠偏', 50, 0),
     fact('C', '2026-11', '纠偏', null, 10),
-    fact('D', '2026-11', '纠偏', 50, 10, { sourceRows: 2 }),
+    fact('D', '2026-11', '纠偏', null, 10, { sourceRows: 2 }),
     fact('E', '2026-11', '纠偏', 30, 10),
     fact('E', '2026-11', '纠偏', 30, 10)
   ]
   const resolve = inventoryTargetIndex(source)
   assert.equal(resolve(at('A')).days, 0)
+  assert.equal(inventoryTargetIndex([fact('same', '2026-11', '纠偏', 80, 10, { sourceRows: 12 })])(at('same')).days, 8)
   for (const code of ['B', 'C', 'D', 'E', 'missing']) assert.equal(resolve(at(code)).days, null)
   const failed = inventoryTargetIndex(source, 'auto', ['来源读取失败'])(at('A'))
   assert.equal(failed.days, null)

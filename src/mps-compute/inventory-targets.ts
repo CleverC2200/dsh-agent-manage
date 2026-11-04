@@ -35,14 +35,14 @@ export function inventoryTargetIndex(source: MpsInventoryTarget[], version: MpsI
   return (product: { month: string; base: string; code: string }): MpsInventoryTargetResult => {
     const effectiveVersion = version === 'auto' ? (versions.get(JSON.stringify([product.month, product.base])) ?? '') : version
     const rows = index.get(key(product)) ?? []
-    const row = rows.length === 1 && rows[0].sourceRows === 1 ? rows[0] : undefined
+    const row = rows.length === 1 && Number.isSafeInteger(rows[0].sourceRows) && rows[0].sourceRows > 0 ? rows[0] : undefined
     const missing = [...issues]
     if (!issues.length) {
       if (!rows.length) missing.push(`缺${effectiveVersion || '可用版本'}目标记录`)
       else if (!row) missing.push('同基地、单品、月份和版本的目标记录重复')
       else {
-        if (!valid(row.finalTarget)) missing.push('最终目标库存缺失或无效')
-        if (!valid(row.dailyDemand) || row.dailyDemand <= 0) missing.push('日均计划需求缺失、无效或为0')
+        if (!valid(row.finalTarget)) missing.push('最终目标库存缺失、无效或同键值冲突')
+        if (!valid(row.dailyDemand) || row.dailyDemand <= 0) missing.push('日均计划需求缺失、无效、同键值冲突或为0')
       }
     }
     const ratio = !missing.length && row && valid(row.finalTarget) && valid(row.dailyDemand) && row.dailyDemand > 0 ? row.finalTarget / row.dailyDemand : null
