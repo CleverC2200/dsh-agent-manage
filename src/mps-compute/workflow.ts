@@ -1,4 +1,5 @@
 import { resolveMpsRules, ruleSafetyDays, ruleProductionDays, ruleStopsResource, evaluateMpsRules } from './constraint-rules.ts'
+import { inventoryTargetIndex, type MpsInventoryTarget, type MpsInventoryTargetResult, type MpsInventoryVersion } from './inventory-targets.ts'
 export type MpsQuantity = number | null
 export const mpsCategories = ['饺子', '调理肉制品', '汤圆', '面点', '休闲', '馄饨', '粽子', '饼类']
 export interface MpsContext {
@@ -71,6 +72,9 @@ export interface MpsResourceLoad extends MpsResource {
   missing: string[]
 }
 export interface MpsWorkflowInput {
+  inventoryTargets?: MpsInventoryTarget[]
+  inventoryTargetVersion?: MpsInventoryVersion
+  inventoryTargetIssues?: string[]
   productMonths?: Pick<MpsQuantityRow, 'month' | 'base' | 'code'>[]
   scopeCoverage?: 'national' | 'in-scope'
   productionDays?: { base: string; month: string; days: MpsQuantity }[]
@@ -102,6 +106,8 @@ export interface MpsShareLayers {
   product: MpsQuantity
 }
 export interface MpsWorkflowRow extends MpsProduct {
+  inventoryTarget: MpsInventoryTargetResult
+  safetyDaysSource: 'manual' | 'source' | 'rule' | 'missing'
   evaluation: 'unconstrained'
   nextMonthDemand: MpsQuantity
   requiredProduction: MpsQuantity
@@ -175,6 +181,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const openingIndex = groupBy(input.openingInventory, key)
   const capacityIndex = groupBy(input.capacities, key)
   const daysIndex = groupBy(input.constraints.safetyDays, row => row.base)
+  const inventoryTarget = inventoryTargetIndex(input.inventoryTargets ?? [], input.inventoryTargetVersion, input.inventoryTargetIssues)
   const productIndex = groupBy(input.products, key)
   const productsByMonth = new Map(
     months.slice(0, 3).map(month => [
@@ -239,7 +246,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const historyQuantity = quantity(historyIndex.get(periodKey({ ...product, month })) ?? [])
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
       const days = daysIndex.get(product.base) ?? []
-      const safetyDays = ruleSafetyDays(days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null, { ...product, month }, resolvedRules.rules)
+      const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
+      const manualDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
+      const baselineDays = manualDays ?? sourceTarget.days
+      const safetyDays = ruleSafetyDays(baselineDays, { ...product, month }, resolvedRules.rules)
+      const safetyDaysSource = safetyDays !== baselineDays ? 'rule' : manualDays !== null ? 'manual' : sourceTarget.days !== null ? 'source' : 'missing'
       const capacities = (capacityIndex.get(key(product)) ?? []).map(row => ({ ...row, missing: [...row.missing] }))
       return {
         ...product,
@@ -265,6 +276,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         demand: null,
         openingInventory,
         safetyDays,
+        inventoryTarget: sourceTarget,
+        safetyDaysSource,
         targetInventory: null,
         monthlyCapacity: null,
         load: null,
@@ -280,7 +293,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
           share: [],
           demand: [],
           openingInventory: openingInventory === null ? [month === input.context.month ? '缺上月预计月末结存' : '依赖上月主计划与期末库存'] : [],
-          safetyDays: safetyDays === null ? ['缺本地安全天数配置'] : [],
+          safetyDays: safetyDays === null ? [...sourceTarget.missing, '可维护人工覆盖或库存下限规则'] : [],
           targetInventory: ['安全库存公式与工作日口径待确认'],
           monthlyCapacity: [...(capacities.length ? [] : ['缺本基地单品源产能']), '工作日、产线归属及件吨换算待确认'],
           load: ['月产能与负荷规则待确认'],
