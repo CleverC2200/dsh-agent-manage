@@ -103,7 +103,7 @@ it.each(salesRoles)('$name executes authorized queries and rejects undeclared Co
     nativeRead = await f.execute('gea_sales_plan_read', { kind: 'list', query: { periodId: 'offline-period', orderType: 'M', pageSize: 5 } })
     expect(JSON.stringify(nativeRead)).toContain('offline-plan')
     const beforeSubmit = f.network.length
-    await expect(f.business.salesPlanSubmit({}, new AbortController().signal)).rejects.toThrow('GEA_HTTP_503：当前环境尚未配置销售计划重提服务，请联系管理员')
+    await expect(f.business.salesPlanSubmit({}, new AbortController().signal)).rejects.toThrow('INVALID_PAYLOAD')
     expect(f.network).toHaveLength(beforeSubmit)
   }
   const todo = await f.execute('todo_write', { todos: [] })
