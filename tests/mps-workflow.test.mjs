@@ -1,3 +1,4 @@
+import { inventoryTargetIndex } from '../src/mps-compute/inventory-targets.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeMpsWorkflow } from '../src/mps-compute/workflow.ts'
@@ -586,3 +587,204 @@ test('当前物料数量缺基地且非零时仍阻断该大类，真实零保�
   assert.equal(computeMpsWorkflow(sample).rows[0].historyShare, 0.6)
   assert.ok(computeMpsWorkflow(sample).excludedSources.some(row => row.reason === '源记录缺基地'))
 })
+
+{
+  const months = ['2026-12', '2027-01', '2027-02']
+  const sample = () => ({
+    context: { id: 'rules', name: '规则验收', month: months[0] },
+    products: [{ base: '甲', code: 'A', name: '产品A', category: '汤圆', group: '组', series: '系列' }],
+    categoryDemand: [...months, '2027-03'].map(month => ({ month, category: '汤圆', quantity: 310 })),
+    report: months.map(month => ({ month, base: '甲', code: 'A', quantity: 100 })),
+    history: months.map(month => ({ month, base: '甲', code: 'A', quantity: 100 })),
+    sourceIssues: { report: [], history: [] },
+    openingInventory: [{ base: '甲', code: 'A', quantity: 0 }],
+    capacities: [],
+    constraints: { safetyDays: [{ base: '甲', days: 0 }], rules: { local: [] } },
+    productionDays: months.map(month => ({ month, base: '甲', days: 25 })),
+    unitWeights: [{ base: '甲', code: 'A', tonsPerPiece: 1 }],
+    resources: [
+      { id: 'T', base: '甲', kind: 'tunnel', name: '隧道', dailyTons: 20 },
+      { id: 'F', base: '甲', kind: 'forming', name: '成型机', dailyTons: 20 }
+    ],
+    resourceAssignments: months.flatMap(month => ['T', 'F'].map(resourceId => ({ month, base: '甲', code: 'A', resourceId, share: 1 })))
+  })
+  const rule = (effect, extra = {}) => ({ id: 'R', description: '规则验证', strength: '硬', base: '甲', from: '2027-01', until: '2027-01', effect, ...extra })
+
+  test('inventory rules affect only their month and SKU, recompute production and carry closing stock; soft rules need adoption', () => {
+    const input = sample()
+    const original = globalThis.structuredClone(input)
+    input.constraints.rules.local = [rule({ kind: 'inventory-days', value: 12 }, { code: 'A' })]
+    const result = computeMpsWorkflow(input)
+    assert.equal(result.rows[0].requiredProduction, 310)
+    assert.equal(result.rows[1].safetyDays, 12)
+    assert.ok(Math.abs(result.rows[1].targetInventory - (310 * 12) / 28) < 1e-9)
+    assert.equal(result.rows[2].openingInventory, result.rows[1].projectedClosing)
+    assert.equal(result.rows[2].safetyDays, 0)
+    assert.equal(result.ruleEvaluations.length, 1)
+    assert.equal(result.ruleEvaluations[0].affected, 1)
+    assert.equal(result.ruleEvaluations[0].status, 'applied')
+    input.constraints.rules.local[0].strength = '软'
+    assert.equal(computeMpsWorkflow(input).rows[1].safetyDays, 0)
+    assert.equal(computeMpsWorkflow(input).ruleEvaluations[0].status, 'warning')
+    input.constraints.rules.local[0].accepted = true
+    assert.equal(computeMpsWorkflow(input).rows[1].safetyDays, 12)
+    input.constraints.rules.local[0].enabled = false
+    assert.equal(computeMpsWorkflow(input).rows[1].safetyDays, 0)
+    assert.deepEqual(input.constraints.safetyDays, original.constraints.safetyDays)
+  })
+
+  test('a stopped resource has zero capacity and a real gap only in its effective month, without removing demand or another resource', () => {
+    const input = sample()
+    input.constraints.rules.local = [rule({ kind: 'resource-unavailable', resourceId: 'T' })]
+    const result = computeMpsWorkflow(input)
+    const stopped = result.resourceLoads.find(row => row.resourceId === 'T' && row.month === '2027-01')
+    assert.equal(stopped.dailyTons, 0)
+    assert.equal(stopped.gapTons, 310)
+    assert.equal(stopped.status, 'overload')
+    assert.equal(result.resourceLoads.find(row => row.resourceId === 'T' && row.month === '2026-12').gapTons, 0)
+    assert.equal(result.resourceLoads.find(row => row.resourceId === 'F' && row.month === '2027-01').dailyTons, 20)
+    assert.equal(result.rows[1].demand, 310)
+    assert.equal(result.ruleEvaluations[0].status, 'conflict')
+    assert.equal(result.summary.evaluatedRows, 2)
+  })
+
+  test('production-day limits constrain known calendars, preserve unknown calendars and retain resulting capacity gaps', () => {
+    const input = sample()
+    input.constraints.rules.local = [rule({ kind: 'production-days', value: 5 })]
+    const result = computeMpsWorkflow(input)
+    assert.equal(result.rows[0].productionDays, 25)
+    assert.equal(result.rows[1].productionDays, 5)
+    assert.equal(result.resourceLoads.find(row => row.month === '2027-01').gapTons, 210)
+    assert.equal(result.ruleEvaluations[0].status, 'conflict')
+    input.productionDays[1].days = null
+    assert.equal(computeMpsWorkflow(input).rows[1].productionDays, null)
+    assert.equal(computeMpsWorkflow(input).ruleEvaluations[0].status, 'pending')
+  })
+
+  test('self-only policy detects insufficient self capacity; missing transfer, cost and delivery evidence blocks a false pass', () => {
+    const input = sample()
+    input.productionDays[1].days = 1
+    input.constraints.rules.local = [rule({ kind: 'self-only' })]
+    assert.equal(computeMpsWorkflow(input).ruleEvaluations[0].status, 'conflict')
+    for (const kind of ['transfer-limit', 'cost-limit', 'lead-days']) {
+      input.constraints.rules.local = [rule({ kind, value: 10 })]
+      const result = computeMpsWorkflow(input)
+      assert.equal(result.ruleEvaluations[0].status, 'pending')
+      assert.equal(result.summary.evaluatedRows, 2)
+      assert.match(result.rows[1].missing.mainPlan.join(''), /规则验证/)
+    }
+  })
+
+  test('disabled, expired, duplicate and unstructured rules never silently affect computation', () => {
+    const input = sample()
+    input.constraints.rules.local = [rule({ kind: 'inventory-days', value: 30 }), rule({ kind: 'inventory-days', value: 5 })]
+    const duplicate = computeMpsWorkflow(input)
+    assert.equal(duplicate.rows[1].safetyDays, 0)
+    assert.ok(duplicate.ruleEvaluations.every(row => row.status === 'draft'))
+    input.constraints.rules.local = [rule({ kind: 'inventory-days', value: 30 }, { from: '2025-01', until: '2025-03' })]
+    assert.equal(computeMpsWorkflow(input).ruleEvaluations[0].status, 'expired')
+    input.constraints.rules.local = [{ description: '自由文字停线', strength: '硬' }]
+    assert.equal(computeMpsWorkflow(input).ruleEvaluations[0].status, 'draft')
+  })
+
+  test('recorded monthly plan evidence is compared to transfer, cost and lead-time thresholds without reusing another month or missing sources', () => {
+    for (const [kind, value, bad, good] of [
+      ['transfer-limit', 400, 450, 380],
+      ['cost-limit', 8, 9, 7],
+      ['lead-days', 15, 10, 20]
+    ]) {
+      const input = sample()
+      const current = rule({ kind, value })
+      current.observations = [{ month: '2027-01', value: bad, source: '当前月方案核对' }]
+      input.constraints.rules.local = [current]
+      const failed = computeMpsWorkflow(input)
+      assert.equal(failed.ruleEvaluations[0].status, 'conflict')
+      current.observations[0].value = good
+      assert.equal(computeMpsWorkflow(input).ruleEvaluations[0].status, 'met')
+      current.observations[0].month = '2026-12'
+      assert.equal(computeMpsWorkflow(input).ruleEvaluations[0].status, 'pending')
+      current.observations[0].month = '2027-01'
+      current.observations[0].source = ''
+      assert.equal(computeMpsWorkflow(input).ruleEvaluations[0].status, 'pending')
+    }
+  })
+}
+
+{
+  const fact = (code, month, version, finalTarget, dailyDemand, extra = {}) => ({ base: '甲', code, month, version, finalTarget, dailyDemand, sourceRows: 1, ...extra })
+  const at = (code, month = '2026-11', base = '甲') => ({ code, month, base })
+
+  test('monthly inventory targets select one version per base and month without SKU, month or base fallback', () => {
+    const source = [
+      fact('A', '2026-11', '月初', 900, 10),
+      fact('B', '2026-11', '月初', 300, 10),
+      fact('A', '2026-11', '纠偏', 120, 10),
+      fact('A', '2026-12', '滚动', 200, 10),
+      fact('A', '2026-11', '月初', 80, 10, { base: '乙' })
+    ]
+    const resolve = inventoryTargetIndex(source)
+    assert.equal(resolve(at('A')).days, 12)
+    assert.equal(resolve(at('B')).days, null)
+    assert.equal(resolve(at('B')).version, '纠偏')
+    assert.equal(resolve(at('A', '2026-12')).days, 20)
+    assert.equal(resolve(at('A', '2027-01')).days, null)
+    assert.equal(resolve(at('A', '2026-11', '乙')).days, 8)
+    assert.equal(inventoryTargetIndex(source, '月初')(at('B')).days, 30)
+    assert.equal(inventoryTargetIndex(source, '滚动')(at('A')).days, null)
+  })
+
+  test('missing, zero denominators, duplicate records and failed reads never become valid source days', () => {
+    const source = [
+      fact('A', '2026-11', '纠偏', 0, 10),
+      fact('B', '2026-11', '纠偏', 50, 0),
+      fact('C', '2026-11', '纠偏', null, 10),
+      fact('D', '2026-11', '纠偏', null, 10, { sourceRows: 2 }),
+      fact('E', '2026-11', '纠偏', 30, 10),
+      fact('E', '2026-11', '纠偏', 30, 10)
+    ]
+    const resolve = inventoryTargetIndex(source)
+    assert.equal(resolve(at('A')).days, 0)
+    assert.equal(inventoryTargetIndex([fact('same', '2026-11', '纠偏', 80, 10, { sourceRows: 12 })])(at('same')).days, 8)
+    for (const code of ['B', 'C', 'D', 'E', 'missing']) assert.equal(resolve(at(code)).days, null)
+    const failed = inventoryTargetIndex(source, 'auto', ['来源读取失败'])(at('A'))
+    assert.equal(failed.days, null)
+    assert.equal(failed.finalTarget, null)
+    assert.deepEqual(failed.missing, ['来源读取失败'])
+  })
+
+  test('source days drive SKU inventory and production while base overrides and monthly minimum rules remain explicit', () => {
+    const months = ['2026-11', '2026-12', '2027-01']
+    const input = {
+      context: { id: 'v', name: 'v', month: months[0] },
+      products: [{ base: '甲', code: 'A', name: 'A', category: '汤圆', series: '系列', group: '组' }],
+      categoryDemand: [...months, '2027-02'].map(month => ({ month, category: '汤圆', quantity: 310 })),
+      report: months.map(month => ({ ...at('A', month), quantity: 310 })),
+      history: months.map(month => ({ ...at('A', month), quantity: 310 })),
+      sourceIssues: { report: [], history: [] },
+      capacities: [],
+      openingInventory: [{ base: '甲', code: 'A', quantity: 0 }],
+      constraints: { safetyDays: [], rules: { local: [] } },
+      inventoryTargets: months.map((month, i) => fact('A', month, i === 0 ? '纠偏' : '滚动', 100 + i * 100, 10))
+    }
+    let result = computeMpsWorkflow(input)
+    assert.deepEqual(
+      result.rows.map(row => row.safetyDays),
+      [10, 20, 30]
+    )
+    assert.equal(result.rows[0].safetyDaysSource, 'source')
+    assert.equal(result.rows[0].targetInventory, 100)
+    assert.equal(result.rows[0].requiredProduction, 410)
+    assert.equal(result.rows[1].openingInventory, 100)
+    input.constraints.safetyDays = [{ base: '甲', days: 0 }]
+    result = computeMpsWorkflow(input)
+    assert.equal(result.rows[0].targetInventory, 0)
+    assert.equal(result.rows[0].safetyDaysSource, 'manual')
+    input.constraints.safetyDays = []
+    input.constraints.rules.local = [{ id: 'min', description: '月库存下限', strength: '硬', from: '2026-11', until: '2026-11', effect: { kind: 'inventory-days', value: 15 } }]
+    result = computeMpsWorkflow(input)
+    assert.equal(result.rows[0].safetyDays, 15)
+    assert.equal(result.rows[0].inventoryTarget.days, 10)
+    assert.equal(result.rows[0].safetyDaysSource, 'rule')
+    assert.equal(result.rows[1].safetyDays, 20)
+  })
+}

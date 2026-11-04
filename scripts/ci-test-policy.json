@@ -22,12 +22,6 @@
     "tests/mps-workflow.test.mjs": {
       "dependencies": false
     },
-    "tests/mps-constraint-rules.test.mjs": {
-      "dependencies": false
-    },
-    "tests/mps-inventory-targets.test.mjs": {
-      "dependencies": false
-    },
     "tests/aps-default-resources.test.mjs": {
       "dependencies": false
     }
@@ -58,8 +52,8 @@
     {
       "repo": "dsh-agent-manage",
       "pattern": "^src/mps-compute/",
-      "tests": ["tests/mps-workflow.test.mjs", "tests/mps-constraint-rules.test.mjs", "tests/mps-inventory-targets.test.mjs"],
-      "sourceTests": ["tests/mps-workflow.test.mjs", "tests/mps-constraint-rules.test.mjs", "tests/mps-inventory-targets.test.mjs"]
+      "tests": ["tests/mps-workflow.test.mjs"],
+      "sourceTests": ["tests/mps-workflow.test.mjs"]
     },
     {
       "repo": "dsh-agent-manage",
@@ -309,8 +303,6 @@
     "tests/quality-ci-cli.test.mjs": ["yaml"],
     "tests/official-source-alias.test.mjs": ["zod"],
     "tests/order-agents-resource-package.test.mjs": [],
-    "tests/mps-workflow.test.mjs": [],
-    "tests/mps-constraint-rules.test.mjs": [],
-    "tests/mps-inventory-targets.test.mjs": []
+    "tests/mps-workflow.test.mjs": []
   }
 }
