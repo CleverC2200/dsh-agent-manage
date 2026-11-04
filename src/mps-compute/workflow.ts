@@ -1,3 +1,4 @@
+import { resolveMpsRules, ruleSafetyDays, ruleProductionDays, ruleStopsResource, evaluateMpsRules } from './constraint-rules.ts'
 export type MpsQuantity = number | null
 export const mpsCategories = ['饺子', '调理肉制品', '汤圆', '面点', '休闲', '馄饨', '粽子', '饼类']
 export interface MpsContext {
@@ -168,6 +169,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.context.month)) throw Error('评估月份无效')
   const adjustmentIssues: string[] = []
   const months = Array.from({ length: 4 }, (_, offset) => monthOffset(input.context.month, offset))
+  const resolvedRules = resolveMpsRules(input, months.slice(0, 3))
   const reportIndex = groupBy(input.report, periodKey)
   const historyIndex = groupBy(input.history, periodKey)
   const openingIndex = groupBy(input.openingInventory, key)
@@ -237,7 +239,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const historyQuantity = quantity(historyIndex.get(periodKey({ ...product, month })) ?? [])
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
       const days = daysIndex.get(product.base) ?? []
-      const safetyDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
+      const safetyDays = ruleSafetyDays(days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null, { ...product, month }, resolvedRules.rules)
       const capacities = (capacityIndex.get(key(product)) ?? []).map(row => ({ ...row, missing: [...row.missing] }))
       return {
         ...product,
@@ -400,7 +402,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const productionDays = (base: string, month: string) => {
     const matches = (input.productionDays ?? []).filter(row => row.base === base && row.month === month)
     const value = matches[0]?.days ?? null
-    return matches.length === 1 && finite(value) && value >= 0 && value <= daysInMonth(month) ? value : null
+    return ruleProductionDays(matches.length === 1 && finite(value) && value >= 0 && value <= daysInMonth(month) ? value : null, base, month, resolvedRules.rules)
   }
   const rowIndex = groupBy(rows, periodKey)
   for (const row of rows) {
@@ -419,14 +421,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const previous = rowIndex.get(periodKey({ month: monthOffset(row.month, -1), base: row.base, code: row.code }))?.[0]
       row.openingInventory = previous?.projectedClosing ?? null
     }
-    row.missing.openingInventory = row.openingInventory === null ? ['缺上月结存或上月无约束期末参考'] : []
+    row.missing.openingInventory = row.openingInventory === null ? ['缺上月结存或上月期末参考'] : []
     row.requiredProduction =
       row.demand !== null && row.targetInventory !== null && row.openingInventory !== null ? safe(Math.max(0, row.demand + row.targetInventory - row.openingInventory)) : null
     row.projectedClosing =
       row.requiredProduction !== null && row.openingInventory !== null && row.demand !== null ? safe(row.openingInventory + row.requiredProduction - row.demand) : null
     row.missing.requiredProduction = row.requiredProduction === null ? ['缺需求、安全库存或期初结存'] : []
-    row.missing.projectedClosing = row.projectedClosing === null ? ['缺无约束所需生产或库存数据'] : []
-    row.missing.mainPlan = ['所需生产仅为无约束参考，未生成可执行主计划']
+    row.missing.projectedClosing = row.projectedClosing === null ? ['缺所需生产或库存数据'] : []
+    row.missing.mainPlan = ['所需生产由需求、库存和已采用规则推导，未生成可执行主计划']
     row.missing.transfer = ['调拨、外协需人工决策，未自动生成']
     row.productionDays = productionDays(row.base, row.month)
     const weights = (input.unitWeights ?? []).filter(weight => key(weight) === key(row))
@@ -478,12 +480,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     const resource = entries[0]
     if (!resource) continue
     for (const month of months.slice(0, 3)) {
+      const stopped = ruleStopsResource(resource, month, resolvedRules.rules)
+      const dailyTons = stopped ? 0 : resource.dailyTons
       const applicable = rows.filter(row => row.base === resource.base && row.month === month)
       const missing: string[] = []
       if (!resource.id || !resource.base || entries.length !== 1) missing.push('资源唯一键缺失或重复')
-      if (!finite(resource.dailyTons) || resource.dailyTons <= 0) missing.push('缺有效资源日产吨数')
+      if (!stopped && (!finite(dailyTons) || dailyTons <= 0)) missing.push('缺有效资源日产吨数')
       const days = productionDays(resource.base, month)
-      if (days === null || days === 0) missing.push('缺有效基地月份生产天数或天数为0')
+      if (!stopped && (days === null || days === 0)) missing.push('缺有效基地月份生产天数或天数为0')
       if (!applicable.length) missing.push('资源基地没有本版产品范围')
       for (const row of applicable) {
         const kindLabel = resource.kind === 'tunnel' ? '隧道' : '成型机'
@@ -501,14 +505,18 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         applicable.length > 0 &&
         applicable.every(row => !invalidAssignments.get(row.id)?.has(resource.kind) && !invalidAssignments.get(row.id)?.has('unknown') && row.requiredProductionTons !== null)
       const requiredTons = allocationComplete ? quantity(quantities) : null
-      const requiredDays = requiredTons !== null && finite(resource.dailyTons) && resource.dailyTons > 0 ? safe(requiredTons / resource.dailyTons) : null
+      const requiredDays = requiredTons !== null && finite(dailyTons) && dailyTons > 0 ? safe(requiredTons / dailyTons) : null
       const load = !missing.length && requiredDays !== null && days !== null && days > 0 ? safe(requiredDays / days) : null
       const overloadDays = requiredDays !== null && days !== null ? safe(Math.max(0, requiredDays - days)) : null
-      const gapTons =
-        requiredTons !== null && days !== null && finite(resource.dailyTons) && resource.dailyTons >= 0 ? safe(Math.max(0, requiredTons - resource.dailyTons * days)) : null
+      const gapTons = stopped
+        ? requiredTons
+        : requiredTons !== null && days !== null && finite(dailyTons) && dailyTons >= 0
+          ? safe(Math.max(0, requiredTons - dailyTons * days))
+          : null
       resourceLoads.push({
         ...resource,
         resourceId: resource.id,
+        dailyTons,
         month,
         productionDays: days,
         requiredTons,
@@ -516,7 +524,18 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         load,
         overloadDays,
         gapTons,
-        status: load === null ? 'unknown' : load < 0.9 ? 'normal' : load <= 1.05 ? 'warning' : 'overload',
+        status:
+          stopped && !missing.length && requiredTons !== null
+            ? requiredTons > 0
+              ? 'overload'
+              : 'normal'
+            : load === null
+              ? 'unknown'
+              : load < 0.9
+                ? 'normal'
+                : load <= 1.05
+                  ? 'warning'
+                  : 'overload',
         missing: [...new Set(missing)]
       })
     }
@@ -541,12 +560,29 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     if (category.quantity > 0) return [`${category.month} ${category.category} 缺月度SKU域，大类需求未拆分`]
     return []
   })
+  const ruleEvaluations = evaluateMpsRules(resolvedRules, rows, resourceLoads, months.slice(0, 3))
+  const blockingRules = ruleEvaluations.filter(
+    entry =>
+      ['conflict', 'pending', 'draft'].includes(entry.status) &&
+      (resolvedRules.rules.some(rule => rule.id === entry.ruleId && (rule.strength === '硬' || rule.accepted)) || entry.status === 'draft')
+  )
   const summaryMissing = [...new Set(rows.flatMap(row => [...row.missing.requiredProductionTons, ...row.missing.productionDays, ...row.missing.resourceAssignments]))]
   const summary = {
     requiredProductionTons: categoryScopeIssues.length ? null : rows.length ? quantity(rows.map(row => ({ quantity: row.requiredProductionTons }))) : demandScope.length ? 0 : null,
     knownRequiredProductionTons: safe(rows.reduce((sum, row) => sum + (row.requiredProductionTons ?? 0), 0)),
     evaluatedRows: rows.filter(
       row =>
+        !blockingRules.some(
+          entry =>
+            entry.month === row.month &&
+            resolvedRules.rules.some(
+              rule =>
+                rule.id === entry.ruleId &&
+                (!rule.base || rule.base === row.base) &&
+                (!rule.code || rule.code === row.code) &&
+                (!rule.productCategory || rule.productCategory === row.category)
+            )
+        ) &&
         row.requiredProductionTons !== null &&
         row.productionDays !== null &&
         row.productionDays > 0 &&
@@ -560,11 +596,13 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         ...scopeIssues,
         ...categoryScopeIssues,
         ...summaryMissing,
+        ...blockingRules.map(entry => `${entry.month} 规则${entry.ruleId}：${entry.reason}`),
         ...resourceLoads.flatMap(resource => resource.missing)
       ])
     ]
   }
   return {
+    ruleEvaluations,
     scopeCoverage: input.scopeCoverage ?? 'in-scope',
     excludedSources,
     adjustmentIssues,
@@ -582,7 +620,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     missing: [
       ...new Set(scopeIssues),
       ...(input.scopeCoverage === 'national' ? [] : ['产品池全国覆盖尚未取得实际证明，仅报告范围内结果']),
-      '所需生产与期末库存为无约束参考，可执行主计划、调拨及外协未生成',
+      '库存下限、生产天数及停用资源按有效约束计算；可执行主计划、调拨及外协方案未生成',
       '正式约束表与保存接口尚未就绪'
     ]
   }
