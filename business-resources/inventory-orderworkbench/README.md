@@ -31,3 +31,5 @@
 `operations-kpi-performance-analysis` 负责指标总览，`operations-order-kpi-details` 负责六项卡片的订单或库存明细表、拆单与改单商品明细。订单工作台点击指标卡向当前页面 Agent 发送明细请求；请求携带本期、本周实际边界、指标定义和来源状态，明细仅从已授权来源读取。
 
 The analysis Skill routes card drill-downs to `operations-order-kpi-details`. Card clicks send the current period, metric and source evidence to the associated Agent, which queries authorized details and renders the matching table.
+
+订单工作台支持 operations-workbook-exception-import：受控预览并写入摘要、三个维度未完成项和改善措施；保留人工编辑和批次溯源。
