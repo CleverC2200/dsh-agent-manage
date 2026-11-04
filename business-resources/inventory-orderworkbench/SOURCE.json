@@ -2,7 +2,7 @@
   "receivedAt": "2026-10-21",
   "promptFileName": "订单工作台提示词.txt",
   "promptSourceSha256": "4179cf9e73d8323698591d52e5fa69bc7677566b78feaee33c83ac7d2b3b0b9c",
-  "promptSha256": "5d7e72d5f40fa6a432f56f9fdbe6ae7be76a0b5ecef1e01d4092f182df008135",
+  "promptSha256": "ecabb75d32c5fafc2f25a18d5b31383dca76aef42cb5c9643da5f5fa16f58984",
   "archiveFileName": "订单履约_工作台Skills.zip",
   "archiveSha256": "7985892cbee35c3a0aa94fd6971a021d9d86a1ccac2210995ee353da39a8cd18",
   "transformations": [
@@ -17,13 +17,14 @@
     "Clarify fulfillable quantity versus independent shipments and current governed page evidence on 2026-11-02; retain original received source hashes",
     "Make report sections conditional and restrict unsupported counts, causes and cross-metric conclusions on 2026-11-02; retain received provenance",
     "Normalize packaged prompt soft line breaks for CI on 2026-11-02; retain all business text and original received source hashes",
-    "Update KPI analysis and add KPI details from user supplied Skills on 2026-11-03; preserve installed evidence/authorization boundaries and current published metric definitions"
+    "Update KPI analysis and add KPI details from user supplied Skills on 2026-11-03; preserve installed evidence/authorization boundaries and current published metric definitions",
+    "Add user supplied workbook exception import with governed page preview/commit on 2026-11-03; retain manual edits and source provenance"
   ],
   "files": [
     {
       "path": "README.md",
       "sourceSha256": "f2a990ebcf68cedf475c8934ccf7a3cc0dea13f83de7ce7537b83ed9bcf5a6e7",
-      "packagedSha256": "d1ab82208815347332c769b5e460daf9fa94f0731ccc948dff06e6aa079cd928"
+      "packagedSha256": "a6601295636a4558d135d048fcbbd0257147ba3231e9a567049345f85ce214e7"
     },
     {
       "path": "skills/production-fulfillment-progress/SKILL.md",
@@ -88,6 +89,31 @@
       "sourceSha256": "e76f88f62a747cac122deb8bce765b3ef57db868f5e88119ffc0398efbe9d2fd",
       "sourceFileName": "operations-order-kpi-details/SKILL.md",
       "packagedSha256": "1f8f49c8dd52476d618eeb3513797a19ce2c18cfb64d87e1401cb7367b00c74c"
+    },
+    {
+      "path": "agent-prompt.md",
+      "sourceSha256": "ce3d4ffe0f78d6a55c7b27a92731dbce2acfd0629c32e0c15803eff4f46678b3",
+      "packagedSha256": "ecabb75d32c5fafc2f25a18d5b31383dca76aef42cb5c9643da5f5fa16f58984"
+    },
+    {
+      "path": "prompt.json",
+      "sourceSha256": "765f0fc52c0702b4d5d49954e3e152df9b97ba482600e7e1407c3f1bf7b43ad1",
+      "packagedSha256": "765f0fc52c0702b4d5d49954e3e152df9b97ba482600e7e1407c3f1bf7b43ad1"
+    },
+    {
+      "path": "capability.json",
+      "sourceSha256": "0b7d00700c920d02c21d503ebeae4a3cd74e32b3e5e7abc62c5977ec17baada6",
+      "packagedSha256": "5805471d0525bc2a21142be555465c41d04cee7b8f2db9566b61ff9d2ce1869f"
+    },
+    {
+      "path": "skills/operations-workbook-exception-import/SKILL.md",
+      "sourceSha256": "d34fa207cb3be262b1cc30eab65cfc1177f4c1ebb215279fd8fa2d0caa9ddff0",
+      "packagedSha256": "2632ebadea7b140340f66499ef3b3083a14f9b737f17366abaad5b4b5c757f51"
+    },
+    {
+      "path": "skills/operations-workbook-exception-import/references/workbench-write-contract.md",
+      "sourceSha256": "fcb74ee08ebea5a667669d62a212e0580664f4a033a767415ecc92b8a7ca4bf6",
+      "packagedSha256": "1000fd70d0e6e32103fdd977ac91f43cb17054a5498a7c406240f770bb1b2063"
     }
   ]
 }

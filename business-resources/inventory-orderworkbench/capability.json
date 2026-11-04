@@ -36,7 +36,8 @@
     "operations-kpi-performance-analysis",
     "operations-order-kpi-details",
     "operations-exception-root-cause",
-    "improvement-action-closure"
+    "improvement-action-closure",
+    "operations-workbook-exception-import"
   ],
   "routing": {
     "keywords": ["订单工作台", "inventory-orderworkbench"],
