@@ -228,6 +228,49 @@ const input = () => ({
   constraints: { safetyDays: [], rules: {} }
 })
 
+test('评估月的一套系数拆分三个月，后月提报不改变本版系数', () => {
+  const sample = input()
+  sample.categoryDemand.push({ month: '2027-01', category: '点心', quantity: 200 }, { month: '2027-02', category: '点心', quantity: 300 })
+  sample.report.push({ month: '2027-01', base: '甲', code: 'A', quantity: 999 })
+  const result = computeMpsWorkflow(sample)
+  result.rows.filter(row => row.code === 'A').forEach((row, index) => assert.ok(Math.abs(row.demand - [54, 90, 135][index]) < 1e-10))
+  assert.ok(result.rows.every(row => row.reportQuantity !== null && row.historyQuantity !== null))
+})
+
+test('提报缺Top1系数时物料组和SKU各承接剩余占比，基地份额保持源值', () => {
+  const sample = input()
+  sample.products.push({ ...sample.products[0], code: 'C', group: '另一组' })
+  sample.history = sample.products.map((row, i) => ({ month: sample.context.month, base: row.base, code: row.code, quantity: [60, 20, 20][i] }))
+  sample.report = sample.products.map((row, i) => ({ month: sample.context.month, base: row.base, code: row.code, quantity: [null, 20, 30][i] }))
+  sample.reportRatios = [
+    { kind: 'group', category: '点心', group: '另一组', share: 0.3 },
+    { kind: 'sku', category: '点心', group: '包点', code: 'B', share: 0.25 },
+    { kind: 'sku', category: '点心', group: '另一组', code: 'C', share: 1 },
+    ...sample.products.map(row => ({ kind: 'base', category: row.category, group: row.group, code: row.code, base: row.base, share: 1 }))
+  ]
+  const result = computeMpsWorkflow(sample)
+  const a = result.rows[0]
+  assert.equal(a.reportLayers.groupShare, 0.7)
+  assert.equal(a.reportLayers.skuShare, 0.75)
+  assert.equal(a.reportLayers.baseShare, 1)
+  assert.ok(Math.abs(a.reportShare - 0.525) < 1e-12)
+  assert.ok(Math.abs(a.share - 0.5625) < 1e-12)
+  assert.equal(a.reportQuantity, null)
+  assert.ok(result.rows.slice(0, 3).every(row => row.demand !== null))
+  assert.ok(Math.abs(result.rows.slice(0, 3).reduce((sum, row) => sum + row.demand, 0) - 120) < 1e-10)
+  assert.deepEqual(a.coefficientFallback, ['提报物料组Top1承接剩余占比', '提报SKU Top1承接剩余占比'])
+  sample.reportRatios.push({ kind: 'sku', category: '点心', group: '包点', code: 'A', share: null })
+  assert.equal(computeMpsWorkflow(sample).rows[0].reportLayers.skuShare, 0.75)
+  const withoutBase = structuredClone(sample)
+  withoutBase.reportRatios = withoutBase.reportRatios.filter(row => !(row.kind === 'base' && row.code === 'A'))
+  assert.equal(computeMpsWorkflow(withoutBase).rows[0].demand, null)
+  const duplicate = structuredClone(sample)
+  duplicate.reportRatios.push({ kind: 'sku', category: '点心', group: '包点', code: 'A', share: 0.9 })
+  assert.equal(computeMpsWorkflow(duplicate).rows[0].demand, null)
+  sample.reportRatios.find(row => row.kind === 'group').share = 1.1
+  assert.equal(computeMpsWorkflow(sample).rows[0].demand, null)
+})
+
 test('两路占比只用本来源已返回的当前产品明细，缺行保留为空且不阻断另一来源', () => {
   const sample = input()
   sample.products.push({ base: '丙', code: 'C', name: '丙产品', category: '点心', group: '包点', series: '同名系列不作键' })
@@ -247,7 +290,7 @@ test('两路占比只用本来源已返回的当前产品明细，缺行保留�
   assert.equal(c.historyShare, 0.4)
 })
 
-test('月度基地SKU范围限定分母与Top1，不把其他月份或产能复制为当月需求', () => {
+test('评估月基地SKU范围限定三个月分母与Top1，不把后月事实或产能扩为本版需求域', () => {
   const sample = input()
   sample.productMonths = [
     { month: '2026-12', base: '甲', code: 'A' },
@@ -262,7 +305,8 @@ test('月度基地SKU范围限定分母与Top1，不把其他月份或产能复�
     result.rows.map(row => [row.month, row.base, row.code]),
     [
       ['2026-12', '甲', 'A'],
-      ['2027-01', '乙', 'B']
+      ['2027-01', '甲', 'A'],
+      ['2027-02', '甲', 'A']
     ]
   )
   assert.equal(result.rows[0].reportLayers.categoryQuantity, 30)
@@ -270,7 +314,7 @@ test('月度基地SKU范围限定分母与Top1，不把其他月份或产能复�
   assert.equal(result.rows[0].share, 1)
   assert.equal(result.rows[0].fallback, true)
   assert.equal(result.rows[0].demand, 120)
-  assert.equal(result.rows[0].nextMonthDemand, null)
+  assert.equal(result.rows[0].nextMonthDemand, 200)
 })
 
 test('池外事实按当前产品范围单列，源分类未知也不混入范围内分母', () => {
@@ -298,7 +342,7 @@ test('月度正式归属范围内的缺行和NULL仍缺数，未证明全国时�
   sample.report.pop()
   sample.history[1].quantity = null
   const result = computeMpsWorkflow(sample)
-  assert.equal(result.rows.length, 2)
+  assert.equal(result.rows.length, 6)
   assert.equal(result.rows[1].reportQuantity, null)
   assert.equal(result.rows[1].historyQuantity, null)
   assert.equal(result.rows[0].share, null)
@@ -313,7 +357,7 @@ test('M+4只供大类库存参考，该月事实不扩充或污染前三月SKU�
   sample.productMonths = sample.products.map(({ base, code }) => ({ month: '2026-12', base, code }))
   sample.report.push({ month: '2027-03', base: '丙', code: 'C', quantity: 500 })
   const result = computeMpsWorkflow(sample)
-  assert.equal(result.rows.length, 2)
+  assert.equal(result.rows.length, 6)
   assert.equal(
     result.missing.some(reason => reason.includes('2027-03') && reason.includes('池外')),
     false
@@ -543,7 +587,7 @@ test('零安全天数不要求未知下月需求，缺失天数仍为未知', ()
   assert.equal(computeMpsWorkflow(sample).rows[0].targetInventory, null)
 })
 
-test('有大类需求但缺月度SKU域时完整吨数未知，已知小计不丢失', () => {
+test('评估月SKU范围贯穿三个月，不再要求后月源表重复提供SKU域', () => {
   const sample = input()
   sample.products = [sample.products[0]]
   sample.productMonths = [{ month: '2026-12', base: '甲', code: 'A' }]
@@ -553,14 +597,12 @@ test('有大类需求但缺月度SKU域时完整吨数未知，已知小计不�
   sample.constraints.safetyDays = [{ base: '甲', days: 0 }]
   sample.unitWeights = [{ base: '甲', code: 'A', tonsPerPiece: 1 }]
   const result = computeMpsWorkflow(sample)
-  assert.equal(result.summary.requiredProductionTons, null)
-  assert.equal(result.summary.knownRequiredProductionTons, 100)
-  assert.equal(result.summary.totalRows, 1)
-  assert.match(result.summary.missing.join('、'), /2027-01 点心.*缺.*SKU.*未拆分/)
-  assert.match(result.summary.missing.join('、'), /2027-02 点心.*缺.*SKU.*未拆分/)
+  assert.equal(result.summary.requiredProductionTons, 300)
+  assert.equal(result.summary.knownRequiredProductionTons, 300)
+  assert.equal(result.summary.totalRows, 3)
   assert.deepEqual(
     result.rows.map(row => [row.month, row.requiredProduction]),
-    [['2026-12', 100]]
+    [['2026-12', 100], ['2027-01', 100], ['2027-02', 100]]
   )
 })
 
@@ -587,7 +629,7 @@ test('产品大类缺月度域且需求为NULL时阻断完整性，真实0不阻
   sample.categoryDemand[3].quantity = 0
   const zero = computeMpsWorkflow(sample)
   assert.equal(zero.summary.requiredProductionTons, 100)
-  assert.equal(zero.summary.totalRows, 1)
+  assert.equal(zero.summary.totalRows, 3)
   assert.equal(
     zero.summary.missing.some(reason => /汤圆|饺子|2027-01|2027-02/.test(reason)),
     false

@@ -1,6 +1,7 @@
 import { resolveMpsRules, ruleSafetyDays, ruleProductionDays, ruleStopsResource, evaluateMpsRules } from './constraint-rules.ts'
 import { inventoryTargetIndex, type MpsInventoryTarget, type MpsInventoryTargetResult, type MpsInventoryVersion } from './inventory-targets.ts'
 import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
+import { applyReportFallback, type MpsReportRatio } from './split-fallback.ts'
 export type { MpsQuantityAdjustment } from './quantity-adjustments.ts'
 export type MpsQuantity = number | null
 export interface MpsContext {
@@ -91,6 +92,7 @@ export interface MpsWorkflowInput {
   products: MpsProduct[]
   categoryDemand: MpsCategoryDemand[]
   report: MpsQuantityRow[]
+  reportRatios?: MpsReportRatio[]
   history: MpsQuantityRow[]
   sourceIssues: { report: string[]; history: string[] }
   openingInventory: Omit<MpsQuantityRow, 'month'>[]
@@ -121,6 +123,7 @@ export interface MpsWorkflowRow extends MpsProduct {
   layerMissing: string[]
   systemShare: MpsQuantity
   fallback: boolean
+  coefficientFallback: string[]
   groupShare: MpsQuantity
   id: string
   month: string
@@ -183,6 +186,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const resolvedRules = resolveMpsRules(input, months.slice(0, 3))
   const reportIndex = groupBy(input.report, periodKey)
   const historyIndex = groupBy(input.history, periodKey)
+  const coefficientKey = (row: Pick<MpsProduct, 'base' | 'code'>) => periodKey({ ...row, month: input.context.month })
   const openingIndex = groupBy(input.openingInventory, key)
   const capacityIndex = groupBy(input.capacities, key)
   const daysIndex = groupBy(input.constraints.safetyDays, row => row.base)
@@ -194,7 +198,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       input.productMonths === undefined
         ? input.products
         : input.productMonths
-            .filter(row => row.month === month)
+            .filter(row => row.month === input.context.month)
             .flatMap(assignment => {
               const matches = productIndex.get(key(assignment)) ?? productIndex.get(key({ base: '', code: assignment.code })) ?? []
               return matches.map(product => ({ ...product, base: assignment.base }))
@@ -208,6 +212,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const unmatchedMonths = { report: new Map<string, Set<string>>(), history: new Map<string, Set<string>>() }
   for (const source of ['report', 'history'] as const) {
     for (const fact of input[source]) {
+      if (fact.month !== input.context.month) continue
       const month = fact.month
       const domain = monthlyProductIndexes.get(month)
       if (!domain || domain.has(key(fact))) continue
@@ -251,8 +256,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   )
   const rows: MpsWorkflowRow[] = months.slice(0, 3).flatMap(month =>
     (productsByMonth.get(month) ?? []).map(product => {
-      const reportQuantity = quantity(reportIndex.get(periodKey({ ...product, month })) ?? [])
-      const historyQuantity = quantity(historyIndex.get(periodKey({ ...product, month })) ?? [])
+      const reportQuantity = quantity(reportIndex.get(coefficientKey(product)) ?? [])
+      const historyQuantity = quantity(historyIndex.get(coefficientKey(product)) ?? [])
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
@@ -276,6 +281,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         layerMissing: [],
         systemShare: null,
         fallback: false,
+        coefficientFallback: [],
         groupShare: null,
         reportLayers: { groupQuantity: null, categoryQuantity: null, skuQuantity: null, baseQuantity: null, groupShare: null, skuShare: null, baseShare: null, product: null },
         historyLayers: { groupQuantity: null, categoryQuantity: null, skuQuantity: null, baseQuantity: null, groupShare: null, skuShare: null, baseShare: null, product: null },
@@ -327,11 +333,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const field = source === 'report' ? 'reportQuantity' : 'historyQuantity'
       const shareField = source === 'report' ? 'reportShare' : 'historyShare'
       const index = source === 'report' ? reportIndex : historyIndex
-      const entries = group.filter(row => index.has(periodKey(row)))
+      const entries = group.filter(row => index.has(coefficientKey(row)))
       const total = quantity(entries.map(row => ({ quantity: row[field] })))
       const issues = [
         ...input.sourceIssues[source],
-        ...(unassignedBases.has(JSON.stringify([source, category.month, category.category])) || unassignedBases.has(JSON.stringify([source, category.month, '']))
+        ...(unassignedBases.has(JSON.stringify([source, input.context.month, category.category])) || unassignedBases.has(JSON.stringify([source, input.context.month, '']))
           ? ['当前产品的源数量缺基地，范围内分母不可确认']
           : []),
         ...(identityMissing ? ['缺基地、物料组或产品分类，拆分范围不完整'] : []),
@@ -339,12 +345,12 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         ...(total === null ? ['同大类明细数量不完整'] : total === 0 ? ['同大类合计为0，占比未定义'] : [])
       ]
       const groupTotals = new Map(
-        [...materialGroups].map(([name, entries]) => [name, quantity(entries.filter(row => index.has(periodKey(row))).map(row => ({ quantity: row[field] })))])
+        [...materialGroups].map(([name, entries]) => [name, quantity(entries.filter(row => index.has(coefficientKey(row))).map(row => ({ quantity: row[field] })))])
       )
       const skuTotals = new Map(
         [...skuGroups].map(([name, codes]) => [
           name,
-          new Map([...codes].map(([code, entries]) => [code, quantity(entries.filter(row => index.has(periodKey(row))).map(row => ({ quantity: row[field] })))]))
+          new Map([...codes].map(([code, entries]) => [code, quantity(entries.filter(row => index.has(coefficientKey(row))).map(row => ({ quantity: row[field] })))]))
         ])
       )
       const largestGroup = [...groupTotals].filter((entry): entry is [string, number] => entry[1] !== null).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'en'))[0]?.[0]
@@ -373,6 +379,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         }
       }
     }
+    if (!duplicate && !identityMissing && !input.sourceIssues.report.length && !unassignedBases.has(JSON.stringify(['report', input.context.month, category.category])) && !unassignedBases.has(JSON.stringify(['report', input.context.month, ''])))
+      applyReportFallback(group, input.reportRatios ?? [])
     for (const row of group) {
       row.missing.share = [...new Set([...row.missing.reportShare, ...row.missing.historyShare])]
       row.systemShare = row.reportShare !== null && row.historyShare !== null ? (row.reportShare + row.historyShare) / 2 : null
