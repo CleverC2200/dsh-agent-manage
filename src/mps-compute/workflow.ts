@@ -111,9 +111,10 @@ export interface MpsShareLayers {
 }
 export interface MpsWorkflowRow extends MpsProduct {
   inventoryTarget: MpsInventoryTargetResult
-  safetyDaysSource: 'manual' | 'source' | 'rule' | 'missing'
+  safetyDaysSource: 'base-policy' | 'rule' | 'missing'
   evaluation: 'unconstrained'
   nextMonthDemand: MpsQuantity
+  nextMonthDays: number
   requiredProduction: MpsQuantity
   projectedClosing: MpsQuantity
   requiredProductionTons: MpsQuantity
@@ -137,6 +138,7 @@ export interface MpsWorkflowRow extends MpsProduct {
   quantityAdjusted: boolean
   openingInventory: MpsQuantity
   safetyDays: MpsQuantity
+  baseSafetyDays: MpsQuantity
   targetInventory: MpsQuantity
   targetInventoryMissing: ('safety-days-missing' | 'next-month-demand-missing' | 'invalid-target-inventory')[]
   monthlyCapacity: MpsQuantity
@@ -261,10 +263,9 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
-      const manualDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
-      const baselineDays = manualDays ?? sourceTarget.days
-      const safetyDays = ruleSafetyDays(baselineDays, { ...product, month }, resolvedRules.rules)
-      const safetyDaysSource = safetyDays !== baselineDays ? 'rule' : manualDays !== null ? 'manual' : sourceTarget.days !== null ? 'source' : 'missing'
+      const baseSafetyDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
+      const safetyDays = ruleSafetyDays(baseSafetyDays, { ...product, month }, resolvedRules.rules)
+      const safetyDaysSource = safetyDays !== baseSafetyDays ? 'rule' : baseSafetyDays !== null ? 'base-policy' : 'missing'
       const capacities = (capacityIndex.get(key(product)) ?? []).map(row => ({ ...row, missing: [...row.missing] }))
       return {
         ...product,
@@ -274,6 +275,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         historyQuantity,
         evaluation: 'unconstrained',
         nextMonthDemand: null,
+        nextMonthDays: daysInMonth(monthOffset(month, 1)),
         requiredProduction: null,
         projectedClosing: null,
         requiredProductionTons: null,
@@ -293,6 +295,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         quantityAdjusted: false,
         openingInventory,
         safetyDays,
+        baseSafetyDays,
         inventoryTarget: sourceTarget,
         safetyDaysSource,
         targetInventory: null,
@@ -311,7 +314,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
           share: [],
           demand: [],
           openingInventory: openingInventory === null ? [month === input.context.month ? '缺上月预计月末结存' : '依赖上月主计划与期末库存'] : [],
-          safetyDays: safetyDays === null ? [...sourceTarget.missing, '可维护人工覆盖或库存下限规则'] : [],
+          safetyDays: safetyDays === null ? ['缺唯一有效的基地安全天数策略'] : [],
           targetInventory: ['安全库存公式与工作日口径待确认'],
           monthlyCapacity: [...(capacities.length ? [] : ['缺本基地单品源产能']), '工作日、产线归属及件吨换算待确认'],
           load: ['月产能与负荷规则待确认'],
@@ -463,14 +466,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         ? safe(nextCategory.quantity * row.share)
         : null
     row.targetInventory =
-      row.safetyDays === 0 ? 0 : row.safetyDays !== null && row.nextMonthDemand !== null ? safe((row.safetyDays * row.nextMonthDemand) / daysInMonth(nextMonth)) : null
+      row.safetyDays === 0 ? 0 : row.safetyDays !== null && row.nextMonthDemand !== null ? safe((row.safetyDays * row.nextMonthDemand) / row.nextMonthDays) : null
     row.targetInventoryMissing =
       row.targetInventory === null
         ? [...(row.safetyDays === null ? ['safety-days-missing' as const] : []), ...(row.nextMonthDemand === null ? ['next-month-demand-missing' as const] : [])]
         : []
     if (row.targetInventory === null && !row.targetInventoryMissing.length) row.targetInventoryMissing.push('invalid-target-inventory')
     row.missing.targetInventory = row.targetInventoryMissing.map(reason =>
-      reason === 'safety-days-missing' ? `${row.month} 缺有效安全天数` : reason === 'next-month-demand-missing' ? `${nextMonth} 缺下月有效需求` : '推导目标库存超出有效范围'
+      reason === 'safety-days-missing' ? `${row.base} 缺基地安全天数策略` : reason === 'next-month-demand-missing' ? `${nextMonth} 缺下月有效需求` : '推导目标库存超出有效范围'
     )
     if (row.month !== input.context.month) {
       const previous = rowIndex.get(periodKey({ month: monthOffset(row.month, -1), base: row.base, code: row.code }))?.[0]

@@ -228,6 +228,27 @@ const input = () => ({
   constraints: { safetyDays: [], rules: {} }
 })
 
+test('基地安全天数策略用于三个月，SKU月表只作对照且不能替代缺失策略', () => {
+  const sample = input()
+  sample.products = [sample.products[0]]
+  sample.report = [sample.report[0]]
+  sample.history = [sample.history[0]]
+  sample.categoryDemand = ['2026-12', '2027-01', '2027-02', '2027-03'].map((month, index) => ({ month, category: '点心', quantity: [100, 200, 300, 400][index] }))
+  sample.inventoryTargets = [{ month: '2026-12', base: '甲', code: 'A', version: '月初', finalTarget: 120, dailyDemand: 10, sourceRows: 1 }]
+  let result = computeMpsWorkflow(sample)
+  assert.equal(result.rows[0].inventoryTarget.days, 12)
+  assert.ok(result.rows.every(row => row.safetyDays === null && row.targetInventory === null))
+  sample.constraints.safetyDays = [{ base: '甲', days: 10 }]
+  result = computeMpsWorkflow(sample)
+  assert.deepEqual(result.rows.map(row => row.nextMonthDays), [31, 28, 31])
+  assert.deepEqual(result.rows.map(row => row.baseSafetyDays), [10, 10, 10])
+  assert.ok(result.rows.every(row => row.safetyDaysSource === 'base-policy'))
+  result.rows.forEach((row, index) => assert.ok(Math.abs(row.targetInventory - [2000 / 31, 3000 / 28, 4000 / 31][index]) < 1e-10))
+  assert.equal(result.rows[1].inventoryTarget.status, 'missing')
+  sample.constraints.safetyDays.push({ base: '甲', days: 20 })
+  assert.ok(computeMpsWorkflow(sample).rows.every(row => row.safetyDays === null))
+})
+
 test('评估月的一套系数拆分三个月，后月提报不改变本版系数', () => {
   const sample = input()
   sample.categoryDemand.push({ month: '2027-01', category: '点心', quantity: 200 }, { month: '2027-02', category: '点心', quantity: 300 })
@@ -1020,7 +1041,7 @@ test('当前物料数量缺基地且非零时仍阻断该大类，真实零保�
     assert.deepEqual(failed.missing, ['来源读取失败'])
   })
 
-  test('source days drive SKU inventory and production while base overrides and monthly minimum rules remain explicit', () => {
+  test('source SKU days remain diagnostic while base policies and monthly minimum rules drive inventory', () => {
     const months = ['2026-11', '2026-12', '2027-01']
     const input = {
       context: { id: 'v', name: 'v', month: months[0] },
@@ -1037,23 +1058,26 @@ test('当前物料数量缺基地且非零时仍阻断该大类，真实零保�
     let result = computeMpsWorkflow(input)
     assert.deepEqual(
       result.rows.map(row => row.safetyDays),
-      [10, 20, 30]
+      [null, null, null]
     )
-    assert.equal(result.rows[0].safetyDaysSource, 'source')
+    assert.deepEqual(result.rows.map(row => row.inventoryTarget.days), [10, 20, 30])
+    input.constraints.safetyDays = [{ base: '甲', days: 10 }]
+    result = computeMpsWorkflow(input)
+    assert.equal(result.rows[0].safetyDaysSource, 'base-policy')
     assert.equal(result.rows[0].targetInventory, 100)
     assert.equal(result.rows[0].requiredProduction, 410)
     assert.equal(result.rows[1].openingInventory, 100)
     input.constraints.safetyDays = [{ base: '甲', days: 0 }]
     result = computeMpsWorkflow(input)
     assert.equal(result.rows[0].targetInventory, 0)
-    assert.equal(result.rows[0].safetyDaysSource, 'manual')
+    assert.equal(result.rows[0].safetyDaysSource, 'base-policy')
     input.constraints.safetyDays = []
     input.constraints.rules.local = [{ id: 'min', description: '月库存下限', strength: '硬', from: '2026-11', until: '2026-11', effect: { kind: 'inventory-days', value: 15 } }]
     result = computeMpsWorkflow(input)
     assert.equal(result.rows[0].safetyDays, 15)
     assert.equal(result.rows[0].inventoryTarget.days, 10)
     assert.equal(result.rows[0].safetyDaysSource, 'rule')
-    assert.equal(result.rows[1].safetyDays, 20)
+    assert.equal(result.rows[1].safetyDays, null)
   })
 }
 
@@ -1132,8 +1156,9 @@ test('数量调整拒绝超父级、重复、缺权重、份额冲突及M+3，�
   )
 })
 
-test('逐月库存保留有效源值，推导缺下月需求和源日均需求为零分别定位', () => {
+test('源库存缺项不撤销基地策略，推导缺下月需求与源日均为零分别定位', () => {
   const sample = input()
+  sample.constraints.safetyDays = [{ base: '甲', days: 10 }]
   sample.inventoryTargets = [
     { month: '2026-12', base: '甲', code: 'A', version: '纠偏', finalTarget: 100, dailyDemand: 10, sourceRows: 1 },
     { month: '2027-01', base: '甲', code: 'A', version: '月初', finalTarget: 200, dailyDemand: 0, sourceRows: 1 }
@@ -1149,12 +1174,16 @@ test('逐月库存保留有效源值，推导缺下月需求和源日均需求�
   assert.equal(next.inventoryTarget.status, 'invalid')
   assert.equal(next.inventoryTarget.finalTarget, 200)
   assert.deepEqual(next.inventoryTarget.missingCodes, ['zero-daily-demand'])
-  assert.ok(next.targetInventoryMissing.includes('safety-days-missing'))
+  assert.equal(next.safetyDays, 10)
+  assert.ok(!next.targetInventoryMissing.includes('safety-days-missing'))
+  assert.ok(next.targetInventoryMissing.includes('next-month-demand-missing'))
   const last = result.rows.find(row => row.month === '2027-02' && row.code === 'A')
   assert.equal(last.inventoryTarget.status, 'missing')
   assert.deepEqual(last.inventoryTarget.missingCodes, ['missing-record'])
   sample.inventoryTargetIssues = ['读取失败']
-  assert.equal(computeMpsWorkflow(sample).rows[0].inventoryTarget.status, 'read-failed')
+  const failed = computeMpsWorkflow(sample).rows[0]
+  assert.equal(failed.inventoryTarget.status, 'read-failed')
+  assert.equal(failed.safetyDays, 10)
 })
 
 test('M+2数量编辑进入同一求解结果，首月与后月的原需求及产能上限保持独立', () => {
