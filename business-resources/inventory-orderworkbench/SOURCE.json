@@ -64,7 +64,7 @@
     {
       "path": "skills/operations-kpi-performance-analysis/SKILL.md",
       "sourceSha256": "4ffea0fb3eaa810250260429ebb090ea1becad8d4f22f8ddd6f25eb3069f7549",
-      "packagedSha256": "157479f3b2a6b9f80dabc306460009d9bf2183809a982b59096981b3c8257fc3",
+      "packagedSha256": "36ef3c555d5d5b3065e3275b9c607f07f1a4536f3fa3500a66ebd3cd0241e121",
       "sourceFileName": "operations-kpi-performance-analysis/SKILL.md"
     },
     {
@@ -88,7 +88,7 @@
       "path": "skills/operations-order-kpi-details/SKILL.md",
       "sourceSha256": "e76f88f62a747cac122deb8bce765b3ef57db868f5e88119ffc0398efbe9d2fd",
       "sourceFileName": "operations-order-kpi-details/SKILL.md",
-      "packagedSha256": "1f8f49c8dd52476d618eeb3513797a19ce2c18cfb64d87e1401cb7367b00c74c"
+      "packagedSha256": "3abbf7cc8a3cbfb7555fe8c3afc87a0b27e1feee6e35a2988c35cd05cc2adaad"
     },
     {
       "path": "agent-prompt.md",
