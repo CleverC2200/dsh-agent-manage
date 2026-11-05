@@ -53,9 +53,10 @@ export function applyReportFallback(rows: MpsWorkflowRow[], ratios: MpsReportRat
       const skuShare = skuRatios.get(row.code)?.value ?? null
       const baseShare = read({ kind: 'base', category, group, code: row.code, base: row.base, share: null }, baseDefault).value
       const product = groupShare !== null && skuShare !== null && baseShare !== null ? groupShare * skuShare * baseShare : null
+      const directZero = row.reportQuantity === 0 && row.reportShare === 0
       row.reportLayers = { ...row.reportLayers, groupShare, skuShare, baseShare, product }
-      row.reportShare = product
-      row.missing.reportShare = product === null ? ['提报拆分系数缺失或冲突，Top1剩余占比不足以确定本行'] : []
+      row.reportShare = directZero ? 0 : product
+      row.missing.reportShare = row.reportShare === null ? ['提报拆分系数缺失或冲突，Top1剩余占比不足以确定本行'] : []
       row.coefficientFallback = [...(groupFallback && group === topGroup ? ['提报物料组Top1承接剩余占比'] : []), ...(skuFallback && row.code === topCode ? ['提报SKU Top1承接剩余占比'] : [])]
       row.fallback = row.coefficientFallback.length > 0
     }
