@@ -16,6 +16,7 @@ export function applyReportFallback(rows: MpsWorkflowRow[], ratios: MpsReportRat
     index.set(key, [...(index.get(key) ?? []), ratio])
   }
   const read = (key: MpsReportRatio, fallback: MpsQuantity) => {
+    if (fallback !== null) return { value: fallback, missing: false }
     const matches = index.get(ratioKey(key))
     if (!matches) return { value: fallback, missing: fallback === null }
     if (matches.length === 1 && matches[0].share === null) return { value: fallback, missing: fallback === null }
@@ -53,7 +54,7 @@ export function applyReportFallback(rows: MpsWorkflowRow[], ratios: MpsReportRat
       const skuShare = skuRatios.get(row.code)?.value ?? null
       const baseShare = read({ kind: 'base', category, group, code: row.code, base: row.base, share: null }, baseDefault).value
       const product = groupShare !== null && skuShare !== null && baseShare !== null ? groupShare * skuShare * baseShare : null
-      const directZero = row.reportQuantity === 0 && row.reportShare === 0
+      const directZero = row.reportQuantity === 0 && (row.reportShare === 0 || groupShare === 0 || skuShare === 0 || baseShare === 0)
       row.reportLayers = { ...row.reportLayers, groupShare, skuShare, baseShare, product }
       row.reportShare = directZero ? 0 : product
       row.missing.reportShare = row.reportShare === null ? ['提报拆分系数缺失或冲突，Top1剩余占比不足以确定本行'] : []

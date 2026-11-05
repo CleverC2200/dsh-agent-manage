@@ -299,6 +299,23 @@ test('两路占比只用本来源已返回的当前产品明细，缺行保留�
   assert.equal(c.historyShare, 0.4)
 })
 
+test('当前物料组重算占比优先，旧源系数不能放大部分已知需求', () => {
+  const sample = input()
+  sample.products.push({ ...sample.products[0], code: 'C' })
+  sample.history.push({ month: sample.context.month, base: '甲', code: 'C', quantity: 20 })
+  sample.reportRatios = [
+    { kind: 'group', category: '点心', group: '包点', share: 1 },
+    { kind: 'sku', category: '点心', group: '包点', code: 'A', share: 0.8 },
+    { kind: 'sku', category: '点心', group: '包点', code: 'B', share: 0.8 },
+    ...sample.products.map(row => ({ kind: 'base', category: row.category, group: row.group, code: row.code, base: row.base, share: 1 }))
+  ]
+  const rows = computeMpsWorkflow(sample).rows.filter(row => row.month === sample.context.month)
+  assert.ok(Math.abs(rows[0].reportShare - 0.3) < 1e-12)
+  assert.ok(Math.abs(rows[1].reportShare - 0.7) < 1e-12)
+  assert.equal(rows[2].reportShare, null)
+  assert.ok(rows.reduce((sum, row) => sum + (row.demand ?? 0), 0) <= 120)
+})
+
 test('评估月基地SKU范围限定三个月分母与Top1，不把后月事实或产能扩为本版需求域', () => {
   const sample = input()
   sample.productMonths = [
