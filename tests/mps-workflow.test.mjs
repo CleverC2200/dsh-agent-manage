@@ -2,6 +2,210 @@ import { inventoryTargetIndex } from '../src/mps-compute/inventory-targets.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeMpsWorkflow } from '../src/mps-compute/workflow.ts'
+import { fairAllocate } from '../src/mps-compute/fair-allocation.ts'
+import { solveMpsPlan } from '../src/mps-compute/plan.ts'
+
+const planInput = () => {
+  const sample = input()
+  sample.products[1].base = '甲'
+  sample.categoryDemand = ['2026-12', '2027-01', '2027-02'].map(month => ({
+    month,
+    category: '点心',
+    quantity: 100
+  }))
+  sample.report = sample.categoryDemand.flatMap(({ month }) => [
+    { month, base: '甲', code: 'A', quantity: 80 },
+    { month, base: '甲', code: 'B', quantity: 20 }
+  ])
+  sample.history = structuredClone(sample.report)
+  sample.openingInventory = [
+    { base: '甲', code: 'A', quantity: 0 },
+    { base: '甲', code: 'B', quantity: 0 }
+  ]
+  sample.constraints.safetyDays = [{ base: '甲', days: 0 }]
+  sample.unitWeights = sample.products.map(row => ({
+    base: row.base,
+    code: row.code,
+    tonsPerPiece: 0.1
+  }))
+  sample.productionDays = sample.categoryDemand.map(({ month }) => ({
+    base: '甲',
+    month,
+    days: 1
+  }))
+  sample.resources = [{ id: 'R', base: '甲', name: '共享隧道', kind: 'tunnel', dailyTons: 5 }]
+  sample.planCandidates = sample.products.map(row => ({
+    base: row.base,
+    code: row.code,
+    resourceId: 'R'
+  }))
+  return sample
+}
+
+test('三月计划按共同满足率不超产，未满足量与原需求分开且缺成型机不阻断', () => {
+  const result = solveMpsPlan(planInput())
+  const first = result.rows.filter(row => row.month === '2026-12')
+  assert.ok(Math.abs(first[0].mainPlan - 40) < 1e-6)
+  assert.ok(Math.abs(first[1].mainPlan - 10) < 1e-6)
+  assert.equal(first[0].demand, 80)
+  assert.ok(Math.abs(first[0].unfulfilled - 40) < 1e-6)
+  assert.ok(first.every(row => row.closingInventory === 0))
+  assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity && row.load <= 1))
+  assert.ok(result.rows.every(row => !row.planMissing.some(reason => /成型机/.test(reason))))
+})
+
+test('后月承接实际库存，不假定前月达到目标；未知输入不改为零排产', () => {
+  const sample = planInput()
+  sample.constraints.safetyDays = [{ base: '甲', days: 5 }]
+  const result = solveMpsPlan(sample)
+  const first = result.rows.find(row => row.month === '2026-12' && row.code === 'A')
+  const next = result.rows.find(row => row.month === '2027-01' && row.code === 'A')
+  assert.ok(first.targetInventory > 0)
+  assert.equal(first.closingInventory, 0)
+  assert.equal(next.openingInventory, 0)
+  sample.unitWeights.pop()
+  const partial = solveMpsPlan(sample)
+  assert.equal(partial.rows.find(row => row.code === 'B').mainPlan, null)
+  assert.equal(partial.status, 'partial')
+  assert.ok(partial.resourceSchedules.every(row => row.scheduledTons <= row.capacity))
+})
+
+test('合法调拨只使用发出基地剩余能力，无方向资格不生成调拨', () => {
+  const sample = planInput()
+  sample.unitWeights.push({ base: '乙', code: 'A', tonsPerPiece: 0.1 }, { base: '乙', code: 'B', tonsPerPiece: 0.1 })
+  sample.resources.push({ id: 'S', base: '乙', name: '承接隧道', kind: 'tunnel', dailyTons: 3 })
+  sample.productionDays.push(...sample.categoryDemand.map(({ month }) => ({ base: '乙', month, days: 1 })))
+  sample.planCandidates.push({ base: '乙', code: 'A', resourceId: 'S' }, { base: '乙', code: 'B', resourceId: 'S' })
+  assert.equal(solveMpsPlan(sample).transfers.length, 0)
+  sample.transferRoutes = [
+    { from: '乙', to: '甲', code: 'A' },
+    { from: '乙', to: '甲', code: 'B' }
+  ]
+  const result = solveMpsPlan(sample)
+  const shipments = result.transfers.filter(row => row.month === '2026-12')
+  assert.ok(Math.abs(shipments.reduce((sum, row) => sum + row.tons, 0) - 3) < 1e-7)
+  assert.ok(result.rows.filter(row => row.month === '2026-12').every(row => Math.abs(row.fulfillment - 0.8) < 1e-7))
+  assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity))
+})
+
+test('实际求解执行停线、月历上限及已采用库存规则，月份外保持原规则', () => {
+  const sample = planInput()
+  sample.constraints.rules.local = [
+    {
+      id: 'days',
+      description: '首月半天',
+      strength: '硬',
+      base: '甲',
+      from: '2026-12',
+      until: '2026-12',
+      effect: { kind: 'production-days', value: 0.5 }
+    },
+    {
+      id: 'stop',
+      description: '次月停线',
+      strength: '硬',
+      base: '甲',
+      from: '2027-01',
+      until: '2027-01',
+      effect: { kind: 'resource-unavailable', resourceId: 'R' }
+    },
+    {
+      id: 'stock',
+      description: '库存下限',
+      strength: '软',
+      accepted: true,
+      base: '甲',
+      code: 'A',
+      from: '2026-12',
+      until: '2026-12',
+      effect: { kind: 'inventory-days', value: 5 }
+    }
+  ]
+  const result = solveMpsPlan(sample)
+  assert.deepEqual(
+    result.resourceSchedules.map(row => row.capacity),
+    [2.5, 0, 5]
+  )
+  assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity))
+  assert.ok(result.rows.find(row => row.code === 'A').targetInventory > 0)
+  assert.equal(result.rows.find(row => row.code === 'B').targetInventory, 0)
+  assert.ok(result.rows.filter(row => row.month === '2027-01').every(row => row.mainPlan === 0))
+  sample.planCandidates = sample.planCandidates.map(row => ({ ...row, month: '2026-12' }))
+  assert.ok(
+    solveMpsPlan(sample)
+      .rows.filter(row => row.month === '2027-02')
+      .every(row => row.mainPlan === null)
+  )
+})
+
+test('共享资源按相同满足率分配，逐资源实际占用严格不超上限', () => {
+  const result = fairAllocate(
+    [
+      { id: 'A', quantity: 80, resources: ['R'] },
+      { id: 'B', quantity: 20, resources: ['R'] }
+    ],
+    [{ id: 'R', quantity: 50 }]
+  )
+  assert.ok(Math.abs(result.demands[0].allocated - 40) < 1e-7)
+  assert.ok(Math.abs(result.demands[1].allocated - 10) < 1e-7)
+  assert.ok(Math.abs(result.demands[0].rate - result.demands[1].rate) < 1e-9)
+  assert.ok(result.allocations.reduce((sum, row) => sum + row.quantity, 0) <= 50)
+})
+
+test('替代资源可重分配，不让柔性SKU挤占只有唯一资源的SKU', () => {
+  const result = fairAllocate(
+    [
+      { id: 'A', quantity: 100, resources: ['X', 'Y'] },
+      { id: 'B', quantity: 100, resources: ['X'] }
+    ],
+    [
+      { id: 'X', quantity: 100 },
+      { id: 'Y', quantity: 100 }
+    ]
+  )
+  assert.ok(result.demands.every(row => Math.abs(row.allocated - 100) < 1e-7))
+  assert.ok(result.allocations.filter(row => row.demandId === 'A' && row.resourceId === 'Y').length)
+  result.resources.forEach(row => assert.ok(row.allocated <= row.capacity))
+})
+
+test('受限SKU冻结满足率，其他资源余量继续分配且不突破任何资源', () => {
+  const result = fairAllocate(
+    [
+      { id: 'A', quantity: 100, resources: ['X'] },
+      { id: 'B', quantity: 100, resources: ['Y'] },
+      { id: 'C', quantity: 0, resources: [] }
+    ],
+    [
+      { id: 'X', quantity: 20 },
+      { id: 'Y', quantity: 100 }
+    ]
+  )
+  assert.ok(Math.abs(result.demands[0].rate - 0.2) < 1e-7)
+  assert.ok(Math.abs(result.demands[1].rate - 1) < 1e-7)
+  assert.equal(result.demands[2].allocated, 0)
+  assert.equal(result.demands[2].rate, 1)
+})
+
+test('多资源共同约束公平率，输入次序不改变满足率，零产能不生成产量', () => {
+  const demands = [
+    { id: 'A', quantity: 80, resources: ['X'] },
+    { id: 'B', quantity: 80, resources: ['X', 'Y'] },
+    { id: 'C', quantity: 80, resources: ['Y'] }
+  ]
+  const capacities = [
+    { id: 'X', quantity: 100 },
+    { id: 'Y', quantity: 100 }
+  ]
+  const result = fairAllocate(demands, capacities)
+  result.demands.forEach(row => assert.ok(Math.abs(row.rate - 200 / 240) < 1e-7))
+  const reversed = fairAllocate([...demands].reverse(), [...capacities].reverse())
+  result.demands.forEach(row => assert.equal(row.rate, reversed.demands.find(item => item.id === row.id).rate))
+  const empty = fairAllocate(
+    demands,
+    capacities.map(row => ({ ...row, quantity: 0 }))
+  )
+  assert.ok(empty.demands.every(row => row.allocated === 0))
+})
 
 const input = () => ({
   context: { id: 'v1', name: '试算', month: '2026-12' },
