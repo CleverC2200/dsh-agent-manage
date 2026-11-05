@@ -1,5 +1,7 @@
 import { resolveMpsRules, ruleSafetyDays, ruleProductionDays, ruleStopsResource, evaluateMpsRules } from './constraint-rules.ts'
 import { inventoryTargetIndex, type MpsInventoryTarget, type MpsInventoryTargetResult, type MpsInventoryVersion } from './inventory-targets.ts'
+import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
+export type { MpsQuantityAdjustment } from './quantity-adjustments.ts'
 export type MpsQuantity = number | null
 export const mpsCategories = ['饺子', '调理肉制品', '汤圆', '面点', '休闲', '馄饨', '粽子', '饼类']
 export interface MpsContext {
@@ -84,6 +86,7 @@ export interface MpsWorkflowInput {
   adjustments?: {
     categoryDemand?: MpsDemandAdjustment[]
     shares?: { rowId: string; share: number }[]
+    quantities?: MpsQuantityAdjustment[]
   }
   context: MpsContext
   products: MpsProduct[]
@@ -128,9 +131,12 @@ export interface MpsWorkflowRow extends MpsProduct {
   historyShare: MpsQuantity
   share: MpsQuantity
   demand: MpsQuantity
+  systemDemand: MpsQuantity
+  quantityAdjusted: boolean
   openingInventory: MpsQuantity
   safetyDays: MpsQuantity
   targetInventory: MpsQuantity
+  targetInventoryMissing: ('safety-days-missing' | 'next-month-demand-missing' | 'invalid-target-inventory')[]
   monthlyCapacity: MpsQuantity
   load: MpsQuantity
   mainPlan: MpsQuantity
@@ -274,11 +280,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         historyShare: null,
         share: null,
         demand: null,
+        systemDemand: null,
+        quantityAdjusted: false,
         openingInventory,
         safetyDays,
         inventoryTarget: sourceTarget,
         safetyDaysSource,
         targetInventory: null,
+        targetInventoryMissing: [],
         monthlyCapacity: null,
         load: null,
         mainPlan: null,
@@ -405,11 +414,26 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     for (const row of group) {
       row.missing.demand = [...category.missing, ...row.missing.share]
       row.demand = category.quantity !== null && row.share !== null ? safe(category.quantity * row.share) : null
+      row.systemDemand = category.systemQuantity !== null && row.systemShare !== null ? safe(category.systemQuantity * row.systemShare) : null
       if (row.demand === null && !row.missing.demand.length) row.missing.demand.push('需求超出可靠计算范围')
     }
     if (category.quantity !== null && group.every(row => row.demand !== null)) {
       const last = group.findLast(row => row.fallback && row.share !== 0) ?? group.findLast(row => row.share !== 0) ?? group[group.length - 1]
       last.demand = safe(category.quantity - group.filter(row => row !== last).reduce((sum, row) => sum + (row.demand ?? 0), 0))
+    }
+    const quantityEdits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
+    if (quantityEdits.length) {
+      const shareEdits = (input.adjustments?.shares ?? []).some(edit => group.some(row => row.id === edit.rowId))
+      const quantities = !shareEdits && months.slice(0, 2).includes(category.month) ? adjustedQuantities(group, category.quantity, quantityEdits) : null
+      if (quantities) {
+        for (const row of group) {
+          row.demand = quantities.get(row.id) ?? null
+          row.quantityAdjusted = true
+          row.share = category.quantity && row.demand !== null ? row.demand / category.quantity : row.share
+          const groupTotal = group.filter(candidate => candidate.group === row.group).reduce((sum, candidate) => sum + (quantities.get(candidate.id) ?? 0), 0)
+          row.groupShare = category.quantity ? groupTotal / category.quantity : row.groupShare
+        }
+      } else adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：月份、范围、权重、重复、固定下级合计或占比调整冲突`)
     }
   }
   const productionDays = (base: string, month: string) => {
@@ -429,7 +453,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         : null
     row.targetInventory =
       row.safetyDays === 0 ? 0 : row.safetyDays !== null && row.nextMonthDemand !== null ? safe((row.safetyDays * row.nextMonthDemand) / daysInMonth(nextMonth)) : null
-    row.missing.targetInventory = row.targetInventory === null ? ['缺安全天数或下月有效需求，安全库存无法计算'] : []
+    row.targetInventoryMissing =
+      row.targetInventory === null
+        ? [...(row.safetyDays === null ? ['safety-days-missing' as const] : []), ...(row.nextMonthDemand === null ? ['next-month-demand-missing' as const] : [])]
+        : []
+    if (row.targetInventory === null && !row.targetInventoryMissing.length) row.targetInventoryMissing.push('invalid-target-inventory')
+    row.missing.targetInventory = row.targetInventoryMissing.map(reason =>
+      reason === 'safety-days-missing' ? `${row.month} 缺有效安全天数` : reason === 'next-month-demand-missing' ? `${nextMonth} 缺下月有效需求` : '推导目标库存超出有效范围'
+    )
     if (row.month !== input.context.month) {
       const previous = rowIndex.get(periodKey({ month: monthOffset(row.month, -1), base: row.base, code: row.code }))?.[0]
       row.openingInventory = previous?.projectedClosing ?? null
@@ -558,6 +589,9 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   }
   for (const edit of input.adjustments?.categoryDemand ?? []) {
     if (!categoryRows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('大类需求调整不属于本版月份或分类范围')
+  }
+  for (const edit of input.adjustments?.quantities ?? []) {
+    if (!rows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('数量调整不属于本版月份或产品范围')
   }
   const demandCategories = new Set(
     [

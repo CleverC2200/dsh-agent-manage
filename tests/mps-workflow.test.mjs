@@ -992,3 +992,150 @@ test('当前物料数量缺基地且非零时仍阻断该大类，真实零保�
     assert.equal(result.rows[1].safetyDays, 20)
   })
 }
+
+test('分层数量调整固定SKU及基地，下级按有效权重重摊并保留系统值与撤销重算', () => {
+  const sample = input()
+  sample.products = [
+    { ...sample.products[0], code: 'A' },
+    { ...sample.products[0], base: '乙', code: 'A' },
+    { ...sample.products[0], code: 'B' },
+    { ...sample.products[0], code: 'C', group: '另一组' }
+  ]
+  sample.report = sample.products.map((row, index) => ({ month: '2026-12', base: row.base, code: row.code, quantity: [10, 30, 20, 40][index] }))
+  sample.history = structuredClone(sample.report)
+  sample.adjustments = {
+    quantities: [
+      { kind: 'group', month: '2026-12', category: '点心', group: '包点', quantity: 80 },
+      { kind: 'sku', month: '2026-12', category: '点心', group: '包点', code: 'A', quantity: 40 },
+      { kind: 'base-sku', month: '2026-12', category: '点心', group: '包点', code: 'A', base: '甲', quantity: 15 }
+    ]
+  }
+  const result = computeMpsWorkflow(sample)
+  assert.deepEqual(result.adjustmentIssues, [])
+  assert.deepEqual(
+    result.rows.slice(0, 4).map(row => row.demand),
+    [15, 25, 40, 40]
+  )
+  assert.deepEqual(
+    result.rows.slice(0, 4).map(row => row.systemDemand),
+    [12, 36, 24, 48]
+  )
+  assert.ok(result.rows.slice(0, 4).every(row => row.quantityAdjusted))
+  assert.equal(
+    result.rows.slice(0, 4).reduce((total, row) => total + row.demand, 0),
+    120
+  )
+  sample.categoryDemand[0].quantity = 150
+  assert.deepEqual(
+    computeMpsWorkflow(sample)
+      .rows.slice(0, 4)
+      .map(row => row.demand),
+    [15, 25, 40, 70]
+  )
+  sample.adjustments.quantities = []
+  computeMpsWorkflow(sample)
+    .rows.slice(0, 4)
+    .forEach((row, index) => assert.ok(Math.abs(row.demand - [15, 45, 30, 60][index]) < 1e-9))
+})
+
+test('数量调整拒绝超父级、重复、缺权重、份额冲突及M+3，尾差不改固定值或零权重', () => {
+  const sample = input()
+  const edit = { kind: 'sku', month: '2026-12', category: '点心', group: '包点', code: 'A', quantity: 30 }
+  for (const quantities of [[{ ...edit, quantity: 121 }], [edit, edit], [{ ...edit, code: '未知' }], [{ ...edit, month: '2027-02' }]]) {
+    sample.adjustments = { quantities }
+    const result = computeMpsWorkflow(sample)
+    assert.ok(result.adjustmentIssues.length > 0)
+    assert.ok(result.rows.filter(row => row.month === '2026-12').every(row => !row.quantityAdjusted))
+  }
+  sample.adjustments = { quantities: [edit] }
+  sample.sourceIssues.report = ['读取失败']
+  assert.match(computeMpsWorkflow(sample).adjustmentIssues.join(''), /数量调整拒绝/)
+  sample.sourceIssues.report = []
+  sample.adjustments.shares = [{ rowId: computeMpsWorkflow(input()).rows[0].id, share: 0.3 }]
+  assert.match(computeMpsWorkflow(sample).adjustmentIssues.join(''), /冲突/)
+  const fractional = input()
+  fractional.products.push({ ...fractional.products[0], code: 'C' }, { ...fractional.products[0], code: 'D' })
+  fractional.report = fractional.products.map((row, index) => ({ month: '2026-12', base: row.base, code: row.code, quantity: [1, 1, 1, 0][index] }))
+  fractional.history = structuredClone(fractional.report)
+  fractional.categoryDemand[0].quantity = 1
+  fractional.adjustments = { quantities: [{ ...edit, quantity: 0.1 }] }
+  const result = computeMpsWorkflow(fractional).rows.filter(row => row.month === '2026-12')
+  assert.equal(result[0].demand, 0.1)
+  assert.equal(result[3].demand, 0)
+  assert.equal(
+    result.reduce((sum, row) => sum + row.demand, 0),
+    1
+  )
+})
+
+test('逐月库存保留有效源值，推导缺下月需求和源日均需求为零分别定位', () => {
+  const sample = input()
+  sample.inventoryTargets = [
+    { month: '2026-12', base: '甲', code: 'A', version: '纠偏', finalTarget: 100, dailyDemand: 10, sourceRows: 1 },
+    { month: '2027-01', base: '甲', code: 'A', version: '月初', finalTarget: 200, dailyDemand: 0, sourceRows: 1 }
+  ]
+  const result = computeMpsWorkflow(sample)
+  const first = result.rows.find(row => row.month === '2026-12' && row.code === 'A')
+  assert.equal(first.inventoryTarget.status, 'valid')
+  assert.equal(first.inventoryTarget.finalTarget, 100)
+  assert.equal(first.inventoryTarget.days, 10)
+  assert.equal(first.targetInventory, null)
+  assert.deepEqual(first.targetInventoryMissing, ['next-month-demand-missing'])
+  const next = result.rows.find(row => row.month === '2027-01' && row.code === 'A')
+  assert.equal(next.inventoryTarget.status, 'invalid')
+  assert.equal(next.inventoryTarget.finalTarget, 200)
+  assert.deepEqual(next.inventoryTarget.missingCodes, ['zero-daily-demand'])
+  assert.ok(next.targetInventoryMissing.includes('safety-days-missing'))
+  const last = result.rows.find(row => row.month === '2027-02' && row.code === 'A')
+  assert.equal(last.inventoryTarget.status, 'missing')
+  assert.deepEqual(last.inventoryTarget.missingCodes, ['missing-record'])
+  sample.inventoryTargetIssues = ['读取失败']
+  assert.equal(computeMpsWorkflow(sample).rows[0].inventoryTarget.status, 'read-failed')
+})
+
+test('M+2数量编辑进入同一求解结果，首月与后月的原需求及产能上限保持独立', () => {
+  const sample = planInput()
+  sample.adjustments = { quantities: [{ kind: 'sku', month: '2027-01', category: '点心', group: '包点', code: 'A', quantity: 30 }] }
+  const result = solveMpsPlan(sample)
+  assert.deepEqual(result.issues, [])
+  assert.deepEqual(
+    result.rows.filter(row => row.code === 'A').map(row => row.demand),
+    [80, 30, 80]
+  )
+  assert.deepEqual(
+    result.rows.filter(row => row.code === 'B').map(row => row.demand),
+    [20, 70, 20]
+  )
+  const next = result.rows.filter(row => row.month === '2027-01')
+  assert.ok(Math.abs(next[0].mainPlan - 15) < 1e-6)
+  assert.ok(Math.abs(next[1].mainPlan - 35) < 1e-6)
+  assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity))
+})
+
+test('全部下级固定时接受浮点表示尾差，保留每个固定数量', () => {
+  const sample = input()
+  sample.categoryDemand[0].quantity = 0.3
+  sample.adjustments = {
+    quantities: [
+      { kind: 'sku', month: '2026-12', category: '点心', group: '包点', code: 'A', quantity: 0.1 },
+      { kind: 'sku', month: '2026-12', category: '点心', group: '包点', code: 'B', quantity: 0.2 }
+    ]
+  }
+  const result = computeMpsWorkflow(sample)
+  assert.deepEqual(result.adjustmentIssues, [])
+  assert.deepEqual(
+    result.rows.slice(0, 2).map(row => row.demand),
+    [0.1, 0.2]
+  )
+})
+
+test('源值冲突依明确元数据判断，单字段冲突仍保留另一已知源值', () => {
+  const source = { month: '2026-12', base: '甲', code: 'A', version: '月初', finalTarget: null, dailyDemand: 10, sourceRows: 2, conflictFields: ['finalTarget'] }
+  const result = inventoryTargetIndex([source])(source)
+  assert.equal(result.status, 'conflict')
+  assert.deepEqual(result.missingCodes, ['conflicting-target'])
+  assert.equal(result.dailyDemand, 10)
+  assert.equal(result.days, null)
+  source.conflictFields = []
+  assert.equal(inventoryTargetIndex([source])(source).status, 'invalid')
+})

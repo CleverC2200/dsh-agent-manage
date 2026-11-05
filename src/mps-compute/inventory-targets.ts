@@ -7,8 +7,23 @@ export interface MpsInventoryTarget {
   finalTarget: number | null
   dailyDemand: number | null
   sourceRows: number
+  conflictFields?: ('finalTarget' | 'dailyDemand')[]
 }
 export interface MpsInventoryTargetResult {
+  status: 'valid' | 'missing' | 'invalid' | 'conflict' | 'read-failed'
+  missingCodes: (
+    | 'read-failed'
+    | 'missing-record'
+    | 'missing-selected-version'
+    | 'duplicate-key'
+    | 'conflicting-target'
+    | 'conflicting-daily-demand'
+    | 'invalid-target'
+    | 'invalid-daily-demand'
+    | 'zero-daily-demand'
+    | 'invalid-days'
+  )[]
+  conflictFields: NonNullable<MpsInventoryTarget['conflictFields']>
   month: string
   base: string
   code: string
@@ -36,22 +51,47 @@ export function inventoryTargetIndex(source: MpsInventoryTarget[], version: MpsI
     const effectiveVersion = version === 'auto' ? (versions.get(JSON.stringify([product.month, product.base])) ?? '') : version
     const rows = index.get(key(product)) ?? []
     const row = rows.length === 1 && Number.isSafeInteger(rows[0].sourceRows) && rows[0].sourceRows > 0 ? rows[0] : undefined
+    const conflictFields = row?.conflictFields ?? []
     const missing = [...issues]
+    const missingCodes: MpsInventoryTargetResult['missingCodes'] = []
+    if (issues.length) missingCodes.push('read-failed')
     if (!issues.length) {
-      if (!rows.length) missing.push(`缺${effectiveVersion || '可用版本'}目标记录`)
-      else if (!row) missing.push('同基地、单品、月份和版本的目标记录重复')
-      else {
-        if (!valid(row.finalTarget)) missing.push('最终目标库存缺失、无效或同键值冲突')
-        if (!valid(row.dailyDemand) || row.dailyDemand <= 0) missing.push('日均计划需求缺失、无效、同键值冲突或为0')
+      if (!rows.length) {
+        missing.push(`缺${effectiveVersion || '可用版本'}目标记录：${product.month} ${product.base} ${product.code}`)
+        missingCodes.push(source.some(candidate => key(candidate) === key(product)) ? 'missing-selected-version' : 'missing-record')
+      } else if (!row) {
+        missing.push('同基地、单品、月份和版本的目标记录重复')
+        missingCodes.push('duplicate-key')
+      } else {
+        if (conflictFields.includes('finalTarget')) {
+          missing.push('源目标库存同键值冲突')
+          missingCodes.push('conflicting-target')
+        } else if (!valid(row.finalTarget)) {
+          missing.push('最终目标库存缺失、无效或同键值冲突')
+          missingCodes.push('invalid-target')
+        }
+        if (conflictFields.includes('dailyDemand')) {
+          missing.push('源日均计划需求同键值冲突')
+          missingCodes.push('conflicting-daily-demand')
+        } else if (!valid(row.dailyDemand) || row.dailyDemand <= 0) {
+          missing.push('日均计划需求缺失、无效、同键值冲突或为0')
+          missingCodes.push(row.dailyDemand === 0 ? 'zero-daily-demand' : 'invalid-daily-demand')
+        }
       }
     }
     const ratio = !missing.length && row && valid(row.finalTarget) && valid(row.dailyDemand) && row.dailyDemand > 0 ? row.finalTarget / row.dailyDemand : null
-    if (ratio !== null && (!Number.isFinite(ratio) || ratio > Number.MAX_SAFE_INTEGER)) missing.push('目标周转天数超出有效范围')
+    if (ratio !== null && (!Number.isFinite(ratio) || ratio > Number.MAX_SAFE_INTEGER)) {
+      missing.push('目标周转天数超出有效范围')
+      missingCodes.push('invalid-days')
+    }
     return {
       ...product,
+      status: issues.length ? 'read-failed' : !rows.length ? 'missing' : !row || conflictFields.length ? 'conflict' : missing.length ? 'invalid' : 'valid',
+      missingCodes,
+      conflictFields,
       version: effectiveVersion,
-      finalTarget: issues.length ? null : (row?.finalTarget ?? null),
-      dailyDemand: issues.length ? null : (row?.dailyDemand ?? null),
+      finalTarget: issues.length || conflictFields.includes('finalTarget') ? null : (row?.finalTarget ?? null),
+      dailyDemand: issues.length || conflictFields.includes('dailyDemand') ? null : (row?.dailyDemand ?? null),
       days: missing.length ? null : ratio,
       missing
     }

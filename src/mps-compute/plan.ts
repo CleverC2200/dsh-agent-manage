@@ -42,6 +42,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
   const uniqueResources = resources.filter(row => resources.filter(item => item.id === row.id).length === 1 && row.id && row.base && finite(row.dailyTons) && row.dailyTons >= 0)
   const sourceIssues = [
     ...(input.planSourceIssues ?? []),
+    ...reference.adjustmentIssues,
     ...reference.categoryRows
       .filter(
         category =>
