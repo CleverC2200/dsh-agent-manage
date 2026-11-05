@@ -3,7 +3,6 @@ import { inventoryTargetIndex, type MpsInventoryTarget, type MpsInventoryTargetR
 import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
 export type { MpsQuantityAdjustment } from './quantity-adjustments.ts'
 export type MpsQuantity = number | null
-export const mpsCategories = ['饺子', '调理肉制品', '汤圆', '面点', '休闲', '馄饨', '粽子', '饼类']
 export interface MpsContext {
   id: string
   name: string
@@ -224,7 +223,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const scopeIssues = [...unmatchedMonths.report, ...unmatchedMonths.history].flatMap(([month, categories]) =>
     [...categories].map(category => `${month} ${category || '分类未知'} 源明细不在当前产品明细范围，已单列且未参与占比`)
   )
-  const categories = [...new Set([...mpsCategories, ...[...input.products, ...input.categoryDemand].map(row => row.category)])]
+  const categories = [...new Set(input.products.map(row => row.category).filter(category => category.trim().length > 0))]
+  const excludedCategoryDemand = input.categoryDemand
+    .filter(row => !categories.includes(row.category))
+    .map(row => ({ ...row, reason: '大类不在当前产品列表范围，已单列且未参与计算' }))
+  scopeIssues.push(...excludedCategoryDemand.map(row => `${row.month} ${row.category || '分类未知'} ${row.reason}`))
   const categoryRows = months.flatMap(month =>
     categories.map(category => {
       const matches = input.categoryDemand.filter(row => row.month === month && row.category === category)
@@ -593,14 +596,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   for (const edit of input.adjustments?.quantities ?? []) {
     if (!rows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('数量调整不属于本版月份或产品范围')
   }
-  const demandCategories = new Set(
-    [
-      ...input.products,
-      ...input.categoryDemand.filter(row => months.slice(0, 3).includes(row.month)),
-      ...categoryRows.filter(row => months.slice(0, 3).includes(row.month) && row.adjusted)
-    ].map(row => row.category)
-  )
-  const demandScope = categoryRows.filter(category => months.slice(0, 3).includes(category.month) && demandCategories.has(category.category))
+  const demandScope = categoryRows.filter(category => months.slice(0, 3).includes(category.month))
   const categoryScopeIssues = demandScope.flatMap(category => {
     if (rows.some(row => row.month === category.month && row.category === category.category)) return []
     if (category.quantity === null) return [`${category.month} ${category.category} 缺大类需求，完整生产吨数未知`]
@@ -652,6 +648,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     ruleEvaluations,
     scopeCoverage: input.scopeCoverage ?? 'in-scope',
     excludedSources,
+    excludedCategoryDemand,
     adjustmentIssues,
     resourceLoads,
     summary,

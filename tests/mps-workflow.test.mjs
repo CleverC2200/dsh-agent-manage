@@ -341,10 +341,12 @@ test('两套占比平均拆分使用同月大类需求并保留四月大类', ()
   assert.equal(rows[0].openingInventory, 0)
 })
 
-test('缺产品与模型不抹去显式大类需求，缺大数不抹去有效拆分系数', () => {
+test('缺产品时显式需求保留在池外诊断，缺大数不抹去有效拆分系数', () => {
   const withoutProducts = input()
   withoutProducts.products = []
-  assert.equal(computeMpsWorkflow(withoutProducts).categoryRows.find(row => row.category === '点心').quantity, 120)
+  const outside = computeMpsWorkflow(withoutProducts)
+  assert.deepEqual(outside.categoryRows, [])
+  assert.equal(outside.excludedCategoryDemand.find(row => row.category === '点心').quantity, 120)
   const withoutDemand = input()
   withoutDemand.categoryDemand = []
   const row = computeMpsWorkflow(withoutDemand).rows[0]
@@ -401,20 +403,14 @@ test('预计结存允许负数，局部草稿不误报可执行主计划', () =>
   assert.deepEqual(result.constraints.rules, sample.constraints.rules)
 })
 
-test('真实空产品与无显式大数仍保留八大类四个月缺项', () => {
+test('空产品不生成固定大类范围，也不把空范围当作零需求', () => {
   const sample = input()
   sample.products = []
   sample.categoryDemand = []
   const result = computeMpsWorkflow(sample)
-  assert.equal(result.categoryRows.length, 32)
-  assert.equal(
-    result.categoryRows.every(row => row.quantity === null),
-    true
-  )
-  assert.deepEqual(
-    result.categoryRows.filter(row => row.month === '2026-12').map(row => row.category),
-    ['饺子', '调理肉制品', '汤圆', '面点', '休闲', '馄饨', '粽子', '饼类']
-  )
+  assert.deepEqual(result.categoryRows, [])
+  assert.equal(result.summary.requiredProductionTons, null)
+  assert.match(result.summary.missing.join('、'), /缺本版产品范围/)
 })
 
 test('浮点尾差对平不把真实零权重变成非零需求', () => {
@@ -568,9 +564,9 @@ test('有大类需求但缺月度SKU域时完整吨数未知，已知小计不�
   )
 })
 
-test('同月缺大类域的NULL需求阻断完整性，真实0与未使用占位类不阻断', () => {
+test('产品大类缺月度域且需求为NULL时阻断完整性，真实0不阻断', () => {
   const sample = input()
-  sample.products = [sample.products[0]]
+  sample.products = [sample.products[0], { ...sample.products[0], code: 'C', category: '汤圆' }]
   sample.productMonths = [{ month: '2026-12', base: '甲', code: 'A' }]
   sample.categoryDemand = [
     { month: '2026-12', category: '点心', quantity: 100 },
@@ -602,7 +598,7 @@ test('同月缺大类域的NULL需求阻断完整性，真实0与未使用占位
 
 test('显式零需求范围可汇总为0，空输入和范围内缺月需求仍未知，M+4不计入完整性', () => {
   const sample = input()
-  sample.products = []
+  sample.products = [{ ...sample.products[0], category: '汤圆' }]
   sample.productMonths = []
   sample.report = []
   sample.history = []
@@ -625,30 +621,30 @@ test('显式零需求范围可汇总为0，空输入和范围内缺月需求仍�
   assert.match(absent.summary.missing.join('、'), /2027-02 点心.*缺大类需求/)
 })
 
-test('拒绝负数或重复大类调整不污染系统汇总范围，有效新类调整仍需月度域', () => {
+test('拒绝负数或重复大类调整不污染系统汇总范围，有效产品大类调整仍需月度域', () => {
   const sample = input()
-  sample.products = []
+  sample.products = [{ ...sample.products[0], category: '汤圆' }]
   sample.productMonths = []
   sample.report = []
   sample.history = []
   sample.categoryDemand = ['2026-12', '2027-01', '2027-02'].map(month => ({ month, category: '汤圆', quantity: 0 }))
   assert.equal(computeMpsWorkflow(sample).summary.requiredProductionTons, 0)
   for (const quantities of [[-1], [10, 20]]) {
-    sample.adjustments = { categoryDemand: quantities.map(quantity => ({ month: '2026-12', category: '饺子', quantity })) }
+    sample.adjustments = { categoryDemand: quantities.map(quantity => ({ month: '2026-12', category: '汤圆', quantity })) }
     const result = computeMpsWorkflow(sample)
-    assert.match(result.adjustmentIssues.join('、'), /2026-12 饺子.*调整无效或重复/)
+    assert.match(result.adjustmentIssues.join('、'), /2026-12 汤圆.*调整无效或重复/)
     assert.equal(result.summary.requiredProductionTons, 0)
     assert.equal(result.summary.knownRequiredProductionTons, 0)
     assert.equal(result.summary.totalRows, 0)
     assert.deepEqual(result.summary.missing, [])
   }
-  sample.adjustments = { categoryDemand: [{ month: '2026-12', category: '饺子', quantity: 10 }] }
+  sample.adjustments = { categoryDemand: [{ month: '2026-12', category: '汤圆', quantity: 10 }] }
   const accepted = computeMpsWorkflow(sample)
   assert.deepEqual(accepted.adjustmentIssues, [])
   assert.equal(accepted.summary.requiredProductionTons, null)
   assert.equal(accepted.summary.knownRequiredProductionTons, 0)
   assert.equal(accepted.summary.totalRows, 0)
-  assert.match(accepted.summary.missing.join('、'), /2026-12 饺子.*缺月度SKU域.*未拆分/)
+  assert.match(accepted.summary.missing.join('、'), /2026-12 汤圆.*缺月度SKU域.*未拆分/)
 })
 
 const resourceInput = () => {
@@ -1138,4 +1134,32 @@ test('源值冲突依明确元数据判断，单字段冲突仍保留另一已�
   assert.equal(result.days, null)
   source.conflictFields = []
   assert.equal(inventoryTargetIndex([source])(source).status, 'invalid')
+})
+
+test('产品大类新增和删除同步计算范围，缺需求不隐藏且孤儿需求保留诊断', () => {
+  const sample = input()
+  sample.products.push({ ...sample.products[0], code: 'C', category: '新品类' })
+  sample.categoryDemand.push({ month: '2026-12', category: '已删类', quantity: 500 })
+  let result = computeMpsWorkflow(sample)
+  assert.deepEqual(
+    result.categoryRows.filter(row => row.month === '2026-12').map(row => row.category),
+    ['点心', '新品类']
+  )
+  assert.equal(result.categoryRows.find(row => row.month === '2026-12' && row.category === '新品类').quantity, null)
+  assert.deepEqual(
+    result.excludedCategoryDemand.map(row => [row.category, row.quantity]),
+    [['已删类', 500]]
+  )
+  assert.match(result.excludedCategoryDemand[0].reason, /产品列表/)
+  sample.products = sample.products.filter(row => row.category !== '点心')
+  result = computeMpsWorkflow(sample)
+  assert.deepEqual([...new Set(result.categoryRows.map(row => row.category))], ['新品类'])
+  assert.deepEqual(
+    result.excludedCategoryDemand.map(row => row.category),
+    ['点心', '已删类']
+  )
+  sample.adjustments = { categoryDemand: [{ month: '2026-12', category: '点心', quantity: 200 }] }
+  assert.match(computeMpsWorkflow(sample).adjustmentIssues.join('、'), /不属于本版月份或分类范围/)
+  sample.products = []
+  assert.deepEqual(computeMpsWorkflow(sample).categoryRows, [])
 })

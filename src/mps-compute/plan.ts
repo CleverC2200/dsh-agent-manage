@@ -43,6 +43,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
   const sourceIssues = [
     ...(input.planSourceIssues ?? []),
     ...reference.adjustmentIssues,
+    ...reference.excludedCategoryDemand.filter(row => reference.months.slice(0, 3).includes(row.month)).map(row => `${row.month} ${row.category} ${row.reason}`),
     ...reference.categoryRows
       .filter(
         category =>
