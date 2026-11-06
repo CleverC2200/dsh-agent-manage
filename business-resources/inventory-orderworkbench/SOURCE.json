@@ -18,7 +18,8 @@
     "Make report sections conditional and restrict unsupported counts, causes and cross-metric conclusions on 2026-11-02; retain received provenance",
     "Normalize packaged prompt soft line breaks for CI on 2026-11-02; retain all business text and original received source hashes",
     "Update KPI analysis and add KPI details from user supplied Skills on 2026-11-03; preserve installed evidence/authorization boundaries and current published metric definitions",
-    "Add user supplied workbook exception import with governed page preview/commit on 2026-11-03; retain manual edits and source provenance"
+    "Add user supplied workbook exception import with governed page preview/commit on 2026-11-03; retain manual edits and source provenance",
+    "Update order KPI details from user supplied Skill on 2026-11-06: five-part answers and Markdown detail tables; preserve confirmed quantity/plan formulas, provisional evidence and installed capability boundaries"
   ],
   "files": [
     {
@@ -86,9 +87,9 @@
     },
     {
       "path": "skills/operations-order-kpi-details/SKILL.md",
-      "sourceSha256": "e76f88f62a747cac122deb8bce765b3ef57db868f5e88119ffc0398efbe9d2fd",
+      "sourceSha256": "80d00880ebd3fb9c6e3d2febc9f2fa8919b6a231b27d717647d9258467812726",
       "sourceFileName": "operations-order-kpi-details/SKILL.md",
-      "packagedSha256": "3abbf7cc8a3cbfb7555fe8c3afc87a0b27e1feee6e35a2988c35cd05cc2adaad"
+      "packagedSha256": "472be3292082c55814ec96c8f0c9ebb41952c6fc26bc0cd8714bff3fd3cf55c0"
     },
     {
       "path": "agent-prompt.md",
