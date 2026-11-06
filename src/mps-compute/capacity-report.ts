@@ -17,10 +17,29 @@ export function capacityFiscalMonths(month: string) {
   const start = `${Number(month.slice(0, 4)) - (Number(month.slice(5)) < 7 ? 1 : 0)}-07`
   return Array.from({ length: 12 }, (_, index) => offset(start, index))
 }
+interface AnnualCapacityInput {
+  rows: (MpsQuantityRow & Partial<Pick<MpsPlanInput['products'][number], 'group' | 'series'>>)[]
+  referenceMonth?: string
+  error?: string
+  weightError?: string
+  excludedRows?: number
+  unmapped?: { month: string | null; code: string; reason: string }[]
+  unitWeightGaps?: { base: string; code: string; reason: string; sourceTable: string }[]
+}
 
-export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof solveMpsPlan>, annual?: { rows: MpsQuantityRow[]; error?: string; excludedRows?: number; unmapped?: { month: string | null; code: string; reason: string }[] }) {
-  const fiscalMonths = capacityFiscalMonths(input.context.month)
-  const months = [...new Set([...fiscalMonths, ...Array.from({ length: 5 }, (_, index) => offset(input.context.month, index))])].sort()
+export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof solveMpsPlan>, annual?: AnnualCapacityInput) {
+  const referenceMonth = annual?.referenceMonth ?? input.context.month
+  const fiscalMonths = capacityFiscalMonths(referenceMonth)
+  const months = [...new Set([...fiscalMonths, referenceMonth, ...Array.from({ length: 4 }, (_, index) => offset(input.context.month, index))])].sort()
+  const weightIndex = new Map<string, NonNullable<MpsPlanInput['unitWeights']>>()
+  for (const row of input.unitWeights ?? []) {
+    const key = JSON.stringify([row.base, row.code])
+    weightIndex.set(key, [...(weightIndex.get(key) ?? []), row])
+  }
+  const annualTons = (row: MpsQuantityRow) => {
+    const weight = weightIndex.get(JSON.stringify([row.base, row.code])) ?? []
+    return row.quantity !== null && row.quantity >= 0 && weight.length === 1 && weight[0].tonsPerPiece !== null && weight[0].tonsPerPiece > 0 ? row.quantity * weight[0].tonsPerPiece : null
+  }
   const resources = (input.resources ?? []).filter(row => row.kind === 'tunnel' && plan.resourceSchedules.some(schedule => schedule.resourceId === row.id))
   const rules = resolveMpsRules(input, months).rules
   const schedules = new Map(plan.resourceSchedules.map(row => [JSON.stringify([row.month, row.resourceId]), row]))
@@ -38,6 +57,12 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
     categories.add(product.category)
     categoryByCode.set(product.code, categories)
   }
+  const productCodes = new Set(input.products.map(row => row.code))
+  for (const row of annual?.rows ?? []) if (!productCodes.has(row.code) && row.category) {
+    const categories = categoryByCode.get(row.code) ?? new Set<string>()
+    categories.add(row.category)
+    categoryByCode.set(row.code, categories)
+  }
   const candidateIndex = new Map<string, typeof candidates>()
   const categoryResources = new Map<string, typeof candidates>()
   for (const row of candidates) {
@@ -50,8 +75,17 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
       categoryResources.set(group, [...(categoryResources.get(group) ?? []), row])
     }
   }
-  const groups = new Map<string, typeof plan.rows>()
-  for (const row of plan.rows) {
+  type ReportRow = Pick<typeof plan.rows[number], 'month' | 'base' | 'code' | 'category' | 'group' | 'series' | 'demandTons'>
+  const reportRows: ReportRow[] = [...plan.rows]
+  const productsByPair = new Map(input.products.map(row => [JSON.stringify([row.base, row.code]), row]))
+  const productsByCode = new Map(input.products.map(row => [row.code, row]))
+  if (!plan.months.includes(referenceMonth)) for (const row of annual?.rows ?? []) {
+    if (row.month !== referenceMonth) continue
+    const product = productsByPair.get(JSON.stringify([row.base, row.code])) ?? productsByCode.get(row.code)
+    reportRows.push({ month: row.month, base: row.base, code: row.code, category: product?.category ?? row.category ?? '分类待核对', group: product?.group ?? row.group ?? '物料组待核对', series: product?.series ?? row.series ?? row.group ?? '系列待核对', demandTons: annualTons(row) })
+  }
+  const groups = new Map<string, ReportRow[]>()
+  for (const row of reportRows) {
     const key = JSON.stringify([row.month, row.base, row.category])
     groups.set(key, [...(groups.get(key) ?? []), row])
   }
@@ -90,21 +124,31 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
     const load = demand.value !== null && capacity !== null && capacity > 0 ? demand.value / capacity : null
     return { month, base, lines: selected.length, demand, dailyTons, days: days.length === 1 ? days[0] : null, capacity, load, band: capacityLoadBand(load), margin: demand.value !== null && capacity !== null ? capacity - demand.value : null }
   }))
-  const weightIndex = new Map<string, NonNullable<MpsPlanInput['unitWeights']>>()
-  for (const row of input.unitWeights ?? []) {
-    const key = JSON.stringify([row.base, row.code])
-    weightIndex.set(key, [...(weightIndex.get(key) ?? []), row])
-  }
-  const annualTotals = fiscalMonths.flatMap(month => [...bases, '全国'].map(base => {
+  const annualTotals = months.flatMap(month => [...bases, '全国'].map(base => {
     const rows = (annual?.rows ?? []).filter(row => row.month === month && (base === '全国' || row.base === base))
     const unknown = (annual?.unmapped ?? []).filter(row => !row.month || row.month === month).map(() => null)
-    const demand = sum([...rows.map(row => {
-      const weight = weightIndex.get(JSON.stringify([row.base, row.code])) ?? []
-      return row.quantity !== null && row.quantity >= 0 && weight.length === 1 && weight[0].tonsPerPiece !== null && weight[0].tonsPerPiece > 0 ? row.quantity * weight[0].tonsPerPiece : null
-    }), ...unknown])
+    const demand = sum([...rows.map(annualTons), ...unknown])
     const capacity = totals.find(row => row.month === month && row.base === base)?.capacity ?? null
     const load = demand.value !== null && capacity !== null && capacity > 0 ? demand.value / capacity : null
     return { month, base, demand, capacity, load, band: capacityLoadBand(load) }
   }))
-  return { fiscalMonths, months, bases, totals, rccp, lines, annualTotals, annualSource: { table: 'ai_db.agents_dim_demand_annual_mi', records: annual?.rows.length ?? 0, excludedRows: annual?.excludedRows ?? 0, unmappedCount: annual?.unmapped?.length ?? 0, unmappedPreview: annual?.unmapped?.slice(0, 25) ?? [], error: annual?.error ?? (annual ? '' : '全年年度SKU需求尚未读取') }, gaps: rccp.filter(row => row.gap !== null && row.gap > 0) }
+  if (!plan.months.includes(referenceMonth)) for (const total of totals.filter(row => row.month === referenceMonth)) {
+    const row = annualTotals.find(row => row.month === referenceMonth && row.base === total.base)
+    if (!row) continue
+    total.demand = row.demand
+    total.load = row.load
+    total.band = row.band
+    total.margin = row.demand.value !== null && total.capacity !== null ? total.capacity - row.demand.value : null
+  }
+  const annualIssues = new Map<string, { base: string; code: string; months: string[]; reason: string; sourceTable: string; fields: string }>()
+  const weightGaps = new Map((annual?.unitWeightGaps ?? []).map(row => [JSON.stringify([row.base, row.code]), row]))
+  for (const row of annual?.rows ?? []) if (annualTons(row) === null) {
+    const quantityMissing = row.quantity === null || row.quantity < 0
+    const key = JSON.stringify([row.base, row.code, quantityMissing])
+    const gap = weightGaps.get(JSON.stringify([row.base, row.code]))
+    const current = annualIssues.get(key) ?? { base: row.base, code: row.code, months: [], reason: quantityMissing ? '年度需求为空、冲突或无效' : gap?.reason || '缺唯一有效件吨系数', sourceTable: quantityMissing ? 'ai_db.agents_dim_demand_annual_mi' : gap?.sourceTable || 'ai_db.agents_dim_material_prod_sales_info_d', fields: quantityMissing ? 'stat_month / belong_base / material_code / demand_qty' : 'material_code / channel_name / ton_per_piece' }
+    current.months.push(row.month)
+    annualIssues.set(key, current)
+  }
+  return { referenceMonth, fiscalMonths, months, bases, totals, rccp, lines, annualTotals, annualIssues: [...annualIssues.values()], annualSource: { table: 'ai_db.agents_dim_demand_annual_mi', records: annual?.rows.length ?? 0, excludedRows: annual?.excludedRows ?? 0, unmappedCount: annual?.unmapped?.length ?? 0, unmappedPreview: annual?.unmapped?.slice(0, 25) ?? [], error: [annual?.error, annual?.weightError].filter(Boolean).join('；') || (annual ? '' : '全年年度SKU需求尚未读取') }, gaps: rccp.filter(row => row.gap !== null && row.gap > 0) }
 }
