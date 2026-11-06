@@ -132,6 +132,7 @@ export interface MpsWorkflowRow extends MpsProduct {
   historyLayers: MpsShareLayers
   layerMissing: string[]
   systemShare: MpsQuantity
+  splitBasis: 'report-history-average' | 'history-only-zero-report'
   fallback: boolean
   coefficientFallback: string[]
   groupShare: MpsQuantity
@@ -306,6 +307,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         productionDays: null,
         layerMissing: [],
         systemShare: null,
+        splitBasis: 'report-history-average',
         fallback: false,
         coefficientFallback: [],
         groupShare: null,
@@ -357,6 +359,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     const skuGroups = new Map([...materialGroups].map(([name, entries]) => [name, groupBy(entries, row => row.code)]))
     const duplicate = group.some(row => (monthlyProductIndexes.get(category.month)?.get(key(row))?.length ?? 0) > 1)
     const identityMissing = group.some(row => !row.base || !row.code || !row.category || !row.group)
+    let zeroReportCategory = false
     for (const source of ['report', 'history'] as const) {
       const field = source === 'report' ? 'reportQuantity' : 'historyQuantity'
       const shareField = source === 'report' ? 'reportShare' : 'historyShare'
@@ -370,8 +373,10 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
           : []),
         ...(identityMissing ? ['缺基地、物料组或产品分类，拆分范围不完整'] : []),
         ...(duplicate ? ['产品拆分键重复'] : []),
-        ...(total === null ? ['同大类明细数量不完整'] : total === 0 ? ['同大类合计为0，占比未定义'] : [])
+        ...(total === null ? ['同大类明细数量不完整'] : [])
       ]
+      if (source === 'report' && total === 0 && !issues.length && group.every(row => row.reportQuantity === 0)) zeroReportCategory = true
+      if (total === 0) issues.push('同大类合计为0，占比未定义')
       const groupTotals = new Map(
         [...materialGroups].map(([name, entries]) => [name, quantity(entries.filter(row => index.has(coefficientKey(row))).map(row => ({ quantity: row[field] })))])
       )
@@ -410,11 +415,24 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     if (!duplicate && !identityMissing && !input.sourceIssues.report.length && !unassignedBases.has(JSON.stringify(['report', input.context.month, category.category])) && !unassignedBases.has(JSON.stringify(['report', input.context.month, ''])))
       applyReportFallback(group, input.reportRatios ?? [])
     for (const row of group) {
+      if (zeroReportCategory) {
+        row.reportShare = 0
+        row.missing.reportShare = []
+      }
+      row.splitBasis = zeroReportCategory ? 'history-only-zero-report' : 'report-history-average'
       row.missing.share = [...new Set([...row.missing.reportShare, ...row.missing.historyShare])]
-      row.systemShare = row.reportShare !== null && row.historyShare !== null ? (row.reportShare + row.historyShare) / 2 : null
+      row.systemShare = zeroReportCategory
+        ? row.historyShare
+        : row.reportShare !== null && row.historyShare !== null
+          ? (row.reportShare + row.historyShare) / 2
+          : null
       row.share = row.systemShare
-      row.groupShare = row.reportLayers.groupShare !== null && row.historyLayers.groupShare !== null ? (row.reportLayers.groupShare + row.historyLayers.groupShare) / 2 : null
-      if ([row.reportLayers, row.historyLayers].some(layer => layer.skuShare === null || layer.baseShare === null))
+      row.groupShare = zeroReportCategory
+        ? row.historyLayers.groupShare
+        : row.reportLayers.groupShare !== null && row.historyLayers.groupShare !== null
+          ? (row.reportLayers.groupShare + row.historyLayers.groupShare) / 2
+          : null
+      if ((zeroReportCategory ? [row.historyLayers] : [row.reportLayers, row.historyLayers]).some(layer => layer.skuShare === null || layer.baseShare === null))
         row.layerMissing = ['中间分母为0或来源不完整，分层连乘未定义；完整大类中的真实零数量仍保留零占比']
     }
     for (const materialGroup of materialGroups.values()) {
