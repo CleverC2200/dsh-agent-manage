@@ -4,6 +4,65 @@ import assert from 'node:assert/strict'
 import { computeMpsWorkflow } from '../src/mps-compute/workflow.ts'
 import { fairAllocate } from '../src/mps-compute/fair-allocation.ts'
 import { solveMpsPlan } from '../src/mps-compute/plan.ts'
+import { buildCapacityReport, capacityLoadBand } from '../src/mps-compute/capacity-report.ts'
+
+test('RCCP无归属需求单列，系列配额对平，物理产能不随SKU重复累计', () => {
+  const sample = planInput()
+  sample.products.push({ base: '甲', code: 'C', name: '无归属产品', category: '点心', group: '无归属组', series: '无归属系列' })
+  sample.report.push({ month: '2026-12', base: '甲', code: 'C', quantity: 100 })
+  sample.history = structuredClone(sample.report)
+  sample.categoryDemand = sample.categoryDemand.map(row => ({ ...row, quantity: 200 }))
+  sample.unitWeights.push({ base: '甲', code: 'C', tonsPerPiece: 0.1 })
+  sample.openingInventory.push({ base: '甲', code: 'C', quantity: 0 })
+  const report = buildCapacityReport(sample, solveMpsPlan(sample))
+  const row = report.rccp.find(row => row.month === '2026-12')
+  assert.ok(Math.abs(row.demand.value - 10) < 1e-8)
+  assert.ok(Math.abs(row.unassigned.value - 10) < 1e-8)
+  assert.equal(row.capacity, 5)
+  assert.ok(Math.abs(row.load - 2) < 1e-8)
+  assert.ok(Math.abs(row.margin + 5) < 1e-8)
+  assert.ok(Math.abs(row.gap - 5) < 1e-8)
+  assert.equal(row.series.reduce((total, row) => total + row.quota, 0), 5)
+  assert.ok(Math.abs(row.series.reduce((total, row) => total + row.excess, 0) - 5) < 1e-8)
+  assert.equal(report.totals.find(row => row.month === '2026-12' && row.base === '全国').capacity, 5)
+  assert.equal(report.fiscalMonths.length, 12)
+  assert.equal(report.totals.find(row => row.month === '2026-07' && row.base === '甲').demand.value, null)
+  const annual = buildCapacityReport(sample, solveMpsPlan(sample), { rows: [{ month: '2026-12', base: '甲', code: 'A', quantity: 30 }] })
+  const annualMonth = annual.annualTotals.find(row => row.month === '2026-12' && row.base === '甲')
+  assert.equal(annualMonth.demand.value, 3)
+  assert.equal(annualMonth.load, 0.6)
+  assert.equal(annual.annualSource.records, 1)
+  assert.deepEqual([0.899, 0.9, 1.05, 1.051, null].map(capacityLoadBand), ['normal', 'warning', 'warning', 'overload', 'unknown'])
+})
+
+test('确认后的库存版本按期间选择，不因单品缺失或字段为空切到另一版本', () => {
+  const common = { month: '2026-11', base: '遂平', code: 'A', finalTarget: 100, dailyDemand: 10, sourceRows: 1 }
+  const source = [
+    { ...common, version: '月初', finalTurnoverDays: null, conflictFields: ['finalTurnoverDays'] },
+    { ...common, version: '滚动', finalTurnoverDays: 15.551567 },
+    { ...common, code: 'B', version: '滚动', finalTurnoverDays: 12 }
+  ]
+  assert.equal(inventoryTurnoverIndex(source, ['2026-11'], 'auto', [], ['纠偏', '月初'])(common).sourceDays, null)
+  assert.equal(inventoryTurnoverIndex(source, ['2026-11'], '滚动')(common).sourceDays, 15.551567)
+  const selected = inventoryTargetIndex(source, 'auto', [], ['纠偏', '月初'])({ ...common, code: 'B' })
+  assert.equal(selected.version, '月初')
+  assert.ok(selected.missingCodes.includes('missing-selected-version'))
+  source[0] = { ...common, version: '月初', finalTurnoverDays: null }
+  assert.equal(inventoryTurnoverIndex(source, ['2026-11'], 'auto', [], ['纠偏', '月初'])(common).sourceDays, null)
+})
+
+test('要求源周转天数时缺项不套基地天数，人工补充后重新纳入计算', () => {
+  const sample = input()
+  sample.constraints.safetyDays = [{ base: '甲', days: 25 }, { base: '乙', days: 25 }]
+  sample.categoryDemand = ['2026-12', '2027-01', '2027-02', '2027-03'].map(month => ({ month, category: '点心', quantity: 120 }))
+  sample.requireSourceTurnoverDays = true
+  let result = computeMpsWorkflow(sample)
+  assert.ok(result.rows.every(row => row.safetyDays === null && row.targetInventory === null))
+  sample.constraints.turnoverDays = [{ base: '甲', code: 'A', days: 15 }]
+  result = computeMpsWorkflow(sample)
+  assert.ok(result.rows.filter(row => row.base === '甲' && row.code === 'A').every(row => row.safetyDays === 15 && row.targetInventory !== null))
+  assert.ok(result.rows.filter(row => row.base === '乙').every(row => row.safetyDays === null))
+})
 
 const planInput = () => {
   const sample = input()
@@ -1018,7 +1077,7 @@ test('当前物料数量缺基地且非零时仍阻断该大类，真实零保�
   const fact = (code, month, version, finalTarget, dailyDemand, extra = {}) => ({ base: '甲', code, month, version, finalTarget, dailyDemand, sourceRows: 1, ...extra })
   const at = (code, month = '2026-11', base = '甲') => ({ code, month, base })
 
-  test('monthly inventory targets select versions per base-SKU-month and preserve explicit version isolation', () => {
+  test('monthly inventory targets select one version per period and preserve explicit version isolation', () => {
     const source = [
       fact('A', '2026-11', '月初', 900, 10),
       fact('B', '2026-11', '月初', 300, 10),
@@ -1028,11 +1087,11 @@ test('当前物料数量缺基地且非零时仍阻断该大类，真实零保�
     ]
     const resolve = inventoryTargetIndex(source)
     assert.equal(resolve(at('A')).days, 12)
-    assert.equal(resolve(at('B')).days, 30)
-    assert.equal(resolve(at('B')).version, '月初')
+    assert.equal(resolve(at('B')).days, null)
+    assert.equal(resolve(at('B')).version, '纠偏')
     assert.equal(resolve(at('A', '2026-12')).days, 20)
     assert.equal(resolve(at('A', '2027-01')).days, null)
-    assert.equal(resolve(at('A', '2026-11', '乙')).days, 8)
+    assert.equal(resolve(at('A', '2026-11', '乙')).days, null)
     assert.equal(inventoryTargetIndex(source, '月初')(at('B')).days, 30)
     assert.equal(inventoryTargetIndex(source, '滚动')(at('A')).days, null)
   })
@@ -1319,7 +1378,7 @@ test('同基地SKU各月共用源最终目标周转天数，全缺和冲突转�
   )
 })
 
-test('自动库存版本按基地SKU独立选择，周转天数可取本SKU较低优先级的有效值', () => {
+test('自动库存版本在期间内一致，缺源单品及空天数不混取低优先级版本', () => {
   const source = [
     { month: '2026-11', base: '郑州', code: 'A', version: '月初', finalTarget: 100, dailyDemand: 10, finalTurnoverDays: 10, sourceRows: 1 },
     { month: '2026-11', base: '郑州', code: 'B', version: '滚动', finalTarget: 200, dailyDemand: 10, finalTurnoverDays: 19.333333, sourceRows: 1 },
@@ -1327,10 +1386,11 @@ test('自动库存版本按基地SKU独立选择，周转天数可取本SKU较�
     { month: '2026-11', base: '华东', code: 'C', version: '滚动', finalTarget: 110, dailyDemand: 10, finalTurnoverDays: 11, sourceRows: 1 }
   ]
   const resolve = inventoryTargetIndex(source)
-  assert.equal(resolve({ month: '2026-11', base: '郑州', code: 'B' }).version, '滚动')
+  assert.equal(resolve({ month: '2026-11', base: '郑州', code: 'B' }).version, '月初')
   const days = inventoryTurnoverIndex(source, ['2026-11', '2026-12', '2027-01'])
-  assert.equal(days({ base: '郑州', code: 'B' }).sourceDays, 19.333333)
-  assert.equal(days({ base: '华东', code: 'C' }).sourceDays, 11)
+  assert.equal(days({ base: '郑州', code: 'B' }).sourceDays, null)
+  assert.equal(days({ base: '华东', code: 'C' }).sourceDays, null)
+  assert.equal(inventoryTurnoverIndex(source, ['2026-11'], '滚动')({ base: '华东', code: 'C' }).sourceDays, 11)
   assert.equal(inventoryTurnoverIndex(source, ['2026-11'], '月初')({ base: '郑州', code: 'B' }).sourceDays, null)
   assert.equal(inventoryTurnoverIndex(source, ['2026-11'], '月初')({ base: '华东', code: 'C' }).sourceDays, null)
   source[2].conflictFields = ['finalTurnoverDays']

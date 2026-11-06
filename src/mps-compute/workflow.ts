@@ -84,6 +84,8 @@ export interface MpsResourceLoad extends MpsResource {
 export interface MpsWorkflowInput {
   inventoryTargets?: MpsInventoryTarget[]
   inventoryTargetVersion?: MpsInventoryVersion
+  inventoryTargetPriority?: Exclude<MpsInventoryVersion, 'auto'>[]
+  requireSourceTurnoverDays?: boolean
   inventoryTargetIssues?: string[]
   productMonths?: Pick<MpsQuantityRow, 'month' | 'base' | 'code'>[]
   scopeCoverage?: 'national' | 'in-scope'
@@ -202,8 +204,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const openingIndex = groupBy(input.openingInventory, key)
   const capacityIndex = groupBy(input.capacities, key)
   const daysIndex = groupBy(input.constraints.safetyDays, row => row.base)
-  const inventoryTarget = inventoryTargetIndex(input.inventoryTargets ?? [], input.inventoryTargetVersion, input.inventoryTargetIssues)
-  const turnoverPolicy = inventoryTurnoverIndex(input.inventoryTargets ?? [], months.slice(0, 3), input.inventoryTargetVersion, input.inventoryTargetIssues)
+  const inventoryTarget = inventoryTargetIndex(input.inventoryTargets ?? [], input.inventoryTargetVersion, input.inventoryTargetIssues, input.inventoryTargetPriority)
+  const turnoverPolicy = inventoryTurnoverIndex(input.inventoryTargets ?? [], months.slice(0, 3), input.inventoryTargetVersion, input.inventoryTargetIssues, input.inventoryTargetPriority)
   const manualTurnoverIndex = groupBy(input.constraints.turnoverDays ?? [], key)
   const productIndex = groupBy(input.products, key)
   const productsByMonth = new Map(
@@ -279,8 +281,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const turnover = turnoverPolicy(product)
       const manual = manualTurnoverIndex.get(key(product)) ?? []
       const manualDays = manual.length === 1 && finite(manual[0].days) && manual[0].days >= 0 ? manual[0].days : null
-      const policyDays = turnover.sourceDays ?? manualDays ?? baseSafetyDays
-      const safetyDays = ruleSafetyDays(policyDays, { ...product, month }, resolvedRules.rules)
+      const policyDays = turnover.sourceDays ?? manualDays ?? (input.requireSourceTurnoverDays ? null : baseSafetyDays)
+      const safetyDays = input.requireSourceTurnoverDays && policyDays === null ? null : ruleSafetyDays(policyDays, { ...product, month }, resolvedRules.rules)
       const safetyDaysSource =
         safetyDays !== policyDays
           ? 'rule'
@@ -288,7 +290,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
             ? 'target-turnover-days'
             : manualDays !== null
               ? 'manual-turnover-days'
-              : baseSafetyDays !== null
+              : !input.requireSourceTurnoverDays && baseSafetyDays !== null
                 ? 'base-policy'
                 : 'missing'
       const capacities = (capacityIndex.get(key(product)) ?? []).map(row => ({ ...row, missing: [...row.missing] }))
