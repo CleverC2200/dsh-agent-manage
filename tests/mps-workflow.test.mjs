@@ -228,6 +228,21 @@ const input = () => ({
   constraints: { safetyDays: [], rules: {} }
 })
 
+test('后月库存缺源诊断不按单品重复遍历整张来源', () => {
+  let sourceMonthReads = 0
+  const source = Array.from({ length: 400 }, (_, i) => ({
+    get month() { sourceMonthReads++; return '2026-11' },
+    base: '甲', code: String(i), version: '月初', finalTarget: 100, dailyDemand: 10, sourceRows: 1
+  }))
+  const resolve = inventoryTargetIndex(source)
+  for (let i = 0; i < 400; i++) {
+    const result = resolve({ month: '2026-12', base: '甲', code: String(i) })
+    assert.equal(result.status, 'missing')
+    assert.deepEqual(result.missingCodes, ['missing-record'])
+  }
+  assert.ok(sourceMonthReads <= source.length * 10, `来源月份被读取${sourceMonthReads}次，缺行诊断应复用已建索引`)
+})
+
 test('基地安全天数策略用于三个月，SKU月表只作对照且不能替代缺失策略', () => {
   const sample = input()
   sample.products = [sample.products[0]]
