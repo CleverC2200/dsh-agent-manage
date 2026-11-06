@@ -1,5 +1,12 @@
 import { resolveMpsRules, ruleSafetyDays, ruleProductionDays, ruleStopsResource, evaluateMpsRules } from './constraint-rules.ts'
-import { inventoryTargetIndex, type MpsInventoryTarget, type MpsInventoryTargetResult, type MpsInventoryVersion } from './inventory-targets.ts'
+import {
+  inventoryTargetIndex,
+  inventoryTurnoverIndex,
+  type MpsTurnoverPolicy,
+  type MpsInventoryTarget,
+  type MpsInventoryTargetResult,
+  type MpsInventoryVersion
+} from './inventory-targets.ts'
 import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
 import { applyReportFallback, type MpsReportRatio } from './split-fallback.ts'
 export type { MpsQuantityAdjustment } from './quantity-adjustments.ts'
@@ -40,6 +47,7 @@ export interface MpsCapacity {
 }
 export interface MpsConstraints {
   safetyDays: { base: string; days: MpsQuantity }[]
+  turnoverDays?: { base: string; code: string; days: MpsQuantity }[]
   rules: Record<string, unknown>
 }
 export interface MpsDemandAdjustment {
@@ -111,7 +119,8 @@ export interface MpsShareLayers {
 }
 export interface MpsWorkflowRow extends MpsProduct {
   inventoryTarget: MpsInventoryTargetResult
-  safetyDaysSource: 'base-policy' | 'rule' | 'missing'
+  turnoverPolicy: MpsTurnoverPolicy
+  safetyDaysSource: 'target-turnover-days' | 'manual-turnover-days' | 'base-policy' | 'rule' | 'missing'
   evaluation: 'unconstrained'
   nextMonthDemand: MpsQuantity
   nextMonthDays: number
@@ -193,6 +202,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const capacityIndex = groupBy(input.capacities, key)
   const daysIndex = groupBy(input.constraints.safetyDays, row => row.base)
   const inventoryTarget = inventoryTargetIndex(input.inventoryTargets ?? [], input.inventoryTargetVersion, input.inventoryTargetIssues)
+  const turnoverPolicy = inventoryTurnoverIndex(inventoryTarget, months.slice(0, 3))
+  const manualTurnoverIndex = groupBy(input.constraints.turnoverDays ?? [], key)
   const productIndex = groupBy(input.products, key)
   const productsByMonth = new Map(
     months.slice(0, 3).map(month => [
@@ -264,8 +275,21 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
       const baseSafetyDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
-      const safetyDays = ruleSafetyDays(baseSafetyDays, { ...product, month }, resolvedRules.rules)
-      const safetyDaysSource = safetyDays !== baseSafetyDays ? 'rule' : baseSafetyDays !== null ? 'base-policy' : 'missing'
+      const turnover = turnoverPolicy(product)
+      const manual = manualTurnoverIndex.get(key(product)) ?? []
+      const manualDays = manual.length === 1 && finite(manual[0].days) && manual[0].days >= 0 ? manual[0].days : null
+      const policyDays = turnover.sourceDays ?? manualDays ?? baseSafetyDays
+      const safetyDays = ruleSafetyDays(policyDays, { ...product, month }, resolvedRules.rules)
+      const safetyDaysSource =
+        safetyDays !== policyDays
+          ? 'rule'
+          : turnover.sourceDays !== null
+            ? 'target-turnover-days'
+            : manualDays !== null
+              ? 'manual-turnover-days'
+              : baseSafetyDays !== null
+                ? 'base-policy'
+                : 'missing'
       const capacities = (capacityIndex.get(key(product)) ?? []).map(row => ({ ...row, missing: [...row.missing] }))
       return {
         ...product,
@@ -297,6 +321,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         safetyDays,
         baseSafetyDays,
         inventoryTarget: sourceTarget,
+        turnoverPolicy: turnover,
         safetyDaysSource,
         targetInventory: null,
         targetInventoryMissing: [],
@@ -314,7 +339,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
           share: [],
           demand: [],
           openingInventory: openingInventory === null ? [month === input.context.month ? '缺上月预计月末结存' : '依赖上月主计划与期末库存'] : [],
-          safetyDays: safetyDays === null ? ['缺唯一有效的基地安全天数策略'] : [],
+          safetyDays: safetyDays === null ? ['缺有效目标周转天数，请在待补表人工补充'] : [],
           targetInventory: ['安全库存公式与工作日口径待确认'],
           monthlyCapacity: [...(capacities.length ? [] : ['缺本基地单品源产能']), '工作日、产线归属及件吨换算待确认'],
           load: ['月产能与负荷规则待确认'],
@@ -473,7 +498,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         : []
     if (row.targetInventory === null && !row.targetInventoryMissing.length) row.targetInventoryMissing.push('invalid-target-inventory')
     row.missing.targetInventory = row.targetInventoryMissing.map(reason =>
-      reason === 'safety-days-missing' ? `${row.base} 缺基地安全天数策略` : reason === 'next-month-demand-missing' ? `${nextMonth} 缺下月有效需求` : '推导目标库存超出有效范围'
+      reason === 'safety-days-missing' ? `${row.base} ${row.code} 缺目标周转天数，请人工补充` : reason === 'next-month-demand-missing' ? `${nextMonth} 缺下月有效需求` : '推导目标库存超出有效范围'
     )
     if (row.month !== input.context.month) {
       const previous = rowIndex.get(periodKey({ month: monthOffset(row.month, -1), base: row.base, code: row.code }))?.[0]
@@ -670,6 +695,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     rows,
     constraints: {
       safetyDays: input.constraints.safetyDays.map(row => ({ ...row })),
+      ...(input.constraints.turnoverDays ? { turnoverDays: input.constraints.turnoverDays.map(row => ({ ...row })) } : {}),
       rules: { ...input.constraints.rules }
     },
     missing: [

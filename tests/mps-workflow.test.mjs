@@ -1275,3 +1275,46 @@ test('产品大类新增和删除同步计算范围，缺需求不隐藏且孤�
   sample.products = []
   assert.deepEqual(computeMpsWorkflow(sample).categoryRows, [])
 })
+
+test('最终目标周转天数读取源字段，独立于库存除日均的诊断值并保留零', () => {
+  const source = { month: '2026-12', base: '甲', code: 'A', version: '月初', finalTarget: 120, dailyDemand: 10, finalTurnoverDays: 27, sourceRows: 1 }
+  const read = inventoryTargetIndex([source])(source)
+  assert.equal(read.days, 12)
+  assert.equal(read.finalTurnoverDays, 27)
+  assert.equal(inventoryTargetIndex([{ ...source, finalTurnoverDays: 0, dailyDemand: 0 }])(source).finalTurnoverDays, 0)
+  assert.equal(inventoryTargetIndex([{ ...source, finalTurnoverDays: 27, conflictFields: ['finalTurnoverDays'] }])(source).finalTurnoverDays, null)
+  assert.equal(inventoryTargetIndex([source], 'auto', ['读取失败'])(source).finalTurnoverDays, null)
+})
+
+test('同基地SKU各月共用源最终目标周转天数，全缺和冲突转人工补充，不从库存比值填天数', () => {
+  const sample = input()
+  sample.constraints.safetyDays = []
+  sample.categoryDemand = ['2026-12', '2027-01', '2027-02', '2027-03'].map((month, index) => ({ month, category: '点心', quantity: 120 * (index + 1) }))
+  sample.inventoryTargets = [{ month: '2027-01', base: '甲', code: 'A', version: '滚动', finalTarget: 120, dailyDemand: 10, finalTurnoverDays: 27, sourceRows: 1 }]
+  let result = computeMpsWorkflow(sample)
+  const rows = result.rows.filter(row => row.base === '甲' && row.code === 'A')
+  assert.equal(rows.length, 3)
+  for (const row of rows) {
+    assert.equal(row.safetyDays, 27)
+    assert.equal(row.safetyDaysSource, 'target-turnover-days')
+    assert.deepEqual(row.turnoverPolicy.sourceMonths, ['2027-01'])
+    assert.equal(row.targetInventory, (27 * row.nextMonthDemand) / row.nextMonthDays)
+  }
+  assert.ok(result.rows.filter(row => row.base === '乙').every(row => row.safetyDays === null))
+  sample.inventoryTargets.push({ ...sample.inventoryTargets[0], month: '2027-02', finalTurnoverDays: 28 })
+  result = computeMpsWorkflow(sample)
+  assert.ok(result.rows.filter(row => row.base === '甲').every(row => row.safetyDays === null && row.turnoverPolicy.missing[0].includes('冲突')))
+  sample.constraints.turnoverDays = [
+    { base: '甲', code: 'A', days: 25 },
+    { base: '乙', code: 'B', days: 0 }
+  ]
+  result = computeMpsWorkflow(sample)
+  assert.ok(result.rows.filter(row => row.base === '甲').every(row => row.safetyDays === 25 && row.safetyDaysSource === 'manual-turnover-days'))
+  assert.ok(result.rows.filter(row => row.base === '乙').every(row => row.safetyDays === 0 && row.targetInventory === 0))
+  sample.inventoryTargets[1].finalTurnoverDays = 27
+  assert.ok(
+    computeMpsWorkflow(sample)
+      .rows.filter(row => row.base === '甲')
+      .every(row => row.safetyDays === 27)
+  )
+})

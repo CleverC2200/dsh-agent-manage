@@ -6,8 +6,9 @@ export interface MpsInventoryTarget {
   version: string
   finalTarget: number | null
   dailyDemand: number | null
+  finalTurnoverDays?: number | null
   sourceRows: number
-  conflictFields?: ('finalTarget' | 'dailyDemand')[]
+  conflictFields?: ('finalTarget' | 'dailyDemand' | 'finalTurnoverDays')[]
 }
 export interface MpsInventoryTargetResult {
   status: 'valid' | 'missing' | 'invalid' | 'conflict' | 'read-failed'
@@ -31,6 +32,7 @@ export interface MpsInventoryTargetResult {
   finalTarget: number | null
   dailyDemand: number | null
   days: number | null
+  finalTurnoverDays: number | null
   missing: string[]
 }
 const priority = ['纠偏', '月初', '滚动']
@@ -96,7 +98,36 @@ export function inventoryTargetIndex(source: MpsInventoryTarget[], version: MpsI
       finalTarget: issues.length || conflictFields.includes('finalTarget') ? null : (row?.finalTarget ?? null),
       dailyDemand: issues.length || conflictFields.includes('dailyDemand') ? null : (row?.dailyDemand ?? null),
       days: missing.length ? null : ratio,
+      finalTurnoverDays: !issues.length && !conflictFields.includes('finalTurnoverDays') && valid(row?.finalTurnoverDays ?? null) ? (row?.finalTurnoverDays ?? null) : null,
       missing
     }
+  }
+}
+
+export interface MpsTurnoverPolicy {
+  sourceDays: number | null
+  sourceMonths: string[]
+  missing: string[]
+}
+export function inventoryTurnoverIndex(resolve: ReturnType<typeof inventoryTargetIndex>, months: string[]) {
+  const policies = new Map<string, MpsTurnoverPolicy>()
+  return (product: { base: string; code: string }): MpsTurnoverPolicy => {
+    const productKey = JSON.stringify([product.base, product.code])
+    const cached = policies.get(productKey)
+    if (cached) return cached
+    const records = months.map(month => resolve({ ...product, month }))
+    const values = new Set(records.flatMap(row => (row.finalTurnoverDays === null ? [] : [row.finalTurnoverDays])))
+    const conflict = values.size > 1 || records.some(row => row.conflictFields.includes('finalTurnoverDays') || row.missingCodes.includes('duplicate-key'))
+    const policy = {
+      sourceDays: !conflict && values.size === 1 ? [...values][0] : null,
+      sourceMonths: records.filter(row => row.finalTurnoverDays !== null).map(row => row.month),
+      missing: conflict
+        ? ['同基地同SKU的最终目标周转天数冲突，请核对或人工补充']
+        : values.size
+          ? []
+          : [records.some(row => row.status === 'read-failed') ? '目标周转天数来源读取失败，请同步或人工补充' : '各月均无有效的最终目标周转天数，请人工补充']
+    }
+    policies.set(productKey, policy)
+    return policy
   }
 }
