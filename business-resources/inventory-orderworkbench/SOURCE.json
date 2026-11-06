@@ -65,7 +65,7 @@
     {
       "path": "skills/operations-kpi-performance-analysis/SKILL.md",
       "sourceSha256": "4ffea0fb3eaa810250260429ebb090ea1becad8d4f22f8ddd6f25eb3069f7549",
-      "packagedSha256": "8095bf6a3496f3ad7d4b4c16898711c77f90a759d4ad7f0d1149ae16c7162cef",
+      "packagedSha256": "ec7a9bad56139e2d86fac835c3122a3c948431d41382b8393159dabe5910d5e4",
       "sourceFileName": "operations-kpi-performance-analysis/SKILL.md"
     },
     {
@@ -81,7 +81,7 @@
     {
       "path": "skills/fulfillment-query-orchestrator/references/订单工作台及订单履约语义.md",
       "sourceSha256": "2d623d186b41ff83fd0080ea041ea9aa459e33779ebbb88bbbc1479bb4829ab8",
-      "packagedSha256": "713923aa5a4c505f517c547f7428d9e5b36980f96195523f98ff3005bd054f53",
+      "packagedSha256": "f768f94bae3a81737f66dba9307ed70fc1f6923d36bbdfd11839daf7b340098b",
       "archivePath": "skills/fulfillment-query-orchestrator/references/Φ«óσìòσ╖ÑΣ╜£σÅ░σÅèΦ«óσìòσ▒Ñτ║ªΦ»¡Σ╣ë.md",
       "sourceArchiveFileName": "订单履约skill.zip"
     },
@@ -89,7 +89,7 @@
       "path": "skills/operations-order-kpi-details/SKILL.md",
       "sourceSha256": "80d00880ebd3fb9c6e3d2febc9f2fa8919b6a231b27d717647d9258467812726",
       "sourceFileName": "operations-order-kpi-details/SKILL.md",
-      "packagedSha256": "472be3292082c55814ec96c8f0c9ebb41952c6fc26bc0cd8714bff3fd3cf55c0"
+      "packagedSha256": "8578f757876146d354cbd2f05923dca810e89db55405d285d09ab791d52539cb"
     },
     {
       "path": "agent-prompt.md",
