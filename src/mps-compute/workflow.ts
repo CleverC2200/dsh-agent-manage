@@ -202,7 +202,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const capacityIndex = groupBy(input.capacities, key)
   const daysIndex = groupBy(input.constraints.safetyDays, row => row.base)
   const inventoryTarget = inventoryTargetIndex(input.inventoryTargets ?? [], input.inventoryTargetVersion, input.inventoryTargetIssues)
-  const turnoverPolicy = inventoryTurnoverIndex(inventoryTarget, months.slice(0, 3))
+  const turnoverPolicy = inventoryTurnoverIndex(input.inventoryTargets ?? [], months.slice(0, 3), input.inventoryTargetVersion, input.inventoryTargetIssues)
   const manualTurnoverIndex = groupBy(input.constraints.turnoverDays ?? [], key)
   const productIndex = groupBy(input.products, key)
   const productsByMonth = new Map(

@@ -1,4 +1,4 @@
-import { inventoryTargetIndex } from '../src/mps-compute/inventory-targets.ts'
+import { inventoryTargetIndex, inventoryTurnoverIndex } from '../src/mps-compute/inventory-targets.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeMpsWorkflow } from '../src/mps-compute/workflow.ts'
@@ -1018,7 +1018,7 @@ test('当前物料数量缺基地且非零时仍阻断该大类，真实零保�
   const fact = (code, month, version, finalTarget, dailyDemand, extra = {}) => ({ base: '甲', code, month, version, finalTarget, dailyDemand, sourceRows: 1, ...extra })
   const at = (code, month = '2026-11', base = '甲') => ({ code, month, base })
 
-  test('monthly inventory targets select one version per base and month without SKU, month or base fallback', () => {
+  test('monthly inventory targets select versions per base-SKU-month and preserve explicit version isolation', () => {
     const source = [
       fact('A', '2026-11', '月初', 900, 10),
       fact('B', '2026-11', '月初', 300, 10),
@@ -1028,8 +1028,8 @@ test('当前物料数量缺基地且非零时仍阻断该大类，真实零保�
     ]
     const resolve = inventoryTargetIndex(source)
     assert.equal(resolve(at('A')).days, 12)
-    assert.equal(resolve(at('B')).days, null)
-    assert.equal(resolve(at('B')).version, '纠偏')
+    assert.equal(resolve(at('B')).days, 30)
+    assert.equal(resolve(at('B')).version, '月初')
     assert.equal(resolve(at('A', '2026-12')).days, 20)
     assert.equal(resolve(at('A', '2027-01')).days, null)
     assert.equal(resolve(at('A', '2026-11', '乙')).days, 8)
@@ -1317,4 +1317,24 @@ test('同基地SKU各月共用源最终目标周转天数，全缺和冲突转�
       .rows.filter(row => row.base === '甲')
       .every(row => row.safetyDays === 27)
   )
+})
+
+test('自动库存版本按基地SKU独立选择，周转天数可取本SKU较低优先级的有效值', () => {
+  const source = [
+    { month: '2026-11', base: '郑州', code: 'A', version: '月初', finalTarget: 100, dailyDemand: 10, finalTurnoverDays: 10, sourceRows: 1 },
+    { month: '2026-11', base: '郑州', code: 'B', version: '滚动', finalTarget: 200, dailyDemand: 10, finalTurnoverDays: 19.333333, sourceRows: 1 },
+    { month: '2026-11', base: '华东', code: 'C', version: '月初', finalTarget: 0, dailyDemand: 0, finalTurnoverDays: null, sourceRows: 1 },
+    { month: '2026-11', base: '华东', code: 'C', version: '滚动', finalTarget: 110, dailyDemand: 10, finalTurnoverDays: 11, sourceRows: 1 }
+  ]
+  const resolve = inventoryTargetIndex(source)
+  assert.equal(resolve({ month: '2026-11', base: '郑州', code: 'B' }).version, '滚动')
+  const days = inventoryTurnoverIndex(source, ['2026-11', '2026-12', '2027-01'])
+  assert.equal(days({ base: '郑州', code: 'B' }).sourceDays, 19.333333)
+  assert.equal(days({ base: '华东', code: 'C' }).sourceDays, 11)
+  assert.equal(inventoryTurnoverIndex(source, ['2026-11'], '月初')({ base: '郑州', code: 'B' }).sourceDays, null)
+  assert.equal(inventoryTurnoverIndex(source, ['2026-11'], '月初')({ base: '华东', code: 'C' }).sourceDays, null)
+  source[2].conflictFields = ['finalTurnoverDays']
+  const conflict = inventoryTurnoverIndex(source, ['2026-11'])({ base: '华东', code: 'C' })
+  assert.equal(conflict.sourceDays, null)
+  assert.ok(conflict.missing[0].includes('冲突'))
 })

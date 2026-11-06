@@ -35,7 +35,7 @@ export interface MpsInventoryTargetResult {
   finalTurnoverDays: number | null
   missing: string[]
 }
-const priority = ['纠偏', '月初', '滚动']
+const priority: Exclude<MpsInventoryVersion, 'auto'>[] = ['纠偏', '月初', '滚动']
 const key = (row: { month: string; base: string; code: string }) => JSON.stringify([row.month, row.base, row.code])
 const valid = (value: number | null): value is number => value !== null && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER
 export function inventoryTargetIndex(source: MpsInventoryTarget[], version: MpsInventoryVersion = 'auto', issues: string[] = []) {
@@ -43,16 +43,17 @@ export function inventoryTargetIndex(source: MpsInventoryTarget[], version: MpsI
   const sourceKeys = new Set<string>()
   for (const row of source) {
     sourceKeys.add(key(row))
-    if (!priority.includes(row.version)) continue
-    const period = JSON.stringify([row.month, row.base])
+    const rank = priority.findIndex(value => value === row.version)
+    if (rank < 0) continue
+    const period = key(row)
     const current = versions.get(period)
-    if (!current || priority.indexOf(row.version) < priority.indexOf(current)) versions.set(period, row.version)
+    if (!current || rank < priority.findIndex(value => value === current)) versions.set(period, row.version)
   }
-  const selected = source.filter(row => row.version === (version === 'auto' ? versions.get(JSON.stringify([row.month, row.base])) : version))
+  const selected = source.filter(row => row.version === (version === 'auto' ? versions.get(key(row)) : version))
   const index = new Map<string, MpsInventoryTarget[]>()
   for (const row of selected) index.set(key(row), [...(index.get(key(row)) ?? []), row])
   return (product: { month: string; base: string; code: string }): MpsInventoryTargetResult => {
-    const effectiveVersion = version === 'auto' ? (versions.get(JSON.stringify([product.month, product.base])) ?? '') : version
+    const effectiveVersion = version === 'auto' ? (versions.get(key(product)) ?? '') : version
     const productKey = key(product)
     const rows = index.get(productKey) ?? []
     const row = rows.length === 1 && Number.isSafeInteger(rows[0].sourceRows) && rows[0].sourceRows > 0 ? rows[0] : undefined
@@ -109,13 +110,17 @@ export interface MpsTurnoverPolicy {
   sourceMonths: string[]
   missing: string[]
 }
-export function inventoryTurnoverIndex(resolve: ReturnType<typeof inventoryTargetIndex>, months: string[]) {
+export function inventoryTurnoverIndex(source: MpsInventoryTarget[], months: string[], version: MpsInventoryVersion = 'auto', issues: string[] = []) {
+  const readers = (version === 'auto' ? priority : [version]).map(current => inventoryTargetIndex(source, current, issues))
   const policies = new Map<string, MpsTurnoverPolicy>()
   return (product: { base: string; code: string }): MpsTurnoverPolicy => {
     const productKey = JSON.stringify([product.base, product.code])
     const cached = policies.get(productKey)
     if (cached) return cached
-    const records = months.map(month => resolve({ ...product, month }))
+    const records = months.map(month => {
+      const candidates = readers.map(resolve => resolve({ ...product, month }))
+      return candidates.find(row => row.finalTurnoverDays !== null || row.conflictFields.includes('finalTurnoverDays') || row.missingCodes.includes('duplicate-key')) ?? candidates[0]
+    })
     const values = new Set(records.flatMap(row => (row.finalTurnoverDays === null ? [] : [row.finalTurnoverDays])))
     const conflict = values.size > 1 || records.some(row => row.conflictFields.includes('finalTurnoverDays') || row.missingCodes.includes('duplicate-key'))
     const policy = {
