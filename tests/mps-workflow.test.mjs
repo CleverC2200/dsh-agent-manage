@@ -61,6 +61,20 @@ test('确认后的库存版本按期间选择，不因单品缺失或字段为�
   assert.equal(inventoryTurnoverIndex(source, ['2026-11'], 'auto', [], ['纠偏', '月初'])(common).sourceDays, null)
 })
 
+test('缺周转天数按授权临时取零，来源缺项保留，补充和源值优先', () => {
+  const sample = input()
+  sample.requireSourceTurnoverDays = true
+  sample.missingTurnoverDaysAsZero = true
+  sample.categoryDemand = ['2026-12', '2027-01', '2027-02', '2027-03'].map(month => ({ month, category: '点心', quantity: 120 }))
+  const result = computeMpsWorkflow(sample)
+  assert.ok(result.rows.every(row => row.safetyDays === 0 && row.targetInventory === 0 && row.safetyDaysSource === 'missing-turnover-days-zero'))
+  assert.ok(result.rows.every(row => row.turnoverPolicy.sourceDays === null && row.turnoverPolicy.missing.length > 0))
+  sample.constraints.turnoverDays = [{ base: '甲', code: 'A', days: 15 }]
+  assert.ok(computeMpsWorkflow(sample).rows.filter(row => row.base === '甲').every(row => row.safetyDays === 15 && row.safetyDaysSource === 'manual-turnover-days'))
+  sample.inventoryTargets = [{ month: '2026-12', base: '甲', code: 'A', version: '月初', finalTarget: 0, dailyDemand: 0, finalTurnoverDays: 22, sourceRows: 1 }]
+  assert.ok(computeMpsWorkflow(sample).rows.filter(row => row.base === '甲').every(row => row.safetyDays === 22 && row.safetyDaysSource === 'target-turnover-days'))
+})
+
 test('要求源周转天数时缺项不套基地天数，人工补充后重新纳入计算', () => {
   const sample = input()
   sample.constraints.safetyDays = [{ base: '甲', days: 25 }, { base: '乙', days: 25 }]

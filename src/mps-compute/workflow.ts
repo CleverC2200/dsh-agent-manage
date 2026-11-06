@@ -86,6 +86,7 @@ export interface MpsWorkflowInput {
   inventoryTargetVersion?: MpsInventoryVersion
   inventoryTargetPriority?: Exclude<MpsInventoryVersion, 'auto'>[]
   requireSourceTurnoverDays?: boolean
+  missingTurnoverDaysAsZero?: boolean
   inventoryTargetIssues?: string[]
   productMonths?: Pick<MpsQuantityRow, 'month' | 'base' | 'code'>[]
   scopeCoverage?: 'national' | 'in-scope'
@@ -122,7 +123,7 @@ export interface MpsShareLayers {
 export interface MpsWorkflowRow extends MpsProduct {
   inventoryTarget: MpsInventoryTargetResult
   turnoverPolicy: MpsTurnoverPolicy
-  safetyDaysSource: 'target-turnover-days' | 'manual-turnover-days' | 'base-policy' | 'rule' | 'missing'
+  safetyDaysSource: 'target-turnover-days' | 'manual-turnover-days' | 'missing-turnover-days-zero' | 'base-policy' | 'rule' | 'missing'
   evaluation: 'unconstrained'
   nextMonthDemand: MpsQuantity
   nextMonthDays: number
@@ -281,7 +282,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const turnover = turnoverPolicy(product)
       const manual = manualTurnoverIndex.get(key(product)) ?? []
       const manualDays = manual.length === 1 && finite(manual[0].days) && manual[0].days >= 0 ? manual[0].days : null
-      const policyDays = turnover.sourceDays ?? manualDays ?? (input.requireSourceTurnoverDays ? null : baseSafetyDays)
+      const temporaryZero = input.requireSourceTurnoverDays && input.missingTurnoverDaysAsZero && turnover.sourceDays === null && manualDays === null
+      const policyDays = turnover.sourceDays ?? manualDays ?? (temporaryZero ? 0 : input.requireSourceTurnoverDays ? null : baseSafetyDays)
       const safetyDays = input.requireSourceTurnoverDays && policyDays === null ? null : ruleSafetyDays(policyDays, { ...product, month }, resolvedRules.rules)
       const safetyDaysSource =
         safetyDays !== policyDays
@@ -290,9 +292,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
             ? 'target-turnover-days'
             : manualDays !== null
               ? 'manual-turnover-days'
-              : !input.requireSourceTurnoverDays && baseSafetyDays !== null
-                ? 'base-policy'
-                : 'missing'
+              : temporaryZero
+                ? 'missing-turnover-days-zero'
+                : !input.requireSourceTurnoverDays && baseSafetyDays !== null
+                  ? 'base-policy'
+                  : 'missing'
       const capacities = (capacityIndex.get(key(product)) ?? []).map(row => ({ ...row, missing: [...row.missing] }))
       return {
         ...product,
