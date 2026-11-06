@@ -32,6 +32,11 @@ test('RCCP无归属需求单列，系列配额对平，物理产能不随SKU重�
   assert.equal(annualMonth.demand.value, 3)
   assert.equal(annualMonth.load, 0.6)
   assert.equal(annual.annualSource.records, 1)
+  const unresolved = buildCapacityReport(sample, solveMpsPlan(sample), { rows: [{ month: '2026-12', base: '甲', code: 'A', quantity: 30 }], unmapped: [{ month: '2026-12', code: 'X', reason: 'belong_base为空' }] })
+  const incomplete = unresolved.annualTotals.find(row => row.month === '2026-12' && row.base === '甲')
+  assert.equal(incomplete.demand.value, null)
+  assert.equal(incomplete.demand.known, 3)
+  assert.equal(incomplete.load, null)
   assert.deepEqual([0.899, 0.9, 1.05, 1.051, null].map(capacityLoadBand), ['normal', 'warning', 'warning', 'overload', 'unknown'])
 })
 

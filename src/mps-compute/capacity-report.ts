@@ -18,7 +18,7 @@ export function capacityFiscalMonths(month: string) {
   return Array.from({ length: 12 }, (_, index) => offset(start, index))
 }
 
-export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof solveMpsPlan>, annual?: { rows: MpsQuantityRow[]; error?: string }) {
+export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof solveMpsPlan>, annual?: { rows: MpsQuantityRow[]; error?: string; excludedRows?: number; unmapped?: { month: string | null; code: string; reason: string }[] }) {
   const fiscalMonths = capacityFiscalMonths(input.context.month)
   const months = [...new Set([...fiscalMonths, ...Array.from({ length: 5 }, (_, index) => offset(input.context.month, index))])].sort()
   const resources = (input.resources ?? []).filter(row => row.kind === 'tunnel' && plan.resourceSchedules.some(schedule => schedule.resourceId === row.id))
@@ -97,13 +97,14 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
   }
   const annualTotals = fiscalMonths.flatMap(month => [...bases, '全国'].map(base => {
     const rows = (annual?.rows ?? []).filter(row => row.month === month && (base === '全国' || row.base === base))
-    const demand = sum(rows.map(row => {
+    const unknown = (annual?.unmapped ?? []).filter(row => !row.month || row.month === month).map(() => null)
+    const demand = sum([...rows.map(row => {
       const weight = weightIndex.get(JSON.stringify([row.base, row.code])) ?? []
-      return row.quantity !== null && weight.length === 1 && weight[0].tonsPerPiece !== null && weight[0].tonsPerPiece > 0 ? row.quantity * weight[0].tonsPerPiece : null
-    }))
+      return row.quantity !== null && row.quantity >= 0 && weight.length === 1 && weight[0].tonsPerPiece !== null && weight[0].tonsPerPiece > 0 ? row.quantity * weight[0].tonsPerPiece : null
+    }), ...unknown])
     const capacity = totals.find(row => row.month === month && row.base === base)?.capacity ?? null
     const load = demand.value !== null && capacity !== null && capacity > 0 ? demand.value / capacity : null
     return { month, base, demand, capacity, load, band: capacityLoadBand(load) }
   }))
-  return { fiscalMonths, months, bases, totals, rccp, lines, annualTotals, annualSource: { table: 'ai_db.agents_dim_demand_annual_mi', records: annual?.rows.length ?? 0, error: annual?.error ?? (annual ? '' : '全年年度SKU需求尚未读取') }, gaps: rccp.filter(row => row.gap !== null && row.gap > 0) }
+  return { fiscalMonths, months, bases, totals, rccp, lines, annualTotals, annualSource: { table: 'ai_db.agents_dim_demand_annual_mi', records: annual?.rows.length ?? 0, excludedRows: annual?.excludedRows ?? 0, unmappedCount: annual?.unmapped?.length ?? 0, unmappedPreview: annual?.unmapped?.slice(0, 25) ?? [], error: annual?.error ?? (annual ? '' : '全年年度SKU需求尚未读取') }, gaps: rccp.filter(row => row.gap !== null && row.gap > 0) }
 }
