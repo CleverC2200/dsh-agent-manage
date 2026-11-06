@@ -30,7 +30,7 @@ function allocate(demands: FairDemand[], capacities: FairCapacity[], targets: nu
   const tolerance =
     Math.max(
       1,
-      targets.reduce((sum, value) => sum + value, 0)
+      demands.reduce((sum, row) => sum + row.quantity, 0)
     ) * 1e-12
   while (true) {
     const level = Array<number>(graph.length).fill(-1)

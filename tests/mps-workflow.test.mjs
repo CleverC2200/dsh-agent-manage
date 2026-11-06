@@ -6,6 +6,79 @@ import { fairAllocate } from '../src/mps-compute/fair-allocation.ts'
 import { solveMpsPlan } from '../src/mps-compute/plan.ts'
 import { buildCapacityReport, capacityLoadBand } from '../src/mps-compute/capacity-report.ts'
 
+test('老品关系按同基地同财年直接引用历史，原始发货不改且不递归替换', () => {
+  const sample = input()
+  sample.products[0].historyCode = 'OLD'
+  sample.products[1].historyCode = 'A'
+  sample.history.push({ month: '2026-12', base: '甲', code: 'OLD', quantity: 100 }, { month: '2026-12', base: '乙', code: 'OLD', quantity: 999 })
+  sample.history.push({ month: '2026-12', base: '乙', code: 'A', quantity: 40 })
+  const raw = structuredClone(sample.history)
+  const result = computeMpsWorkflow(sample)
+  const row = result.rows.find(row => row.base === '甲' && row.code === 'A')
+  assert.equal(row.historyQuantity, 100)
+  assert.equal(row.historyLayers.categoryQuantity, 140)
+  assert.equal(row.historyShare, 100 / 140)
+  assert.equal(result.rows.find(row => row.code === 'B').historyQuantity, 40)
+  assert.deepEqual(sample.history, raw)
+  sample.history = sample.history.filter(row => row.code !== 'OLD' || row.base !== '甲')
+  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, null)
+})
+
+test('部分需求缺失保留已知负荷和逐SKU原因，不把已知负荷当完整负荷', () => {
+  const sample = planInput()
+  sample.history = sample.history.filter(row => row.code !== 'B')
+  const report = buildCapacityReport(sample, solveMpsPlan(sample))
+  const row = report.rccp.find(row => row.month === '2026-12')
+  assert.equal(row.load, null)
+  assert.equal(row.knownLoad, row.demand.known / row.capacity)
+  assert.ok(row.knownLoad > 0)
+  assert.ok(report.demandIssues.some(issue => issue.month === '2026-12' && issue.code === 'B' && issue.kind === '缺历史拆分依据'))
+})
+
+test('年度全国只汇总基地明细，零数量无需件吨系数，缺量仍保留缺项', () => {
+  const sample = planInput()
+  const report = buildCapacityReport(sample, solveMpsPlan(sample), { rows: [
+    { month: '2026-12', base: '甲', code: 'A', quantity: 30 },
+    { month: '2026-12', base: '甲', code: 'ZERO', quantity: 0 },
+    { month: '2026-12', base: '全国', code: 'A', quantity: 999 }
+  ] })
+  assert.equal(report.annualTotals.find(row => row.month === '2026-12' && row.base === '全国').demand.value, 3)
+  assert.equal(report.annualIssues.length, 0)
+  assert.equal(report.annualSource.aggregateRows, 1)
+})
+
+test('零需求无需件吨系数即可计入零吨，未知需求仍不可计入', () => {
+  const sample = planInput()
+  sample.categoryDemand = sample.categoryDemand.map(row => ({ ...row, quantity: 0 }))
+  sample.unitWeights = []
+  const plan = solveMpsPlan(sample)
+  assert.ok(plan.rows.every(row => row.demand === 0 && row.demandTons === 0))
+  const report = buildCapacityReport(sample, plan)
+  assert.equal(report.demandIssues.length, 0)
+  assert.equal(report.rccp.find(row => row.month === '2026-12').load, 0)
+})
+
+test('大需求与极小剩余产能共存时，各轮精度一致，公平分配继续且不超产能', () => {
+  const tiny = ['a', 'b', 'c', 'd']
+  const demands = [
+    { id: 'A', quantity: 1.833288616513295e-5, resources: tiny },
+    { id: 'B', quantity: 4.999878045036259e-5, resources: tiny },
+    { id: 'C', quantity: 4.999878045036258e-5, resources: tiny },
+    { id: 'large', quantity: 27402, resources: ['large'] }
+  ]
+  const capacities = [
+    { id: 'a', quantity: 1.999978849198669e-9 },
+    { id: 'b', quantity: 2.376559677941259e-7 },
+    { id: 'c', quantity: 2.362412487855181e-9 },
+    { id: 'd', quantity: 1.4999841368990019e-9 },
+    { id: 'large', quantity: 2382 }
+  ]
+  const result = fairAllocate(demands, capacities)
+  assert.ok(result.resources.every(row => row.allocated <= row.capacity))
+  assert.ok(Math.abs(result.demands.find(row => row.id === 'large').allocated - 2382) < 1e-5)
+  assert.ok(result.demands.every(row => row.allocated >= 0 && row.unfulfilled >= 0))
+})
+
 test('RCCP无归属需求单列，系列配额对平，物理产能不随SKU重复累计', () => {
   const sample = planInput()
   sample.products.push({ base: '甲', code: 'C', name: '无归属产品', category: '点心', group: '无归属组', series: '无归属系列' })

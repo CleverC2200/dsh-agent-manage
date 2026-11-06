@@ -132,8 +132,8 @@ export function solveMpsPlan(input: MpsPlanInput) {
       const coefficient = (input.unitWeights ?? []).filter(item => item.base === row.base && item.code === row.code)
       const weight = coefficient.length === 1 && finite(coefficient[0].tonsPerPiece) && coefficient[0].tonsPerPiece > 0 ? coefficient[0].tonsPerPiece : null
       if (weight !== null) weights.set(row.id, weight)
-      row.demandTons = finite(row.demand) && weight !== null ? row.demand * weight : null
-      row.requiredProductionTons = row.requiredProduction !== null && weight !== null ? row.requiredProduction * weight : null
+      row.demandTons = row.demand === 0 ? 0 : finite(row.demand) && weight !== null ? row.demand * weight : null
+      row.requiredProductionTons = row.requiredProduction === 0 ? 0 : row.requiredProduction !== null && weight !== null ? row.requiredProduction * weight : null
       const own = [
         ...new Set(candidates.filter(item => item.base === row.base && item.code === row.code && (!item.month || item.month === month)).map(item => item.resourceId))
       ].filter(id => monthResources.some(resource => resource.resourceId === id && resource.base === row.base) && capacityMap.has(id))
