@@ -73,7 +73,7 @@ test('KPI details preserve current published definitions and route to actual ord
   assert.match(details, /age_days≥60/)
   assert.match(details, /全国\/品项日均需求.*不加调拨/)
   assert.match(details, /订单号｜渠道\/大区\/省区\/销售组/)
-  assert.match(details, /产品信息｜总库存｜60天以上库存件数/)
+  assert.match(details, /产品信息（名称、编码）｜总库存｜60天以上库存件数/)
   assert.match(details, /不得从汇总拼造订单或商品行/)
   const analysis = await readFile(new URL('skills/operations-kpi-performance-analysis/SKILL.md', root), 'utf8')
   assert.match(analysis, /operations-order-kpi-details\/SKILL\.md/)
