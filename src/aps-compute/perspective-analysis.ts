@@ -15,7 +15,18 @@ const definitions: Record<string, { scope: AnalysisScope[]; classify: (value: nu
   订单满足率: { scope: ['overview', 'production'], classify: v => (v > 95 ? '健康' : v >= 90 ? '预警' : '严重'), target: 95 },
   可发货天数: { scope: ['production'], classify: v => (v > 15 ? '严重' : v >= 12 || v <= 8 ? '预警' : '健康'), target: 12 },
   库存量: { scope: ['overview', 'production'], classify: () => null },
-  订单缺货量: { scope: ['production'], classify: () => null }
+  订单缺货量: { scope: ['production'], classify: v => (v > 3 ? '严重' : v > 0 ? '预警' : '健康'), target: 0 }
+}
+export type MetricJudgement =
+  | { kind: 'missing'; risk: null; achieved: null }
+  | { kind: 'observation'; risk: null; achieved: null }
+  | { kind: 'evaluated'; risk: '健康' | '预警' | '严重'; achieved: boolean }
+/** Classify returned values using the same thresholds as perspective analysis. */
+export function judgeMetric(name: string, value: number): MetricJudgement {
+  if (!finite(value)) return { kind: 'missing', risk: null, achieved: null }
+  const risk = definitions[name]?.classify(value)
+  if (!risk) return { kind: 'observation', risk: null, achieved: null }
+  return { kind: 'evaluated', risk, achieved: risk === '健康' }
 }
 const questions: Record<AnalysisScope, string> = {
   overview: '当前周期订单满足率变化主要集中在哪些基地和品类？',
