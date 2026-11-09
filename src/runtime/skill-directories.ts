@@ -130,6 +130,10 @@ export class SkillDirectories {
     return Promise.all(
       skills.map(async skill => {
         if (skill.directory) {
+          if (skill.kind === 'reference' && skill.content === undefined) {
+            const definition = await this.validateRoot(skill.directory.root, skill.name, join(skill.directory.bundle, 'tree'))
+            return { ...skill, content: definition.content }
+          }
           const old = previous.find(row => row.name === skill.name)
           if (!old || (old.content === skill.content && (old.kind !== 'personal' || skill.kind !== 'personal' || old.description === skill.description))) return skill
           const tree = await readTree(join(skill.directory.bundle, 'tree'))
