@@ -60,7 +60,9 @@ function allocate(demands: FairDemand[], capacities: FairCapacity[], targets: nu
       }
       return 0
     }
-    while (send(0, Number.MAX_SAFE_INTEGER) > tolerance) {}
+    while (send(0, Number.MAX_SAFE_INTEGER) > tolerance) {
+      continue
+    }
   }
   const reachable = new Set([0])
   const queue = [0]

@@ -12,7 +12,7 @@ test('老品关系按同基地同财年直接引用历史，原始发货不改�
   sample.products[1].historyCode = 'A'
   sample.history.push({ month: '2026-12', base: '甲', code: 'OLD', quantity: 100 }, { month: '2026-12', base: '乙', code: 'OLD', quantity: 999 })
   sample.history.push({ month: '2026-12', base: '乙', code: 'A', quantity: 40 })
-  const raw = structuredClone(sample.history)
+  const raw = globalThis.structuredClone(sample.history)
   const result = computeMpsWorkflow(sample)
   const row = result.rows.find(row => row.base === '甲' && row.code === 'A')
   assert.equal(row.historyQuantity, 100)
@@ -83,7 +83,7 @@ test('RCCP无归属需求单列，系列配额对平，物理产能不随SKU重�
   const sample = planInput()
   sample.products.push({ base: '甲', code: 'C', name: '无归属产品', category: '点心', group: '无归属组', series: '无归属系列' })
   sample.report.push({ month: '2026-12', base: '甲', code: 'C', quantity: 100 })
-  sample.history = structuredClone(sample.report)
+  sample.history = globalThis.structuredClone(sample.report)
   sample.categoryDemand = sample.categoryDemand.map(row => ({ ...row, quantity: 200 }))
   sample.unitWeights.push({ base: '甲', code: 'C', tonsPerPiece: 0.1 })
   sample.openingInventory.push({ base: '甲', code: 'C', quantity: 0 })
@@ -173,7 +173,7 @@ const planInput = () => {
     { month, base: '甲', code: 'A', quantity: 80 },
     { month, base: '甲', code: 'B', quantity: 20 }
   ])
-  sample.history = structuredClone(sample.report)
+  sample.history = globalThis.structuredClone(sample.report)
   sample.openingInventory = [
     { base: '甲', code: 'A', quantity: 0 },
     { base: '甲', code: 'B', quantity: 0 }
@@ -451,7 +451,7 @@ test('提报缺Top1系数时物料组和SKU各承接剩余占比，基地份额�
   assert.ok(result.rows.slice(0, 3).every(row => row.demand !== null))
   assert.ok(Math.abs(result.rows.slice(0, 3).reduce((sum, row) => sum + row.demand, 0) - 120) < 1e-10)
   assert.deepEqual(a.coefficientFallback, ['提报物料组Top1承接剩余占比', '提报SKU Top1承接剩余占比'])
-  const zero = structuredClone(sample)
+  const zero = globalThis.structuredClone(sample)
   zero.products.push({ ...zero.products[0], code: 'D' })
   zero.report.push({ month: sample.context.month, base: '甲', code: 'D', quantity: 0 })
   zero.history.push({ month: sample.context.month, base: '甲', code: 'D', quantity: 0 })
@@ -462,10 +462,10 @@ test('提报缺Top1系数时物料组和SKU各承接剩余占比，基地份额�
   assert.equal(zeroRow.reportLayers.baseShare, null)
   sample.reportRatios.push({ kind: 'sku', category: '点心', group: '包点', code: 'A', share: null })
   assert.equal(computeMpsWorkflow(sample).rows[0].reportLayers.skuShare, 0.75)
-  const withoutBase = structuredClone(sample)
+  const withoutBase = globalThis.structuredClone(sample)
   withoutBase.reportRatios = withoutBase.reportRatios.filter(row => !(row.kind === 'base' && row.code === 'A'))
   assert.equal(computeMpsWorkflow(withoutBase).rows[0].demand, null)
-  const duplicate = structuredClone(sample)
+  const duplicate = globalThis.structuredClone(sample)
   duplicate.reportRatios.push({ kind: 'sku', category: '点心', group: '包点', code: 'A', share: 0.9 })
   assert.equal(computeMpsWorkflow(duplicate).rows[0].demand, null)
   sample.reportRatios.find(row => row.kind === 'group').share = 1.1
@@ -1261,7 +1261,7 @@ test('分层数量调整固定SKU及基地，下级按有效权重重摊并保�
     { ...sample.products[0], code: 'C', group: '另一组' }
   ]
   sample.report = sample.products.map((row, index) => ({ month: '2026-12', base: row.base, code: row.code, quantity: [10, 30, 20, 40][index] }))
-  sample.history = structuredClone(sample.report)
+  sample.history = globalThis.structuredClone(sample.report)
   sample.adjustments = {
     quantities: [
       { kind: 'group', month: '2026-12', category: '点心', group: '包点', quantity: 80 },
@@ -1315,7 +1315,7 @@ test('数量调整拒绝超父级、重复、缺权重、份额冲突及M+3，�
   const fractional = input()
   fractional.products.push({ ...fractional.products[0], code: 'C' }, { ...fractional.products[0], code: 'D' })
   fractional.report = fractional.products.map((row, index) => ({ month: '2026-12', base: row.base, code: row.code, quantity: [1, 1, 1, 0][index] }))
-  fractional.history = structuredClone(fractional.report)
+  fractional.history = globalThis.structuredClone(fractional.report)
   fractional.categoryDemand[0].quantity = 1
   fractional.adjustments = { quantities: [{ ...edit, quantity: 0.1 }] }
   const result = computeMpsWorkflow(fractional).rows.filter(row => row.month === '2026-12')
