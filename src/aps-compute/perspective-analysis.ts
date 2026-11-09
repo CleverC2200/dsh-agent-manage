@@ -18,9 +18,7 @@ const definitions: Record<string, { scope: AnalysisScope[]; classify: (value: nu
   订单缺货量: { scope: ['production'], classify: v => (v > 3 ? '严重' : v > 0 ? '预警' : '健康'), target: 0 }
 }
 export type MetricJudgement =
-  | { kind: 'missing'; risk: null; achieved: null }
-  | { kind: 'observation'; risk: null; achieved: null }
-  | { kind: 'evaluated'; risk: '健康' | '预警' | '严重'; achieved: boolean }
+  { kind: 'missing'; risk: null; achieved: null } | { kind: 'observation'; risk: null; achieved: null } | { kind: 'evaluated'; risk: '健康' | '预警' | '严重'; achieved: boolean }
 /** Classify returned values using the same thresholds as perspective analysis. */
 export function judgeMetric(name: string, value: number): MetricJudgement {
   if (!finite(value)) return { kind: 'missing', risk: null, achieved: null }

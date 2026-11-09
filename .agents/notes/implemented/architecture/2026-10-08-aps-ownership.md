@@ -42,7 +42,6 @@ At the user's request, configured APS snapshots opt into `missingValuePolicy: 'z
 
 Workbench owns stable axes from returned dimensions, dynamic column sizing, risk colors, neutral inventory observations and source snapshot labels. It does not fill absent combinations with zero or use mock classifications. Production risk thresholds remain the existing >99% / >95% rules and shippable thresholds remain the existing 8–12 day healthy interval, excluding boundaries.
 
-
 ## Live metric judgement (2026-11-09)
 
 `judgeMetric` projects the existing perspective threshold definitions into explicit missing, observation and evaluated states. Workbench uses it for production attainment, dimensional risk and diagnostic ranking instead of suppressing judgements in live mode. Order shortage adopts the prototype's existing zero target and 0/3 display-unit risk boundaries in the same definition table. Inventory remains a target-free observation. Missing or non-finite values cannot produce a healthy verdict. Production/forecast thresholds and the open 8–12 day interval remain unchanged; no query, quantity formula, permission or task execution is added.
