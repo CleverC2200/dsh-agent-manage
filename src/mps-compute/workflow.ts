@@ -11,6 +11,7 @@ import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjus
 import { applyReportFallback, type MpsReportRatio } from './split-fallback.ts'
 export type { MpsQuantityAdjustment } from './quantity-adjustments.ts'
 export type MpsQuantity = number | null
+export const mpsCategories = ['饺子', '调理肉制品', '汤圆', '面点', '休闲', '馄饨', '粽子', '饼类']
 export interface MpsContext {
   id: string
   name: string

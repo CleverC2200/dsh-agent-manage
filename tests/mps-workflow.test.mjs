@@ -1,10 +1,14 @@
 import { inventoryTargetIndex, inventoryTurnoverIndex } from '../src/mps-compute/inventory-targets.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { computeMpsWorkflow } from '../src/mps-compute/workflow.ts'
+import { computeMpsWorkflow, mpsCategories } from '../src/mps-compute/workflow.ts'
 import { fairAllocate } from '../src/mps-compute/fair-allocation.ts'
 import { solveMpsPlan } from '../src/mps-compute/plan.ts'
 import { buildCapacityReport, capacityLoadBand } from '../src/mps-compute/capacity-report.ts'
+
+test('已发布工作台仍可从 workflow 读取原八类产品目录', () => {
+  assert.deepEqual(mpsCategories, ['饺子', '调理肉制品', '汤圆', '面点', '休闲', '馄饨', '粽子', '饼类'])
+})
 
 test('老品关系按同基地同财年直接引用历史，原始发货不改且不递归替换', () => {
   const sample = input()
