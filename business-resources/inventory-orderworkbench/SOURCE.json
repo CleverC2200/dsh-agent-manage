@@ -18,7 +18,8 @@
     "Make report sections conditional and restrict unsupported counts, causes and cross-metric conclusions on 2026-11-02; retain received provenance",
     "Normalize packaged prompt soft line breaks for CI on 2026-11-02; retain all business text and original received source hashes",
     "Update KPI analysis and add KPI details from user supplied Skills on 2026-11-03; preserve installed evidence/authorization boundaries and current published metric definitions",
-    "Add user supplied workbook exception import with governed page preview/commit on 2026-11-03; retain manual edits and source provenance"
+    "Add user supplied workbook exception import with governed page preview/commit on 2026-11-03; retain manual edits and source provenance",
+    "Update order KPI details from user supplied Skill on 2026-11-06: five-part answers and Markdown detail tables; preserve confirmed quantity/plan formulas, provisional evidence and installed capability boundaries"
   ],
   "files": [
     {
@@ -64,7 +65,7 @@
     {
       "path": "skills/operations-kpi-performance-analysis/SKILL.md",
       "sourceSha256": "4ffea0fb3eaa810250260429ebb090ea1becad8d4f22f8ddd6f25eb3069f7549",
-      "packagedSha256": "157479f3b2a6b9f80dabc306460009d9bf2183809a982b59096981b3c8257fc3",
+      "packagedSha256": "ec7a9bad56139e2d86fac835c3122a3c948431d41382b8393159dabe5910d5e4",
       "sourceFileName": "operations-kpi-performance-analysis/SKILL.md"
     },
     {
@@ -80,15 +81,15 @@
     {
       "path": "skills/fulfillment-query-orchestrator/references/订单工作台及订单履约语义.md",
       "sourceSha256": "2d623d186b41ff83fd0080ea041ea9aa459e33779ebbb88bbbc1479bb4829ab8",
-      "packagedSha256": "713923aa5a4c505f517c547f7428d9e5b36980f96195523f98ff3005bd054f53",
+      "packagedSha256": "c54adbade69935c08858d04450f444724875e1a6dd6355c0b1c54654eded24b2",
       "archivePath": "skills/fulfillment-query-orchestrator/references/Φ«óσìòσ╖ÑΣ╜£σÅ░σÅèΦ«óσìòσ▒Ñτ║ªΦ»¡Σ╣ë.md",
       "sourceArchiveFileName": "订单履约skill.zip"
     },
     {
       "path": "skills/operations-order-kpi-details/SKILL.md",
-      "sourceSha256": "e76f88f62a747cac122deb8bce765b3ef57db868f5e88119ffc0398efbe9d2fd",
+      "sourceSha256": "80d00880ebd3fb9c6e3d2febc9f2fa8919b6a231b27d717647d9258467812726",
       "sourceFileName": "operations-order-kpi-details/SKILL.md",
-      "packagedSha256": "1f8f49c8dd52476d618eeb3513797a19ce2c18cfb64d87e1401cb7367b00c74c"
+      "packagedSha256": "8578f757876146d354cbd2f05923dca810e89db55405d285d09ab791d52539cb"
     },
     {
       "path": "agent-prompt.md",
