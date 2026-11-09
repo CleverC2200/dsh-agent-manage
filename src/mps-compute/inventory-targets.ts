@@ -38,7 +38,12 @@ export interface MpsInventoryTargetResult {
 const priority: Exclude<MpsInventoryVersion, 'auto'>[] = ['纠偏', '月初', '滚动']
 const key = (row: { month: string; base: string; code: string }) => JSON.stringify([row.month, row.base, row.code])
 const valid = (value: number | null): value is number => value !== null && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER
-export function inventoryTargetIndex(source: MpsInventoryTarget[], version: MpsInventoryVersion = 'auto', issues: string[] = [], order: Exclude<MpsInventoryVersion, 'auto'>[] = priority) {
+export function inventoryTargetIndex(
+  source: MpsInventoryTarget[],
+  version: MpsInventoryVersion = 'auto',
+  issues: string[] = [],
+  order: Exclude<MpsInventoryVersion, 'auto'>[] = priority
+) {
   const versions = new Map<string, string>()
   const sourceKeys = new Set<string>()
   for (const row of source) {
@@ -111,10 +116,18 @@ export interface MpsTurnoverPolicy {
   sourceVersion: string
   missing: string[]
 }
-export function inventoryTurnoverIndex(source: MpsInventoryTarget[], months: string[], version: MpsInventoryVersion = 'auto', issues: string[] = [], order: Exclude<MpsInventoryVersion, 'auto'>[] = priority) {
-  const selectedVersion = version === 'auto'
-    ? order.find(current => source.some(row => row.month === months[0] && row.version === current)) ?? order.find(current => source.some(row => months.includes(row.month) && row.version === current))
-    : version
+export function inventoryTurnoverIndex(
+  source: MpsInventoryTarget[],
+  months: string[],
+  version: MpsInventoryVersion = 'auto',
+  issues: string[] = [],
+  order: Exclude<MpsInventoryVersion, 'auto'>[] = priority
+) {
+  const selectedVersion =
+    version === 'auto'
+      ? (order.find(current => source.some(row => row.month === months[0] && row.version === current)) ??
+        order.find(current => source.some(row => months.includes(row.month) && row.version === current)))
+      : version
   const resolve = inventoryTargetIndex(source, selectedVersion ?? version, issues, order)
   const policies = new Map<string, MpsTurnoverPolicy>()
   return (product: { base: string; code: string }): MpsTurnoverPolicy => {

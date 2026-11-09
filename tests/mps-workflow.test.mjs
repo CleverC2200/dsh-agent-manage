@@ -37,11 +37,13 @@ test('部分需求缺失保留已知负荷和逐SKU原因，不把已知负荷�
 
 test('年度全国只汇总基地明细，零数量无需件吨系数，缺量仍保留缺项', () => {
   const sample = planInput()
-  const report = buildCapacityReport(sample, solveMpsPlan(sample), { rows: [
-    { month: '2026-12', base: '甲', code: 'A', quantity: 30 },
-    { month: '2026-12', base: '甲', code: 'ZERO', quantity: 0 },
-    { month: '2026-12', base: '全国', code: 'A', quantity: 999 }
-  ] })
+  const report = buildCapacityReport(sample, solveMpsPlan(sample), {
+    rows: [
+      { month: '2026-12', base: '甲', code: 'A', quantity: 30 },
+      { month: '2026-12', base: '甲', code: 'ZERO', quantity: 0 },
+      { month: '2026-12', base: '全国', code: 'A', quantity: 999 }
+    ]
+  })
   assert.equal(report.annualTotals.find(row => row.month === '2026-12' && row.base === '全国').demand.value, 3)
   assert.equal(report.annualIssues.length, 0)
   assert.equal(report.annualSource.aggregateRows, 1)
@@ -95,7 +97,10 @@ test('RCCP无归属需求单列，系列配额对平，物理产能不随SKU重�
   assert.ok(Math.abs(row.load - 2) < 1e-8)
   assert.ok(Math.abs(row.margin + 5) < 1e-8)
   assert.ok(Math.abs(row.gap - 5) < 1e-8)
-  assert.equal(row.series.reduce((total, row) => total + row.quota, 0), 5)
+  assert.equal(
+    row.series.reduce((total, row) => total + row.quota, 0),
+    5
+  )
   assert.ok(Math.abs(row.series.reduce((total, row) => total + row.excess, 0) - 5) < 1e-8)
   assert.equal(report.totals.find(row => row.month === '2026-12' && row.base === '全国').capacity, 5)
   assert.equal(report.fiscalMonths.length, 12)
@@ -110,7 +115,10 @@ test('RCCP无归属需求单列，系列配额对平，物理产能不随SKU重�
   assert.equal(reference.referenceMonth, '2026-11')
   assert.equal(reference.totals.find(row => row.month === '2026-11' && row.base === '甲').demand.value, 3)
   assert.equal(reference.rccp.find(row => row.month === '2026-11' && row.base === '甲').demand.value, 3)
-  const unresolved = buildCapacityReport(sample, solveMpsPlan(sample), { rows: [{ month: '2026-12', base: '甲', code: 'A', quantity: 30 }], unmapped: [{ month: '2026-12', code: 'X', reason: 'belong_base为空' }] })
+  const unresolved = buildCapacityReport(sample, solveMpsPlan(sample), {
+    rows: [{ month: '2026-12', base: '甲', code: 'A', quantity: 30 }],
+    unmapped: [{ month: '2026-12', code: 'X', reason: 'belong_base为空' }]
+  })
   const incomplete = unresolved.annualTotals.find(row => row.month === '2026-12' && row.base === '甲')
   assert.equal(incomplete.demand.value, null)
   assert.equal(incomplete.demand.known, 3)
@@ -143,14 +151,25 @@ test('缺周转天数按授权临时取零，来源缺项保留，补充和源�
   assert.ok(result.rows.every(row => row.safetyDays === 0 && row.targetInventory === 0 && row.safetyDaysSource === 'missing-turnover-days-zero'))
   assert.ok(result.rows.every(row => row.turnoverPolicy.sourceDays === null && row.turnoverPolicy.missing.length > 0))
   sample.constraints.turnoverDays = [{ base: '甲', code: 'A', days: 15 }]
-  assert.ok(computeMpsWorkflow(sample).rows.filter(row => row.base === '甲').every(row => row.safetyDays === 15 && row.safetyDaysSource === 'manual-turnover-days'))
+  assert.ok(
+    computeMpsWorkflow(sample)
+      .rows.filter(row => row.base === '甲')
+      .every(row => row.safetyDays === 15 && row.safetyDaysSource === 'manual-turnover-days')
+  )
   sample.inventoryTargets = [{ month: '2026-12', base: '甲', code: 'A', version: '月初', finalTarget: 0, dailyDemand: 0, finalTurnoverDays: 22, sourceRows: 1 }]
-  assert.ok(computeMpsWorkflow(sample).rows.filter(row => row.base === '甲').every(row => row.safetyDays === 22 && row.safetyDaysSource === 'target-turnover-days'))
+  assert.ok(
+    computeMpsWorkflow(sample)
+      .rows.filter(row => row.base === '甲')
+      .every(row => row.safetyDays === 22 && row.safetyDaysSource === 'target-turnover-days')
+  )
 })
 
 test('要求源周转天数时缺项不套基地天数，人工补充后重新纳入计算', () => {
   const sample = input()
-  sample.constraints.safetyDays = [{ base: '甲', days: 25 }, { base: '乙', days: 25 }]
+  sample.constraints.safetyDays = [
+    { base: '甲', days: 25 },
+    { base: '乙', days: 25 }
+  ]
   sample.categoryDemand = ['2026-12', '2027-01', '2027-02', '2027-03'].map(month => ({ month, category: '点心', quantity: 120 }))
   sample.requireSourceTurnoverDays = true
   let result = computeMpsWorkflow(sample)
@@ -387,8 +406,16 @@ const input = () => ({
 test('后月库存缺源诊断不按单品重复遍历整张来源', () => {
   let sourceMonthReads = 0
   const source = Array.from({ length: 400 }, (_, i) => ({
-    get month() { sourceMonthReads++; return '2026-11' },
-    base: '甲', code: String(i), version: '月初', finalTarget: 100, dailyDemand: 10, sourceRows: 1
+    get month() {
+      sourceMonthReads++
+      return '2026-11'
+    },
+    base: '甲',
+    code: String(i),
+    version: '月初',
+    finalTarget: 100,
+    dailyDemand: 10,
+    sourceRows: 1
   }))
   const resolve = inventoryTargetIndex(source)
   for (let i = 0; i < 400; i++) {
@@ -411,8 +438,14 @@ test('基地安全天数策略用于三个月，SKU月表只作对照且不能�
   assert.ok(result.rows.every(row => row.safetyDays === null && row.targetInventory === null))
   sample.constraints.safetyDays = [{ base: '甲', days: 10 }]
   result = computeMpsWorkflow(sample)
-  assert.deepEqual(result.rows.map(row => row.nextMonthDays), [31, 28, 31])
-  assert.deepEqual(result.rows.map(row => row.baseSafetyDays), [10, 10, 10])
+  assert.deepEqual(
+    result.rows.map(row => row.nextMonthDays),
+    [31, 28, 31]
+  )
+  assert.deepEqual(
+    result.rows.map(row => row.baseSafetyDays),
+    [10, 10, 10]
+  )
   assert.ok(result.rows.every(row => row.safetyDaysSource === 'base-policy'))
   result.rows.forEach((row, index) => assert.ok(Math.abs(row.targetInventory - [2000 / 31, 3000 / 28, 4000 / 31][index]) < 1e-10))
   assert.equal(result.rows[1].inventoryTarget.status, 'missing')
@@ -455,7 +488,10 @@ test('提报缺Top1系数时物料组和SKU各承接剩余占比，基地份额�
   zero.products.push({ ...zero.products[0], code: 'D' })
   zero.report.push({ month: sample.context.month, base: '甲', code: 'D', quantity: 0 })
   zero.history.push({ month: sample.context.month, base: '甲', code: 'D', quantity: 0 })
-  zero.reportRatios.push({ kind: 'sku', category: '点心', group: '包点', code: 'D', share: 0 }, { kind: 'base', category: '点心', group: '包点', code: 'D', base: '甲', share: null })
+  zero.reportRatios.push(
+    { kind: 'sku', category: '点心', group: '包点', code: 'D', share: 0 },
+    { kind: 'base', category: '点心', group: '包点', code: 'D', base: '甲', share: null }
+  )
   const zeroRow = computeMpsWorkflow(zero).rows.find(row => row.code === 'D')
   assert.equal(zeroRow.reportShare, 0)
   assert.equal(zeroRow.demand, 0)
@@ -820,7 +856,11 @@ test('评估月SKU范围贯穿三个月，不再要求后月源表重复提供SK
   assert.equal(result.summary.totalRows, 3)
   assert.deepEqual(
     result.rows.map(row => [row.month, row.requiredProduction]),
-    [['2026-12', 100], ['2027-01', 100], ['2027-02', 100]]
+    [
+      ['2026-12', 100],
+      ['2027-01', 100],
+      ['2027-02', 100]
+    ]
   )
 })
 
@@ -1231,7 +1271,10 @@ test('当前物料数量缺基地且非零时仍阻断该大类，真实零保�
       result.rows.map(row => row.safetyDays),
       [null, null, null]
     )
-    assert.deepEqual(result.rows.map(row => row.inventoryTarget.days), [10, 20, 30])
+    assert.deepEqual(
+      result.rows.map(row => row.inventoryTarget.days),
+      [10, 20, 30]
+    )
     input.constraints.safetyDays = [{ base: '甲', days: 10 }]
     result = computeMpsWorkflow(input)
     assert.equal(result.rows[0].safetyDaysSource, 'base-policy')

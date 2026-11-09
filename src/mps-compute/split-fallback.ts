@@ -25,10 +25,13 @@ export function applyReportFallback(rows: MpsWorkflowRow[], ratios: MpsReportRat
   }
   const groups = [...new Set(rows.map(row => row.group))]
   const historical = (entries: MpsWorkflowRow[]) => entries.reduce((sum, row) => sum + (row.historyQuantity ?? 0), 0)
-  const ranked = <T extends string>(keys: T[], entries: (key: T) => MpsWorkflowRow[]) => [...keys].sort((a, b) => historical(entries(b)) - historical(entries(a)) || a.localeCompare(b, 'en'))[0]
+  const ranked = <T extends string>(keys: T[], entries: (key: T) => MpsWorkflowRow[]) =>
+    [...keys].sort((a, b) => historical(entries(b)) - historical(entries(a)) || a.localeCompare(b, 'en'))[0]
   const topGroup = ranked(groups, group => rows.filter(row => row.group === group))
   const category = rows[0].category
-  const groupRatios = new Map(groups.map(group => [group, read({ kind: 'group', category, group, share: null }, rows.find(row => row.group === group)?.reportLayers.groupShare ?? null)]))
+  const groupRatios = new Map(
+    groups.map(group => [group, read({ kind: 'group', category, group, share: null }, rows.find(row => row.group === group)?.reportLayers.groupShare ?? null)])
+  )
   const residual = (values: Map<string, { value: MpsQuantity; missing: boolean }>, top: string) => {
     const chosen = values.get(top)
     const others = [...values].filter(([key]) => key !== top).map(([, value]) => value.value)
@@ -44,7 +47,9 @@ export function applyReportFallback(rows: MpsWorkflowRow[], ratios: MpsReportRat
     const entries = rows.filter(row => row.group === group)
     const codes = [...new Set(entries.map(row => row.code))]
     const topCode = ranked(codes, code => entries.filter(row => row.code === code))
-    const skuRatios = new Map(codes.map(code => [code, read({ kind: 'sku', category, group, code, share: null }, entries.find(row => row.code === code)?.reportLayers.skuShare ?? null)]))
+    const skuRatios = new Map(
+      codes.map(code => [code, read({ kind: 'sku', category, group, code, share: null }, entries.find(row => row.code === code)?.reportLayers.skuShare ?? null)])
+    )
     const skuFallback = residual(skuRatios, topCode)
     for (const row of entries) {
       const sku = entries.filter(entry => entry.code === row.code)
@@ -58,7 +63,10 @@ export function applyReportFallback(rows: MpsWorkflowRow[], ratios: MpsReportRat
       row.reportLayers = { ...row.reportLayers, groupShare, skuShare, baseShare, product }
       row.reportShare = directZero ? 0 : product
       row.missing.reportShare = row.reportShare === null ? ['提报拆分系数缺失或冲突，Top1剩余占比不足以确定本行'] : []
-      row.coefficientFallback = [...(groupFallback && group === topGroup ? ['提报物料组Top1承接剩余占比'] : []), ...(skuFallback && row.code === topCode ? ['提报SKU Top1承接剩余占比'] : [])]
+      row.coefficientFallback = [
+        ...(groupFallback && group === topGroup ? ['提报物料组Top1承接剩余占比'] : []),
+        ...(skuFallback && row.code === topCode ? ['提报SKU Top1承接剩余占比'] : [])
+      ]
       row.fallback = row.coefficientFallback.length > 0
     }
   }
