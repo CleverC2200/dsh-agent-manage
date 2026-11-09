@@ -35,6 +35,25 @@ interface ResourceSchedule {
   missing: string[]
 }
 
+const plannedRow = (row: MpsWorkflowRow): MpsPlannedRow => ({
+  ...row,
+  missing: structuredClone(row.missing),
+  evaluation: 'capacity-constrained',
+  mainPlan: null,
+  gap: null,
+  transfer: null,
+  scheduledTons: null,
+  fulfillment: null,
+  unfulfilled: null,
+  fulfilledDemand: null,
+  closingInventory: null,
+  transferIn: null,
+  transferOut: null,
+  planMissing: [],
+  demandTons: null,
+  candidateResources: []
+})
+
 export function solveMpsPlan(input: MpsPlanInput) {
   const reference = computeMpsWorkflow(input)
   const resolved = resolveMpsRules(input, reference.months.slice(0, 3))
@@ -58,24 +77,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
   if (resources.length !== uniqueResources.length) sourceIssues.push('部分隧道资源编号重复、归属或能力无效，未纳入求解')
   const candidates =
     input.planCandidates ?? (input.resourceAssignments ?? []).filter(row => row.share > 0).map(({ base, code, resourceId, month }) => ({ base, code, resourceId, month }))
-  const rows: MpsPlannedRow[] = reference.rows.map(row => ({
-    ...row,
-    missing: structuredClone(row.missing),
-    evaluation: 'capacity-constrained',
-    mainPlan: null,
-    gap: null,
-    transfer: null,
-    scheduledTons: null,
-    fulfillment: null,
-    unfulfilled: null,
-    fulfilledDemand: null,
-    closingInventory: null,
-    transferIn: null,
-    transferOut: null,
-    planMissing: [],
-    demandTons: null,
-    candidateResources: []
-  }))
+  const rows = reference.rows.map(plannedRow)
   const resourceSchedules: ResourceSchedule[] = []
   const allocations: {
     month: string
@@ -291,6 +293,38 @@ export function solveMpsPlan(input: MpsPlanInput) {
       }
       for (const field of ['mainPlan', 'gap', 'transfer', 'openingInventory', 'requiredProduction', 'requiredProductionTons']) row.missing[field] = [...row.planMissing]
       previous.set(rowKey(row.base, row.code), row)
+    }
+  }
+  const rowKeys = new Set(rows.map(row => JSON.stringify([row.month, row.base, row.code])))
+  const missingProduction = allocations.filter(row => !rowKeys.has(JSON.stringify([row.month, row.base, row.code])))
+  if (missingProduction.length) {
+    const products = new Map<string, MpsWorkflowInput['products'][number]>()
+    const referenceRows = new Map(reference.rows.map(row => [row.id, row]))
+    for (const allocation of missingProduction) {
+      const row = referenceRows.get(allocation.rowId)
+      if (row)
+        products.set(rowKey(allocation.base, row.code), { base: allocation.base, code: row.code, name: row.name, category: row.category, series: row.series, group: row.group })
+    }
+    const productionKeys = new Set(missingProduction.map(row => JSON.stringify([row.month, row.base, row.code])))
+    const supplyReference = computeMpsWorkflow({
+      ...input,
+      products: [...products.values()],
+      productMonths: undefined,
+      categoryDemand: [],
+      report: [],
+      history: [],
+      reportRatios: [],
+      adjustments: undefined
+    })
+    for (const source of supplyReference.rows.filter(row => productionKeys.has(JSON.stringify([row.month, row.base, row.code])))) {
+      const row = plannedRow(source)
+      const production = missingProduction.filter(item => item.month === row.month && item.base === row.base && item.code === row.code)
+      row.mainPlan = production.reduce((sum, item) => sum + item.quantity, 0)
+      row.transferOut = production.filter(item => item.demandBase !== row.base).reduce((sum, item) => sum + item.quantity, 0)
+      row.planMissing = ['供给基地未纳入本地需求范围，仅记录已知生产和调出量']
+      row.missing.mainPlan = [...row.planMissing]
+      row.missing.transfer = [...row.planMissing]
+      rows.push(row)
     }
   }
   const completeRows = rows.filter(row => !row.planMissing.length)
