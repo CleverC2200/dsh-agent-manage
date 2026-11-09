@@ -77,6 +77,6 @@ description: '订单工作台经营指标达成分析：按全国、基地、销
 
 ### 日表创建队列与完整性纠偏
 
-改单率只用agents_scm_execute_detail_d，按header_addtime归属周期、按当前状态剔除作废及无效明细；仅createsource=20，剔除虚拟出1/2和超时原因14/16。发货仓、收货仓同pickup_point且双方类型均为工厂成品仓或工厂外租库才剔除短拨，映射来自agents_dim_bas_warehouse_d；仓库所属提货点未发布时报告缺口，不以旧is_short_transfer标记冒充。无需custchangetime或requireddeliverytime；历史冻结报告仍需历史快照。
+改单率数量取agents_scm_execute_detail_d，按 agents_scm_order_trace_final_di.lastshipmenttime（装车完成时间）归属实际发货周期；以执行单号＋客户关联日表，按update_time、load_time最新批次保留并列记录后取最后装车完成时间。缺发货时间不回退OMS新增、WMS关单或预计到货时间，按当前状态剔除作废及无效明细；仅createsource=20，剔除虚拟出1/2和超时原因14/16。发货仓、收货仓同pickup_point且双方类型均为工厂成品仓或工厂外租库才剔除短拨，映射来自agents_dim_bas_warehouse_d；仓库所属提货点未发布时报告缺口，不以旧is_short_transfer标记冒充。无需custchangetime或requireddeliverytime；历史冻结报告仍需历史快照。
 
-改单周期边界：先逐明细按header_addtime筛选，再按客户＋原订单＋SKU归并。不可因原订单在期内而带入其他创建日的拆单SKU；完整分母与数量/事件证据的完整性分别说明，未查明的分子不补0。
+改单周期边界：先将物流最新批次归并为执行单号＋客户的一条最后装车完成时间，再关联日表明细，以发货时间选周期；数量逐明细合计，不按原订单或SKU去重。同一原订单的执行单可归属不同发货周期，物流多行不能复制明细数量。完整规则见[改单率当前合同](references/amendment-contract.md)。

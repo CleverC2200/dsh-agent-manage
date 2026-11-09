@@ -2,7 +2,7 @@
   "receivedAt": "2026-10-21",
   "promptFileName": "订单工作台提示词.txt",
   "promptSourceSha256": "4179cf9e73d8323698591d52e5fa69bc7677566b78feaee33c83ac7d2b3b0b9c",
-  "promptSha256": "3ff22049290d049e3e03d9286cfd28cfdf710000adf5b9b90b3395226b938767",
+  "promptSha256": "6fa9d60481f4cc7b7c90fa367feae2319e994b0d8999de74493421b59c390948",
   "archiveFileName": "订单履约_工作台Skills.zip",
   "archiveSha256": "7985892cbee35c3a0aa94fd6971a021d9d86a1ccac2210995ee353da39a8cd18",
   "transformations": [
@@ -21,7 +21,8 @@
     "Add user supplied workbook exception import with governed page preview/commit on 2026-11-03; retain manual edits and source provenance",
     "Update order KPI details from user supplied Skill on 2026-11-06: five-part answers and Markdown detail tables; preserve confirmed quantity/plan formulas, provisional evidence and installed capability boundaries",
     "Unify amendment Agent query, quantity units and current page contract without lock/event-time gates on 2026-11-09; preserve received source provenance",
-    "Align on-time Agent Skill, semantic reference, full execution denominator and 18/12h boundaries with current dashboard; use fixed governed queries on 2026-11-09"
+    "Align on-time Agent Skill, semantic reference, full execution denominator and 18/12h boundaries with current dashboard; use fixed governed queries on 2026-11-09",
+    "Switch amendment cohort to latest-batch final loading completion lastshipmenttime; preserve quantity, exclusions and no-lock rules; distinguish WMS closing and missing shipment times on 2026-11-09"
   ],
   "files": [
     {
@@ -67,7 +68,7 @@
     {
       "path": "skills/operations-kpi-performance-analysis/SKILL.md",
       "sourceSha256": "4ffea0fb3eaa810250260429ebb090ea1becad8d4f22f8ddd6f25eb3069f7549",
-      "packagedSha256": "87c95e561eb16a8063b0c8bd408be9621a363234b574f7c17103561cdf5522f7",
+      "packagedSha256": "3508b7c42dea252b6916897e0f6bf7a390ef4e849b981f6e6de06338d9320c1e",
       "sourceFileName": "operations-kpi-performance-analysis/SKILL.md"
     },
     {
@@ -83,7 +84,7 @@
     {
       "path": "skills/fulfillment-query-orchestrator/references/订单工作台及订单履约语义.md",
       "sourceSha256": "2d623d186b41ff83fd0080ea041ea9aa459e33779ebbb88bbbc1479bb4829ab8",
-      "packagedSha256": "6ce23c48ef01b0208f913a4a899ae4e6465e469c51839f093f65eb1eae5feae4",
+      "packagedSha256": "6195dcff938cb7fd7eefa759181e3bb61f95ac5349c4256591c5df3873fb4ba0",
       "archivePath": "skills/fulfillment-query-orchestrator/references/Φ«óσìòσ╖ÑΣ╜£σÅ░σÅèΦ«óσìòσ▒Ñτ║ªΦ»¡Σ╣ë.md",
       "sourceArchiveFileName": "订单履约skill.zip"
     },
@@ -91,22 +92,22 @@
       "path": "skills/operations-order-kpi-details/SKILL.md",
       "sourceSha256": "80d00880ebd3fb9c6e3d2febc9f2fa8919b6a231b27d717647d9258467812726",
       "sourceFileName": "operations-order-kpi-details/SKILL.md",
-      "packagedSha256": "ddc60a056dbd475f8a21a89efcd4239adbbf8abb3f78cc6d4d84971bd41abfdd"
+      "packagedSha256": "2580d58a9cfc51e6aebb3c7cb07c94f060a384be6c8365ddd5c204893227908b"
     },
     {
       "path": "agent-prompt.md",
       "sourceSha256": "ce3d4ffe0f78d6a55c7b27a92731dbce2acfd0629c32e0c15803eff4f46678b3",
-      "packagedSha256": "3ff22049290d049e3e03d9286cfd28cfdf710000adf5b9b90b3395226b938767"
+      "packagedSha256": "6fa9d60481f4cc7b7c90fa367feae2319e994b0d8999de74493421b59c390948"
     },
     {
       "path": "prompt.json",
       "sourceSha256": "765f0fc52c0702b4d5d49954e3e152df9b97ba482600e7e1407c3f1bf7b43ad1",
-      "packagedSha256": "caf0d877b67aae9f138d647a9404db4b5e8f6821e2575e6ecbbba8b5dafa8c56"
+      "packagedSha256": "fc892bc02ff90f4ad3a811e55795e8f82eae30d607c35047e023597eb15e32fa"
     },
     {
       "path": "capability.json",
       "sourceSha256": "0b7d00700c920d02c21d503ebeae4a3cd74e32b3e5e7abc62c5977ec17baada6",
-      "packagedSha256": "f428b82e8e18eb704d3bec8836465d95b27b18c084941bbee0ef100315bb8a15"
+      "packagedSha256": "9b7b4349f2aa04555340edf5b9263df685f26b499a013f1731d83d7516a048c9"
     },
     {
       "path": "skills/operations-workbook-exception-import/SKILL.md",
@@ -123,6 +124,12 @@
       "sourceSha256": "bf25d72107c2fcb41b12efdcc02712679c4f470752e7a06f454bfa8adeb8a768",
       "packagedSha256": "2fa02a0c9c0371fda1c1094e4dfa4c5c391c79db67cb5ee56a7a83e2d839f57b",
       "sourceFileName": "Derived from current Workbench ontimeMetricContract, user-authorized alignment 2026-11-09"
+    },
+    {
+      "path": "skills/operations-kpi-performance-analysis/references/amendment-contract.md",
+      "sourceSha256": "5d90a9ca4073ec206ebb1cab525c1514f4e6050d7637ccfc50be3f3fd51e827a",
+      "packagedSha256": "5be7e6daa801ade080674c6e8e12afb41a8b5effa40f02b17e3a07b681184be2",
+      "sourceFileName": "Derived from user-confirmed shipment cohort and live published Cube member definitions, 2026-11-09"
     }
   ]
 }
