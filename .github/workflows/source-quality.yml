@@ -80,7 +80,7 @@ jobs:
           ref: ${{ needs.source-plan.outputs.workbench-sha }}
           path: candidate/dsh-agent-workbench
           fetch-depth: 0
-          token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+          token: ${{ github.token }}
           persist-credentials: false
       - uses: actions/checkout@v7
         if: needs.source-plan.outputs.engineering == 'true'
@@ -89,7 +89,7 @@ jobs:
           ref: ${{ needs.source-plan.outputs.gea-sha }}
           path: candidate/dsh-gea-plugin
           fetch-depth: 0
-          token: ${{ secrets.PLUGIN_SPLIT_READ_TOKEN }}
+          token: ${{ github.token }}
           persist-credentials: false
       - name: Select affected behavior and type checks before preparation
         if: needs.source-plan.outputs.engineering == 'true'

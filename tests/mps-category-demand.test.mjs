@@ -120,3 +120,25 @@ test('同比零分母和无效年度跳过，真实零分子仍参与平均', ()
   assert.equal(factors().mom, null)
   assert.equal(factors().share, null)
 })
+
+test('同比给出两端年月、数量和排除原因，三组全部有效才齐备', () => {
+  const sample = fixture()
+  sample.historical.find(row => row.month === '2023-10').priorYearQuantity = 0
+  sample.historical.find(row => row.month === '2024-10').quantity = null
+  const factors = computeMpsCategoryDemand(sample).historical.find(row => row.month === '2026-10')
+  assert.equal(factors.yoyValidCount, 1)
+  assert.equal(factors.yoyComplete, false)
+  assert.deepEqual(
+    factors.years.map(row => [row.numeratorMonth, row.denominatorMonth]),
+    [
+      ['2025-10', '2024-10'],
+      ['2024-10', '2023-10'],
+      ['2023-10', '2022-10']
+    ]
+  )
+  assert.equal(factors.years[0].ratio, 1)
+  assert.equal(factors.years[0].valid, true)
+  assert.deepEqual(factors.years[0].excludedReasons, [])
+  assert.match(factors.years[1].excludedReasons.join(''), /分子/)
+  assert.match(factors.years[2].excludedReasons.join(''), /分母.*0/)
+})

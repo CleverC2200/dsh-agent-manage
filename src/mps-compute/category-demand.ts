@@ -48,21 +48,38 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
         const complete = rows.length > 0 && rows.every(row => row.valid) && new Set(rows.map(row => row.base)).size === rows.length
         const annual = [...new Set(rows.map(row => row.annualQuantity))]
         const quantity = complete ? sum(rows.map(row => row.quantity)) : null
+        const priorYearQuantity = complete ? sum(rows.map(row => row.priorYearQuantity)) : null
+        const excludedReasons = [
+          ...(!rows.length ? ['缺历史源记录'] : []),
+          ...(rows.some(row => !row.valid) ? ['历史源记录无效'] : []),
+          ...(new Set(rows.map(row => row.base)).size !== rows.length ? ['历史基地键重复'] : []),
+          ...(!finite(quantity) ? ['同比分子缺失或无效'] : []),
+          ...(!finite(priorYearQuantity) ? ['同比分母缺失或无效'] : priorYearQuantity <= 0 ? ['同比分母为0或负数'] : [])
+        ]
+        const ratio = divide(quantity, priorYearQuantity)
+        if (ratio === null && !excludedReasons.length) excludedReasons.push('同比比值超出有效范围')
         return {
           month: period,
+          numeratorMonth: period,
+          denominatorMonth: offset(period, -12),
           quantity,
-          priorYearQuantity: complete ? sum(rows.map(row => row.priorYearQuantity)) : null,
+          priorYearQuantity,
+          ratio,
+          valid: ratio !== null,
+          excludedReasons,
           priorMonthQuantity: complete ? sum(rows.map(row => row.priorMonthQuantity)) : null,
           annualQuantity: complete && annual.length === 1 && rows.every(row => row.fiscalYear) && new Set(rows.map(row => row.fiscalYear)).size === 1 ? (annual[0] ?? null) : null
         }
       })
-      const yoyYears = years.filter(year => divide(year.quantity, year.priorYearQuantity) !== null)
+      const yoyYears = years.filter(year => year.valid)
       return {
         category,
         month,
         years,
         yoyYears: yoyYears.map(year => year.month),
-        yoy: divide(sum(yoyYears.map(year => divide(year.quantity, year.priorYearQuantity))), yoyYears.length),
+        yoyValidCount: yoyYears.length,
+        yoyComplete: yoyYears.length === 3,
+        yoy: divide(sum(yoyYears.map(year => year.ratio)), yoyYears.length),
         mom: mean(years.map(year => divide(year.quantity, year.priorMonthQuantity))),
         share: mean(years.map(year => divide(year.quantity, year.annualQuantity)))
       }
