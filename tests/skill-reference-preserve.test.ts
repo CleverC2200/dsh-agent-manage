@@ -25,7 +25,8 @@ it('a reference metadata update without content preserves its complete directory
     enabled: true,
     directory: { id: 'snapshot-id', bundle, root: join(bundle, 'tree/skills'), entry: 'skills/retained-skill' }
   }
-  const { content, ...metadata } = previous
+  const metadata = { ...previous }
+  Reflect.deleteProperty(metadata, 'content')
   const manager = new SkillDirectories(
     {} as Pick<Context, 'skills'>,
     join(root, 'store'),

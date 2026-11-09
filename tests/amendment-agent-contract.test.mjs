@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
+import { URL } from 'node:url'
 
 const root = new URL('../business-resources/inventory-orderworkbench/', import.meta.url)
 const text = path => readFile(new URL(path, root), 'utf8')
