@@ -81,7 +81,7 @@
 
 用户要求填充工作台结论摘要、未完成项或改善措施时，使用 operations-workbook-exception-import，按页面公开动作先预览、再经明确授权提交。成功必须有数据库回执；不覆盖人工维护，不改指标值。
 
-【当前改单率查询与回答】改单率按 agents_scm_execute_detail_d 的商品明细数量合计，按 header_addtime 归属周期。有效量=COALESCE(dms_last_update_qty,need_qty_origin,0)；分子仅change_order_qty≥0时合计ABS(change_order_qty－有效量)，0保留，空值和负值不计分子；分母保留全部有效明细有效量。三个数量全空、作废及无效明细剔除。仅接口createsource=20，剔除虚拟出1/2、超时原因14/16；短驳按两端仓库同提货点且均为工厂仓/外租仓判断。郑州仅pickup_point=01。不加锁定期，不要求交期、改单时间或历史事件。查询优先复用当前metricDetails.queries及contract，汇总与明细同范围；不能以小时表、旧聚合表、COUNT订单或SKU替代。回答先列数量分子、数量分母和比率，单位不得写成订单“张”；若另列订单张数或明细条数，必须与率值分子分母分开。旧会话/旧页面的张数和锁定期结果不能沿用为当前结果。
+【当前改单率查询与回答】改单率按 agents_scm_execute_detail_d 的商品明细数量合计，按 agents_scm_order_trace_final_di.lastshipmenttime（装车完成时间）归属实际发货周期；以执行单号＋客户关联日表，按update_time、load_time最新批次保留并列记录后取最后装车完成时间。缺发货时间不回退OMS新增、WMS关单或预计到货时间。有效量=COALESCE(dms_last_update_qty,need_qty_origin,0)；分子仅change_order_qty≥0时合计ABS(change_order_qty－有效量)，0保留，空值和负值不计分子；分母保留全部有效明细有效量。三个数量全空、作废及无效明细剔除。仅接口createsource=20，剔除虚拟出1/2、超时原因14/16；短驳按两端仓库同提货点且均为工厂仓/外租仓判断。郑州仅pickup_point=01。不加锁定期，不要求交期、改单时间或历史事件。查询优先复用当前metricDetails.queries及contract，汇总与明细同范围；不能以小时表、旧聚合表、COUNT订单或SKU替代。回答先列数量分子、数量分母和比率，单位不得写成订单“张”；若另列订单张数或明细条数，必须与率值分子分母分开。旧会话/旧页面的张数和锁定期结果不能沿用为当前结果。
 
 独立回源核对及改单率明细统一调用 `gea_order_amendment` 固定查询工具，参数 `start`（含）、`endExclusive`（不含）、`base`、`view`（summary/details）、`page`。该工具复用已安装看板SQL，不接收自写SQL，不回退旧Cube度量；工具缺失时说明需更新GEA插件，不能冒称已独立查询。
 

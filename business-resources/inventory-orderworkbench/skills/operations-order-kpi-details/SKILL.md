@@ -169,9 +169,9 @@ description: '订单工作台指标明细：当用户查询作废率、改单率
 
 本期累计与本周单独列示，使用页面发布的周期边界、筛选范围与快照。页面evidence的有限明细不是完整清单，必须通过当前Agent授权查询取得同范围原始明细；不得从汇总拼造订单或商品行。只问简单数值时按用户问题直接回答；用户请求指标明细分析时采用上述五段式，缺失项写待确认，不虚构原因或建议。
 
-### 当前改单率数量口径
+### 当前改单率发货周期数量口径
 
-只读 ai_db.agents_scm_execute_detail_d，以 header_addtime 归属OMS创建周期。剔除作废订单，仅保留 detailstatus=10、is_stat=1 的明细；仅保留创建来源 createsource=20（接口），剔除 is_virtual 为1或2及 timeout_code 为14或16的记录。
+数量读取 ai_db.agents_scm_execute_detail_d，按 agents_scm_order_trace_final_di.lastshipmenttime（装车完成时间）归属实际发货周期；以执行单号＋客户关联日表，按update_time、load_time最新批次保留并列记录后取最后装车完成时间。缺发货时间不回退OMS新增、WMS关单或预计到货时间。剔除作废订单，仅保留 detailstatus=10、is_stat=1 的明细；仅保留创建来源 createsource=20（接口），剔除 is_virtual 为1或2及 timeout_code 为14或16的记录。
 
 短拨按真实仓库关系判定：通过 warehouseid 与 receive_wh 分别关联 agents_dim_bas_warehouse_d.warehouseid，双方 pickup_point 相同且双方 warehouse_classify 均为01（工厂成品仓）或02（工厂外租库）时剔除。不能用旧 is_short_transfer 标记或客户名称代替这组条件；受控目录未发布 pickup_point 时说明缺失字段，不把旧标记参考率当作完整新口径结果。
 
@@ -179,6 +179,6 @@ description: '订单工作台指标明细：当用户查询作废率、改单率
 
 回答中的分子、分母单位为商品数量，不能标成“张”或用订单覆盖数代替。优先使用当前 metricDetails.contract/queries；旧会话中的锁定期、小时表及张数结果不适用，旧页面快照先刷新，不用旧率拼接新明细。
 
-不再使用锁定期条件，不要求 requireddeliverytime 或 custchangetime 非空，不按月末锁定状态排除数量差。改单时间可作展示参考，不能用其空值判为未改单。当前日表重算创建周期不代表历史冻结快照。
+不再使用锁定期条件，不要求 requireddeliverytime 或 custchangetime 非空，不按月末锁定状态排除数量差。改单时间可作展示参考，不能用其空值判为未改单。改单率明细必须展示实际发货时间shipped_at；OMS新增时间仅为参考列。详细合同见[改单率当前合同](../operations-kpi-performance-analysis/references/amendment-contract.md)。当前发货周期仍读取当前数量状态，不代表历史冻结快照。
 
 独立回源核对及改单率明细统一调用 `gea_order_amendment` 固定查询工具，参数 `start`（含）、`endExclusive`（不含）、`base`、`view`（summary/details）、`page`。该工具复用已安装看板SQL，不接收自写SQL，不回退旧Cube度量；工具缺失时说明需更新GEA插件，不能冒称已独立查询。
