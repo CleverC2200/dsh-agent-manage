@@ -2,6 +2,20 @@ import type { MpsPlanInput, solveMpsPlan } from './plan.ts'
 import type { MpsQuantityRow } from './workflow.ts'
 import { resolveMpsRules, ruleProductionDays, ruleStopsResource } from './constraint-rules.ts'
 
+export interface MpsDemandIssue {
+  month: string
+  base: string
+  code: string
+  name: string
+  category: string
+  group: string
+  kind: string
+  reason: string
+  referenceCode: string
+  sourceTable: string
+  fields: string
+}
+
 const offset = (month: string, count: number) => {
   const date = new Date(`${month}-01T00:00:00Z`)
   date.setUTCMonth(date.getUTCMonth() + count)
@@ -94,20 +108,8 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
       categoryResources.set(group, [...(categoryResources.get(group) ?? []), row])
     }
   }
-  interface DemandIssue {
-    month: string
-    base: string
-    code: string
-    name: string
-    category: string
-    group: string
-    kind: string
-    reason: string
-    referenceCode: string
-    sourceTable: string
-    fields: string
-  }
-  const demandIssues: DemandIssue[] = plan.rows
+
+  const demandIssues: MpsDemandIssue[] = plan.rows
     .filter(row => row.demandTons === null)
     .map(row => {
       const categoryMissing = row.missing.demand.some(reason => reason.includes('大类需求'))
