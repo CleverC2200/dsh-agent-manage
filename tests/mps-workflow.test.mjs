@@ -263,7 +263,24 @@ test('合法调拨只使用发出基地剩余能力，无方向资格不生成�
   const result = solveMpsPlan(sample)
   const shipments = result.transfers.filter(row => row.month === '2026-12')
   assert.ok(Math.abs(shipments.reduce((sum, row) => sum + row.tons, 0) - 3) < 1e-7)
-  assert.ok(result.rows.filter(row => row.month === '2026-12').every(row => Math.abs(row.fulfillment - 0.8) < 1e-7))
+  assert.ok(result.rows.filter(row => row.month === '2026-12' && row.base === '甲').every(row => Math.abs(row.fulfillment - 0.8) < 1e-7))
+  assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity))
+})
+
+test('没有本地需求域的供给基地仍记录已知生产和调出，不伪造需求或库存', () => {
+  const sample = planInput()
+  sample.resources = [{ id: 'S', base: '乙', name: '供给隧道', kind: 'tunnel', dailyTons: 5 }]
+  sample.planCandidates = sample.products.map(row => ({ base: '乙', code: row.code, resourceId: 'S' }))
+  sample.unitWeights.push(...sample.products.map(row => ({ base: '乙', code: row.code, tonsPerPiece: 0.1 })))
+  sample.productionDays.push(...sample.categoryDemand.map(({ month }) => ({ base: '乙', month, days: 1 })))
+  sample.transferRoutes = sample.products.map(row => ({ from: '乙', to: '甲', code: row.code, month: sample.context.month }))
+  const result = solveMpsPlan(sample)
+  const production = result.rows.filter(row => row.month === sample.context.month && row.base === '乙')
+  assert.equal(production.length, 2)
+  assert.ok(Math.abs(production.reduce((sum, row) => sum + row.mainPlan, 0) - 50) < 1e-6)
+  assert.ok(Math.abs(production.reduce((sum, row) => sum + row.transferOut, 0) - 50) < 1e-6)
+  assert.ok(production.every(row => row.demand === null && row.closingInventory === null && row.fulfillment === null && row.planMissing.length))
+  assert.equal(result.rows.filter(row => row.base === '乙' && row.month !== sample.context.month).length, 0)
   assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity))
 })
 

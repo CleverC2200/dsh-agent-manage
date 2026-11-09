@@ -14,6 +14,8 @@ This partially supersedes the MPS execution portion of [received mock business r
 
 ## Alternatives considered
 
+**Expand the demand domain to account for supplier-only bases.** A producing base may have no local submission or historical demand. Expanding that domain would change split coefficients to repair a production-accounting omission. Instead, the constrained result materializes only allocated supplier production as partial rows, keeping the demand calculation unchanged.
+
 **Keep the old prototype calculations.** Their separate static inputs and weighted algorithm do not represent the approved two-share split or the current source records.
 
 **Wait for every table before connecting steps.** Missing model and inventory sources would block independent reads and known calculations. Nullable results retain each missing dependency while available values continue through the workflow.
