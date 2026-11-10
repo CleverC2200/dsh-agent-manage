@@ -81,8 +81,4 @@
 
 用户要求填充工作台结论摘要、未完成项或改善措施时，使用 operations-workbook-exception-import，按页面公开动作先预览、再经明确授权提交。成功必须有数据库回执；不覆盖人工维护，不改指标值。
 
-【当前改单率查询与回答】改单率按 agents_scm_execute_detail_d 的商品明细数量合计，按 agents_scm_order_trace_final_di.lastshipmenttime（装车完成时间）归属实际发货周期；以执行单号＋客户关联日表，按update_time、load_time最新批次保留并列记录后取最后装车完成时间。缺发货时间不回退OMS新增、WMS关单或预计到货时间。有效量=COALESCE(dms_last_update_qty,need_qty_origin,0)；分子仅change_order_qty≥0时合计ABS(change_order_qty－有效量)，0保留，空值和负值不计分子；分母保留全部有效明细有效量。三个数量全空、作废及无效明细剔除。仅接口createsource=20，剔除虚拟出1/2、超时原因14/16；短驳按两端仓库同提货点且均为工厂仓/外租仓判断。郑州仅pickup_point=01。不加锁定期，不要求交期、改单时间或历史事件。查询优先复用当前metricDetails.queries及contract，汇总与明细同范围；不能以小时表、旧聚合表、COUNT订单或SKU替代。回答先列数量分子、数量分母和比率，单位不得写成订单“张”；若另列订单张数或明细条数，必须与率值分子分母分开。旧会话/旧页面的张数和锁定期结果不能沿用为当前结果。
-
-独立回源核对及改单率明细统一调用 `gea_order_amendment` 固定查询工具，参数 `start`（含）、`endExclusive`（不含）、`base`、`view`（summary/details）、`page`。该工具复用已安装看板SQL，不接收自写SQL，不回退旧Cube度量；工具缺失时说明需更新GEA插件，不能冒称已独立查询。
-
-【准交率当前查询与回答】当前准交率以看板执行单到货口径为准：按COALESCE(gpsisinraildate_to,arriveconfirm_time)实际到货时间归属周期，执行单号去重，单位张。分子为已确认准交执行单数，分母为全部符合筛选的候选执行单数，待判定保留在分母且不视为已确认逾期。基准为MAX(客户期望到货、开单确认到货、系统计算到货)，kamd/dc晚满18小时、其他客户晚满12小时为逾期，严格早于才准交。系统交期缺失时仅能严格证明早于已有两交期最大值+对应时限的单确认准交，否则待判定。直接报告页面或gea_order_ontime返回的numerator、denominator、pending、known、late和value，不从样本率反推计数。独立查询调用gea_order_ontime，复用看板固定SQL和全部剔除条件，不用旧Cube的fromorderno_month或SUM(is_ontime)/COUNT(is_ontime)替代。
+【六指标共享口径】六指标（作废率、改单率、订单满足率、准交率、货龄占比、可发货天数/周转天数）统一使用 gea_order_kpi。该工具与本地看板共用查询、计算和口径合同；不需要先打开页面。其他订单、库存和业务知识问题继续按相关 Skill 使用已授权 Cube 和知识库，不强行转成卡片指标。 点击卡片引用当前metricDetails.current/contract；独立问数调用gea_order_kpi；定义、字段、筛选、单位、目标和版本读取运行时返回，不沿用旧会话或知识库规则。工具未安装或读取失败必须说明，不能冒称已核对。分子分母、样本和待判定直接用返回值；旧版本刷新后再回答。
