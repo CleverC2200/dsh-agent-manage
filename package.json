@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
   "description": "配置个人智能体、技能和 MCP 连接，管理原生预设与资源。",
-  "version": "0.6.3-company.70",
+  "version": "0.6.3-company.71",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -173,6 +173,7 @@
     "ajv": "^8.17.1",
     "decimal.js": "10.6.0",
     "fflate": "^0.8.3",
+    "javascript-lp-solver": "1.0.3",
     "js-yaml": "4.3.2",
     "smol-toml": "^1.8.0",
     "yaml": "^2.7.0",
