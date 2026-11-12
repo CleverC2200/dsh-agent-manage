@@ -104,7 +104,6 @@ function rowResult(row: RecordValue): RecordValue {
   }
 }
 
-/** Port of the suite's pure §5.5 calculator; no source verification, prices, network or business writes. */
 export function computeForecast(data: RecordValue): RecordValue {
   if (data.schema_version !== 1 || typeof data.data_mode !== 'string' || !['provided', 'mock', 'live'].includes(String(data.data_mode))) throw Error('INVALID_FORECAST_ENVELOPE')
   text(data.period_mapping_confirmation, 'period_mapping_confirmation')

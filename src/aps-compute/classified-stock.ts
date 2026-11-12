@@ -1,7 +1,6 @@
 import type { MetricData } from './metrics.js'
 import type { Scope } from './adapter.js'
 
-/** Display-only observation. Missing classification never yields a complete total or comparison. */
 export function classifiedStockObservation(data: MetricData | null | undefined, scope: Scope) {
   const section = data?.sections.find(section => section.id === 'stock')
   if (section?.status !== 'ready' || !(scope.category || scope.item || scope.material)) return null
@@ -14,9 +13,6 @@ export function classifiedStockObservation(data: MetricData | null | undefined, 
   return { value: matched.reduce((sum, row) => sum + (row.inventory as number), 0) / 10000, matchedRows: matched.length, unknownRows }
 }
 
-/** Matched SKU quantities are aggregated in SQL before grouping. Observation only:
- * coverage may differ between periods, so strict metrics and comparisons stay unchanged.
- */
 export function stockCoverageObservation(data: MetricData | null | undefined, base?: string) {
   const section = data?.sections.find(section => section.id === 'stock')
   if (section?.status !== 'ready') return null

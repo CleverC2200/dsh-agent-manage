@@ -11,4 +11,4 @@
 | 验证与双语维护                                          | 贡献规则和 [Agent Note 规则](../../.agents/notes/README.md)                                                      |
 | Git、提交与后续发行                                     | 贡献规则的提交类型；远端目标与发行范围按本票有效授权                                                             |
 
-原规范按原字节保存在 [历史规范](../history/agent-guidance-before-20261010/dsh-plugin-development-standard.md)。其中旧 CLI、私有 API、壳层回退、脚手架和操作批准流程属于原输入，不作为当前执行协议。现行业务资源、用户数据、权限、取消和释放语义继续按当前 owner 合同维护。
+原规范已移出工作树，原字节见 [历史规范](https://github.com/CleverC2200/dsh-agent-manage/blob/09749e8e03d3c6f6740747de775c66735175f9fd/docs/history/agent-guidance-before-20261010/dsh-plugin-development-standard.md)。其中旧 CLI、私有 API、壳层回退、脚手架和操作批准流程属于原输入，不作为当前执行协议。现行业务资源、用户数据、权限、取消和释放语义继续按当前 owner 合同维护。

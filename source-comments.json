@@ -1,0 +1,39 @@
+{
+  "assets": [
+    {
+      "path": "tests/fixtures",
+      "kind": "fixture",
+      "source": "tests/"
+    },
+    {
+      "path": "docs/history",
+      "kind": "historical-evidence",
+      "source": "Git history"
+    },
+    {
+      "path": "lib",
+      "kind": "generated",
+      "source": "scripts/build.mjs"
+    },
+    {
+      "path": "client",
+      "kind": "generated",
+      "source": "scripts/build.mjs"
+    }
+  ],
+  "manifests": [
+    {
+      "path": "business-resources/sinian-demand-forecast/SOURCE.json",
+      "root": "business-resources/sinian-demand-forecast"
+    },
+    {
+      "path": "business-resources/aps-client-profile/SOURCE.json",
+      "root": "business-resources/aps-client-profile"
+    },
+    {
+      "path": "business-resources/aps-client-profile/SOURCE.json",
+      "root": "business-resources/inventory-apsplan",
+      "adapted": ["skills/order-satisfaction-analysis/runtime-package.json"]
+    }
+  ]
+}

@@ -29,9 +29,6 @@ describe('Catalog application module', () => {
   })
 
   it('expires the user snapshot after its TTL so out-of-band edits become visible', async () => {
-    // Regression: the user snapshot was cached without a TTL, so a skill
-    // dropped into a local source's working tree stayed invisible until the
-    // next catalog mutation.
     const userRoot = await mkdtemp(join(tmpdir(), 'dsh-agent-plugins-catalog-ttl-'))
     await mkdir(join(userRoot, '.sources', 'demo'), { recursive: true })
     await cp(fixture, join(userRoot, '.sources', 'demo'), { recursive: true })
@@ -40,8 +37,7 @@ describe('Catalog application module', () => {
     await catalog.mergeSources([{ id: 'demo', url: 'https://example.test/demo.git' }])
     const before = await catalog.readUserCatalog()
     expect(before.suites[0]!.skills.map(skill => skill.name)).not.toContain('late-skill')
-    // Drop a new skill into the working tree out of band, then let the tiny
-    // TTL lapse (a macrotask gap suffices for a 10ms window).
+
     await mkdir(join(userRoot, '.sources', 'demo', 'skills', 'late'), { recursive: true })
     await writeFile(join(userRoot, '.sources', 'demo', 'skills', 'late', 'SKILL.md'), '---\nname: late-skill\ndescription: late\n---\n')
     await new Promise(resolve => setTimeout(resolve, 20))

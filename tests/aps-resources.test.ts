@@ -61,7 +61,7 @@ it('selects original APS profile with unique Manage analysis sources and refuses
     expect(agent.skills.map(skill => skill.name).sort()).toEqual([...skills].sort())
     expect(agent.skills.every(skill => skill.enabled)).toBe(true)
     expect((registered.at(-1)!.plugins[0].config as { prefix: string }).prefix).toContain(profile.persona)
-    // Existing personal instructions remain an explicit override after a restart.
+
     await resources.savePlugin({ id: agent.id, prompt: 'Personal instructions to preserve', skills: [] })
     const restarted = new BusinessResources(host as unknown as ConstructorParameters<typeof BusinessResources>[0], join(temporary, 'selected.json'))
     await restarted.load()

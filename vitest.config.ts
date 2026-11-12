@@ -9,8 +9,7 @@ export default defineConfig({
     exclude: [...Object.keys(presetLanes.client), ...Object.keys(presetLanes.gea), ...presetHostHelpers],
     environment: 'node',
     testTimeout: 30_000,
-    // Serial execution: several tests share fixture directories and global
-    // React/Vitest state; parallel file runs cause intermittent failures.
+
     fileParallelism: false,
     server: {
       deps: {

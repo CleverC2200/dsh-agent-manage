@@ -10,7 +10,7 @@ import { UserAgents } from '../src/runtime/user-agents.js'
 import { agentOn, presetHarness } from './core-preset-harness.js'
 
 const opened = vi.hoisted(() => [] as URL[])
-// The native browser launch is the external effect. MCP, OAuth and the loopback callback remain real.
+
 vi.mock('node:child_process', async importOriginal => {
   const original = await importOriginal<typeof import('node:child_process')>()
   return {

@@ -1,5 +1,3 @@
-# dsh bundle patch: inserts this plugin into a profile's layer stack.
-# The bundle default remains below the user's volatile selectedDefault.
 - id: agent-preset-registry
   config:
     default: auto-negotiation

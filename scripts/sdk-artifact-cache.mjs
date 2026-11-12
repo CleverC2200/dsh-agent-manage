@@ -1,4 +1,3 @@
-/** Cache produced SDK bytes; source, locks, platform and consumer admission remain authoritative. */
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync, appendFileSync, readdirSync, existsSync, lstatSync, realpathSync } from 'node:fs'
 import { resolve, dirname, relative } from 'node:path'
@@ -14,7 +13,7 @@ function artifactRoots(core) {
     .filter(file => /^(?:packages|vendor|apps|native)\//.test(file) && !file.includes('/node_modules/'))
     .map(file => resolve(core, dirname(file), 'lib'))
 }
-/** Concrete roots avoid glob traversal of the installed dependency graph during cache upload. */
+
 export function sdkCachePaths(core) {
   const paths = [...artifactRoots(core), ...['artifacts', 'web', 'flock'].map(name => resolve(core, `.git/dsh-sdk-${name}.json`)), resolve(core, 'apps/web/dist')]
   const native = resolve(core, `native/system/packages/${process.platform}-${process.arch}`)

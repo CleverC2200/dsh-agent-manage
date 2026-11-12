@@ -1,4 +1,3 @@
-/** Selected Skill Session crosses real GEA pre-step and system-prompt hooks. */
 import { expect, it, onTestFinished } from 'vitest'
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'

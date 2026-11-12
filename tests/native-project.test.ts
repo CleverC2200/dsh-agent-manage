@@ -6,7 +6,6 @@ import { discoverSourceList } from '../src/catalog/source-catalog.js'
 import { Catalog } from '../src/application/catalog.js'
 import { SuiteSkillProvider, SUITE_PROJECT_SOURCE } from '../src/runtime/skills-provider.js'
 
-/** Body for a `greet` skill with one description. */
 const skillMd = (description: string): string => `---
 name: greet
 description: ${description}
@@ -15,7 +14,6 @@ description: ${description}
 Greet the user.
 `
 
-/** Body for a `second` skill (used to mutate a project mid-test). */
 const secondSkillMd = `---
 name: second
 description: A second skill.
@@ -24,14 +22,12 @@ description: A second skill.
 Second body.
 `
 
-/** Create a project root with a Claude Code native layout carrying one skill. */
 async function createNativeProject(projectRoot: string, description = 'Native project greet skill.'): Promise<void> {
   await mkdir(join(projectRoot, '.git'), { recursive: true })
   await mkdir(join(projectRoot, '.claude', 'skills', 'greet'), { recursive: true })
   await writeFile(join(projectRoot, '.claude', 'skills', 'greet', 'SKILL.md'), skillMd(description), 'utf8')
 }
 
-/** Create a user dimension with one enabled suite shipping a skill of the same name. */
 async function createUserDimensionWithGreet(userRoot: string): Promise<void> {
   const suiteRoot = join(userRoot, '.sources', 'demo', 'greet-suite')
   await mkdir(join(suiteRoot, 'skills', 'greet'), { recursive: true })
@@ -137,13 +133,11 @@ describe('project snapshot caching', () => {
     const first = await manager.readProjectCatalog(projectRoot)
     expect(first.suites).toHaveLength(1)
 
-    // Mutate the project's native skill set; the cached snapshot must not see it.
     await mkdir(join(projectRoot, '.claude', 'skills', 'second'), { recursive: true })
     await writeFile(join(projectRoot, '.claude', 'skills', 'second', 'SKILL.md'), secondSkillMd, 'utf8')
     const cached = await manager.readProjectCatalog(projectRoot)
     expect(cached).toBe(first)
 
-    // After expiry, discovery sees the new skill.
     await new Promise(resolve => setTimeout(resolve, 5))
     const managerShortTtl = new Catalog({ userRoot, dataRoot: join(userRoot, 'data'), onChanged: () => {}, projectSnapshotTtlMs: 1 })
     await managerShortTtl.load()

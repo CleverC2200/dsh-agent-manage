@@ -16,9 +16,7 @@ describe('archive pre-extraction bounds', () => {
     const stage = await mkdtemp(join(tmpdir(), 'dsh-archive-tarbomb-'))
     const top = join(stage, 'top')
     await mkdir(top, { recursive: true })
-    // ARCHIVE_MAX_ENTRIES is 20k; creating that many files is slow — build
-    // 300 entries and pin the walk limit through a zip path instead, keeping
-    // this tar test for the write-then-walk contract.
+
     for (let i = 0; i < 300; i++) await writeFile(join(top, `f${i}.txt`), 'x'.repeat(10))
     const tarball = join(stage, 'payload.tar')
     await run('tar', ['-cf', tarball, '-C', stage, 'top'])
@@ -62,7 +60,7 @@ describe('archive pre-extraction bounds', () => {
 
   it('rejects a zip exceeding the entry-count limit', async () => {
     const stage = await mkdtemp(join(tmpdir(), 'dsh-archive-zipcount-'))
-    // Build a zip just over the 20k entry cap with tiny files.
+
     const entries: Record<string, Uint8Array> = {}
     for (let i = 0; i < ARCHIVE_MAX_ENTRIES + 10; i++) entries[`f${i}.txt`] = Buffer.from('x')
     const payload = join(stage, 'payload.zip')

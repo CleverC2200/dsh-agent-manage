@@ -1,7 +1,7 @@
 import type { StructureRow } from './full-chain-types.js'
 export const completeTotal = (values: (number | null | undefined)[]): number | null =>
   values.length && values.every(v => v != null && Number.isFinite(v)) ? values.reduce<number>((sum, v) => sum + v!, 0) : null
-/** Aggregate only additive evidence; never average turnover ratios or merge customer units. */
+
 export function summarizeStructure(rows: StructureRow[], key: string, label: string): StructureRow {
   const first = rows[0]
   const currentQty = rows.reduce((sum, r) => sum + r.currentQty, 0)

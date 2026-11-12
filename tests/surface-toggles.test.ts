@@ -118,7 +118,7 @@ describe('surface filtering at runtime', () => {
     const reconciler = new RuntimeReconciler({} as Context, join(userRoot, 'data'))
     const enabled = (await manager.readUserCatalog()).enabledSuites
     const diagnostics = await reconciler.reconcile(enabled)
-    // The disabled suite's servers never even reach the mount adapter.
+
     expect(diagnostics.mcp.filter(diagnostic => diagnostic.suiteId === 'v1-suite')).toEqual([])
   })
 })

@@ -2,7 +2,7 @@ type PolicyPeriod = { start?: string; end?: string }
 export type DealerPolicyScope = PolicyPeriod & { productCode: string; verifiedPickupCodes?: string[]; pickupCode?: string }
 export type DealerPolicy = PolicyPeriod & { mock?: boolean; customerCode: string; verifiedPickupCodes?: string[]; scopes?: DealerPolicyScope[] }
 export type DealerOrderRow = { quantity: number; unitPrice?: number | null }
-/** Browser-only counterpart of the original commerce policy guard. No inferred discounts. */
+
 export function applicablePolicies<T extends DealerPolicy>(policies: T[], customerCode: string, sku: string, pickupCode: string, now = new Date()) {
   const date = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',

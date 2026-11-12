@@ -1,8 +1,3 @@
-/**
- * Tests for the download-region routing: setting narrowing, locale-based
- * auto resolution, and the GitHub clone-URL rewrite (China mirror prefix,
- * env escape hatch, pass-through for everything else).
- */
 import { describe, expect, it } from 'vitest'
 import { githubCloneUrl, narrowDownloadRegion, resolveRegion } from '../src/runtime/regions.js'
 
@@ -53,7 +48,7 @@ describe('githubCloneUrl', () => {
   it('honors the DSH_MARKET_GITHUB_PROXY escape hatch', () => {
     const env = { DSH_MARKET_GITHUB_PROXY: 'https://my-proxy.example/' }
     expect(githubCloneUrl('china', GITHUB, env)).toBe('https://my-proxy.example/' + GITHUB)
-    // The global region ignores the proxy: it routes direct.
+
     expect(githubCloneUrl('global', GITHUB, env)).toBe(GITHUB)
   })
 })

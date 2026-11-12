@@ -1,4 +1,3 @@
-/** Actual Workbench selection and official drafts, with the shared real Host wire. */
 import { expect, it } from 'vitest'
 import { resourceClientFixture } from './resource-client-fixture.js'
 

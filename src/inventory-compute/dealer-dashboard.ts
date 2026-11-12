@@ -102,7 +102,6 @@ function fuseRulesFrom(config: Pick<BizRuleFile, 'default'> | Record<string, unk
 }
 
 export function loadFuseRules(config = loadBizRuleFile('fuse-rules')) {
-  // 与 Agent 共用 fuse-rules.json；文件、规则项均需同时满足生效状态和有效期。
   if (!isActiveBizRuleFile(config)) return DISABLED_FUSE_RULES
   const rules = fuseRulesFrom(config)
   if (rules) return rules
@@ -116,12 +115,11 @@ function scopeMatches(rule: Record<string, unknown>, scope: RuleScope) {
   const material = String(rule.material_code ?? rule.sku_code ?? '').trim()
   if (customer && customer !== scope.customerCode) return false
   if (material && material !== scope.materialCode) return false
-  // 当前工作台没有品类/标签字段，不能将该层级规则误匹配为任意 SKU。
+
   return !['material_group', 'category', 'product_label'].some(key => String(rule[key] ?? '').trim())
 }
 
 function fuseRuleRank(rule: Record<string, unknown>) {
-  // 与 biz_rule_config._rule_specificity 保持同一优先级。
   return (
     (
       {
@@ -319,7 +317,6 @@ export type DealerCategoryInventorySummary = {
 }
 
 export type DealerDashboardRecord = {
-  // Only populated from verified batch-expiry / effective-transit facts.
   verifiedNearExpiryInventory?: number | null
   verifiedEffectiveInTransit?: number | null
   id: string
@@ -342,7 +339,7 @@ export type DealerDashboardRecord = {
   agingStatus: string | null
   suggestedQuantity: number
   budgetRate: number | null
-  // Keep source nulls for company products; legacy inventory metrics use numeric defaults.
+
   publishedInTransit?: number | null
   publishedSuggestedQuantity?: number | null
   plannedQtyRate: number | null
@@ -556,7 +553,6 @@ export function dedupeRows(rows: CubeRow[]) {
   return { rows: [...seen.values()], dropped, duplicateKeys }
 }
 
-/** BIZ-FILTER-06 / BIZ-CHECK-02: preserve missing values instead of coercing them to 0. */
 function dataIssuesFor(row: CubeRow, duplicate: boolean) {
   const issues: string[] = []
   const stock = nullableNumber(row[`${cube}.stock_qty`])
@@ -571,8 +567,7 @@ function dataIssuesFor(row: CubeRow, duplicate: boolean) {
   else if (target < 0) issues.push('目标库存为负')
   if (averageAge == null) issues.push('平均货龄缺失')
   else if (averageAge < 0) issues.push('平均货龄为负')
-  // Cube may already aggregate identical detail dimensions into one response
-  // row. `record_count > 1` keeps that duplicate signal visible as well.
+
   if (duplicate || numberOf(row[`${cube}.record_count`]) > 1) issues.push('主粒度重复')
   return issues
 }
@@ -734,7 +729,7 @@ export function withRatio(rows: DealerAgingRow[]): Array<DealerAgingRow & { rati
     ratio: total > 0 ? row.finalQty / total : null
   }))
 }
-/** Compute records and coverage from the caller's already-scoped rows; performs no reads or authorization. */
+
 export function summarizeDealerDashboard(input: {
   rows: CubeRow[]
   inventoryDailyRows: CubeRow[]

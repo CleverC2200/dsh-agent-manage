@@ -1,4 +1,3 @@
-/** Cross-repository lane: input checkouts are explicit and missing inputs fail. */
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'

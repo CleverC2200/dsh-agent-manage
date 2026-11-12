@@ -1,4 +1,3 @@
-/** Mount the selected official Conversation's store/input lifecycle, including saved drafts. */
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { onTestFinished } from 'vitest'
@@ -8,18 +7,15 @@ import { DefaultConversationViews } from '../../../official-latest-standard/pack
 import type { InputHub } from '../../../official-latest-standard/packages/client/ui-conversation/src/client/input/hub.ts'
 import type { SessionBinding } from '@deepseek-ai/dsh-client-sessions/client'
 
-/** A string is a declared draft input on both registered official releases. */
 export function saveConversationDraft(sessionId: string, text: string): void {
   createConversationStore().create(sessionId).actions.setDraft(text)
 }
 
-/** Read through the selected official store, preserving its declared persisted shape. */
 export function storedConversationDraftText(sessionId: string): string {
   const draft = createConversationStore().create(sessionId).getSnapshot().draft
   return typeof draft === 'string' ? draft : draft.text
 }
 
-/** The real view's mount effect owns rc.2 hydration and both releases' persistence. */
 export async function mountConversationDraft(hub: InputHub, binding: SessionBinding): Promise<void> {
   const store = createConversationStore().create(binding.sessionId)
   const input = hub.for(binding.ctx)

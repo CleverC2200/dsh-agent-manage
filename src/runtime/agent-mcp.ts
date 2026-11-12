@@ -31,10 +31,6 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Personal MCP membership, persistence and scoped execution share this owner.
- * Definitions use Catalog.runtime; every managed namespace is masked before tools register. A mutation
- * only accepts personal Agent IDs known by UserAgents, never caller provenance.
- */
 export class AgentMcp {
   private definitions: Definition[] = []
   private associations: Association[] = []
@@ -69,7 +65,6 @@ export class AgentMcp {
     for (const event of ['tools/change', 'agent/created', 'agent/disposed', 'agent-preset/selected'] as const) this.stop.push(ctx.on(event, () => this.syncMasks()))
   }
 
-  /** Each Agent/connection gets a revocable scope; the shared transport stays mounted. */
   executionScope(subject: { ctx?: Context } | undefined, serverName: string): { signal: AbortSignal; validate(): void } | undefined {
     const connection = this.definitions.find(row => deriveServerName(suiteId, row.serverId) === serverName)
     if (!connection) return undefined
@@ -116,7 +111,6 @@ export class AgentMcp {
     this.syncMasks()
   }
 
-  /** Catalog owns availability. Re-evaluate it on source changes and every dispatch. */
   setSourceAvailability(read: (source: AgentSourceBaseline) => boolean): void {
     this.sourceAvailable = read
     this.sourceAvailabilityChanged()
@@ -172,7 +166,6 @@ export class AgentMcp {
     return this.saveDefinition(save.parse(input))
   }
 
-  /** Internal source import. Root comes from the Host's resolved checkout, never HTTP provenance. */
   importSource(input: {
     agentId: string
     connectionId?: string
@@ -192,7 +185,7 @@ export class AgentMcp {
       const previous = value.connectionId ? this.associated(value.agentId, value.connectionId) : undefined
       if (previous && previous.serverId !== value.serverId) throw Error('MCP_SERVER_ID_IMMUTABLE')
       if (this.definitions.some(row => row.serverId === value.serverId && row.connectionId !== previous?.connectionId)) throw Error('MCP_SERVER_ID_EXISTS')
-      // Validate creates before exposing membership. Edits use runtime's redacted merge.
+
       const config = previous ? value.config : await validateServerMcp(sourceRoot ?? this.dataRoot, value.serverId, value.config)
       const connection: Definition = {
         connectionId: previous?.connectionId ?? randomUUID(),
@@ -206,7 +199,7 @@ export class AgentMcp {
         : [...this.associations, { agentId: value.agentId, connectionId: connection.connectionId, enabled: true, ...(staged ? { retired: true } : {}) }]
       const previousDefinitions = this.definitions
       const previousAssociations = this.associations
-      // Reserve the namespace fail-closed before runtime can register its first tool.
+
       this.definitions = definitions
       this.associations = associations
       try {
@@ -225,7 +218,6 @@ export class AgentMcp {
     })
   }
 
-  /** Source customization includes personal membership, switches, names and effective configs. */
   async sourceCustomized(agentId: string, references: NonNullable<AgentSourceBaseline['mcpReferences']>): Promise<boolean> {
     await this.queue
     const associations = this.associations.filter(row => row.agentId === agentId && !row.retired)
@@ -239,13 +231,11 @@ export class AgentMcp {
     return false
   }
 
-  /** Raw comparison stays Host-side; the original direct definition is the upstream baseline. */
   async sourceConfig(connectionId: string) {
     await this.queue
     return this.runtime.sourceSyncConfig(this.runtimeId(this.find(connectionId)))
   }
 
-  /** Retired source definitions remain mounted for the Core revisions that still retain them. */
   sourceRevision(agentId: string, connectionIds: string[]): Promise<void> {
     return this.write(async () => {
       const associations = this.associations.map(row =>
@@ -313,8 +303,6 @@ export class AgentMcp {
     this.closed = true
     this.syncMasks()
     await this.queue
-    // Keep masks and dispatch guard until Host teardown: shared runtime mounts
-    // can outlive UserAgents while its preset releases are still settling.
   }
 
   private requireAgent(id: string): UserAgentConfig {

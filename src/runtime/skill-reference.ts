@@ -1,11 +1,9 @@
-/** Read only linked references of Skills visible in the current caller workspace. */
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { resolve } from 'node:path'
 import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-fs'
 
-/** The existing Manage resource runtime owns this read-only tool; visibility comes from the official Skill registry. */
 export function mountSkillReferenceReader(host: Context): void {
   host.effect(() =>
     host.tools.register(

@@ -1,4 +1,3 @@
-/** Manage owns original resource loading, native publication and selected-id recovery. */
 import { z } from 'zod'
 import type { UserAgentSkill, UserAgentView } from '../contracts/user-agents.js'
 import { SkillDirectories } from './skill-directories.js'
@@ -23,25 +22,25 @@ export interface ExecutionProfile {
 export interface BusinessResourceDefinition {
   id: string
   label: string
-  /** Agent catalog metadata; the business page keeps its separate title. */
+
   presetName?: string
   order?: number
   description?: string
   root: string
   prompt?: string
-  /** Publish a validated preset when the enabled package registers, without selecting it or changing user defaults. */
+
   publishPreset?: boolean
   inheritSkills?: boolean
-  /** Owning capability declaration, for explicit references to existing analysis Skills. */
+
   capability?: string
-  /** A policy JSON file may contain several original profiles. */
+
   profileKey?: string
   profile: ExecutionProfile
-  /** Host-verified GEA Cube capability. Never populated from user/source imports. */
+
   cube?: boolean
   skillFiles?: Record<string, string>
   enabled?: boolean
-  /** Existing scoped resource-reference plugin, when required by this resource. */
+
   plugins?: Array<{ id: string; name: string }>
 }
 export interface ResourceSummary {
@@ -53,7 +52,7 @@ export interface ResourceSummary {
   enabled: boolean
   provider: string
   skills?: string[]
-  /** Validated selected page choices; labels come from the corresponding resource summaries. */
+
   interpreters?: readonly string[]
   missingSkills?: string[]
   error?: string
@@ -81,12 +80,10 @@ const customization = z
 type Customization = z.infer<typeof customization>
 const SKILL_PRESET = 'agent-resource-skill'
 
-/** The registry and resource discovery project the same trusted Agent metadata. */
 function promptDescription(definition: BusinessResourceDefinition): string {
   return definition.description ?? `${definition.profile.label}业务角色，支持上下文压缩、文件操作、规划、任务和协作；业务执行遵循当前身份与资源授权。`
 }
 
-/** Strict YAML and normalized Skill identity share one fail-closed metadata decision. */
 function skillMetadata(text: string, name: string): Exclude<ReturnType<typeof parseSkillFrontmatter>, string> | undefined {
   const record = parseFrontmatterRecord(text)
   const parsed = parseSkillFrontmatter(text, name)
@@ -94,7 +91,6 @@ function skillMetadata(text: string, name: string): Exclude<ReturnType<typeof pa
   return record.disabled === true ? undefined : parsed
 }
 
-/** Resolve a source-controlled reference again at use time; symlinks cannot escape its owner. */
 async function resourceFile(root: string, reference: string): Promise<string> {
   if (!reference) throw Error('INVALID_AGENT_RESOURCE_REFERENCE')
   const base = await realpath(root)
@@ -163,7 +159,7 @@ export class BusinessResources {
     for (const id of state.selected) this.selected.add(id)
     if (this.selected.has(SKILL_PRESET)) await this.mountSkillPreset()
   }
-  /** Called by a live installed plugin owner, never by an HTTP-provided directory. */
+
   async register(definitions: readonly BusinessResourceDefinition[]): Promise<() => Promise<void>> {
     if (this.closed) throw Error('AGENT_RESOURCES_DISPOSED')
     const owner = new AbortController()
@@ -204,7 +200,6 @@ export class BusinessResources {
     }
   }
 
-  /** Host-only projection; owner identity and Consumer never cross the UI interface. */
   cubeSource(id: string): { sourceRef: string; consumerCode: string; signal: AbortSignal } | undefined {
     const entry = this.entries.get(id)
     if (
@@ -249,7 +244,7 @@ export class BusinessResources {
     }
     for (const listener of this.listeners) listener()
   }
-  /** Plugin MCP membership is fixed; the only supported mutation is enabling it. */
+
   async setCubeEnabled(id: string, enabled: boolean): Promise<void> {
     await this.serialize(async () => {
       const entry = this.entries.get(id)
@@ -270,7 +265,7 @@ export class BusinessResources {
       this.changed()
     })
   }
-  /** Explicit copy contains only original instructions and permitted resource references. */
+
   async copyable(id: string): Promise<{
     name: string
     description: string
@@ -303,7 +298,7 @@ export class BusinessResources {
       ...(d.cube ? { cube: { sourceRef: id, enabled: !!this.cubeSource(id) } } : {})
     }
   }
-  /** All trusted prompt declarations, including non-Cube Agents, use their original preset identity. */
+
   async pluginAgents(): Promise<UserAgentView[]> {
     return Promise.all([...this.entries.values()].filter(entry => entry.definition.prompt && !entry.owner.signal.aborted).map(entry => this.pluginAgent(entry.definition.id)))
   }
@@ -409,7 +404,7 @@ export class BusinessResources {
       }
     })
   }
-  /** Only a selected, validated original profile can contribute extra page interpreters. */
+
   interpreters(id: string): readonly string[] {
     const entry = this.entries.get(id)
     return entry?.interpreters
@@ -737,7 +732,7 @@ export class BusinessResources {
       return undefined
     }
   }
-  /** Retain the disposer and resource owner until Core confirms release. */
+
   private async unmount(id: string): Promise<void> {
     const dispose = this.mounted.get(id)
     if (!dispose) return

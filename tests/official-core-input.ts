@@ -1,4 +1,3 @@
-/** Tests load every official module from the caller's single selected Core. */
 import { readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import z from 'zod'
@@ -27,7 +26,6 @@ for (const group of ['vendor', 'packages']) {
   }
 }
 
-/** Resolve the selected Core's own public export, never a package from another SDK. */
 export function officialModulePath(name: string): string {
   const id = name.split('/').slice(0, 2).join('/')
   const pkg = packages.get(id)
@@ -41,7 +39,6 @@ export function officialModulePath(name: string): string {
   return realpathSync(resolve(pkg.root, path))
 }
 
-/** Native Host exports preserve the same module identity as the Loader harness. */
 export function officialHostAliases(): { find: RegExp; replacement: string }[] {
   const aliases: { find: RegExp; replacement: string }[] = []
   for (const [id, { root, manifest }] of packages) {

@@ -1,4 +1,3 @@
-/** Full Manage cold starts use the shipped Loader, Connection and durable Session APIs. */
 import { execFile } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, rm, writeFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -56,7 +55,6 @@ if (!childHome) {
   })
 } else {
   it('serves the restored Skill through public Fetch and preserves the previous durable Session', async () => {
-    // The parent sets both homes before Vitest imports any Manage/Core module.
     const { agentOn, completion, history, official, presetHarness } = await import('./core-preset-harness.js')
     const index = join(childHome, 'agent-plugins/data/selected-resources.json')
     if (mode?.startsWith('legacy-')) {
@@ -125,8 +123,7 @@ if (!childHome) {
               if (name === '@deepseek-ai/dsh-agent-preset' && !gatedHosts.has(runtime)) {
                 gatedHosts.add(runtime)
                 gates++
-                // The first shipped declaration is standard. Gate only its real
-                // module import; other official modes and providers start normally.
+
                 await new Promise<void>(release => {
                   const stop = runtime.on('internal/status', fiber => {
                     if (fiber.ctx.fiber.entry?.options.id !== 'dsh-agent-manage' || fiber.state !== 2) return
@@ -134,8 +131,7 @@ if (!childHome) {
                     release()
                   })
                 })
-                // Exercise the public Skill discovery and resource Fetch interfaces
-                // while the standard module remains gated. No polling or timer.
+
                 await new Promise<void>((resolveProbe, rejectProbe) => {
                   runtime.inject(['skills', 'connection'], async host => {
                     try {

@@ -15,7 +15,20 @@ export default tseslint.config(
     }
   },
   {
-    files: ['src/application/catalog.ts'],
+    files: [
+      'src/application/catalog.ts',
+      'src/application/details.ts',
+      'src/application/project-agent-roles.ts',
+      'src/catalog/manifests.ts',
+      'src/catalog/source-catalog.ts',
+      'src/catalog/surfaces.ts',
+      'src/client/McpPluginCard.tsx',
+      'src/runtime/forecast-source.ts',
+      'src/runtime/hooks-mounts.ts',
+      'src/runtime/lsp-mounts.ts',
+      'src/runtime/mcp-client/connection.ts',
+      'src/runtime/mcp-mounts.ts'
+    ],
     rules: {
       'no-empty': ['error', { allowEmptyCatch: true }]
     }

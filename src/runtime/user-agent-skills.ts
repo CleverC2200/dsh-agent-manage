@@ -24,7 +24,6 @@ export function apply(ctx: Context, config: { skills: UserAgentSkill[]; inheritS
     return {
       name: provider,
       async list(options) {
-        // Explicitly read the global source layer, never recursively read this preset scope.
         const sources = await ctx.skills.list({ cwd: options.cwd, signal: options.signal })
         let complete = true
         const candidates: SkillCandidate[] = sources.map(source => {

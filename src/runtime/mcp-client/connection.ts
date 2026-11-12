@@ -1,27 +1,3 @@
-/** 文件作用：管理 MCP 连接代际、断线重连、稳定窗口和失败关闭状态。 */
-/**
- * Connection supervisor: owns the MCP client/transport generations for one
- * bridge instance, keeps the harness tool registry in sync with the live
- * generation, and — when the connection drops — restarts the configured
- * server with bounded exponential backoff.
- *
- * One outage shares one attempt budget (`maxAttempts` consecutive failed
- * attempts, delays doubling from `initialDelayMs` up to `maxDelayMs`). A
- * connection that stays up past the stability window closes the outage, so
- * the next disconnect starts a fresh budget while a crash-looping server —
- * even one whose connects briefly succeed — still exhausts the cap instead of
- * restarting forever. Exhaustion unregisters the server's tools and stops;
- * disposal (including HMR) is the only way back from that state.
- *
- * Ported from the harness `dsh-mcp-client` supervisor (including the OAuth
- * browser-leg hold: a failed initialize during a pending browser
- * authorization holds the generation open — up to the loopback callback
- * budget — instead of tearing down the authorization the user is mid-way
- * through approving).
- *
- * @module runtime/mcp-client/connection
- */
-
 import type { McpConnectionState } from '../../contracts/mcp-status.js'
 import type { LoopbackOAuthClientProvider, AuthorizationState } from './oauth.js'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -32,19 +8,16 @@ import { syncTools } from './tools.js'
 import type { ToolBridgeOptions, ToolDisposers, ToolHost } from './tools.js'
 import type { Config } from './config.js'
 
-/** Automatic reconnect policy for one MCP server connection. */
 export interface ReconnectConfig {
-  /** Reconnect automatically after a lost connection (default true). */
   enabled?: boolean
-  /** First reconnect delay in milliseconds; doubles per consecutive failed attempt (default 500). */
+
   initialDelayMs?: number
-  /** Backoff ceiling in milliseconds; also the uptime after which the attempt budget resets (default 30000). */
+
   maxDelayMs?: number
-  /** Consecutive failed attempts per outage before giving up for good (default 10). */
+
   maxAttempts?: number
 }
 
-/** Defaults shared by the config and {@link resolveReconnectPolicy}. */
 export const RECONNECT_DEFAULTS: Required<ReconnectConfig> = Object.freeze({
   enabled: true,
   initialDelayMs: 500,
@@ -52,25 +25,10 @@ export const RECONNECT_DEFAULTS: Required<ReconnectConfig> = Object.freeze({
   maxAttempts: 10
 })
 
-// The SDK's stdio transport owns two two-second termination grace periods.
-// Keep one additional second for the process-close event that proves the old
-// generation is gone; timing out fails closed instead of overlapping children.
 const GENERATION_CLOSE_TIMEOUT_MS = 5_000
 
-/** Fully resolved reconnect policy captured at plugin load. */
 export type ResolvedReconnectPolicy = Readonly<Required<ReconnectConfig>>
 
-/**
- * The one explicit resolve step from raw reconnect config to the policy the
- * supervisor runs. Programmatic construction bypasses any schema layer, so
- * every default and bound is re-judged here — misconfiguration fails the
- * bridge instance at load.
- *
- * @param config - Raw `reconnect` config; omission uses the defaults.
- * @param path - Diagnostic prefix naming the config location in thrown messages.
- * @returns The frozen resolved policy.
- */
-/** 将用户重连设置裁剪到安全范围，生成稳定的退避策略。 */
 export function resolveReconnectPolicy(config: ReconnectConfig | undefined, path: string): ResolvedReconnectPolicy {
   if (config !== undefined) {
     for (const key of Object.keys(config)) {
@@ -96,43 +54,18 @@ export function resolveReconnectPolicy(config: ReconnectConfig | undefined, path
   return Object.freeze({ enabled, initialDelayMs, maxDelayMs, maxAttempts })
 }
 
-/** Result from the initial connection attempt, for startup-await semantics. */
 export interface ConnectionOutcome {
-  /** If the initial connection or tool sync failed, the error; otherwise absent. */
   error?: unknown
 }
 
-/** Handle for one bridge instance's supervised connection. */
 export interface ConnectionHandle {
-  /**
-   * Settles when the first attempt completes or waits for browser approval.
-   * Read state() to distinguish pending approval from connection success.
-   * The supervisor enters its reconnect loop regardless; the caller decides
-   * whether a failed startup is fatal via `failOnStartupError`.
-   */
   ready: Promise<ConnectionOutcome>
   state(): McpConnectionState
   cancelAuthorization(): void
-  /**
-   * Stop reconnection, close the live client, wait for the in-flight attempt
-   * and queued tool syncs to quiesce, then unregister every tool this server
-   * still owns.
-   */
+
   dispose(): Promise<void>
 }
 
-/**
- * Start the supervised connection for one MCP server and keep it alive per
- * the reconnect policy.
- *
- * @param host - The bridge host providing the tool registry and logger.
- * @param config - Resolved bridge config selecting the transport and server identity.
- * @param policy - Resolved reconnect policy from {@link resolveReconnectPolicy}.
- * @param credentials - The composition's credential store, when mounted; OAuth
- *   state persists only when it is.
- * @returns Handle with a `ready` promise for startup-await and a `dispose` for teardown.
- */
-/** 启动连接监督器：维护代际、工具同步、稳定窗口和有界断线重连。 */
 export function startConnection(host: ToolHost, config: Config, policy: ResolvedReconnectPolicy, credentials?: unknown): ConnectionHandle {
   const label = `mcp-client(${config.serverName})`
   const opts: ToolBridgeOptions = {
@@ -143,52 +76,41 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
     ...(config.disabledTools === undefined ? {} : { disabledTools: config.disabledTools }),
     ...(config.startupTimeoutMs === undefined ? {} : { startupTimeoutMs: config.startupTimeoutMs })
   }
-  // The initial sync uses 'throw' when failOnStartupError is configured, so
-  // a registration conflict propagates to the startup-await path. Re-syncs
-  // and reconnect syncs always contain conflicts.
+
   const startupOpts: ToolBridgeOptions = config.failOnStartupError ? { ...opts, registrationFailure: 'throw' } : opts
 
   let disposed = false
   let authorizationState: AuthorizationState = 'idle'
   let authorizing: LoopbackOAuthClientProvider | undefined
   const authorizationStarted = Promise.withResolvers<ConnectionOutcome>()
-  /** Current generation: the connecting or connected client; undefined during backoff waits and after final failure. */
+
   let client: Client | undefined
-  /** Close signal paired with {@link client}; captured by dispose before current ownership is cleared. */
+
   let clientClosed: Promise<void> | undefined
-  /** Live tool registrations owned by this server; only {@link enqueueSync} and dispose swap it. */
+
   let disposers: ToolDisposers = new Map()
   let reconnectTimer: NodeJS.Timeout | undefined
-  /** Consecutive failed connection attempts within the current outage. */
+
   let failedAttempts = 0
-  /** When the current generation finished connect + initial sync; undefined while down. */
+
   let connectedAt: number | undefined
-  /** The real error from the first connection attempt, for startup-await diagnostics. */
+
   let firstAttemptError: unknown
 
-  /** A generation may act only while it is the current one on a live bridge. */
   const isCurrent = (generation: Client): boolean => !disposed && client === generation
 
-  /**
-   * Serializes every syncTools call — initial syncs and notification re-syncs
-   * across all generations — so two syncs can never interleave their
-   * dispose-previous/register-next swap (which would double-dispose one
-   * generation and leak another).
-   */
   let syncChain: Promise<void> = Promise.resolve()
-  /** 将工具同步串入当前连接代际，避免并发 listTools 覆盖注册表。 */
+
   function enqueueSync(generation: Client, syncOpts: ToolBridgeOptions = opts): Promise<void> {
     const run = syncChain.then(async () => {
       if (!isCurrent(generation)) return
       disposers = await syncTools(generation, host, syncOpts, disposers)
     })
-    // The chain tail must survive a failed sync; the enqueuing caller owns reporting.
+
     syncChain = run.catch(() => {})
     return run
   }
 
-  /** One disconnect decision per generation: the isCurrent guard makes racing close/error signals idempotent. */
-  /** 标记当前代际断开并触发一次重连调度，重复通知只处理一次。 */
   function generationDown(generation: Client): void {
     if (!isCurrent(generation)) return
     client = undefined
@@ -196,8 +118,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
     scheduleReconnect()
   }
 
-  /** Wait for the transport-owned close signal without letting a broken transport wedge teardown forever. */
-  /** 在稳定窗口内等待连接关闭，返回是否平稳存活到窗口结束。 */
   function waitForClose(closed: Promise<void>): Promise<boolean> {
     return new Promise(resolve => {
       const timeout = setTimeout(() => {
@@ -211,7 +131,6 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
     })
   }
 
-  /** 按共享失败预算计算下一次重连时间，耗尽后进入终止状态。 */
   function scheduleReconnect(): void {
     if (authorizationState === 'authorization-cancelled' || authorizationState === 'authorization-failed') return
     const lostEstablishedConnection = connectedAt !== undefined
@@ -222,14 +141,11 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       host.logger.error(`${label}: ${message}`)
       return
     }
-    // A connection that stayed up past the stability window (= maxDelayMs, the
-    // longest backoff spacing) ended the previous outage: start a fresh budget.
+
     if (connectedAt !== undefined && Date.now() - connectedAt >= policy.maxDelayMs) failedAttempts = 0
     connectedAt = undefined
     failedAttempts += 1
     if (failedAttempts > policy.maxAttempts) {
-      // Enqueue the give-up disposal so it cannot race an in-flight sync's
-      // phase-2 swap (which checks isCurrent inside the queue).
       syncChain = syncChain.then(() => {
         for (const dispose of disposers.values()) dispose()
         disposers = new Map()
@@ -246,47 +162,32 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       reconnectTimer = undefined
       settling = connectGeneration(false)
     }, delayMs)
-    // An armed reconnect timer must never hold the process open on its own.
+
     reconnectTimer.unref()
   }
 
-  /**
-   * One connection attempt: fresh transport + client (the MCP SDK binds a
-   * Protocol to one transport for life), connect, then queue the initial tool
-   * sync. The startup flag belongs to the attempt rather than the shared sync
-   * queue, so an early notification cannot consume strict startup semantics.
-   * Every failure funnels through {@link generationDown}; success arms the
-   * onclose-driven disconnect path. Never rejects.
-   *
-   * @param startup - Whether this is the bridge's activation attempt.
-   */
-  /** 创建一代 client/transport，完成初始化、通知监听和工具同步。 */
   async function connectGeneration(startup: boolean): Promise<void> {
     const generation = new Client({ name: 'dsh-agent-plugins-market', version: '0.1.0' }, { capabilities: {} })
     const closed: PromiseWithResolvers<void> = Promise.withResolvers()
     let attemptSettled = false
     let closeObserved = false
-    /** 返回当前 transport 是否已发出 close 信号，避免连接关闭竞态重复处理。 */
+
     const hasClosed = (): boolean => closeObserved
     client = generation
     clientClosed = closed.promise
     generation.onclose = () => {
       closeObserved = true
       closed.resolve()
-      // A failed connect owns its close barrier in the catch path below. An
-      // established generation can transition down directly from this signal.
+
       if (attemptSettled) generationDown(generation)
     }
-    // Registered before connect so a list change during the initial sync is
-    // queued behind it rather than dropped.
+
     generation.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
       if (!isCurrent(generation)) return
       host.logger.info(`${label}: tool list changed, re-syncing`)
       try {
         await enqueueSync(generation)
       } catch (error) {
-        // Fetch-phase failure: the previous generation is still registered
-        // and `disposers` still owns it — keep serving the last good list.
         if (!disposed) host.logger.error(`${label}: tool re-sync failed: ${String(error)}`)
       }
     })
@@ -312,13 +213,9 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       await enqueueSync(generation, startup ? startupOpts : opts)
     } catch (error) {
       if (firstAttemptError === undefined) firstAttemptError = error
-      // Disposal clears current ownership before it closes the generation, so
-      // only a live supervisor reports an attempt failure.
+
       if (isCurrent(generation)) host.logger.warn(`${label}: connection attempt failed: ${String(error)}`)
-      // A pending browser leg outlives the initialize timeout: the human is
-      // mid-approval. Hold this generation open — transport and loopback
-      // listener stay alive — until the leg settles; abandoning it would
-      // discard the very authorization the user is completing.
+
       const leg = oauthProvider?.browserLeg
       if (leg !== undefined) {
         host.logger.warn(`${label}: waiting for browser authorization (up to 5 minutes) — approve access in the page that opened`)
@@ -333,17 +230,14 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
           generationDown(generation)
           return
         }
-        // The exchange succeeded inside this generation: finish establishing
-        // it (tool sync + connected bookkeeping) instead of respawning.
+
         try {
           await enqueueSync(generation, startup ? startupOpts : opts)
         } catch (syncError) {
           if (isCurrent(generation)) host.logger.warn(`${label}: tool sync after authorization failed: ${String(syncError)}`)
           try {
             await generation.close()
-          } catch {
-            /* transport already gone */
-          }
+          } catch {}
           const quiescedSync = hasClosed() || (await waitForClose(closed.promise))
           if (!quiescedSync) {
             client = undefined
@@ -365,9 +259,7 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       }
       try {
         await generation.close()
-      } catch {
-        /* transport already gone */
-      }
+      } catch {}
       const quiesced = hasClosed() || (await waitForClose(closed.promise))
       attemptSettled = true
       if (!isCurrent(generation)) return
@@ -392,23 +284,13 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
     if (failedAttempts > 0) host.logger.info(`${label}: reconnected and re-synced tools (attempt ${failedAttempts}/${policy.maxAttempts})`)
   }
 
-  /** The in-flight (or last settled) connection attempt; dispose awaits it for quiescence. */
   let settling = connectGeneration(true)
 
-  // Pending browser approval releases startup so configuration can return and
-  // expose cancellation. Otherwise readiness follows the first attempt. If the first attempt fails and reconnect is enabled, the
-  // supervisor is already scheduling a retry — ready just reports the outcome.
   const ready: Promise<ConnectionOutcome> = Promise.race([
     authorizationStarted.promise,
     settling.then(() => {
-      // After settling: if client is set the initial connect+sync succeeded.
-      // If not, the supervisor either scheduled a retry (error logged) or gave
-      // up (error logged). Either way the outcome is reported with the real error.
-      // Note: settling.then() is a microtask; stdio onclose is a macrotask — so
-      // a server that crashes AFTER a successful initial sync cannot flip client
-      // to undefined before this continuation runs.
       if (client !== undefined) return {}
-      /* v8 ignore next -- defensive: firstAttemptError is always set when connect/sync fails */
+
       return { error: firstAttemptError ?? new Error(`${label}: initial connection failed`) }
     })
   ])
@@ -424,7 +306,7 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
           : client !== undefined || reconnectTimer !== undefined
             ? 'connecting'
             : 'failed',
-    /** 取消重连计时器并关闭当前连接，释放所有工具注册。 */
+
     async dispose(): Promise<void> {
       disposed = true
       authorizing?.resetCallback()
@@ -439,15 +321,12 @@ export function startConnection(host: ToolHost, config: Config, policy: Resolved
       if (current !== undefined) {
         try {
           await current.close()
-        } catch {
-          /* transport already gone */
-        }
+        } catch {}
         if (currentClosed !== undefined && !(await waitForClose(currentClosed))) {
           host.logger.error(`${label}: generation did not close within ${GENERATION_CLOSE_TIMEOUT_MS}ms during disposal — server shutdown may be incomplete`)
         }
       }
-      // Quiesce, don't just request it: the in-flight attempt enqueues its
-      // sync before settling, so awaiting both leaves `disposers` final.
+
       await settling
       await syncChain
       for (const dispose of disposers.values()) dispose()

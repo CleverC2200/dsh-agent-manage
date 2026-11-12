@@ -1,23 +1,3 @@
-/** 文件作用：把 MCP 工具同步到宿主工具表，并处理结构化结果、图片与附件投影。 */
-/**
- * Tool bridge: discovers MCP tools, registers them on the harness ToolRuntime
- * under deterministic server-qualified public names, and handles re-sync when
- * the server's tool list changes.
- *
- * Naming contract (mirrored from the harness `dsh-mcp-client` naming
- * invariants): every MCP tool has the stable identity `(serverName, rawName)`;
- * the model-facing public name is `mcp__<serverName>__<rawName>`, normalized
- * to the DeepSeek function-name constraints. The raw name is only ever sent on
- * the wire (`tools/call`); the public name is never parsed to recover it.
- *
- * The host contract below (`ToolDefinition`, `ToolExecution`,
- * `ToolExecutionResult`) is a structural mirror of `@deepseek-ai/dsh-tools`
- * rc.2's registration surface — the runtime accepts the same object shape the
- * upstream bridge registers, so the model-facing behavior is identical.
- *
- * @module runtime/mcp-client/tools
- */
-
 import type { Context } from '@deepseek-ai/cordis'
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
@@ -29,76 +9,63 @@ import type { JsonSchemaNode } from './json-schema-subset.js'
 import { assertSupportedJsonSchema } from './json-schema-subset.js'
 import { isImageAdmissionError, type AttachmentStoreLike, type ImageMediaType, type SaveImageAttachment } from './host-seams.js'
 
-/** Lossless JSON value vocabulary the bridge exchanges with the registry. */
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 
-/** Canonical MCP result exposed to Code Mode without discarding protocol blocks. */
 export type McpResult<Structured extends JsonValue = JsonValue> = {
   content: JsonValue[]
   structuredContent?: Structured
 }
 
-/** The agent on whose behalf a tool call runs (structural mirror). */
 interface ToolExecutionAgent {
   readonly ctx?: Context
   session?: { requestHeader?: () => { config?: { provider?: string; model?: string } } | undefined }
   options?: { provider?: string; model?: string }
-} /** Execution identity handed to a tool body (structural mirror). */
+}
 export interface ToolExecution {
-  /** Caller-owned cancellation for this invocation. */
   readonly signal: AbortSignal
-  /** The calling agent, when the call came from one. */
+
   readonly agent?: ToolExecutionAgent
 }
 
-/** A settled tool outcome (structural mirror). */
 export interface ToolExecutionResult {
   readonly value: JsonValue
   readonly content: ContentBlock[]
   readonly isError: boolean
 }
 
-/** One registered tool (structural mirror of the host registration shape). */
 export interface ToolDefinition {
   readonly name: string
   readonly description: string
   readonly parameters: Record<string, unknown>
   readonly output: {
     readonly schema: JsonSchemaNode
-    /** 中文：把工具执行结果同步投影为宿主可渲染的内容块。 */
+
     render(args: unknown, value: JsonValue): ContentBlock[]
   }
-  /** 中文：接收模型参数并调用对应 MCP 工具，返回原始或结构化结果。 */
+
   execute(args: unknown, exec: ToolExecution): Promise<unknown>
-  /** 中文：在执行上下文完成后汇总富内容投影，供宿主最终展示。 */
+
   finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined
 }
 
-/**
- * The host surface the bridge needs: a tool registry, a logger, and the two
- * optional services image projection consults. Structural — the cordis
- * context is adapted onto this shape by the bridge shell.
- */
 export interface ToolHost {
   readonly logger: { error(message: string): void; warn(message: string): void; info(message: string): void }
   readonly tools: { register(definition: ToolDefinition): () => void }
-  /** Optional service lookup; image projection degrades when absent. */
+
   getService?(name: 'attachments' | 'llm'): unknown
   executionScope?(agent: ToolExecutionAgent | undefined, serverName: string): { signal: AbortSignal; validate(): void } | undefined
 }
 
-/** Resolved options relevant to tool bridging. */
 export interface ToolBridgeOptions {
   enabledTools?: string[]
   disabledTools?: string[]
   startupTimeoutMs?: number
-  /** Whether a registry conflict is contained or rejects this synchronization. */
+
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
 }
 
-/** One authority/cancellation decision shared by tool calls and resource reads. */
 function scopedExecution(host: ToolHost, exec: ToolExecution, serverName: string) {
   const scope = host.executionScope?.(exec.agent, serverName)
   const signal = scope ? AbortSignal.any([exec.signal, scope.signal]) : exec.signal
@@ -110,39 +77,25 @@ function scopedExecution(host: ToolHost, exec: ToolExecution, serverName: string
   return { signal, validate }
 }
 
-/** State for one sync generation: the current set of disposers keyed by public name. */
 export type ToolDisposers = Map<string, () => void>
 
-/**
- * DeepSeek function-name contract: at most 64 characters. Wire-protocol
- * constant, not configuration.
- */
 const MAX_PUBLIC_NAME_LENGTH = 64
 
-/** DeepSeek function-name contract: only `[A-Za-z0-9_-]` is allowed. */
 const INVALID_NAME_CHARS = /[^A-Za-z0-9_-]/g
 
-/** Hex chars of the SHA-256 identity hash appended on lossy normalization. */
 const HASH_LENGTH = 12
 
-/** Raster formats supported by the durable attachment vocabulary. */
 const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 
-/** Canonical RFC 4648 base64, excluding whitespace and URL-safe aliases. */
 const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 
-/** Raw result record: the bridge owns JSON-value validation after transport. */
 const RawCallToolResultSchema = z.record(z.string(), z.unknown())
 
-/** List without mutating the SDK's per-page output-validator cache. */
-/** 直接调用 MCP listTools，保留分页和超时供同步循环使用。 */
 function listToolsUncached(client: Client, cursor?: string, timeout?: number) {
   const request = { method: 'tools/list' as const, ...(cursor === undefined ? {} : { params: { cursor } }) }
   return timeout === undefined ? client.request(request, ListToolsResultSchema) : client.request(request, ListToolsResultSchema, { timeout })
 }
 
-/** Call without the SDK pre-validating an output schema the bridge may not support. */
-/** 调用单个 MCP 工具并按执行上下文传递超时和取消信号。 */
 function callToolUncached(client: Client, rawName: string, args: Record<string, unknown>, exec: ToolExecution, opts: ToolBridgeOptions) {
   return client.request({ method: 'tools/call', params: { name: rawName, arguments: args } }, RawCallToolResultSchema, {
     signal: exec.signal,
@@ -150,21 +103,6 @@ function callToolUncached(client: Client, rawName: string, args: Record<string, 
   })
 }
 
-/**
- * Derive the model-facing public name for one MCP tool.
- *
- * Deterministic pure function of `(serverName, rawName)`: the clean case is
- * `mcp__<serverName>__<rawName>` verbatim. When character replacement or
- * truncation to the DeepSeek function-name contract (64 chars,
- * `[A-Za-z0-9_-]`) changes the name, a 12-hex-char SHA-256 hash of the
- * identity is appended so distinct MCP identities never collapse into the
- * same public name.
- *
- * @param serverName - Stable local namespace from bridge config.
- * @param rawName - The MCP server's own tool name.
- * @returns The globally unique, model-facing ToolRuntime name.
- */
-/** 将外部工具名规范化为宿主公开命名，并在过长或冲突时追加稳定哈希。 */
 export function publicToolName(serverName: string, rawName: string): string {
   const joined = `mcp__${serverName}__${rawName}`
   const normalized = joined.replace(INVALID_NAME_CHARS, '_')
@@ -173,34 +111,7 @@ export function publicToolName(serverName: string, rawName: string): string {
   return `${normalized.slice(0, MAX_PUBLIC_NAME_LENGTH - HASH_LENGTH - 1)}_${hash}`
 }
 
-/**
- * Sync the MCP server's tool list into the harness ToolRuntime.
- *
- * Two phases keep the swap safe:
- *
- * 1. Fetch: drain uncached `tools/list` pagination and build the full next
- *    generation of `ToolDefinition`s under public names. Any failure here
- *    (network error, duplicate raw name in the server's list) rejects and
- *    leaves the previous generation registered untouched.
- * 2. Swap: dispose the previous generation, register the new one. A registry
- *    conflict here can only mean a foreign registration squats on this
- *    server's `mcp__<serverName>__` namespace — the partial generation is
- *    rolled back (zero tools from this server) and logged. Initial strict
- *    synchronization may propagate the conflict so its parent transaction
- *    rejects; ordinary clients and later re-syncs return an empty map.
- *
- * @param client - Connected MCP Client instance used to list and call tools.
- * @param host - The bridge host providing the tool registry and logger.
- * @param opts - Bridge options: server namespace and per-call timeout.
- * @param previous - Disposer map from the prior sync generation; disposed
- *   during the swap phase (only after the fetch phase succeeded).
- * @returns A map of registered public tool names to their unregister
- *   disposers — the exact set of live registrations owned by this server.
- */
-/** 分页拉取 MCP 工具、卸载旧注册并注册新工具，返回下一代释放器集合。 */
 export async function syncTools(client: Client, host: ToolHost, opts: ToolBridgeOptions, previous: ToolDisposers): Promise<ToolDisposers> {
-  // Phase 1: fetch and build the next generation without touching the registry.
-  // 中文：先完整拉取并构造下一代定义，失败时不触碰当前仍可用的注册表。
   const definitions = new Map<string, ToolDefinition>()
   let cursor: string | undefined
   do {
@@ -239,7 +150,7 @@ export async function syncTools(client: Client, host: ToolHost, opts: ToolBridge
         'Read a resource URI returned by this MCP server (including resource_link results). Pass the exact URI; do not fetch it as an HTTP URL. / 读取本 MCP 服务返回的资源链接正文，传入完整 URI。',
       parameters: { type: 'object', properties: { uri: { type: 'string', minLength: 1 } }, required: ['uri'], additionalProperties: false },
       output: createOutput(rawName, undefined),
-      /** 资源工具回调：读取 MCP URI 并把资源块交给宿主渲染。 */
+
       async execute(args, exec) {
         if (!args || typeof args !== 'object' || !('uri' in args) || typeof args.uri !== 'string' || !args.uri) throw new Error('MCP_RESOURCE_URI_REQUIRED')
         const scope = scopedExecution(host, exec, opts.serverName)
@@ -253,8 +164,6 @@ export async function syncTools(client: Client, host: ToolHost, opts: ToolBridge
     })
   }
 
-  // Phase 2: swap generations.
-  // 中文：只有下一代构造成功才替换旧注册，保证同步失败时失败关闭而非半套新工具。
   for (const dispose of previous.values()) dispose()
   const disposers: ToolDisposers = new Map()
   try {
@@ -262,9 +171,6 @@ export async function syncTools(client: Client, host: ToolHost, opts: ToolBridge
       disposers.set(publicName, host.tools.register(definition))
     }
   } catch (error) {
-    // A conflict on an `mcp__<serverName>__`-qualified name means a foreign
-    // registration occupies this server's namespace. Roll back so the model
-    // sees either the full generation or none of it — never a partial set.
     for (const dispose of disposers.values()) dispose()
     host.logger.error(`mcp-client(${opts.serverName}): tool registration failed, no tools registered: ${String(error)}`)
     if (opts.registrationFailure === 'throw') throw error
@@ -273,12 +179,6 @@ export async function syncTools(client: Client, host: ToolHost, opts: ToolBridge
   return disposers
 }
 
-/**
- * The shape we read from each MCP content block. Intentionally looser than the
- * SDK's `ContentBlock` type: we're at a network trust boundary (data arrives
- * from an external MCP server process via JSON-RPC), so fields that the SDK
- * declares required may be absent at runtime if the server is buggy.
- */
 interface McpContentBlock {
   type: string
   text?: string
@@ -289,18 +189,14 @@ interface McpContentBlock {
   resource?: { text?: string; blob?: string; uri?: string }
 }
 
-/** Async rich projection staged for one exact ToolRuntime execution. */
 interface PreparedProjection {
-  /** Canonical MCP value returned by execute before registry materialization. */
   value: McpResult
-  /** Synchronous output.render projection expected before finalization. */
+
   fallback: ContentBlock[]
-  /** Image-enriched or explicit-refusal projection prepared during execute. */
+
   content: ContentBlock[]
 }
 
-/** Keep a supported advertised schema; unsupported MCP vocabulary falls back to JsonValue. */
-/** 验证工具输出 Schema；不支持的 Schema 转为 undefined 以采用文本回退。 */
 function supportedOutputSchema(candidate: unknown): JsonSchemaNode | undefined {
   if (candidate === undefined) return undefined
   try {
@@ -311,20 +207,6 @@ function supportedOutputSchema(candidate: unknown): JsonSchemaNode | undefined {
   }
 }
 
-/**
- * Build one generation-local tool definition and its execution-local rich projections.
- * @param client - connected MCP client used for calls.
- * @param host - bridge host carrying optional attachment and model services.
- * @param publicName - registry-qualified public tool name.
- * @param rawName - MCP wire tool name.
- * @param description - model-facing tool description.
- * @param parameters - MCP input schema.
- * @param structuredSchema - supported structured-output schema, when advertised.
- * @param taskRequired - whether this MCP tool requires unsupported task execution.
- * @param opts - bridge timeout and namespace options.
- * @returns a complete ToolRuntime definition.
- */
-/** 创建宿主 ToolDefinition，封装输入校验、执行和结果投影。 */
 function createDefinition(
   client: Client,
   host: ToolHost,
@@ -343,7 +225,7 @@ function createDefinition(
     parameters,
     output: createOutput(rawName, structuredSchema),
     execute: createExecutor(client, host, rawName, taskRequired, opts, projections),
-    /** 在返回宿主前附加执行元数据并处理图片投影。 */
+
     finalizeContent(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>) {
       const projection = projections.get(exec)
       if (projection === undefined) return undefined
@@ -356,8 +238,6 @@ function createDefinition(
   }
 }
 
-/** Build the canonical result schema and existing Native text projection. */
-/** 根据 MCP 原始名称和可选 Schema 创建宿主输出描述。 */
 function createOutput(rawName: string, structuredSchema: JsonSchemaNode | undefined): ToolDefinition['output'] {
   return {
     schema: {
@@ -369,7 +249,7 @@ function createOutput(rawName: string, structuredSchema: JsonSchemaNode | undefi
       required: structuredSchema === undefined ? ['content'] : ['content', 'structuredContent'],
       additionalProperties: false
     },
-    /** 将结构化结果渲染成宿主可显示的内容块。 */
+
     render(_args: unknown, value: JsonValue) {
       const result = value as unknown as McpResult
       return [{ type: 'text', text: extractText(result.content, rawName) }]
@@ -377,17 +257,6 @@ function createOutput(rawName: string, structuredSchema: JsonSchemaNode | undefi
   }
 }
 
-/**
- * Create an execute function for one MCP tool. The executor closes over the
- * raw MCP tool name and sends an uncached `tools/call` request with it (never
- * the public name), with abort signal and timeout, then maps the result to
- * harness ContentBlocks. Owning the raw request prevents the SDK's internal
- * per-page schema cache from pre-validating a different contract.
- *
- * When the MCP server returns `isError: true`, the executor throws so that
- * the ToolRuntime's catch path produces an `isError` result for the model.
- */
-/** 生成单工具执行器，统一校验参数、调用 MCP 和媒体投影。 */
 function createExecutor(
   client: Client,
   host: ToolHost,
@@ -400,17 +269,13 @@ function createExecutor(
     if (taskRequired) {
       throw new Error(`Tool "${rawName}" requires task-based execution, which this bridge does not support`)
     }
-    // The agent loop passes `JSON.parse(model_arguments)` which is usually an
-    // object, but can be any JSON value if the model misbehaves (outputs a bare
-    // string/number/null). Fallback to {} lets the MCP server produce a
-    // specific "missing required param" error the model can learn from.
+
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
     const scope = scopedExecution(host, exec, opts.serverName)
     const invocation = { ...exec, signal: scope.signal }
     const result = await callToolUncached(client, rawName, argsObj, invocation, opts)
     scope.validate()
 
-    // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {
       const rendered: unknown = 'toolResult' in result ? JSON.stringify(result.toolResult) : '(no output)'
       const text = typeof rendered === 'string' ? rendered : '(no output)'
@@ -421,13 +286,9 @@ function createExecutor(
       }
     }
 
-    // Trust boundary: the SDK's return type erases to `any[]` due to the
-    // union of CallToolResult | CompatibilityCallToolResult; extractText
-    // validates each element.
     const content = result.content as unknown as JsonValue[]
     const text = extractText(content, rawName)
 
-    // MCP isError → throw so ToolRuntime produces an isError result for the model.
     if (result.isError === true) {
       throw new Error(text)
     }
@@ -446,26 +307,18 @@ function createExecutor(
   }
 }
 
-/** Whether an untrusted MCP content array contains a declared image block. */
-/** 判断 MCP 内容是否包含图片块，决定是否走附件投影。 */
 function containsImage(content: JsonValue[]): boolean {
   return content.some(value => isRecord(value) && value.type === 'image')
 }
 
-/** Narrow one JSON value to a string-keyed object. */
-/** 判断 JSON 值是否为可读取字段的对象。 */
 function isRecord(value: JsonValue): value is { [key: string]: JsonValue } {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** Narrow a declared MIME string to the durable image vocabulary. */
-/** 判断媒体类型是否为当前桥接器支持的图片格式。 */
 function isImageMediaType(value: string): value is ImageMediaType {
   return IMAGE_MEDIA_TYPES.includes(value as ImageMediaType)
 }
 
-/** Decode one untrusted MCP image block without accepting base64 aliases. */
-/** 解码 MCP 图片块为附件存储请求，非法 base64 由调用方诊断。 */
 function decodeImage(block: McpContentBlock): SaveImageAttachment {
   if (block.mimeType === undefined || !isImageMediaType(block.mimeType)) {
     throw new Error('the declared media type is not PNG, JPEG, WebP, or GIF')
@@ -480,18 +333,10 @@ function decodeImage(block: McpContentBlock): SaveImageAttachment {
   return { data, mediaType: block.mimeType }
 }
 
-/** The optional model service image admission consults (structural mirror). */
 interface LlmServiceLike {
   resolveModelInfo(provider: string, model: string, signal: AbortSignal): Promise<{ inputModalities?: string[] } | undefined>
 }
 
-/**
- * Resolve the active model route and durable store for an image-bearing result.
- * @param host - bridge host with optional services.
- * @param exec - exact tool execution whose agent supplies the latest route.
- * @returns the attachment store after exact positive image-capability proof.
- */
-/** 查询模型输入模态并确认附件服务可用，失败时提供明确拒绝原因。 */
 async function resolveImageAdmission(host: ToolHost, exec: ToolExecution): Promise<AttachmentStoreLike> {
   const attachments = host.getService?.('attachments') as AttachmentStoreLike | undefined
   if (attachments === undefined || typeof attachments.saveImages !== 'function') {
@@ -517,18 +362,10 @@ async function resolveImageAdmission(host: ToolHost, exec: ToolExecution): Promi
   return attachments
 }
 
-/** Stable diagnostic text for an image block that was not admitted. */
-/** 将图片投影失败转换为不含原始二进制的诊断文本。 */
 function imageDiagnostic(block: McpContentBlock, reason: string): string {
   return `[image unavailable: ${block.mimeType ?? 'unknown media type'}; ${reason}; raw image data remains available to programmatic callers]`
 }
 
-/**
- * Decode, preflight, and durably save one MCP result's ordered image batch.
- * Any refusal projects every image as text while retaining the canonical raw
- * value for programmatic callers.
- */
-/** 保存可接纳图片并生成宿主附件引用，其他内容按原顺序保留。 */
 async function prepareImageProjection(host: ToolHost, exec: ToolExecution, content: JsonValue[], toolName: string): Promise<ContentBlock[]> {
   const decoded: SaveImageAttachment[] = []
   const validationErrors = new Map<number, string>()
@@ -539,7 +376,6 @@ async function prepareImageProjection(host: ToolHost, exec: ToolExecution, conte
     try {
       decoded.push(decodeImage(value as unknown as McpContentBlock))
     } catch (error: unknown) {
-      // decodeImage owns every throw above and always produces Error.
       validationErrors.set(index, (error as Error).message)
     }
   }
@@ -554,7 +390,6 @@ async function prepareImageProjection(host: ToolHost, exec: ToolExecution, conte
   try {
     attachments = await resolveImageAdmission(host, exec)
   } catch (error: unknown) {
-    // resolveImageAdmission contains provider failures and throws Error only.
     const reason = (error as Error).message
     return projectContent(content, toolName, block => ({ type: 'text', text: imageDiagnostic(block, reason) }))
   }
@@ -580,28 +415,12 @@ async function prepareImageProjection(host: ToolHost, exec: ToolExecution, conte
   }
 }
 
-/**
- * Extract text from an MCP content array into a single string.
- * - text blocks: join with '\n'
- * - image/audio/resource blocks: replaced with a placeholder
- *
- * Defensive: fields that the MCP spec declares required (mimeType, text) are
- * guarded with fallbacks because this is a network trust boundary.
- */
-/** 从 MCP 内容提取文本块，供纯文本回退和错误展示使用。 */
 function extractText(mcpContent: JsonValue[], toolName: string): string {
   const content = projectContent(mcpContent, toolName)
-  // The default image projector below also returns text, so this local call
-  // cannot produce a core image block.
+
   return content.map(block => (block as Extract<ContentBlock, { type: 'text' }>).text).join('\n')
 }
 
-/**
- * Project ordered MCP blocks into the core content vocabulary.
- * Text-like runs are newline-coalesced; admitted images split those runs at
- * their original position.
- */
-/** 按图片回调和文本合并策略把 MCP 内容投影为宿主 ContentBlock。 */
 function projectContent(
   mcpContent: JsonValue[],
   toolName: string,
@@ -612,7 +431,7 @@ function projectContent(
 ): ContentBlock[] {
   const projected: ContentBlock[] = []
   const text: string[] = []
-  /** 将连续文本块合并为一个宿主文本块，并在图片等非文本块前刷出。 */
+
   const flushText = (): void => {
     if (text.length === 0) return
     projected.push({ type: 'text', text: text.splice(0).join('\n') })

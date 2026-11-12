@@ -1,68 +1,38 @@
-/** 文件作用：提供可选的反馈工具，把问题提交到远端仓库或本地队列。 */
-/**
- * Optional model-facing experience-feedback tool.
- *
- * When enabled (the `feedbackEnabled` field of the market settings namespace,
- * default true), the model can call `report_market_issue` when it concludes a
- * problem it is looking at is caused by dsh-agent-plugins-market — a failed
- * install, a misdetected source, a market UI defect the user just described.
- * The tool files a GitHub issue on the plugin repository through the GitHub
- * REST API, or falls back to appending a local JSONL record under the plugin
- * data root when no repository host context is available.
- *
- * The tool is deliberately narrow: the title/body must describe the problem,
- * submissions are rate-limited, and the setting switch unregisters the tool
- * on the next reconcile pass.
- * @module runtime/feedback-tool
- */
-
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView } from '@deepseek-ai/dsh-tools'
 
-/** The GitHub repository experience feedback files issues against. */
 export const FEEDBACK_REPO_OWNER = 'CleverC2200'
 export const FEEDBACK_REPO_NAME = 'dsh-agent-manage'
 
-/** Label applied to every tool-filed issue so they are filterable. */
 export const FEEDBACK_LABEL = 'agent-feedback'
 
-/** Minimum milliseconds between two accepted submissions (burst guard). */
 const SUBMIT_COOLDOWN_MS = 60_000
 
-/** Host surface this plugin needs for the feedback tool. */
 interface ToolsHost {
   tools?: {
     register(definition: unknown): () => void
   }
 }
 
-/** One accepted or rejected submission outcome, mirrored to the model. */
 export interface FeedbackOutcome {
   ok: boolean
-  /** Where the report went: the issue URL, or the local fallback path label. */
+
   location?: string
   reason?: string
 }
 
-/** A structured experience report the model composes. */
 export interface FeedbackReport {
   title: string
   description: string
-  /** What the user was trying to do, when the model can tell. */
+
   expected?: string
-  /** What actually happened (errors, wrong state, broken flow). */
+
   actual?: string
 }
 
-/**
- * Submit one experience report. Tries the GitHub issue API first (works when
- * the deployment carries a GITHUB_TOKEN / GH_TOKEN with repo scope), then
- * falls back to the local JSONL spool under `<dataRoot>/feedback/`.
- */
-/** 校验限流窗口后提交反馈；远端不可用时落本地 JSONL，始终返回可追踪结果。 */
 export async function submitFeedback(dataRoot: string, report: FeedbackReport, now = Date.now()): Promise<FeedbackOutcome> {
   const title = report.title.trim()
   if (title === '') return { ok: false, reason: 'title is required' }
@@ -78,8 +48,6 @@ export async function submitFeedback(dataRoot: string, report: FeedbackReport, n
       await stampSubmitAt(dataRoot, now)
       return { ok: true, location: url }
     } catch (error) {
-      // Network or auth failure: fall through to the local spool so the
-      // report is never lost, and say so in the outcome.
       const local = await spoolLocally(dataRoot, title, body)
       await stampSubmitAt(dataRoot, now)
       return {
@@ -94,8 +62,6 @@ export async function submitFeedback(dataRoot: string, report: FeedbackReport, n
   return { ok: true, location: local }
 }
 
-/** POST one issue; returns its html_url. */
-/** 调用 GitHub Issues API 创建问题并返回可访问 URL。 */
 async function createIssue(token: string, title: string, body: string): Promise<string> {
   const response = await fetch(`https://api.github.com/repos/${FEEDBACK_REPO_OWNER}/${FEEDBACK_REPO_NAME}/issues`, {
     method: 'POST',
@@ -118,8 +84,6 @@ async function createIssue(token: string, title: string, body: string): Promise<
   return payload.html_url
 }
 
-/** Render the model's structured report into a deterministic issue body. */
-/** 将反馈报告格式化为 Markdown issue 内容，保留用户可核对的事实字段。 */
 export function renderFeedbackBody(report: FeedbackReport): string {
   const lines = ['## Experience feedback', '', `**Problem:** ${report.description.trim()}`, '']
   if (report.expected?.trim() !== undefined && report.expected.trim() !== '') lines.push(`**Expected:** ${report.expected.trim()}`, '')
@@ -128,8 +92,6 @@ export function renderFeedbackBody(report: FeedbackReport): string {
   return lines.join('\n')
 }
 
-/** Append one report to the local spool; returns the spool file path. */
-/** 远端提交失败时把反馈追加到本地队列，返回本地记录路径。 */
 async function spoolLocally(dataRoot: string, title: string, body: string): Promise<string> {
   const dir = join(dataRoot, 'feedback')
   await mkdir(dir, { recursive: true })
@@ -139,8 +101,6 @@ async function spoolLocally(dataRoot: string, title: string, body: string): Prom
   return file
 }
 
-/** The last accepted submission's timestamp; 0 when the stamp file is absent. */
-/** 读取限流时间戳；不存在或损坏时按从未提交处理。 */
 async function readLastSubmitAt(dataRoot: string): Promise<number> {
   try {
     const raw = await readFile(join(dataRoot, 'feedback', 'last-submit-at'), 'utf8')
@@ -151,12 +111,10 @@ async function readLastSubmitAt(dataRoot: string): Promise<number> {
   }
 }
 
-/** 持久化最近一次提交时间，供下次调用执行冷却窗口判断。 */
 async function stampSubmitAt(dataRoot: string, now: number): Promise<void> {
   const dir = join(dataRoot, 'feedback')
   await mkdir(dir, { recursive: true })
-  // Overwrite, not append: an appending stamp concatenates timestamps and
-  // parseInt on the merged digits disables the cooldown permanently.
+
   await writeFile(join(dir, 'last-submit-at'), String(now), 'utf8')
 }
 
@@ -170,8 +128,6 @@ const FEEDBACK_DESCRIPTION =
   "or in the user's own repositories. Compose a specific title; describe what happened, what was expected, and " +
   'the exact error text when one appeared.'
 
-/** Register the feedback tool; returns the disposer. Undefined when the host has no tools service. */
-/** 在宿主支持工具注册时挂载反馈工具，否则返回 undefined 表示能力不可用。 */
 export function mountFeedbackTool(hostCtx: Context, dataRoot: string, t: (key: string, params?: Record<string, string>) => string): (() => void) | undefined {
   const host = hostCtx as unknown as ToolsHost
   if (typeof host.tools?.register !== 'function') return undefined
@@ -186,9 +142,6 @@ export function mountFeedbackTool(hostCtx: Context, dataRoot: string, t: (key: s
         actual: { type: 'string', description: 'What actually happened instead.' }
       },
       output: {
-        // The dsh-tools value-schema DSL rejects root-level `required`
-        // (verified against dsh-tools@0.1.2-rc.1); required-ness is declared
-        // per property instead.
         schema: {
           type: 'object',
           additionalProperties: false,
@@ -200,7 +153,7 @@ export function mountFeedbackTool(hostCtx: Context, dataRoot: string, t: (key: s
         },
         render: (_args: unknown, value: FeedbackOutcome) => [{ type: 'text' as const, text: JSON.stringify(value) }]
       },
-      /** 工具回调：校验输入并提交反馈，统一返回可展示结果。 */
+
       async execute(args: unknown) {
         const input = args as { title?: unknown; description?: unknown; expected?: unknown; actual?: unknown }
         const report: FeedbackReport = {

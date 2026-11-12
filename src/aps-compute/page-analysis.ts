@@ -1,6 +1,6 @@
 import { deriveMetrics, type MetricData } from './metrics.js'
 export const pageAnalysisPolicy = { source: 'current-page', allowAdditionalQueries: false, allowAutomaticRefresh: false, conclusionFirst: true, partialDataAllowed: true } as const
-/** Pure analysis of the successful sections already present on this page. */
+
 export function summarizePage(data: MetricData | null | undefined, busy = false, visibleMetrics?: readonly string[]) {
   const empty = { title: busy ? '正在读取经营数据' : '暂无可分析的数据', copy: busy ? '已有数据返回后即生成简报。' : '当前页面暂无可用指标。' }
   if (!data) return empty

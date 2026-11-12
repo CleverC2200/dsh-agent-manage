@@ -12,7 +12,7 @@
 | 客户端                | [client](../src/client/)                                                                                               |
 | 库存、APS、MPS 纯计算 | [inventory-compute](../src/inventory-compute/)、[aps-compute](../src/aps-compute/)、[mps-compute](../src/mps-compute/) |
 
-`check:comments` 检查本次改动的 JS/TS 文件，`--all` 审计全仓存量；使用 `QUALITY_BASE_SHA` 或 `--base <完整提交>` 检查已提交改动。本地引用、架构依赖、类型与行为复用现有检查，静态聚合从 package scripts 查询。注释清理不改业务 Prompt/Skill 或运行时文本。
+`check:comments` 默认检查全仓自有 JS/TS、HTML/SVG 及内嵌脚本和样式、CSS、JSONC、YAML、Python、Shell、PowerShell、NSIS、SQL、Java、TOML、CMD 与行式配置；工作流的 Shell/PowerShell `run` 脚本一并检查。字符串、Prompt、Python docstring 和 heredoc 数据保留。解析失败拒绝通过；Shell 等格式使用固定版本词法器，不代表执行验收。`--base <完整提交>` 或显式文件只用于局部反馈，CI 和静态门禁默认执行全仓检查。`source-comments.json` 登记第三方、生成物、fixture 与历史证据来源；收到的业务原件复用现有 `SOURCE.json` 文件清单与摘要核对，已改写的资源继续按自有源码检查；`--report <路径>` 输出完整排除与违规清单。工具指令先消除依赖，许可证按分发要求保全。
 
 Workbench 不在同级时，`DSH_WORKBENCH_CHECKOUT` 指向本票登记的只读工具源码。普通静态检查不需要启动客户端；只有本次验收涉及 SDK、安装或运行时，才按[干净 CI](clean-ci.md)与现有输入协议准备。当前 Core 范围由 GEA 的 `scripts/ci-core-policy.json` 与支持清单负责，历史 Note 的版本不作为配置。
 

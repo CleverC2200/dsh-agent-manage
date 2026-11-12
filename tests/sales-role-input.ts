@@ -1,4 +1,3 @@
-/** Fixed package resources and original Consumer declarations used by the sales family. */
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { BusinessPresetHarnessInput } from './base-inventory-harness.js'

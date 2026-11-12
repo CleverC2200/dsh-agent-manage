@@ -1,4 +1,3 @@
-/** 文件作用：把 MCP 声明、诊断、工具观察和覆盖配置汇总为状态行。 */
 import { applyOverride, type McpSuiteOverrides } from './mcp-overrides.js'
 import { credentialRefsInServer, deriveServerName } from './mcp-config.js'
 import type { McpStatusEntry, McpStatusPayload, McpStatusState } from '../contracts/mcp-status.js'
@@ -19,8 +18,6 @@ export interface McpDiagnostic {
   credentialRefs?: string[]
 }
 
-/** Build status rows from discovered plugin MCP definitions and observed tool names. */
-/** 合并套件声明、诊断、工具观察和覆盖配置，输出可解释的 MCP 状态与统计。 */
 export function buildMcpStatus(
   suites: Suite[],
   diagnostics: McpDiagnostic[],
@@ -34,8 +31,6 @@ export function buildMcpStatus(
   for (const suite of suites) {
     if (suite.mcp === undefined) continue
     for (const [serverKey, server] of Object.entries(suite.mcp.servers)) {
-      // Server names and every status key are source-qualified: two sources
-      // may ship the same suite id, and the inventory must not conflate them.
       const serverName = deriveServerName(suite.id, serverKey)
       knownServerNames.add(serverName)
       knownDefinitions.set(serverName, { suite, serverKey, server })
@@ -45,8 +40,6 @@ export function buildMcpStatus(
   const observedByServer = groupObservedTools(observed, knownServerNames)
 
   for (const suite of suites) {
-    // This is an operational inventory, not a configuration audit: suite MCP
-    // definitions only appear after their suite is both installed and enabled.
     if (suite.mcp === undefined || suite.installedAt === undefined || !suite.enabled) continue
     const suiteKey = qualifiedSuiteId(suite.sourceId, suite.id)
     const suiteOverrides = overrides.get(suiteKey)
@@ -60,9 +53,7 @@ export function buildMcpStatus(
       const credentialRefs = [...new Set([...credentialRefsInServer(effective), ...(diagnostic?.credentialRefs ?? [])])].sort()
       const disabled = override?.enabled === false || suite.activeSurfaces?.mcp === false
       const orphaned = disabled && tools.length > 0
-      // A duplicate copy shares the live serverName, so observed tools land
-      // on it too — that does not make it connected: its own diagnostic says
-      // another source's mount is the one serving.
+
       const servedElsewhere = diagnostic?.code === 'duplicate-mount'
       const state: McpStatusState = orphaned
         ? 'orphaned'
@@ -147,15 +138,13 @@ export function buildMcpStatus(
   return { entries, observedAt: new Date().toISOString(), totals, directObservationOnly: true }
 }
 
-/** 按公开 serverName 分组工具；无法归属已知服务的工具保留为 foreign。 */
 function groupObservedTools(observed: readonly McpToolSnapshot[], knownServerNames: ReadonlySet<string>): Map<string, McpToolSnapshot[]> {
   const grouped = new Map<string, McpToolSnapshot[]>()
   for (const tool of observed) {
     if (!tool.name.startsWith('mcp__')) continue
     let serverName: string | undefined
     let rawName: string | undefined
-    // Plugin server names contain `__` themselves (`suite__server`), so use
-    // known names first and choose the longest matching namespace.
+
     for (const candidate of knownServerNames) {
       const prefix = `mcp__${candidate}__`
       if (tool.name.startsWith(prefix) && (serverName === undefined || candidate.length > serverName.length)) {
@@ -177,7 +166,6 @@ function groupObservedTools(observed: readonly McpToolSnapshot[], knownServerNam
   return grouped
 }
 
-/** 从不同 MCP 传输配置提取可展示端点，状态层不暴露敏感凭据。 */
 function endpointOf(server: McpServer): string {
   if (server.type === 'stdio') {
     const safe = redactMcpConfig(server) as { command: string; args?: string[] }

@@ -1,24 +1,5 @@
 #!/usr/bin/env node
-/**
- * Compatibility report: validate every schema in `schemas/` against a real
- * repository, then scan that repository with the real catalog scanner.
- *
- * The report answers two separate questions, because they fail separately:
- *
- * 1. **Schema conformance** — does the repository's dialect manifest satisfy
- *    the contract this repository documents for that dialect? Validated with
- *    Ajv against `schemas/<dialect>/*.schema.json`.
- * 2. **Scanner integration** — when this plugin reads that checkout, which
- *    manifest does it actually use as the suite identity, and which surfaces
- *    does it discover? Measured by running `scanSource` from `lib/`.
- *
- * Samples are pinned in `scripts/compat-sources.json`; acquisition is a
- * sparse, blobless, depth-1 clone cached under `node_modules/.cache/` so a
- * 12 GB repository costs under a megabyte.
- *
- * Usage: `node scripts/compat-report.mjs [--refresh] [--dialect <name>]`
- * Outputs `docs/compat-report.json` and `docs/compat-report.md`.
- */
+
 import { execFile } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
@@ -34,9 +15,8 @@ const CONFIG_PATH = join(ROOT, 'scripts', 'compat-sources.json')
 const REPORT_JSON = join(ROOT, 'docs', 'compat-report.json')
 const REPORT_MD = join(ROOT, 'docs', 'compat-report.md')
 
-/** Marketplace manifests the scanner's `MarketplaceStrategy` can read, in its order. */
 let scannerMarketplaces = []
-/** Every marketplace path any documented dialect defines, for presence reporting. */
+
 const ALL_MARKETPLACES = [
   '.claude-plugin/marketplace.json',
   '.agents/plugins/marketplace.json',
@@ -57,7 +37,6 @@ const only = onlyIndex === -1 ? undefined : argv[onlyIndex + 1]
 
 const Ajv2020 = Ajv2020Default
 
-/** Run a command, returning trimmed stdout; throws with stderr attached. */
 async function sh(command, args, options = {}) {
   try {
     const { stdout } = await exec(command, args, { cwd: ROOT, maxBuffer: 64 * 1024 * 1024, timeout: 300_000, ...options })
@@ -76,7 +55,6 @@ async function isFile(path) {
   }
 }
 
-/** Compile the plugin's TypeScript into `lib/` so the report runs the shipped scanner. */
 async function ensureScanner() {
   const entry = join(ROOT, 'lib', 'catalog', 'suite-scanner.js')
   await sh('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'])
@@ -84,7 +62,6 @@ async function ensureScanner() {
   return import(pathToFileURL(entry).href)
 }
 
-/** Sparse, blobless, depth-1 checkout pinned to the sample's branch. */
 async function acquire(sample) {
   const dir = join(CACHE_DIR, sample.dialect)
   if (refresh) await rm(dir, { recursive: true, force: true })
@@ -92,10 +69,7 @@ async function acquire(sample) {
   if (!hasHead) {
     await rm(dir, { recursive: true, force: true })
     await mkdir(CACHE_DIR, { recursive: true })
-    // `--no-checkout` matters: a plain `--sparse` clone still materializes the
-    // root blobs first, which costs tens of megabytes on repositories that keep
-    // large media files at the root. Setting the sparse patterns before the
-    // first checkout keeps the download proportional to the paths we read.
+
     await sh('git', ['clone', '--depth', '1', '--filter=blob:none', '--no-checkout', '--branch', sample.branch, `https://github.com/${sample.repo}.git`, dir])
     await sh('git', ['-C', dir, 'sparse-checkout', 'set', '--no-cone', ...sample.sparsePaths])
     await sh('git', ['-C', dir, 'checkout'])
@@ -104,7 +78,6 @@ async function acquire(sample) {
   return { dir, commit }
 }
 
-/** Validate one JSON document against a schema file; returns the verdict and errors. */
 function validate(schemaCache, schemaRelative, document) {
   let compiled = schemaCache.get(schemaRelative)
   if (compiled === undefined) {
@@ -119,18 +92,15 @@ function validate(schemaCache, schemaRelative, document) {
   }
 }
 
-/** Which schema files back a dialect, and whether it is vendored upstream. */
 function schemaPaths(schema) {
   if (schema === 'agent-plugins') return { plugin: 'schemas/1.0.0/plugin.schema.json', marketplace: null }
   return { plugin: `schemas/${schema}/plugin.schema.json`, marketplace: `schemas/${schema}/marketplace.schema.json` }
 }
 
-/** Relative, POSIX-style path of `target` under `base`. */
 function rel(base, target) {
   return relative(base, target).split(sep).join('/')
 }
 
-/** Validate the sample's dialect manifests and return the schema half of the row. */
 async function validateManifests(sample, checkout, schemaCache) {
   const paths = schemaPaths(sample.schema)
   const result = { vendored: sample.schema === 'agent-plugins', plugin: null, marketplace: null }
@@ -163,7 +133,6 @@ async function validateManifests(sample, checkout, schemaCache) {
   return result
 }
 
-/** Run the real scanner over the checkout and summarize what it did. */
 async function scanCheckout(scanner, sample, checkout) {
   const result = await scanner.scanSource(checkout, sample.dialect, 'user', `https://github.com/${sample.repo}`)
   const suites = result.suites.map(suite => ({
@@ -196,7 +165,6 @@ async function scanCheckout(scanner, sample, checkout) {
   }
 }
 
-/** The one-line verdict: did this manager read the dialect's own declaration? */
 function verdictOf(schema, scan) {
   if (scan.dialectManifestRead || scan.dialectMarketplaceRead) return 'integrated'
   if (scan.suiteCount > 0) return 'shadowed'
@@ -273,7 +241,6 @@ async function main() {
   process.stdout.write(`\nwrote docs/compat-report.json and docs/compat-report.md (${samples.length} sample(s))\n`)
 }
 
-/** Human-readable companion to the JSON report. */
 function renderMarkdown(report) {
   const lines = []
   lines.push('# Compatibility report')

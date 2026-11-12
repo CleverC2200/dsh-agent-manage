@@ -1,8 +1,3 @@
-/**
- * Scan pipeline tests: filter-chain semantics, marketplace-entry handler
- * chain (GitHub shorthand, self-references, containment), dialect fallback,
- * and the scan diagnostics surfaced through the catalog overview.
- */
 import { describe, expect, it } from 'vitest'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -54,8 +49,7 @@ describe('scan pipeline: marketplace entry handler chain', () => {
   it('rejects local paths escaping the checkout with a diagnosis', async () => {
     const entry: MarketplaceEntry = { name: 'esc', source: '../outside' }
     const resolution = await resolveMarketplaceEntry(checkout, entry, undefined)
-    // `rejected`: the local-path handler positively identified the shape, so
-    // its containment verdict is authoritative — later handlers never run.
+
     expect(resolution.kind).toBe('rejected')
     expect((resolution as { reason: string }).reason).toContain('escapes the checkout')
   })
@@ -75,8 +69,7 @@ describe('scan pipeline: chain semantics', () => {
     }
     const result = await runScanChain([never, hit, never], baseContext)
     expect(result.suites).toHaveLength(1)
-    // Attempts unwind innermost-first: the delegating outer filter records
-    // an abstention, the filter that produced the answer records a hit.
+
     expect(result.attempts.map(attempt => `${attempt.filter}:${attempt.outcome}`)).toEqual(['hit:resolved', 'never:abstain'])
   })
 
@@ -100,7 +93,7 @@ describe('scan pipeline: fixtures', () => {
     const result = await scanSource(join(fixtures, 'dual-dialect-selfref'), 'dual', 'user', 'https://github.com/example/dual-selfref')
     expect(result.suites).toHaveLength(1)
     const suite = result.suites[0]!
-    // The root metadata manifest (no $schema) is read leniently, not strict v1.
+
     expect(suite.errors).toEqual([])
     expect(suite.skills.map(skill => skill.name).sort()).toEqual(['one', 'two'])
     expect(result.notes).toEqual([])
@@ -149,7 +142,7 @@ describe('scan pipeline: catalog overview surfaces scan notes', () => {
     const row = overview.sources.find(source => source.id === 'broken')!
     expect(row.scanNotes).toBeDefined()
     expect(row.scanNotes!.some(note => note.includes('escaper'))).toBe(true)
-    // The suite still resolves via fallback.
+
     expect(row.suiteIds).toEqual(['broken-root'])
   })
 

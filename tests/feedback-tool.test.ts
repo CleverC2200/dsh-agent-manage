@@ -52,7 +52,7 @@ describe('experience feedback tool', () => {
       const second = await submitFeedback(root, { title: 'c', description: 'd' }, 2_000_000 + 1_000)
       expect(second.ok).toBe(false)
       expect(second.reason).toContain('less than a minute')
-      // After the cooldown window the submission goes through again.
+
       const third = await submitFeedback(root, { title: 'e', description: 'f' }, 2_000_000 + 61_000)
       expect(third.ok).toBe(true)
     } finally {

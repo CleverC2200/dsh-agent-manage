@@ -7,7 +7,6 @@ import { agentMcpApi } from './agent-mcp-api.js'
 import type { AgentMcpView } from '../contracts/agent-mcp.js'
 import css from './user-agents.module.css'
 
-/** Association actions keep their own draft; cancelling never writes effective configuration. */
 export function AgentMcpPanel({ agent, t, onSaved }: { agent: UserAgentView; t: Translate; onSaved(agent: UserAgentView): void }) {
   const agentId = agent.id
   const [rows, setRows] = useState<AgentMcpView[]>([])

@@ -8,7 +8,7 @@ Manage 管 Agent、Prompt、Skill、MCP/LSP 资源及库存、APS、MPS 纯计�
 
 代码用命名、类型、结构和必要行为测试表达规则，自有源码、脚本与测试不写注释。业务 Prompt/Skill 与运行时文案保持原含义；工具指令先消除依赖，许可证来源按原分发要求保全。实现细节只维护在代码中，不要求每个非平凡改动另写 Agent Note；代码无法表达且仍影响判断的决定才维护其唯一记录。
 
-`check:comments` 阻断改动文件中的 JS/TS 注释，`--all` 审计完整 JS/TS 存量。检查沿现有 static/source/CI 执行，分批清理不等于全仓已清零。按改动运行已有检查，完整 SDK 与客户端验收只在本次目标需要时准备。
+`check:comments` 默认阻断全仓自有代码注释，支持范围和资产来源见 `source-comments.json` 与[本地开发](docs/current-development.md)。第三方、生成物、业务资源、fixture 与历史证据按真实来源保留。
 
 在插件拆分项目中构建或调试前，读项目根 `docs/agents/dependency-preparation.md`，复用已准备环境，不共享可写 node_modules 或构建输出。生成的 lib/client 不手改。
 

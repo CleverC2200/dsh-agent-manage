@@ -46,10 +46,6 @@ const savedAgent = z.object({
 const saveAgent = z.object({ ...fields, id: z.uuid().optional() })
 const document = z.object({ version: z.literal(1), agents: z.array(savedAgent) })
 
-/** Owns durable personal configurations and their official preset publication.
- * Writes are serialized; the registry retains old revisions for live Sessions.
- * Saving records the editable configuration even if its publication fails.
- */
 export class UserAgents {
   private agents: UserAgentConfig[] = []
   private readonly cubeGrants = new Map<string, { generation: string; sourceRef: string; signal: AbortSignal; controller: AbortController }>()
@@ -104,14 +100,10 @@ export class UserAgents {
     if (this.agents.length) await this.persist(this.agents)
     this.syncCubeGrants()
     await this.mcp?.load(this.agents)
-    // During Host activation only register, never await the whole Loader tree.
-    // Actual availability is audited by list/select after the Host has settled.
+
     for (const agent of this.agents) if (agent.enabled && !agent.deletedAt) await this.publish(agent, false)
   }
 
-  /** Observe committed lifecycle/configuration changes; listeners may start async reads.
-   * Notifications are synchronous signals and are never awaited inside the write queue.
-   */
   watch(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
@@ -146,7 +138,6 @@ export class UserAgents {
     })
   }
 
-  /** Imports only Host-discovered configuration; repeat imports preserve user customization. */
   importSource(input: unknown, source: AgentSourceBaseline): Promise<UserAgentView> {
     const value = saveAgent
       .omit({ id: true })
@@ -169,7 +160,6 @@ export class UserAgents {
     })
   }
 
-  /** Complete a multi-resource import only after its external MCP associations exist. */
   finishSourceImport(id: string, mcpReferences: NonNullable<AgentSourceBaseline['mcpReferences']>): Promise<UserAgentView> {
     return this.write(async () => {
       const previous = this.find(id)
@@ -186,8 +176,6 @@ export class UserAgents {
     })
   }
 
-  /** Commit an already resolved source candidate. Unlike ordinary edits, a failed sync
-   * keeps the previous durable configuration and its usable declaration. */
   syncSource(id: string, expectedRevision: number, input: unknown, source: AgentSourceBaseline, signal?: AbortSignal): Promise<UserAgentView> {
     const value = savedAgent.parse(input)
     return this.write(async () => {
@@ -198,8 +186,7 @@ export class UserAgents {
       let swapped = false
       try {
         signal?.throwIfAborted()
-        // Core has no hidden staging/atomic replace operation. Prepare the complete
-        // declaration and its dependencies before replacing the stable identity.
+
         const definition = await this.prepare(agent)
         signal?.throwIfAborted()
         if (agent.enabled) {
@@ -223,13 +210,12 @@ export class UserAgents {
           this.releases.set(id, await this.register(previous))
           this.published.set(id, previous)
         }
-        // The failed candidate is not saved. The caller retains the preview for retry.
+
         throw error
       }
     })
   }
 
-  /** Resolves the declaration retained by Core, then applies current revocation. */
   cubeFor(agent: { ctx: Context }): { sourceRef: string; signal: AbortSignal; generation: string } | undefined {
     const declaration = this.ctx.agentPresets.serviceFor(agent, 'userAgentCube')
     if (!declaration) return undefined
@@ -251,7 +237,7 @@ export class UserAgents {
         const controller = new AbortController()
         this.cubeGrants.set(agent.id, { sourceRef: agent.cube.sourceRef, generation: randomUUID(), controller, signal: controller.signal })
       }
-    // Persisted revocation closes schemas before publication/release can await Core.
+
     if (revoked) for (const listener of this.listeners) listener()
   }
   saveCube(id: string, input: unknown): Promise<UserAgentView> {
@@ -382,7 +368,6 @@ export class UserAgents {
     })
   }
 
-  /** Retire only the personal configuration. Core owns all Sessions and drafts. */
   remove(id: string): Promise<UserAgentView> {
     return this.write(async () => {
       const previous = this.find(id)
@@ -397,7 +382,6 @@ export class UserAgents {
     })
   }
 
-  /** Restore configuration only; enabling its capabilities is a separate user action. */
   restore(id: string): Promise<UserAgentView> {
     return this.write(async () => {
       const deleted = this.find(id, true)
@@ -510,7 +494,7 @@ export class UserAgents {
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       await this.withdraw(agent.id)
-      // Keep the last usable declaration available to durable old Sessions.
+
       if (previous) {
         this.releases.set(agent.id, await this.register(previous))
         this.published.set(agent.id, previous)

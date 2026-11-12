@@ -25,7 +25,6 @@ function suite(overrides: Partial<Suite> = {}): Suite {
   }
 }
 
-/** A resolver that satisfies every reference, for tests of the mapping itself. */
 const alwaysResolves = { resolve: async () => ({ value: 'resolved' }) } as const
 
 describe('mcp-config: suite mcp.json → bridge rows', () => {
@@ -102,8 +101,7 @@ describe('mcp-config: credential references', () => {
 
   it('honors an explicit non-empty fallback but still fails closed on an empty one', async () => {
     const target = suite()
-    // Isolate to the stdio server: the shared fixture's http server carries an
-    // unsatisfied ${MCP_TOKEN}, which is meant to fail closed here.
+
     target.mcp!.servers = {
       db: { type: 'stdio', command: 'db', args: ['--root', '${MISSING:-/default}'] }
     }
@@ -112,8 +110,6 @@ describe('mcp-config: credential references', () => {
     expect(db['args']).toEqual(['--root', '/default'])
     expect(resolved.failures).toEqual([])
 
-    // `${REF:-}` supplies an empty fallback, so an unresolved value stays empty
-    // and is reported missing rather than silently passing an empty flag.
     target.mcp!.servers = { db: { type: 'stdio', command: 'db', args: ['--tag', '${ALSO_MISSING:-}'] } }
     const emptyFallback = await toMcpMounts(target, '/tmp/data', {}, { resolve: async () => undefined })
     expect(emptyFallback.mounts).toEqual([])
@@ -159,8 +155,7 @@ describe('mcp-config: serverName derivation', () => {
   it('joins sanitized ids with __', () => {
     expect(deriveServerName('my-suite', 'db')).toBe('my-suite__db')
     expect(deriveServerName('My Suite!', 'DB 1')).toBe('My_Suite__DB_1')
-    // Two sources' same suite/server pair derive ONE name: the second
-    // mount is skipped as a duplicate instead of shadow-registering.
+
     expect(deriveServerName('context7', 'context7')).toBe('context7__context7')
   })
 
@@ -174,24 +169,20 @@ describe('mcp-config: serverName derivation', () => {
 
 describe('mcp-config: source-scoped identity', () => {
   it('derives serverNames and mount keys from the qualified suite id so two sources never collide', async () => {
-    // Regression: mount requests keyed by the bare suite id let two sources'
-    // same-named suites shadow each other's mounts, data dirs, and status.
     const a = suite()
     const b = { ...suite(), sourceId: 'other' }
     const first = await toMcpMounts(a, '/tmp/data', {}, alwaysResolves)
     const second = await toMcpMounts(b, '/tmp/data', {}, alwaysResolves)
     const firstNames = first.mounts.map(mount => mount.config.serverName)
     const secondNames = second.mounts.map(mount => mount.config.serverName)
-    // Qualified ids differ, so every derived serverName differs.
-    // Same suite/server pair across sources derives ONE name by design:
-    // the mount registry skips the second as a duplicate-mount.
+
     expect(firstNames.some(name => secondNames.includes(name))).toBe(true)
     expect(firstNames.every(name => name.startsWith('my-suite__'))).toBe(true)
     expect(secondNames.every(name => name.startsWith('my-suite__'))).toBe(true)
-    // The request's suiteId — the mount registry key — is qualified on both.
+
     expect(first.mounts.every(mount => mount.suiteId === 'demo/my-suite')).toBe(true)
     expect(second.mounts.every(mount => mount.suiteId === 'other/my-suite')).toBe(true)
-    // Per-suite PLUGIN_DATA directories are qualified too.
+
     const dbA = first.mounts[0]!.config as Record<string, unknown>
     expect(dbA['env']).toEqual({ CACHE: '/tmp/data/demo/my-suite/cache' })
     const dbB = second.mounts[0]!.config as Record<string, unknown>

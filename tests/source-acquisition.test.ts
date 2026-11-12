@@ -17,11 +17,6 @@ import { resolveSourceKind } from '../src/model/types.js'
 
 const run = promisify(execFile)
 
-/**
- * Build a stored (uncompressed) zip by hand. fflate's `zipSync` cannot
- * express traversal entry names (`../…` recurses its path flattening), so
- * the malicious fixture needs raw record construction.
- */
 function storedZip(entries: Record<string, Uint8Array>): Buffer {
   const chunks: Buffer[] = []
   const central: Buffer[] = []
@@ -104,7 +99,6 @@ describe('state normalization keeps acquisition fields', async () => {
   })
 })
 
-/** A fixture zip: one wrapper directory containing a minimal skill suite. fflate requires Uint8Array values. */
 const FIXTURE_ZIP = zipSync({
   'wrapper/manifest.json': Buffer.from(JSON.stringify({ name: 'fixture' })),
   'wrapper/skills/demo/SKILL.md': Buffer.from('---\nname: demo\ndescription: demo skill\n---\nbody\n')
@@ -192,9 +186,6 @@ describe('archive acquisition', () => {
   })
 
   it('rejects a symlink pointing outside the extraction root (readlink-based containment)', async () => {
-    // Regression: the containment walk once read the link's target *content*
-    // with readFile, so an escaping symlink resolved to a bogus in-root path
-    // and the escape survived extraction.
     const { assertNoEscapingSymlinksForTest } = await import('../src/catalog/archive.js')
     const stage = await mkdtemp(join(tmpdir(), 'dsh-archive-symlink-'))
     const outside = join(stage, 'outside')
@@ -205,7 +196,7 @@ describe('archive acquisition', () => {
     await writeFile(join(extract, 'keep.txt'), 'x')
     await symlink(join(outside, 'secret.txt'), join(extract, 'deep', 'leak'))
     await expect(assertNoEscapingSymlinksForTest(extract)).rejects.toThrow(/escaping the extraction root/)
-    // A contained link (target inside the root) stays legal.
+
     await symlink('../keep.txt', join(extract, 'deep', 'ok'))
     await expect(assertNoEscapingSymlinksForTest(extract)).rejects.toThrow(/escaping the extraction root/)
     await rm(stage, { recursive: true, force: true })
@@ -219,9 +210,6 @@ describe('archive acquisition', () => {
   })
 
   it('accepts an explicit format for extension-less archive URLs (codeload fallback)', async () => {
-    // Regression: codeload tarball URLs end in a branch path, not `.tar.gz`,
-    // so archiveFormatOf returned undefined and the git fallback path always
-    // failed with "unsupported archive format".
     const stage = await mkdtemp(join(tmpdir(), 'dsh-archive-codeload-'))
     await mkdir(join(stage, 'top', 'skills', 'demo'), { recursive: true })
     await writeFile(join(stage, 'top', 'skills', 'demo', 'SKILL.md'), '---\nname: demo\ndescription: d\n---\n')
@@ -245,7 +233,6 @@ describe('archive acquisition', () => {
 })
 
 describe('adopting manually cloned checkouts', () => {
-  /** A real git checkout with an `origin` remote, standing in for a manual clone. */
   async function makeManualCheckout(root: string, id: string, originUrl: string): Promise<string> {
     const dir = join(root, '.sources', id)
     await mkdir(dir, { recursive: true })
@@ -273,10 +260,10 @@ describe('adopting manually cloned checkouts', () => {
     await catalog.load()
     const source = await catalog.addSource({ url: 'https://github.com/example/manual.git' })
     expect(source).toMatchObject({ id: 'manual', adopted: true, kind: 'git' })
-    // The user's files were not touched and no `-2` clone was created.
+
     expect(await readFile(join(dir, 'marker.txt'), 'utf8')).toBe('user data')
     expect(await readdir(join(root, '.sources'))).toEqual(['manual'])
-    // Adoption is idempotent-safe: the registered source is no longer unmanaged.
+
     expect(await catalog.unmanagedSources()).toEqual([])
     await rm(root, { recursive: true, force: true })
   })
@@ -304,23 +291,19 @@ describe('adopting manually cloned checkouts', () => {
 
   it('removeSource with deleteCheckout physically removes managed checkouts but never external local paths', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-remove-delete-'))
-    // Adopted checkout: registered in place, user-owned files.
+
     const adoptedDir = await makeManualCheckout(root, 'adopted', 'https://github.com/example/adopted.git')
-    // Plain local directory source.
+
     const localDir = join(root, '.sources', 'localdir')
     await mkdir(localDir, { recursive: true })
-    // Self-acquired checkout: registered through addSource without adoption
-    // (a plain directory registered as a non-local source stands in for the
-    // clone the plugin itself made).
+
     const acquiredDir = join(root, '.sources', 'acquired')
     await mkdir(acquiredDir, { recursive: true })
     const catalog = new Catalog({ userRoot: root, dataRoot: join(root, 'data'), onChanged: () => {} })
     await catalog.load()
     await catalog.adoptSource('adopted')
     await catalog.adoptSource('localdir')
-    // Seed the self-acquired source through state.json (the state field is
-    // plugin-private): a plain directory registered as a non-local git source
-    // stands in for the clone the plugin itself made.
+
     const statePath = join(root, 'state.json')
     const state = JSON.parse(await readFile(statePath, 'utf8')) as { sources: Array<Record<string, unknown>> }
     state.sources.push({ id: 'acquired', url: 'https://github.com/example/acquired.git', kind: 'git' })
@@ -330,8 +313,7 @@ describe('adopting manually cloned checkouts', () => {
 
     await reloaded.removeSource('acquired', true)
     await expect(stat(acquiredDir)).rejects.toThrow()
-    // Managed `.sources` directories are removable even when they were
-    // adopted; only an external local directory survives.
+
     await reloaded.removeSource('adopted', true)
     await reloaded.removeSource('localdir', true)
     await expect(stat(adoptedDir)).rejects.toThrow()

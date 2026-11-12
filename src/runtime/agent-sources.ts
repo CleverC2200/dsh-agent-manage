@@ -48,7 +48,6 @@ type SyncPlan = {
 }
 const same = isDeepStrictEqual
 
-/** Source acquisition/discovery uses Catalog; editable snapshots and publication belong to UserAgents. */
 export class AgentSources {
   private pending: Promise<unknown> = Promise.resolve()
   private plans = new Map<string, SyncPlan>()
@@ -162,14 +161,13 @@ export class AgentSources {
     return result
   }
 
-  /** Capture old source and effective MCP values before Catalog may reset a checkout. */
   preview(input: unknown, signal?: AbortSignal): Promise<AgentSourcePreview> {
     const { id } = syncTarget.parse(input)
     return this.serialize(async () => {
       signal?.throwIfAborted()
       const agent = (await this.agents.list()).find(row => row.id === id && !row.deletedAt)
       if (!agent?.source || agent.source.importPending) throw Error('AGENT_SOURCE_NOT_IMPORTED')
-      // Preview state never crosses restart and is superseded by a newer preview.
+
       for (const [token, plan] of this.plans) if (plan.agent.source?.sourceId === agent.source.sourceId) this.plans.delete(token)
       const mcp = new Map<string, { base: unknown; local: unknown }>()
       const associations = (await this.agents.mcp?.list(id)) ?? []
@@ -307,8 +305,7 @@ export class AgentSources {
             continue
           }
           if (!this.agents.mcp) throw Error('AGENT_SOURCE_MCP_UNAVAILABLE')
-          // Keep original upstream in the direct definition and user edits in its
-          // existing override layer. Only changed connections get a new identity.
+
           const stagedKey = JSON.stringify([serverKey, value])
           let connection = plan.staged.get(stagedKey)
           if (!connection) {
@@ -331,8 +328,7 @@ export class AgentSources {
         }
         signal?.throwIfAborted()
         await this.assertSourceSnapshot(plan.source, plan.snapshot, signal)
-        // Persist membership first; revision-specific declarations keep old live
-        // Sessions on their old connections while candidate publication settles.
+
         await this.agents.mcp?.sourceRevision(
           current.id,
           references.filter(row => !row.removed).map(row => row.connectionId)
@@ -421,7 +417,7 @@ export class AgentSources {
       const entry = { ...common, resourceKey: `agent:${resource.name}`, name: resource.name }
       try {
         const errors: string[] = []
-        // Recheck containment on each import; discovery may precede local filesystem edits.
+
         if (!(await componentPath(suite.root, resource.file, errors))) throw Error(errors.join('; '))
         const role = parseAgentRole(await resourceText(resource))
         if (role.model || role.provider || role.reasoningEffort || role.tools || role.disallowedTools) throw Error('AGENT_SOURCE_ROLE_RESTRICTIONS_REQUIRE_MANUAL_CONFIGURATION')

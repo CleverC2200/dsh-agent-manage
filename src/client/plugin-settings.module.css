@@ -1,5 +1,3 @@
-/* Host plugin settings card and its shared switch. */
-
 .switchOn,
 .switchOff {
   position: relative;
@@ -13,9 +11,6 @@
   transition: background-color 0.15s ease;
 }
 
-/* ON rides the primary button fill (brand → dark in the platform theme),
-   the same track color every other plugin toggle and native control uses —
-   not state-success green, which reads as off-convention beside them. */
 .switchOn {
   background: var(--dsw-alias-button-primary-fill, var(--workbench-brand));
 }
@@ -46,7 +41,6 @@
 .switchOn .switchThumb {
   left: 19px;
 }
-
 
 @media (prefers-reduced-motion: reduce) {
   .switchOn, .switchOff, .switchThumb { transition: none; }
@@ -156,8 +150,6 @@
   }
 }
 
-/* The plugin settings card shares ui/ToggleSwitch. */
-
 .pluginCardError {
   color: var(--dsw-alias-state-error-primary, #dc2626);
   font-size: calc(var(--workbench-font-size) * 12 / 14);
@@ -176,7 +168,6 @@
   transform: rotate(180deg);
 }
 
-/* Region segmented control, mirroring dshmarket's setSeg chrome. */
 .regionSeg {
   flex: none;
   display: inline-flex;

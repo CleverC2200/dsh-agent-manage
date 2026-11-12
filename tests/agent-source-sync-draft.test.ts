@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-/** The official InputHub retains a draft while a separate real Host synchronizes/restarts its Agent. */
 import { expect, it, onTestFinished } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { execFile } from 'node:child_process'

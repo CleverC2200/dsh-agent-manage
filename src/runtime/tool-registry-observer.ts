@@ -1,20 +1,8 @@
-/** 文件作用：以宿主私有层结构观察当前 MCP 工具，供状态面只读使用。 */
-/** Host-private adapter for observing model-facing MCP tools. */
-
-/** One MCP tool observed from the DSH tool registry. */
 export interface McpToolSnapshot {
   name: string
   description?: string
 }
 
-/**
- * Read MCP tool names from the dsh-tools runtime when available.
- *
- * The registry has no public listing API in the current host release. This
- * adapter uses the observed `layers.merge(...).tools.entries()` data shape and
- * returns an empty observation when a host changes it.
- */
-/** 读取宿主私有工具层，输出仅包含 mcp__ 命名空间的只读快照。 */
 export function inspectToolRegistry(runtime: unknown): McpToolSnapshot[] {
   if (typeof runtime !== 'object' || runtime === null) return []
   const layers = (runtime as { layers?: unknown }).layers

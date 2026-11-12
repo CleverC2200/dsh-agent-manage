@@ -1,17 +1,3 @@
-/** 文件作用：读取、清洗并应用用户对套件 MCP 服务的覆盖配置。 */
-/**
- * MCP server overrides: user-owned edits layered over a suite's read-only
- * `mcp.json`.
- *
- * The suite's mcp.json is source-controlled content — editing it in place
- * would be clobbered by the next refresh and would blur authorship. Overrides
- * live in `${dataRoot}/overrides/<suiteId>.json` and win at mount time.
- * Legacy patches edit connection inputs and enablement; the service editor
- * stores a validated complete configuration while retaining server identity.
- * Secret values should use `${NAME}` references
- * resolved by the Host credentials service (or launch-environment fallback)
- * so keys never persist in plain text.
- */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { isSensitiveKey } from './mcp-redaction.js'
@@ -19,52 +5,39 @@ import type { McpServerSse, McpServerStreamableHttp, McpServerStdio } from '../m
 
 import { USER_MCP_SOURCE, USER_MCP_SUITE } from './mcp-direct-config.js'
 
-/** HTTP-shaped server sources (url + headers carriers) overrides can edit. */
 type McpServerHttp = McpServerStreamableHttp | McpServerSse
 
-/** Per-server override record; absent fields pass through from the source. */
 export type McpServerOverride = {
-  /** Validated complete user configuration, retaining source-owned identity. */
   config?: McpServerStdio | McpServerHttp
-  /** Disabled servers are not mounted at all (default enabled). */
+
   enabled?: boolean
-  /** Replaces the source URL (streamable-http only). */
+
   url?: string
-  /** Replaces the whole header map (streamable-http only). */
+
   headers?: Record<string, string>
-  /** Replaces the whole env map (stdio). */
+
   env?: Record<string, string>
-  /** Replaces the whole args list (stdio). */
+
   args?: string[]
-  /** Replaces the OAuth block (streamable-http only); `enabled: false` disables a source-declared flow. */
+
   auth?: { enabled: boolean; scope?: string }
 }
 
-/** Overrides for one suite, keyed by mcp.json server key. */
 export type McpSuiteOverrides = Record<string, McpServerOverride>
 
-/** Retired plugin connection edits stay on disk for recovery; only enablement remains effective.
- * User connection definitions still accept their validated, Agent-owned configuration.
- */
 export function effectiveSuiteOverrides(suiteId: string, stored: McpSuiteOverrides): McpSuiteOverrides {
   if (suiteId === `${USER_MCP_SOURCE}/${USER_MCP_SUITE}`) return stored
   return Object.fromEntries(Object.entries(stored).map(([key, value]) => [key, value.enabled === undefined ? {} : { enabled: value.enabled }]))
 }
 
-/** The overrides directory under the plugin data root. */
-/** 返回 MCP 覆盖配置目录路径。 */
 export function overridesDir(dataRoot: string): string {
   return join(dataRoot, 'overrides')
 }
 
-/** One suite's override file path. */
-/** 返回某个套件覆盖文件路径，并对套件 ID 做文件名清洗。 */
 export function suiteOverridePath(dataRoot: string, suiteId: string): string {
   return join(overridesDir(dataRoot), `${sanitizeFileName(suiteId)}.json`)
 }
 
-/** Load one suite's persisted overrides; unreadable files yield none. */
-/** 读取单套件覆盖并清洗未知字段；缺失文件返回空对象。 */
 export async function loadSuiteOverrides(dataRoot: string, suiteId: string): Promise<McpSuiteOverrides> {
   try {
     const raw: unknown = JSON.parse(await readFile(suiteOverridePath(dataRoot, suiteId), 'utf8'))
@@ -76,16 +49,12 @@ export async function loadSuiteOverrides(dataRoot: string, suiteId: string): Pro
   }
 }
 
-/** Persist one suite's overrides atomically-ish (single writer, small file). */
-/** 清洗并持久化单套件覆盖，确保敏感字面量不进入文件。 */
 export async function saveSuiteOverrides(dataRoot: string, suiteId: string, overrides: McpSuiteOverrides): Promise<void> {
   const path = suiteOverridePath(dataRoot, suiteId)
   await mkdir(dirname(path), { recursive: true })
   await writeFile(path, `${JSON.stringify(overrides, null, 2)}\n`, { mode: 0o600 })
 }
 
-/** Keep only recognized fields with correct shapes; drop everything else. */
-/** 将任意输入收窄为服务器键到覆盖记录的安全映射。 */
 export function sanitizeOverrides(raw: unknown): McpSuiteOverrides {
   if (typeof raw !== 'object' || raw === null) return {}
   const result: McpSuiteOverrides = {}
@@ -110,8 +79,6 @@ export function sanitizeOverrides(raw: unknown): McpSuiteOverrides {
   return result
 }
 
-/** Keep a well-formed auth block; anything else passes nothing through. */
-/** 清洗 OAuth auth 子对象，只保留 enabled 和 scope。 */
 function sanitizeAuth(raw: unknown): { enabled: boolean; scope?: string } | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined
   const record = raw as Record<string, unknown>
@@ -122,24 +89,12 @@ function sanitizeAuth(raw: unknown): { enabled: boolean; scope?: string } | unde
   }
 }
 
-/** Validate a client-supplied patch for one server into an override value. */
-/** 校验单个覆盖补丁并拒绝敏感字面量或未知结构。 */
 export function sanitizeOverridePatch(patch: unknown): McpServerOverride | undefined {
   if (typeof patch === 'object' && patch !== null && 'config' in patch) return undefined
   if (containsLiteralSensitiveValue(patch)) return undefined
   return sanitizeOverrides({ server: patch })['server']
 }
 
-/**
- * Merge one client patch into the override already on disk.
- *
- * The UI redacts secret-shaped values before rendering them, so a patch built
- * from that redacted view must not be written verbatim — that would silently
- * drop keys the user did not intend to change. Existing stored values are
- * therefore preserved and only the fields the patch actually carries replace
- * them.
- */
-/** 将局部补丁合并进已有覆盖，保持未修改字段继承。 */
 export function mergeOverridePatch(existing: McpServerOverride, patch: McpServerOverride): McpServerOverride {
   const headers = mergeStringMap(existing.headers, patch.headers)
   const env = mergeStringMap(existing.env, patch.env)
@@ -154,7 +109,6 @@ export function mergeOverridePatch(existing: McpServerOverride, patch: McpServer
   }
 }
 
-/** 合并 headers/env 等字符串映射；空补丁不改变已有配置。 */
 function mergeStringMap(existing: Record<string, string> | undefined, patch: Record<string, string> | undefined): Record<string, string> | undefined {
   if (existing === undefined && patch === undefined) return undefined
   const merged = { ...(existing ?? {}) }
@@ -162,7 +116,6 @@ function mergeStringMap(existing: Record<string, string> | undefined, patch: Rec
   return Object.keys(merged).length > 0 ? merged : undefined
 }
 
-/** 递归检测是否写入敏感字面量，只允许 ${NAME} 引用。 */
 function containsLiteralSensitiveValue(value: unknown, key = ''): boolean {
   if (isSensitiveKey(key) && typeof value === 'string') return !value.includes('${')
   if (Array.isArray(value)) return value.some(item => containsLiteralSensitiveValue(item, key))
@@ -171,7 +124,6 @@ function containsLiteralSensitiveValue(value: unknown, key = ''): boolean {
   return false
 }
 
-/** 将未知值收窄为字符串映射，非法成员返回 undefined。 */
 function stringMap(value: unknown): Record<string, string> | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const result: Record<string, string> = {}
@@ -182,16 +134,6 @@ function stringMap(value: unknown): Record<string, string> | undefined {
   return Object.keys(result).length > 0 ? result : undefined
 }
 
-/**
- * Apply one server's overrides onto its source shape. Field replacement is
- * whole-map (headers/env/args), never per-key merge, so removing a key in the
- * UI actually removes it at mount time. Values pass through the ordinary
- * mount-time placeholder pipeline afterwards, so override authors may
- * reference secrets as `${NAME}` or `${NAME:-fallback}` (resolved through the
- * Host credentials service or launch environment in memory) instead of
- * persisting them here.
- */
-/** 将完整 config 或局部字段覆盖应用到源服务，保持传输类型不变。 */
 export function applyOverride(server: McpServerStdio | McpServerHttp, override: McpServerOverride | undefined): McpServerStdio | McpServerHttp {
   if (override === undefined) return server
   if (override.config !== undefined) server = override.config
@@ -210,7 +152,6 @@ export function applyOverride(server: McpServerStdio | McpServerHttp, override: 
   }
 }
 
-/** 将套件 ID 转成安全文件名片段，避免覆盖目录外文件。 */
 function sanitizeFileName(raw: string): string {
   return raw.replace(/[^A-Za-z0-9_-]+/g, '_')
 }
