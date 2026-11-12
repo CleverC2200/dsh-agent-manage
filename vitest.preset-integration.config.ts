@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'
 import { presetLanes } from './scripts/preset-test-lanes.mjs'
-import base from './vitest.config.js'
+import { hostConfig as base } from './vitest.config.js'
 
 const gea = resolve(process.env.DSH_GEA_CHECKOUT ?? '../dsh-gea-plugin')
 const workbench = resolve(process.env.DSH_WORKBENCH_CHECKOUT ?? '../dsh-agent-workbench')

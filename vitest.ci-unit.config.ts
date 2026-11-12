@@ -1,8 +1,4 @@
-import { defineConfig } from 'vitest/config'
-import base from './vitest.config.js'
+import { unitConfig } from './vitest.config.js'
 import { presetLanes } from './scripts/preset-test-lanes.mjs'
 
-export default defineConfig({
-  ...base,
-  test: { ...base.test, exclude: [...base.test.exclude, ...Object.keys(presetLanes['standard-skill'])] }
-})
+export default unitConfig(Object.keys(presetLanes['standard-skill']))
