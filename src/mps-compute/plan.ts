@@ -1,6 +1,6 @@
 import { computeMpsWorkflow, type MpsWorkflowInput, type MpsWorkflowRow } from './workflow.ts'
 import { resolveMpsRules, ruleProductionDays, ruleStopsResource, ruleApplies } from './constraint-rules.ts'
-import { fairAllocate } from './fair-allocation.ts'
+import { jointAllocate } from './joint-allocation.ts'
 
 export interface MpsPlanInput extends MpsWorkflowInput {
   planCandidates?: { base: string; code: string; resourceId: string; month?: string }[]
@@ -49,6 +49,7 @@ interface ResourceSchedule {
   base: string
   resourceId: string
   name: string
+  kind: NonNullable<MpsPlanInput['resources']>[number]['kind']
   days: number | null
   dailyTons: number
   capacity: number | null
@@ -82,7 +83,7 @@ const plannedRow = (row: MpsWorkflowRow): MpsPlannedRow => ({
 export function solveMpsPlan(input: MpsPlanInput) {
   const reference = computeMpsWorkflow(input)
   const resolved = resolveMpsRules(input, reference.months.slice(0, 3))
-  const resources = (input.resources ?? []).filter(row => row.kind === 'tunnel')
+  const resources = input.resources ?? []
   const uniqueResources = resources.filter(row => resources.filter(item => item.id === row.id).length === 1 && row.id && row.base && finite(row.dailyTons) && row.dailyTons >= 0)
   const sourceIssues = [
     ...(input.planSourceIssues ?? []),
@@ -99,7 +100,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
       .map(category => `${category.month} ${category.category} 缺有效需求或月度SKU域，尚未拆分`),
     ...resolved.evaluations.filter(row => row.status === 'draft').map(row => row.reason)
   ]
-  if (resources.length !== uniqueResources.length) sourceIssues.push('部分隧道资源编号重复、归属或能力无效，未纳入求解')
+  if (resources.length !== uniqueResources.length) sourceIssues.push('部分资源编号重复、归属或能力无效，未纳入求解')
   const candidates =
     input.planCandidates ?? (input.resourceAssignments ?? []).filter(row => row.share > 0).map(({ base, code, resourceId, month }) => ({ base, code, resourceId, month }))
   const coefficientIndex = new Map<string, NonNullable<MpsPlanInput['unitWeights']>>()
@@ -134,6 +135,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
     resourceId: string
     tons: number
     quantity: number
+    resourceUsage: { resourceId: string; share: number }[]
     path: TransferRoute[]
   }[] = []
   const odmArrivals: {
@@ -172,6 +174,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
         base: resource.base,
         resourceId: resource.id,
         name: resource.name,
+        kind: resource.kind,
         days,
         dailyTons,
         capacity,
@@ -182,6 +185,28 @@ export function solveMpsPlan(input: MpsPlanInput) {
     })
     resourceSchedules.push(...monthResources)
     const capacityMap = new Map(monthResources.filter(row => row.capacity !== null).map(row => [row.resourceId, row.capacity ?? 0]))
+    const forming = (base: string, code: string) => {
+      const machines = uniqueResources.filter(resource => resource.base === base && resource.kind === 'forming')
+      const assigned = (input.resourceAssignments ?? []).filter(
+        row => row.base === base && row.code === code && row.month === month && machines.some(machine => machine.id === row.resourceId)
+      )
+      const unknown = (input.resourceAssignments ?? []).some(
+        row => row.base === base && row.code === code && row.month === month && !(input.resources ?? []).some(resource => resource.id === row.resourceId && resource.base === base)
+      )
+      const valid =
+        !unknown &&
+        assigned.length > 0 &&
+        new Set(assigned.map(row => row.resourceId)).size === assigned.length &&
+        assigned.every(row => finite(row.share) && row.share >= 0 && row.share <= 1 && capacityMap.has(row.resourceId)) &&
+        Math.abs(assigned.reduce((sum, row) => sum + row.share, 0) - 1) <= 1e-12
+      return valid ? assigned.filter(row => row.share > 0).map(row => ({ resourceId: row.resourceId, share: row.share })) : null
+    }
+    const optionsFor = (row: MpsPlannedRow, ids: string[]) =>
+      ids.flatMap(id => {
+        const resource = uniqueResources.find(item => item.id === id && item.kind === 'tunnel')
+        const assigned = resource ? forming(resource.base, row.code) : null
+        return assigned ? [{ resourceId: id, usage: [{ resourceId: id, share: 1 }, ...assigned] }] : []
+      })
     const weights = new Map<string, number>()
     const eligible = new Map<string, string[]>()
     const remote = new Map<string, string[]>()
@@ -196,7 +221,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
       row.requiredProductionTons = row.requiredProduction === 0 ? 0 : row.requiredProduction !== null && weight !== null ? row.requiredProduction * weight : null
       const own = [
         ...new Set(candidates.filter(item => item.base === row.base && item.code === row.code && (!item.month || item.month === month)).map(item => item.resourceId))
-      ].filter(id => monthResources.some(resource => resource.resourceId === id && resource.base === row.base) && capacityMap.has(id))
+      ].filter(id => monthResources.some(resource => resource.resourceId === id && resource.base === row.base && resource.kind === 'tunnel') && capacityMap.has(id))
       const pendingAt = (base: string) =>
         reference.ruleEvaluations.filter(
           entry =>
@@ -296,10 +321,12 @@ export function solveMpsPlan(input: MpsPlanInput) {
       supplyPaths.set(row.id, paths)
       const other = [
         ...new Set(candidates.filter(item => item.code === row.code && (!item.month || item.month === month) && paths.has(item.base)).map(item => item.resourceId))
-      ].filter(id => capacityMap.has(id))
-      eligible.set(row.id, own)
+      ].filter(id => capacityMap.has(id) && monthResources.some(resource => resource.resourceId === id && resource.kind === 'tunnel'))
+      const ownReady = optionsFor(row, own).map(option => option.resourceId)
+      const otherReady = optionsFor(row, other).map(option => option.resourceId)
+      eligible.set(row.id, ownReady)
       row.candidateResources = own
-      remote.set(row.id, other)
+      remote.set(row.id, otherReady)
       const routePending =
         !own.length && !other.length && reference.ruleEvaluations.length
           ? [
@@ -317,6 +344,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
         ...(row.requiredProduction !== 0 && weight === null ? ['缺唯一有效件吨系数'] : []),
         ...(row.requiredProductionTons !== null && !finite(row.requiredProductionTons) ? ['生产吨数超出有效范围'] : []),
         ...(row.requiredProduction !== 0 && !own.length && !other.length && !routePending.length ? ['无有效产线承接关系或生产日历'] : []),
+        ...(row.requiredProduction !== 0 && (own.length || other.length) && !ownReady.length && !otherReady.length ? ['缺有效成型机台账、月度批准分配或生产日历'] : []),
         ...pendingAt(row.base).map(entry => entry.reason),
         ...routePending
       ]
@@ -327,14 +355,20 @@ export function solveMpsPlan(input: MpsPlanInput) {
       .map(row => ({
         id: row.id,
         quantity: row.requiredProductionTons ?? 0,
-        resources: eligible.get(row.id) ?? []
+        options: optionsFor(row, eligible.get(row.id) ?? [])
       }))
-    const local = fairAllocate(
+    const local = jointAllocate(
       demands,
       [...capacityMap].map(([id, quantity]) => ({ id, quantity }))
     )
     const remainingCapacity = new Map(
-      [...capacityMap].map(([id, capacity]) => [id, Math.max(0, capacity - local.allocations.filter(row => row.resourceId === id).reduce((sum, row) => sum + row.quantity, 0))])
+      [...capacityMap].map(([id, capacity]) => [
+        id,
+        Math.max(
+          0,
+          capacity - local.allocations.reduce((sum, row) => sum + row.quantity * row.usage.filter(item => item.resourceId === id).reduce((total, item) => total + item.share, 0), 0)
+        )
+      ])
     )
     const localOutput = new Map(local.demands.map(row => [row.id, row.allocated]))
     const imports = demandRows
@@ -342,9 +376,9 @@ export function solveMpsPlan(input: MpsPlanInput) {
       .map(row => ({
         id: row.id,
         quantity: Math.max(0, (row.requiredProductionTons ?? 0) - (localOutput.get(row.id) ?? 0)),
-        resources: remote.get(row.id) ?? []
+        options: optionsFor(row, remote.get(row.id) ?? [])
       }))
-    const supplemental = fairAllocate(
+    const supplemental = jointAllocate(
       imports,
       [...remainingCapacity].map(([id, quantity]) => ({ id, quantity }))
     )
@@ -361,6 +395,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
         code: row.code,
         rowId: row.id,
         resourceId: resource.resourceId,
+        resourceUsage: allocation.usage,
         tons: allocation.quantity,
         quantity: allocation.quantity / weight,
         path: resource.base === row.base ? [] : (supplyPaths.get(row.id)?.get(resource.base) ?? [])
@@ -384,15 +419,21 @@ export function solveMpsPlan(input: MpsPlanInput) {
         })
     }
     for (const resource of monthResources) {
-      const assigned = allocations.filter(row => row.month === month && row.resourceId === resource.resourceId)
-      const total = assigned.reduce((sum, row) => sum + row.tons, 0)
+      const assigned = allocations.filter(row => row.month === month && row.resourceUsage.some(item => item.resourceId === resource.resourceId))
+      const usedTons = (row: (typeof allocations)[number]) =>
+        row.tons * row.resourceUsage.filter(item => item.resourceId === resource.resourceId).reduce((sum, item) => sum + item.share, 0)
+      const total = assigned.reduce((sum, row) => sum + usedTons(row), 0)
       if (resource.capacity !== null && total > resource.capacity)
         assigned.forEach(row => {
           const ratio = ((resource.capacity ?? 0) / total) * (1 - 1e-12)
           row.tons *= ratio
           row.quantity *= ratio
         })
-      resource.scheduledTons = assigned.reduce((sum, row) => sum + row.tons, 0)
+    }
+    for (const resource of monthResources) {
+      resource.scheduledTons = allocations
+        .filter(row => row.month === month)
+        .reduce((sum, row) => sum + row.tons * row.resourceUsage.filter(item => item.resourceId === resource.resourceId).reduce((total, item) => total + item.share, 0), 0)
       resource.load = resource.capacity !== null && resource.capacity > 0 ? resource.scheduledTons / resource.capacity : null
       if (resource.capacity !== null && resource.scheduledTons > resource.capacity) throw Error('产能约束校验失败，拒绝生成结果')
     }

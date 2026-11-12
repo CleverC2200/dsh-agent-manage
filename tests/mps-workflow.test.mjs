@@ -112,6 +112,9 @@ test('零需求及缺库存异常不阻断其他大类的正常生产和逐月�
   ]
   sample.unitWeights = [{ base: '甲', code: 'C', tonsPerPiece: 0.1 }]
   sample.planCandidates = [{ base: '甲', code: 'C', resourceId: 'R' }]
+  sample.resourceAssignments.push(
+    ...sample.categoryDemand.filter(row => row.category === '完整类').map(({ month }) => ({ month, base: '甲', code: 'C', resourceId: 'F', share: 1 }))
+  )
   const plan = solveMpsPlan(sample)
   assert.equal(plan.summary.evaluatedRows, 6)
   for (const row of plan.rows.filter(row => row.code === 'C')) {
@@ -284,13 +287,23 @@ const planInput = () => {
     month,
     days: 1
   }))
-  sample.resources = [{ id: 'R', base: '甲', name: '共享隧道', kind: 'tunnel', dailyTons: 5 }]
+  sample.resources = [
+    { id: 'R', base: '甲', name: '共享隧道', kind: 'tunnel', dailyTons: 5 },
+    { id: 'F', base: '甲', name: '已批准成型机', kind: 'forming', dailyTons: 100 }
+  ]
+  sample.resourceAssignments = sample.categoryDemand.flatMap(({ month }) => sample.products.map(({ base, code }) => ({ month, base, code, resourceId: 'F', share: 1 })))
   sample.planCandidates = sample.products.map(row => ({
     base: row.base,
     code: row.code,
     resourceId: 'R'
   }))
   return sample
+}
+
+const approveForming = (sample, base, codes = sample.products.map(row => row.code)) => {
+  const resourceId = `forming:${base}`
+  sample.resources.push({ id: resourceId, base, kind: 'forming', name: '已批准成型机', dailyTons: 100 })
+  sample.resourceAssignments.push(...sample.categoryDemand.flatMap(({ month }) => codes.map(code => ({ month, base, code, resourceId, share: 1 }))))
 }
 
 const odmInput = () => {
@@ -458,7 +471,7 @@ test('中等SKU域的件吨读取有界，重复系数保留未知且不同基�
   assert.ok(weightCodeReads <= sample.unitWeights.length * 4, `件吨编码读取${weightCodeReads}次，不应随计划行数反复读取整表`)
 })
 
-test('三月计划按共同满足率不超产，未满足量与原需求分开且缺成型机不阻断', () => {
+test('三月计划按共同满足率不超产，未满足量与原需求分开且两类设备配置有效', () => {
   const result = solveMpsPlan(planInput())
   const first = result.rows.filter(row => row.month === '2026-12')
   assert.ok(Math.abs(first[0].mainPlan - 40) < 1e-6)
@@ -490,6 +503,7 @@ test('合法调拨只使用发出基地剩余能力，无方向资格不生成�
   const sample = planInput()
   sample.unitWeights.push({ base: '乙', code: 'A', tonsPerPiece: 0.1 }, { base: '乙', code: 'B', tonsPerPiece: 0.1 })
   sample.resources.push({ id: 'S', base: '乙', name: '承接隧道', kind: 'tunnel', dailyTons: 3 })
+  approveForming(sample, '乙')
   sample.productionDays.push(...sample.categoryDemand.map(({ month }) => ({ base: '乙', month, days: 1 })))
   sample.planCandidates.push({ base: '乙', code: 'A', resourceId: 'S' }, { base: '乙', code: 'B', resourceId: 'S' })
   assert.equal(solveMpsPlan(sample).transfers.length, 0)
@@ -507,6 +521,7 @@ test('合法调拨只使用发出基地剩余能力，无方向资格不生成�
 test('没有本地需求域的供给基地仍记录已知生产和调出，不伪造需求或库存', () => {
   const sample = planInput()
   sample.resources = [{ id: 'S', base: '乙', name: '供给隧道', kind: 'tunnel', dailyTons: 5 }]
+  approveForming(sample, '乙')
   sample.planCandidates = sample.products.map(row => ({ base: '乙', code: row.code, resourceId: 'S' }))
   sample.unitWeights.push(...sample.products.map(row => ({ base: '乙', code: row.code, tonsPerPiece: 0.1 })))
   sample.productionDays.push(...sample.categoryDemand.map(({ month }) => ({ base: '乙', month, days: 1 })))
@@ -524,6 +539,7 @@ test('没有本地需求域的供给基地仍记录已知生产和调出，不�
 test('完整调拨路径逐段守恒，中转不产生生产量，断链或别月方向不能补齐路径', () => {
   const sample = planInput()
   sample.resources = [{ id: 'S', base: '丙', name: '实际生产隧道', kind: 'tunnel', dailyTons: 5 }]
+  approveForming(sample, '丙')
   sample.planCandidates = sample.products.map(row => ({ base: '丙', code: row.code, resourceId: 'S' }))
   for (const base of ['乙', '丙']) sample.unitWeights.push(...sample.products.map(row => ({ base, code: row.code, tonsPerPiece: 0.1 })))
   sample.productionDays.push(...sample.categoryDemand.map(({ month }) => ({ base: '丙', month, days: 1 })))
@@ -576,6 +592,7 @@ test('完整调拨路径逐段守恒，中转不产生生产量，断链或别�
 test('无关SKU调拨边增加时逐段调拨结果不变，来源遍历保持有界', () => {
   const sample = planInput()
   sample.resources = [{ id: 'S', base: '丙', name: '实际生产隧道', kind: 'tunnel', dailyTons: 5 }]
+  approveForming(sample, '丙')
   sample.planCandidates = sample.products.map(row => ({ base: '丙', code: row.code, resourceId: 'S' }))
   for (const base of ['乙', '丙']) sample.unitWeights.push(...sample.products.map(row => ({ base, code: row.code, tonsPerPiece: 0.1 })))
   sample.productionDays.push(...sample.categoryDemand.map(({ month }) => ({ base: '丙', month, days: 1 })))
@@ -634,7 +651,7 @@ test('实际求解执行停线、月历上限及已采用库存规则，月份�
   ]
   const result = solveMpsPlan(sample)
   assert.deepEqual(
-    result.resourceSchedules.map(row => row.capacity),
+    result.resourceSchedules.filter(row => row.kind === 'tunnel').map(row => row.capacity),
     [2.5, 0, 5]
   )
   assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity))
@@ -1955,4 +1972,78 @@ test('缺基地事实只影响本轮参与SKU的实际关联分类', () => {
   sample.history.push({ month: sample.context.month, base: '甲', code: 'C', quantity: 20 }, { month: sample.context.month, base: '', code: 'OLD', quantity: 5 })
   const other = computeMpsWorkflow(sample).rows.find(row => row.code === 'C' && row.month === sample.context.month)
   assert.equal(other.demand, 90)
+})
+
+test('实际求解同时占用隧道和批准成型机份额，成型机瓶颈不能增加产量', () => {
+  const sample = planInput()
+  sample.resources.push({ id: 'F1', base: '甲', kind: 'forming', name: '成型机一', dailyTons: 1 }, { id: 'F2', base: '甲', kind: 'forming', name: '成型机二', dailyTons: 100 })
+  sample.resourceAssignments = sample.categoryDemand.flatMap(({ month }) =>
+    sample.products.flatMap(({ base, code }) => [
+      { month, base, code, resourceId: 'F1', share: 0.5 },
+      { month, base, code, resourceId: 'F2', share: 0.5 }
+    ])
+  )
+  const result = solveMpsPlan(sample)
+  const first = result.rows.filter(row => row.month === sample.context.month)
+  assert.ok(Math.abs(first.reduce((sum, row) => sum + row.scheduledTons, 0) - 2) < 1e-6)
+  assert.ok(Math.abs(first[0].fulfillment - first[1].fulfillment) < 1e-6)
+  assert.ok(result.resourceSchedules.some(row => row.resourceId === 'F1' && row.scheduledTons > 0.99))
+  assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity + 1e-8))
+})
+
+test('成型机缺失或批准分配无效只隔离相关SKU，零补产和ODM无需内部设备', () => {
+  const sample = planInput()
+  sample.resourceAssignments = sample.resourceAssignments.filter(row => row.code !== 'B')
+  let result = solveMpsPlan(sample)
+  assert.ok(result.rows.filter(row => row.code === 'B').every(row => row.mainPlan === null && row.planMissing.some(reason => /成型机/.test(reason))))
+  assert.ok(result.rows.filter(row => row.code === 'A').every(row => row.mainPlan > 0 && !row.planMissing.length))
+  sample.resourceAssignments.push(...sample.resourceAssignments)
+  result = solveMpsPlan(sample)
+  assert.ok(result.rows.every(row => row.mainPlan === null))
+  const zero = planInput()
+  zero.categoryDemand = [...zero.categoryDemand, { month: '2027-03', category: '点心', quantity: 0 }].map(row => ({ ...row, quantity: 0 }))
+  zero.resources = []
+  zero.resourceAssignments = []
+  assert.ok(solveMpsPlan(zero).rows.every(row => row.mainPlan === 0 && !row.planMissing.length))
+})
+
+test('共享成型机瓶颈释放后，独立成型机上的SKU继续提高满足率', () => {
+  const sample = planInput()
+  sample.resources[0].dailyTons = 100
+  sample.resources.push({ id: 'FB', base: '甲', kind: 'forming', name: 'B成型机', dailyTons: 100 })
+  sample.resources.find(row => row.id === 'F').dailyTons = 1
+  sample.resourceAssignments = sample.resourceAssignments.map(row => (row.code === 'B' ? { ...row, resourceId: 'FB' } : row))
+  const result = solveMpsPlan(sample)
+  const first = result.rows.filter(row => row.month === sample.context.month)
+  assert.ok(Math.abs(first.find(row => row.code === 'A').mainPlan - 10) < 1e-5)
+  assert.ok(Math.abs(first.find(row => row.code === 'B').mainPlan - 20) < 1e-5)
+  assert.ok(
+    result.allocations.every(row => row.resourceUsage.some(item => item.resourceId === 'R') && row.resourceUsage.some(item => item.resourceId === (row.code === 'A' ? 'F' : 'FB')))
+  )
+})
+
+test('异地生产占用供给基地成型机且逐段转运守恒，停机月不挪用需求基地机器', () => {
+  const sample = planInput()
+  sample.resources = [{ id: 'S', base: '乙', kind: 'tunnel', name: '供给隧道', dailyTons: 100 }]
+  approveForming(sample, '乙')
+  sample.resources.find(row => row.kind === 'forming').dailyTons = 2
+  sample.planCandidates = sample.products.map(row => ({ base: '乙', code: row.code, resourceId: 'S' }))
+  sample.productionDays.push(...sample.categoryDemand.map(({ month }) => ({ base: '乙', month, days: 1 })))
+  sample.unitWeights.push(...sample.products.map(row => ({ base: '乙', code: row.code, tonsPerPiece: 0.1 })))
+  sample.transferRoutes = sample.products.map(row => ({ from: '乙', to: '甲', code: row.code }))
+  sample.constraints.rules.local = [
+    {
+      id: 'stop-forming',
+      description: '成型机停机',
+      strength: '硬',
+      base: '乙',
+      from: '2027-01',
+      until: '2027-01',
+      effect: { kind: 'resource-unavailable', resourceId: 'forming:乙' }
+    }
+  ]
+  const result = solveMpsPlan(sample)
+  assert.ok(Math.abs(result.transfers.filter(row => row.month === '2026-12').reduce((sum, row) => sum + row.tons, 0) - 2) < 1e-6)
+  assert.ok(result.rows.filter(row => row.month === '2027-01' && row.base === '甲').every(row => row.mainPlan === 0 && row.unfulfilled > 0))
+  assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity))
 })
