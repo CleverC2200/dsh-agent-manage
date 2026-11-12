@@ -4,7 +4,7 @@
   "sourceArchive": "base-inventory-agent-skill-p1.zip",
   "sourceArchiveSha256": "31baf965ea0f689260e906ca3ee418326361d4b06382797c0a06636a33cc98e8",
   "personaSha256": "f5c256114e4845c8e5ab4fb56adc1b5ba5703eb00b29b19a8af2a133178bb515",
-  "retainedSkillSha256": "d60e791fc1b90eb789539a5637b6d6d9135c0b5ad191aab5c599d2644c08337f",
+  "retainedSkillSha256": "e6bd68b10f7352a120bc0bd79f21495aa0196da0b0feef56f7b2a10626ad22f2",
   "originalRetainedSkillSha256": "9833180e2587755d05a5820121421c33531c71658069ea8fc531d2124027191d",
   "files": {
     "skills/aging-stagnation-monitoring/SKILL.md": "bb34f3d675b61ab461526beeb9de43ab1739a8e6e8801a712da2d8e994bbd409",
@@ -14,7 +14,7 @@
     "skills/inventory-deviation-monitoring/SKILL.md": "2b3399e78c3c0c6f0114ba3c5339453eb136d5333aa1e73965e03a631eb9768d",
     "skills/inventory-deviation-monitoring/rules.md": "73a7ba828be13dc48edd8fff2e8634433e9229d7a2ea394eee0613efaa2c67a2",
     "skills/inventory-policy/SKILL.md": "c53c086ce0cec3baa442627a701cd3f43b537d12e9f1a7d140726e05b97f290d",
-    "skills/inventory-policy/rules/data-access-contract.md": "ff8856ab6e0c2bd4b811728f8c26cb87bdf97c70291a85ce6329490f50b3dc4e",
+    "skills/inventory-policy/rules/data-access-contract.md": "11068f98797116fd52884246921c8dc923d716427afa68ac01a6ccb045ce38d9",
     "skills/inventory-policy/rules/data-boundary.md": "0d0a9487c350775f17a69fde3b6329175680fcabd9b02d38cea165932a23dcf2",
     "skills/inventory-policy/rules/evidence-and-action-boundary.md": "313accd6a9d9b974e6a3ba324e7399ba4268608913443f0353062b9611f5bce5",
     "skills/inventory-policy/rules/metric-catalog.md": "1d5440b345eca4f45ed95468fa2819357a1931683bdd174dc72f0f1437046df8",
