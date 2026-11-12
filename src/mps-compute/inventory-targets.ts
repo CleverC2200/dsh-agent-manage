@@ -123,29 +123,30 @@ export function inventoryTurnoverIndex(
   issues: string[] = [],
   order: Exclude<MpsInventoryVersion, 'auto'>[] = priority
 ) {
-  const selectedVersion =
-    version === 'auto'
-      ? (order.find(current => source.some(row => row.month === months[0] && row.version === current)) ??
-        order.find(current => source.some(row => months.includes(row.month) && row.version === current)))
-      : version
+  const sourceMonth = months[0]
+  const selectedVersion = version === 'auto' ? order.find(current => source.some(row => row.month === sourceMonth && row.version === current)) : version
   const resolve = inventoryTargetIndex(source, selectedVersion ?? version, issues, order)
   const policies = new Map<string, MpsTurnoverPolicy>()
   return (product: { base: string; code: string }): MpsTurnoverPolicy => {
     const productKey = JSON.stringify([product.base, product.code])
     const cached = policies.get(productKey)
     if (cached) return cached
-    const records = months.map(month => resolve({ ...product, month }))
+    const records = sourceMonth ? [resolve({ ...product, month: sourceMonth })] : []
     const values = new Set(records.flatMap(row => (row.finalTurnoverDays === null ? [] : [row.finalTurnoverDays])))
     const conflict = values.size > 1 || records.some(row => row.conflictFields.includes('finalTurnoverDays') || row.missingCodes.includes('duplicate-key'))
     const policy = {
       sourceDays: !conflict && values.size === 1 ? [...values][0] : null,
-      sourceMonths: records.filter(row => row.finalTurnoverDays !== null).map(row => row.month),
+      sourceMonths: sourceMonth ? [sourceMonth] : [],
       sourceVersion: selectedVersion ?? '',
       missing: conflict
         ? ['同基地同SKU的最终目标周转天数冲突，请核对或人工补充']
         : values.size
           ? []
-          : [records.some(row => row.status === 'read-failed') ? '目标周转天数来源读取失败，请同步或人工补充' : '各月均无有效的最终目标周转天数，请人工补充']
+          : [
+              records.some(row => row.status === 'read-failed')
+                ? '目标周转天数来源读取失败，请同步或人工补充'
+                : `${sourceMonth ?? '所选来源月'}无有效的最终目标周转天数，请人工补充`
+            ]
     }
     policies.set(productKey, policy)
     return policy
