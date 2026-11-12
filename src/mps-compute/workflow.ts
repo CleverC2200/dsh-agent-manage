@@ -19,6 +19,7 @@ export interface MpsContext {
 }
 export interface MpsProduct {
   historyCode?: string
+  historyFactor?: MpsQuantity
   base: string
   code: string
   name: string
@@ -147,6 +148,7 @@ export interface MpsWorkflowRow extends MpsProduct {
   month: string
   reportQuantity: MpsQuantity
   historyQuantity: MpsQuantity
+  historyReferenceQuantity: MpsQuantity
   reportShare: MpsQuantity
   historyShare: MpsQuantity
   share: MpsQuantity
@@ -291,7 +293,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const rows: MpsWorkflowRow[] = months.slice(0, 3).flatMap(month =>
     (productsByMonth.get(month) ?? []).map(product => {
       const reportQuantity = quantity(reportIndex.get(coefficientKey(product)) ?? [])
-      const historyQuantity = quantity(historyIndex.get(coefficientKey(product, 'history')) ?? [])
+      const historyReferenceQuantity = quantity(historyIndex.get(coefficientKey(product, 'history')) ?? [])
+      const historyFactor = product.historyCode ? (product.historyFactor === undefined ? 1 : product.historyFactor) : 1
+      const validHistoryFactor = finite(historyFactor) && historyFactor >= 0
+      const adjustedHistory = historyReferenceQuantity !== null && validHistoryFactor ? historyReferenceQuantity * historyFactor : null
+      const historyQuantity = finite(adjustedHistory) ? adjustedHistory : null
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
@@ -321,6 +327,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         month,
         reportQuantity,
         historyQuantity,
+        historyReferenceQuantity,
         evaluation: 'unconstrained',
         nextMonthDemand: null,
         nextMonth: monthOffset(month, 1),
@@ -359,7 +366,10 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         capacities,
         missing: {
           reportQuantity: reportQuantity === null ? ['缺本期销售提报数量'] : [],
-          historyQuantity: historyQuantity === null ? ['缺上一财年全年发货数量'] : [],
+          historyQuantity:
+            historyQuantity === null
+              ? [!validHistoryFactor ? '替换系数缺失、冲突或无效' : historyReferenceQuantity === null ? '缺上一财年全年发货数量' : '替换参考量超出可靠计算范围']
+              : [],
           reportShare: [],
           historyShare: [],
           share: [],

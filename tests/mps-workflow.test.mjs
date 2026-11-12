@@ -1914,3 +1914,24 @@ test('自动库存版本在期间内一致，缺源单品及空天数不混取�
   assert.equal(conflict.sourceDays, null)
   assert.ok(conflict.missing[0].includes('冲突'))
 })
+
+test('老品参考量按系数参与各层占比，保留源数量，零系数有效而缺失不视为一', () => {
+  const sample = input()
+  sample.products[0].historyCode = 'OLD'
+  sample.products[0].historyFactor = 2
+  sample.history.push({ month: sample.context.month, base: '甲', code: 'OLD', quantity: 100 })
+  const raw = globalThis.structuredClone(sample.history)
+  const result = computeMpsWorkflow(sample)
+  const row = result.rows.find(row => row.base === '甲')
+  assert.equal(row.historyReferenceQuantity, 100)
+  assert.equal(row.historyQuantity, 200)
+  assert.equal(row.historyLayers.categoryQuantity, 240)
+  assert.equal(row.historyShare, 200 / 240)
+  assert.deepEqual(sample.history, raw)
+  sample.products[0].historyFactor = 0
+  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, 0)
+  for (const factor of [null, -1, Infinity, Number.MAX_SAFE_INTEGER]) {
+    sample.products[0].historyFactor = factor
+    assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, null)
+  }
+})
