@@ -297,6 +297,41 @@
       "pattern": "^scripts/quality-peer-baseline\\.json$",
       "tests": [],
       "sourceTests": ["tests/quality-ci-cli.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:\\.github/dependabot\\.yml|\\.gitignore|eslint\\.config\\.mjs)$",
+      "tests": ["scripts/source-quality.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:scripts/check-source-comments\\.mjs|source-comments\\.json)$",
+      "tests": ["tests/agent-knowledge.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/compat-report\\.mjs$",
+      "tests": ["tests/compat-report.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^scripts/update-layout-fixtures\\.mjs$",
+      "tests": ["tests/real-layouts.test.ts"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:src/client/css-modules\\.d\\.ts|tsdown\\.config\\.ts)$",
+      "tests": ["tests/official-source-alias.test.mjs"]
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^(?:docs-site/astro\\.config\\.mjs|docs/design/plugin-dock-preview\\.html|docs/history/verification/verify-lifecycle\\.cjs|src/aps-compute/base-product-hierarchy\\.ts|src/inventory-compute/(?:daily-report|dealer-overview-facts|full-chain-customer-metrics|full-chain-source-rows)\\.ts)$",
+      "tests": []
+    },
+    {
+      "repo": "dsh-agent-manage",
+      "pattern": "^tests/user-agent-journey\\.browser\\.ts$",
+      "tests": ["tests/user-agent-workspace.test.ts"]
     }
   ],
   "sourceTools": {
