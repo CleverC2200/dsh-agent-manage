@@ -251,7 +251,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       if (!domain || domain.has(key(fact))) continue
       const catalog = source === 'history' ? historyCatalog : catalogByCode
       const categories = new Set((catalog.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
-      const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? fact.category ?? '' : ''
+      const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? (fact.category ?? '') : ''
       excludedSources.push({ ...fact, source, reason: !fact.base ? '源记录缺基地' : '物料编码未对应当前产品明细或指定基地' })
       if (!fact.base && catalog.has(fact.code) && fact.quantity !== 0) unassignedBases.add(JSON.stringify([source, month, category]))
       const unmatched = unmatchedMonths[source].get(month) ?? new Set<string>()
@@ -566,7 +566,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     row.productionDays = productionDays(row.base, row.month)
     const weights = indexedWeights.get(key(row)) ?? []
     const weight = weights[0]?.tonsPerPiece ?? null
-    row.requiredProductionTons = row.requiredProduction === 0 ? 0 : weights.length === 1 && finite(weight) && weight > 0 && row.requiredProduction !== null ? safe(row.requiredProduction * weight) : null
+    row.requiredProductionTons =
+      row.requiredProduction === 0 ? 0 : weights.length === 1 && finite(weight) && weight > 0 && row.requiredProduction !== null ? safe(row.requiredProduction * weight) : null
     row.missing.requiredProductionTons = row.requiredProductionTons === null ? ['缺明确SKU件吨系数或所需生产，禁止由日产吨/日产件推断重量'] : []
     row.missing.productionDays = row.productionDays === null ? ['缺基地月份显式可用生产天数'] : row.productionDays === 0 ? ['可用生产天数为0，负荷比率未定义'] : []
     row.missing.resourceAssignments = []
