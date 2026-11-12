@@ -3,6 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeMpsWorkflow, mpsCategories } from '../src/mps-compute/workflow.ts'
 import { fairAllocate } from '../src/mps-compute/fair-allocation.ts'
+import { jointAllocate } from '../src/mps-compute/joint-allocation.ts'
 import { solveMpsPlan } from '../src/mps-compute/plan.ts'
 import { buildCapacityReport, capacityLoadBand } from '../src/mps-compute/capacity-report.ts'
 
@@ -2046,4 +2047,30 @@ test('异地生产占用供给基地成型机且逐段转运守恒，停机月�
   assert.ok(Math.abs(result.transfers.filter(row => row.month === '2026-12').reduce((sum, row) => sum + row.tons, 0) - 2) < 1e-6)
   assert.ok(result.rows.filter(row => row.month === '2027-01' && row.base === '甲').every(row => row.mainPlan === 0 && row.unfulfilled > 0))
   assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity))
+})
+
+test('不均匀共享设备需求不因公共满足率输出舍入而误判不可行', () => {
+  for (const size of [17, 67, 199]) {
+    const demands = Array.from({ length: size }, (_, index) => ({
+      id: String(index),
+      quantity: (Math.PI * (index + 1)) / 100,
+      options: [
+        {
+          resourceId: 'T',
+          usage: [
+            { resourceId: 'T', share: 1 },
+            { resourceId: 'F', share: 1 }
+          ]
+        }
+      ]
+    }))
+    const capacity = 2.9371
+    const result = jointAllocate(demands, [
+      { id: 'T', quantity: capacity },
+      { id: 'F', quantity: 10000 }
+    ])
+    const expected = capacity / demands.reduce((sum, row) => sum + row.quantity, 0)
+    assert.ok(result.demands.every(row => Math.abs(row.allocated / demands.find(demand => demand.id === row.id).quantity - expected) < 1e-7))
+    assert.ok(Math.abs(result.allocations.reduce((sum, row) => sum + row.quantity, 0) - capacity) < 1e-7)
+  }
 })
