@@ -3,7 +3,7 @@
   "sourcePromptSha256": "984556e7d3074c8427682fc0570772ca8a5589a8ca1672abbd4224515f7d1d9f",
   "sourceArchive": "base-inventory-agent-skill-p1.zip",
   "sourceArchiveSha256": "31baf965ea0f689260e906ca3ee418326361d4b06382797c0a06636a33cc98e8",
-  "personaSha256": "b4efaa32ebe074110ef8c10ac285fb873e6fd8813c8a9e63c21fc648aa178d9f",
+  "personaSha256": "f5c256114e4845c8e5ab4fb56adc1b5ba5703eb00b29b19a8af2a133178bb515",
   "retainedSkillSha256": "d60e791fc1b90eb789539a5637b6d6d9135c0b5ad191aab5c599d2644c08337f",
   "originalRetainedSkillSha256": "9833180e2587755d05a5820121421c33531c71658069ea8fc531d2124027191d",
   "files": {
