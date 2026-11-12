@@ -10,8 +10,8 @@ const fixture = (pull = 'monthly') => {
     shipment: [{ month: '2026-09', category: '汤圆', quantity: 100 }],
     submissions: ['2026-10', '2026-11'].map(month => ({ month, category: '汤圆', quantity: 150 })),
     historical: [2023, 2024, 2025].flatMap(year =>
-      [6, 7, 8, 9, 10, 11].map(month => ({
-        month: `${year}-${String(month).padStart(2, '0')}`,
+      Array.from({ length: 8 }, (_, index) => ({
+        month: new Date(Date.UTC(year, index + 5, 1)).toISOString().slice(0, 7),
         category: '汤圆',
         base: '华东',
         quantity: 100,
@@ -26,14 +26,14 @@ const fixture = (pull = 'monthly') => {
     annual: [10, 11, 12, 1].map((month, index) => ({ month: month === 1 ? '2027-01' : `2026-${month}`, category: '汤圆', quantity: [100, 100, 150, 300][index] }))
   }
 }
-test('confirmed three-month windows produce both methods and extend M+3/M+4 by annual ratios', () => {
+test('only M+1 weights sales correction while all four months calculate both methods', () => {
   for (const pull of ['monthly', 'adjust']) {
     const result = computeMpsCategoryDemand(fixture(pull))
     assert.equal(result.bases[0].achievementRate, 0.8)
     assert.equal(result.bases[0].annualEstimate, 1200)
     assert.deepEqual(
       result.rows.map(row => row.quantity),
-      [110, 110, 150, 300]
+      [110, 100, 125, 200]
     )
     assert.equal(result.rows[0].momMethod, 100)
     assert.equal(result.rows[0].shareMethod, 100)
@@ -51,7 +51,7 @@ test('missing a historical year or zero denominators stop only dependent results
   annual.annual = annual.annual.filter(row => row.month !== '2026-12')
   assert.deepEqual(
     computeMpsCategoryDemand(annual).rows.map(row => row.quantity),
-    [110, 110, null, null]
+    [110, 100, null, null]
   )
   const noMix = fixture()
   noMix.checks[0].month = '2026-09'
@@ -74,17 +74,17 @@ test('人工有效量不回流独立环比链，保留系统值并拒绝重复�
   const result = computeMpsCategoryDemand(sample)
   assert.deepEqual(
     result.rows.map(row => row.quantity),
-    [110, 200, 150, 300]
+    [110, 200, 125, 200]
   )
   assert.deepEqual(
     result.rows.map(row => row.systemQuantity),
-    [110, 110, 150, 300]
+    [110, 100, 125, 200]
   )
   assert.equal(result.rows[1].adjusted, true)
   sample.adjustments[0].quantity = -1
   assert.deepEqual(
     computeMpsCategoryDemand(sample).rows.map(row => row.quantity),
-    [110, 110, 150, 300]
+    [110, 100, 125, 200]
   )
   assert.match(computeMpsCategoryDemand(sample).adjustmentIssues.join(''), /调整/)
 })
@@ -179,7 +179,7 @@ test('历史环比逐月递推，来源缺项不污染独立链，真实零达�
   input.submissions = []
   assert.deepEqual(
     computeMpsCategoryDemand(input).rows.map(row => row.quantity),
-    [999, null, 1200, 2400]
+    [999, 450, 650, 1250]
   )
   input.shipment[0].month = '2026-10'
   assert.deepEqual(
@@ -194,4 +194,33 @@ test('历史环比逐月递推，来源缺项不污染独立链，真实零达�
     computeMpsCategoryDemand(zero).rows.map(row => row.quantity),
     [0, 0, 0, 0]
   )
+})
+
+test('missing sales submissions or allnum plans affect M+1 alone, while later historical shares remain required', () => {
+  const input = fixture()
+  input.submissions = []
+  input.checks[0].complete = false
+  let result = computeMpsCategoryDemand(input)
+  assert.deepEqual(
+    result.rows.map(row => row.quantity),
+    [null, 100, 125, 200]
+  )
+  assert.deepEqual(
+    result.rows.map(row => row.methodAverage),
+    [100, 100, 125, 200]
+  )
+  assert.deepEqual(
+    result.rows.map(row => row.weighted),
+    [null, null, null, null]
+  )
+  assert.deepEqual(
+    result.rows.map(row => row.salesCorrected),
+    [null, null, null, null]
+  )
+  input.historical = input.historical.filter(row => row.month !== '2025-12')
+  result = computeMpsCategoryDemand(input)
+  assert.equal(result.rows[2].momMethod, 150)
+  assert.equal(result.rows[2].shareMethod, null)
+  assert.equal(result.rows[2].quantity, null)
+  assert.equal(result.rows[3].quantity, 200)
 })

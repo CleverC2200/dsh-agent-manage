@@ -19,6 +19,7 @@ export interface MpsContext {
 }
 export interface MpsProduct {
   historyCode?: string
+  historyFactor?: MpsQuantity
   base: string
   code: string
   name: string
@@ -147,6 +148,7 @@ export interface MpsWorkflowRow extends MpsProduct {
   month: string
   reportQuantity: MpsQuantity
   historyQuantity: MpsQuantity
+  historyReferenceQuantity: MpsQuantity
   reportShare: MpsQuantity
   historyShare: MpsQuantity
   share: MpsQuantity
@@ -253,7 +255,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const categories = new Set((catalog.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
       const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? (fact.category ?? '') : ''
       excludedSources.push({ ...fact, source, reason: !fact.base ? '源记录缺基地' : '物料编码未对应当前产品明细或指定基地' })
-      if (!fact.base && catalog.has(fact.code) && fact.quantity !== 0) unassignedBases.add(JSON.stringify([source, month, category]))
+      if (!fact.base && fact.quantity !== 0) {
+        const activeProducts = productsByMonth.get(month) ?? []
+        const affected = activeProducts.filter(product => (source === 'history' ? product.historyCode || product.code : product.code) === fact.code)
+        for (const product of affected) unassignedBases.add(JSON.stringify([source, month, product.category]))
+      }
       const unmatched = unmatchedMonths[source].get(month) ?? new Set<string>()
       unmatched.add(category)
       unmatchedMonths[source].set(month, unmatched)
@@ -291,7 +297,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const rows: MpsWorkflowRow[] = months.slice(0, 3).flatMap(month =>
     (productsByMonth.get(month) ?? []).map(product => {
       const reportQuantity = quantity(reportIndex.get(coefficientKey(product)) ?? [])
-      const historyQuantity = quantity(historyIndex.get(coefficientKey(product, 'history')) ?? [])
+      const historyReferenceQuantity = quantity(historyIndex.get(coefficientKey(product, 'history')) ?? [])
+      const historyFactor = product.historyCode ? (product.historyFactor === undefined ? 1 : product.historyFactor) : 1
+      const validHistoryFactor = finite(historyFactor) && historyFactor >= 0
+      const adjustedHistory = historyReferenceQuantity !== null && validHistoryFactor ? historyReferenceQuantity * historyFactor : null
+      const historyQuantity = finite(adjustedHistory) ? adjustedHistory : null
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
@@ -321,6 +331,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         month,
         reportQuantity,
         historyQuantity,
+        historyReferenceQuantity,
         evaluation: 'unconstrained',
         nextMonthDemand: null,
         nextMonth: monthOffset(month, 1),
@@ -359,7 +370,10 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         capacities,
         missing: {
           reportQuantity: reportQuantity === null ? ['缺本期销售提报数量'] : [],
-          historyQuantity: historyQuantity === null ? ['缺上一财年全年发货数量'] : [],
+          historyQuantity:
+            historyQuantity === null
+              ? [!validHistoryFactor ? '替换系数缺失、冲突或无效' : historyReferenceQuantity === null ? '缺上一财年全年发货数量' : '替换参考量超出可靠计算范围']
+              : [],
           reportShare: [],
           historyShare: [],
           share: [],
