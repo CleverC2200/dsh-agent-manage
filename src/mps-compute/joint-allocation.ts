@@ -47,7 +47,7 @@ export function jointAllocate(demands: JointDemand[], capacities: { id: string; 
     }
     const execute: unknown = Reflect.get(solver, 'Solve')
     if (typeof execute !== 'function') throw Error('联合产能求解器不可用')
-    const result: unknown = execute.call(solver, model, 1e-10)
+    const result: unknown = execute.call(solver, model, 1e-12)
     if (typeof result !== 'object' || result === null || !('feasible' in result) || result.feasible !== true) throw Error('联合产能求解失败，拒绝生成排产量')
     const value = (name: string) => {
       const value: unknown = Reflect.get(result, name)
