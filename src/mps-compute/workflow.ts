@@ -255,7 +255,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const categories = new Set((catalog.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
       const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? (fact.category ?? '') : ''
       excludedSources.push({ ...fact, source, reason: !fact.base ? '源记录缺基地' : '物料编码未对应当前产品明细或指定基地' })
-      if (!fact.base && catalog.has(fact.code) && fact.quantity !== 0) unassignedBases.add(JSON.stringify([source, month, category]))
+      if (!fact.base && fact.quantity !== 0) {
+        const activeProducts = productsByMonth.get(month) ?? []
+        const affected = activeProducts.filter(product => (source === 'history' ? product.historyCode || product.code : product.code) === fact.code)
+        for (const product of affected) unassignedBases.add(JSON.stringify([source, month, product.category]))
+      }
       const unmatched = unmatchedMonths[source].get(month) ?? new Set<string>()
       unmatched.add(category)
       unmatchedMonths[source].set(month, unmatched)
