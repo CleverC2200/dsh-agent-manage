@@ -11,10 +11,6 @@
     "report-templates",
     "shortage-monitoring"
   ],
-  "pageAgents": [
-    "gea-html-inventory-aqkc"
-  ],
-  "crossConsumers": [
-    "sales_forecast"
-  ]
+  "pageAgents": ["gea-html-inventory-aqkc"],
+  "crossConsumers": ["sales_forecast"]
 }
