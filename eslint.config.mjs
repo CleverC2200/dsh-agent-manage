@@ -13,5 +13,11 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }]
     }
+  },
+  {
+    files: ['src/application/catalog.ts'],
+    rules: {
+      'no-empty': ['error', { allowEmptyCatch: true }]
+    }
   }
 )

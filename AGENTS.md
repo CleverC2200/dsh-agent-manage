@@ -1,38 +1,15 @@
-# Agent Manage 开发导航
+# Manage 开发入口
 
-在插件拆分项目内修改功能、调试界面或本地启动时，先读取项目根 `docs/agents/dependency-preparation.md` 的“源码调试与安装验收”，按当前任务选择源码反馈或安装验收，再执行构建。
+先核本次任务登记的 checkout、HEAD 与未提交改动。工具链、命令、锁与公开导出从 [package.json](package.json) 读取，工程检查见[当前开发](docs/current-development.md)，术语见 [CONTEXT.md](CONTEXT.md)。
 
-`dsh-agent-manage` 管理 Agent、Prompt、Skill、MCP/LSP 资源及库存、APS 的纯计算。Workbench 拥有业务页面与官方 Session 的关联，Core 持有 Session 和用户草稿，GEA Host 统一持有业务身份、凭据与授权。
+Manage 管 Agent、Prompt、Skill、MCP/LSP 资源及库存、APS、MPS 纯计算。catalog 不依赖 runtime/client；application 编排目录，runtime 挂载和释放宿主资源；计算只消费已收窄输入。模块依赖由 `.dependency-cruiser.cjs` 检查。
 
-先读[当前开发入口](docs/current-development.md)，核本项目登记的 checkout、固定官方输入和检查范围。术语沿用 [CONTEXT.md](CONTEXT.md)。改资源接口时读[原生资源选用决定](.agents/notes/implemented/feature/2026-10-04-selected-business-resources.md)；改计算时读[库存合同](docs/design/inventory-compute.md)及[APS 归属](.agents/notes/implemented/architecture/2026-10-08-aps-ownership.md)。
+页面与页面/Session 关联归 Workbench，Session/草稿归 Core，身份、凭据与业务授权归 GEA Host。保留取消、未知结果、失败释放与重试语义；资源存在或界面可见不授予业务权限。
 
-## 修改和验证
+代码用命名、类型、结构和必要行为测试表达规则，自有源码、脚本与测试不写注释。业务 Prompt/Skill 与运行时文案保持原含义；工具指令先消除依赖，许可证来源按原分发要求保全。实现细节只维护在代码中，不要求每个非平凡改动另写 Agent Note；代码无法表达且仍影响判断的决定才维护其唯一记录。
 
-- 工具链、命令、锁、公开导出分别查询 [package.json](package.json)、[pnpm-lock.yaml](pnpm-lock.yaml) 和构建配置。`check:refactor` 是现有综合门禁；当前引用用 `check:knowledge` 核验。按改动运行适用测试，完整 CI 与远端保护以实际回执为准。
-- catalog 集中维护发现、格式、元数据和既有 checkout 操作，不依赖 runtime/client；application 持有目录编排，runtime 持有宿主挂载与释放。`inventory-compute` 和 `aps-compute` 只接收已收窄输入，不读 Session、网络或授予业务权限。客户端通过 contracts 与公开接口消费资源。
-- 无效 manifest、MCP/LSP 声明明确诊断并拒绝不完整挂载。保留 owner、取消、未知失败和清理重试的语义，避免第二份状态规则。
-- 改配置、路由、schema 或公共合同，同步对应文档与有用途的 JSDoc。界面文案用 locales 的中英文对应键，README 双语一并更新。
-- 非平凡决定按 [Agent Note 规则](.agents/notes/README.md) 更新其当前 owner；新增 Note 先核 supersession。部分替代保留未替代理由并双向引用，archived 原件保持冻结。
-- 依赖变化说明理由并保留 frozen-lockfile 安装协议。生成的 lib/client 产物不手改，工作树不共享 node_modules 或可写输出。
+`check:comments` 阻断改动文件中的 JS/TS 注释，`--all` 审计完整 JS/TS 存量。检查沿现有 static/source/CI 执行，分批清理不等于全仓已清零。按改动运行已有检查，完整 SDK 与客户端验收只在本次目标需要时准备。
 
-## 隔离范围
+在插件拆分项目中构建或调试前，读项目根 `docs/agents/dependency-preparation.md`，复用已准备环境，不共享可写 node_modules 或构建输出。生成的 lib/client 不手改。
 
-本 checkout 只用于插件拆分隔离开发。当前 tgz、用户存储与宿主持久会话协议保持。GitLab source、正式 OSS/频道、正式客户端目录和业务写入不在本项目授权内。远端写入仅按本次明确授权的隔离目标执行。
-
-历史 release-please/npm、公司发行和旧工程计划保留为上游或历史资料；阅读它们不授予发布、上传或桌面运行权限。涉及后续发行时先核该任务的确切目标与有效授权，再按适用发行规则操作。
-
-`CLAUDE.md` 链接本文件；修改本文件即可。
-
-## 规则与执行机制
-
-| 规则 | 执行机制 |
-| --- | --- |
-| SDK 缓存命中后仅安装依赖按 prepare 准入；SDK、Web、flock 生成仍按 sdk 准入 | `prepareOfficialSDK`、`tests/sdk-input-cli.test.mjs`，由 `test:ci-inputs` 和日常选测执行 |
-| 固定 Core、原锁、工具链与冷 runner 输入 | `sdk:verify` / `sdk:prepare`、`test:ci-inputs` 和 rc.2 quality、适用 archives 阻断门禁；alpha 为独立手动兼容检查，共用 GEA `scripts/ci-core-policy.json` |
-| 当前导航与历史缺文档反例 | `check:refactor` 串接 `check:knowledge` 与 `test:knowledge` |
-| 普通空 Home 必须发现原销售 Skill 及其完整引用资产；新任务默认智能编排并保留用户显式选择 | `check:capabilities` 的 standard-skill lane 运行 `bundled-sales-skills.test.ts` 和 `manage-bundle-default.test.ts`；quality workflow 按 `docs/clean-ci.md` 运行互不重复的静态、普通测试与能力集合 |
-| 当前包版本只由 package.json 维护，测试不固定某次发行的当前版本 | 生成器 `--check` 与 `test:package-version` 对照清单验证 Host/client 类型及实际编译后的不可变标识 |
-| 客户端能力验收使用的 Workbench 必须提供测试实际导入的接口 | `vitest.preset-client.config.ts` 调用 TypeScript 导出符号校验；`test:ci-inputs` 保留旧接口被前置拒绝的回归 |
-| 修复 PR 统一以 main 为目标，冻结交付使用固定提交 | `source-quality.mjs --phase plan` 拒绝非 main 的 PR；工作流覆盖目标分支变更，`source-quality.test.mjs` 验证错误目标 |
-
-该检查证明受控源码行为。实际三包安装及官方 Loader 接收仍由 GEA 的普通交付接收入口负责，不能用离线通过替代。
+仅修改本任务工作区。GitLab source、正式 OSS/npm/频道、正式客户端与用户数据保持保护；远端写入按本次有效授权执行。源码、离线检查、实际安装和业务验收分别留证，历史验收不证明当前状态。`CLAUDE.md` 链接本文件。

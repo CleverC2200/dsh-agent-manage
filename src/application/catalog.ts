@@ -1,15 +1,3 @@
-/** 文件作用：目录应用层的宿主权威入口，统一管理源、套件发现、安装状态和一致性快照。 */
-/**
- * Catalog application module: the host-authoritative owner of source state,
- * discovery, install mutations, and coherent suite snapshots.
- *
- * The module deliberately keeps the existing filesystem and Git operations
- * behind one interface. User and
- * project snapshots use their own persisted state files and share the same
- * source-selection and suite-scanning rules.
- *
- * 业务职责：编排文件系统/Git 获取、用户级与项目级扫描、运行时状态查询及变更通知；不把这些副作用散落到调用方。
- */
 import { RuntimeManagement, type RuntimeHost } from './runtime-management.js'
 import { mkdir, readdir, rename } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -53,64 +41,34 @@ import {
   resolveSourceKind
 } from '../model/types.js'
 
-/**
- * Git network tuning, plumbed from the host config to every remote-touching
- * invocation (proxy, `insteadOf` mirrors, timeout, retry). `fallbackTarball`
- * additionally lets a failed GitHub clone fall back to a codeload tarball
- * download through the archive pipeline.
- * 中文：将代理、镜像、超时、重试和 GitHub 压缩包回退策略集中传给所有远程获取动作。
- */
 export interface CatalogGitOptions extends GitOptions {
-  /** Retry a failed GitHub clone as a codeload tarball download; default false. */
-  /** 中文：GitHub 克隆失败时是否改用 codeload 压缩包，默认关闭。 */
   fallbackTarball?: boolean
-  /** Allow plain-http archive downloads (intranet mirrors); default false. */
-  /** 中文：是否允许内网镜像使用明文 HTTP 下载压缩包，默认关闭。 */
+
   allowHttpArchives?: boolean
 }
 
-/** Dependencies and host callback used by the catalog application module. */
-/** 中文：目录应用层运行所需的用户目录、数据目录和宿主变更回调。 */
 export interface CatalogOptions {
   userRoot: string
   dataRoot: string
   runtime?: RuntimeHost
   onChanged: () => void | Promise<void>
-  /** Git/archive acquisition tuning. */
-  /** 中文：Git 与压缩包获取策略。 */
+
   git?: CatalogGitOptions
-  /**
-   * Freshness window for cached project-dimension snapshots. The project
-   * catalog sits on the skill-list hot path (every provider `list()` call),
-   * and its inputs — the project's own files — change only through editor
-   * saves; a short window keeps listing cheap without going stale. Defaults
-   * to 5 seconds; 0 disables caching.
-   * 中文：项目快照缓存有效期；0 表示每次读取都扫描项目文件。
-   */
+
   projectSnapshotTtlMs?: number
-  /**
-   * Freshness window for the cached user-dimension snapshot (defaults to the
-   * scan-cache TTL). It bounds how long out-of-band edits to local sources
-   * stay invisible; 0 disables snapshot caching. Tests pass a small value so
-   * staleness regressions need no real sleeps.
-   * 中文：用户快照缓存有效期，限制外部修改本地源后的可见延迟；0 表示关闭快照缓存。
-   */
+
   userSnapshotTtlMs?: number
 }
 
-/** A coherent discovered-and-installed view for one catalog dimension. */
-/** 中文：某个目录维度下，源、发现套件和安装启用状态的一致视图。 */
 export interface CatalogSnapshot {
   revision: number
   sources: SourceRef[]
   suites: Suite[]
   enabledSuites: Suite[]
-  /** Per-source scan diagnostics (sourceId → notes), absent when clean. */
-  /** 中文：按源保存扫描诊断；没有问题时省略。 */
+
   scanNotes?: Record<string, string[]>
 }
 
-/** 目录应用服务：串行协调源获取、套件快照、安装状态和运行时变更通知。 */
 export class Catalog {
   private state: SuiteState = EMPTY_STATE
   private mutationQueue: Promise<unknown> = Promise.resolve()
@@ -121,51 +79,29 @@ export class Catalog {
   private userSnapshot: CatalogSnapshot | undefined
   private userSnapshotExpiresAt = 0
   private userSnapshotPromise: Promise<CatalogSnapshot> | undefined
-  /**
-   * Discovery scan cache: per-sources-fingerprint scan results with a TTL.
-   * Install / enable / surface toggles re-derive the snapshot from cached
-   * discovery (cheap mapping) instead of re-walking every checkout — a full
-   * rescan of a 2,500-suite catalog costs ~1s and UI mutations happen in
-   * bursts. Content-changing mutations (add / update / remove / adopt /
-   * refresh / acquire) clear every cached discovery generation; the TTL
-   * bounds staleness for in-place working-tree
-   * edits of local sources.
-   * 中文：按源指纹缓存扫描结果；状态开关只重映射缓存，内容变更或 TTL 到期才重新扫描。
-   */
+
   private readonly scanCache = new Map<string, { at: number; discovered: Suite[]; scanNotes: Record<string, string[]> }>()
   private scanGeneration = 0
   private readonly scanPromises = new Map<string, Promise<{ suites: Suite[]; scanNotes: Record<string, string[]> }>>()
   private static readonly SCAN_CACHE_TTL_MS = 30_000
   private static readonly SCAN_CACHE_MAX_ENTRIES = 8
-  /**
-   * User-dimension snapshot TTL: bounded staleness for edits made outside the
-   * plugin (a new skill dropped into a local source's working tree, a hand
-   * edit in a project layout) becomes visible on the next read past the TTL
-   * instead of living until the next mutation. Configurable; a 0 value
-   * disables snapshot caching entirely.
-   * 中文：用户维度快照的缓存时长，避免外部改动永久不可见；设为 0 时完全禁用。
-   */
+
   private readonly userSnapshotTtlMs: number
-  /** Project-dimension snapshots keyed by project root, with TTL freshness. */
-  /** 中文：按项目根目录保存带 TTL 的项目维度快照。 */
+
   private readonly projectSnapshots = new Map<string, { snapshot: CatalogSnapshot; expiresAt: number }>()
   private readonly projectSnapshotPromises = new Map<string, Promise<CatalogSnapshot>>()
   private readonly projectSnapshotTtlMs: number
   readonly runtime: RuntimeManagement
-  /** Download-region source (the host settings namespace scope). */
-  /** 中文：读取宿主设置中的下载区域。 */
+
   private downloadRegionProvider: () => Promise<DownloadRegionSetting> = async () => 'auto'
   private scanProjectLayouts = true
 
-  /** Apply the host's project-layout switch and invalidate every project snapshot. */
-  /** 中文：切换项目布局扫描开关，并使已有项目快照失效。 */
   async setScanProjectLayouts(enabled: boolean): Promise<void> {
     if (this.scanProjectLayouts === enabled) return
     this.scanProjectLayouts = enabled
     await this.notifyChanged()
   }
 
-  /** 初始化目录路径、快照 TTL 和宿主依赖，但不主动读取磁盘状态。 */
   constructor(private readonly options: CatalogOptions) {
     this.runtime = new RuntimeManagement(
       options.dataRoot,
@@ -188,20 +124,15 @@ export class Catalog {
     this.userSnapshotTtlMs = options.userSnapshotTtlMs ?? Catalog.SCAN_CACHE_TTL_MS
   }
 
-  /** Subscribe to completed catalog mutations; returns an unsubscribe function. */
-  /** 中文：订阅目录变更完成事件，并返回取消订阅函数。 */
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }
 
-  /** Install the download-region source (the host settings namespace scope). */
-  /** 中文：接入宿主设置命名空间中的下载区域读取器。 */
   setDownloadRegionProvider(provider: () => Promise<DownloadRegionSetting>): void {
     this.downloadRegionProvider = provider
   }
 
-  /** Configuration writes may acquire one source; runtime mount reads never do. */
   private async resolveRuntimeSuite(sourceId: string, suiteId: string): Promise<Suite> {
     const source = this.state.sources.find(entry => entry.id === sourceId)
     if (source === undefined) throw new Error(`unknown source "${sourceId}"`)
@@ -213,15 +144,12 @@ export class Catalog {
     return suite
   }
 
-  /** Load persisted user state once at plugin activation. */
-  /** 中文：插件激活时读取一次用户持久化状态，并清空旧扫描/快照缓存。 */
   async load(): Promise<void> {
     this.state = await loadState(this.statePath)
     this.invalidateScans()
     this.invalidateSnapshot(false)
   }
 
-  /** 返回当前内存中的已登记源列表。 */
   get sources(): SourceRef[] {
     return this.state.sources
   }
@@ -240,18 +168,11 @@ export class Catalog {
     })
   }
 
-  /** The user-dimension suite root this catalog operates. */
-  /** 中文：返回用户维度目录扫描所使用的根路径。 */
   get userRoot(): string {
     return this.options.userRoot
   }
 
-  /** Read one coherent user-dimension snapshot, reusing in-flight discovery. */
-  /** 中文：读取用户维度一致性快照，并复用有效缓存或正在进行的扫描。 */
   async readUserCatalog(): Promise<CatalogSnapshot> {
-    // TTL 0 disables snapshot caching: every read observes fresh discovery,
-    // mirroring the project dimension's caching-disabled semantics.
-    // 中文：TTL 为 0 时每次读取都重新发现，和项目维度关闭缓存时的语义一致。
     if (this.userSnapshotTtlMs <= 0) return this.buildSnapshot(this.state, 'user', this.options.userRoot)
     if (this.userSnapshot !== undefined && Date.now() < this.userSnapshotExpiresAt) return this.userSnapshot
     if (this.userSnapshotPromise !== undefined) return this.userSnapshotPromise
@@ -272,7 +193,6 @@ export class Catalog {
     return promise
   }
 
-  /** Read installed suites from one captured install state without market checkout probes. */
   async readInstalledSuites(sourceId?: string): Promise<Suite[]> {
     const state = this.state
     const installedSources = new Set(Object.keys(state.installed).map(key => key.slice(0, key.indexOf('/'))))
@@ -282,8 +202,6 @@ export class Catalog {
     return snapshot.suites.filter(suite => suite.remote === undefined && state.installed[installKey(suite.sourceId, suite.id)] !== undefined)
   }
 
-  /** Read one coherent project-dimension snapshot for a workspace cwd. */
-  /** 中文：根据工作区 cwd 定位项目根，并读取项目维度一致性快照。 */
   async readProjectCatalog(cwd: string): Promise<CatalogSnapshot> {
     const projectRoot = await resolveProjectRoot(cwd)
     if (this.projectSnapshotTtlMs <= 0) return this.buildProjectSnapshot(projectRoot)
@@ -307,17 +225,12 @@ export class Catalog {
     return promise
   }
 
-  /** 从项目根加载状态文件并构建项目快照，必要时跳过扫描缓存。 */
   private async buildProjectSnapshot(projectRoot: string): Promise<CatalogSnapshot> {
     const state = await loadState(join(projectRoot, STATE_FILE_NAME))
-    // TTL 0 means caching is disabled for this dimension: bypass the scan
-    // cache so every read observes the working tree as it stands.
-    // 中文：该维度关闭缓存时绕过扫描缓存，确保每次看到当前工作树。
+
     return this.buildSnapshot(state, 'project', projectRoot, this.projectSnapshotTtlMs <= 0)
   }
 
-  /** One suite's full detail for the market detail modal. */
-  /** 中文：读取指定套件的完整详情，包含安装状态、诊断和脱敏后的 MCP 覆盖。 */
   async suiteDetail(sourceId: string, suiteId: string): Promise<SuiteDetail> {
     const snapshot = await this.readUserCatalog()
     const suite = snapshot.suites.find(entry => entry.sourceId === sourceId && entry.id === suiteId)
@@ -326,8 +239,6 @@ export class Catalog {
     return buildSuiteDetail(suite, this.state.installed[installKey(sourceId, suiteId)], this.runtime.mcpDiagnostics, await loadSuiteOverrides(this.options.dataRoot, suiteKey))
   }
 
-  /** One skill's full SKILL.md text for the market detail modal. */
-  /** 中文：读取指定套件技能的完整 SKILL.md 正文。 */
   async skillContent(sourceId: string, suiteId: string, skillName: string): Promise<SkillContent> {
     const snapshot = await this.readUserCatalog()
     const suite = snapshot.suites.find(entry => entry.sourceId === sourceId && entry.id === suiteId)
@@ -335,8 +246,6 @@ export class Catalog {
     return readSkillContent(suite, skillName)
   }
 
-  /** The full market overview from one user snapshot. */
-  /** 中文：把用户快照、源检出状态和安装记录组装成市场总览响应。 */
   async overview(): Promise<OverviewPayload> {
     const snapshot = await this.readUserCatalog()
     const sourceRows: SourceOverview[] = []
@@ -362,10 +271,7 @@ export class Catalog {
             lockCommit = await gitHead(checkout)
             cloned = true
             this.headCache.set(source.id, lockCommit)
-          } catch {
-            // Not cloned yet or a broken checkout; refresh reports the actionable error.
-            // 中文：尚未克隆或检出已损坏时保留未克隆状态，由刷新流程提供可操作错误。
-          }
+          } catch {}
         }
       }
       const sourceSuites = snapshot.suites.filter(suite => suite.sourceId === source.id)
@@ -415,8 +321,6 @@ export class Catalog {
     }
   }
 
-  /** Runtime discovery scans only sources containing an enabled install. No acquisition or network access. */
-  /** 中文：运行时只扫描存在启用安装项的源，不执行获取或网络操作。 */
   async enabledUserSuites(): Promise<Suite[]> {
     const enabledSources = new Set(
       Object.entries(this.state.installed)
@@ -429,37 +333,20 @@ export class Catalog {
     return applyLspOverrides(this.options.dataRoot, Object.keys(direct.mcp!.servers).length === 0 ? suites : [...suites, direct])
   }
 
-  /** Enabled user- and project-dimension suites for a workspace cwd. */
-  /** 中文：返回指定工作区下用户维度和项目维度的启用套件。 */
   async enabledSuitesForCwd(cwd: string): Promise<{ user: Suite[]; project: Suite[] }> {
     const [user, project] = await Promise.all([this.enabledUserSuites(), this.readProjectCatalog(cwd)])
     return { user, project: project.enabledSuites }
   }
 
-  /** All suites of one dimension. */
-  /** 中文：读取一个目录维度的全部套件，不限于已启用项。 */
   async suitesForDimension(dimension: SuiteDimension, dimensionRoot: string): Promise<Suite[]> {
     const state = dimension === 'user' && dimensionRoot === this.options.userRoot ? this.state : await loadState(join(dimensionRoot, STATE_FILE_NAME))
     return (await this.buildSnapshot(state, dimension, dimensionRoot)).suites
   }
 
-  /**
-   * Add a source and acquire it immediately (clone, download, or in-place).
-   *
-   * Git sources with an already-present checkout whose `origin` matches the
-   * input URL are adopted in place — the manual-clone repair path — so no
-   * second clone is made and no `-2` suffixed id is invented. Adopted
-   * checkouts are preserved on URL changes; explicit source removal may
-   * delete their managed `.sources/<id>` storage.
-   * 中文：登记源并立即获取内容；已有匹配远程地址的检出会原地收编，避免重复克隆。
-   */
   async addSource(input: { url: string; branch?: string; local?: boolean; kind?: SourceKind; sha256?: string }): Promise<SourceRef> {
     return this.enqueue(async () => {
       const kind = input.local === true ? ('local' as const) : resolveSourceKind({ url: input.url, kind: input.kind })
       if (kind === 'git') {
-        // Adoption first: a pre-existing checkout with a matching origin URL
-        // is registered as-is, skipping the clone entirely.
-        // 中文：优先识别同源的既有检出，原地登记，不再创建第二份目录。
         const adoptable = await this.findAdoptableCheckout(input.url, deriveSourceIdCandidates(input.url))
         if (adoptable !== undefined) {
           const source: SourceRef = {
@@ -495,10 +382,7 @@ export class Catalog {
           if (lock !== undefined) this.headCache.set(source.id, lock)
           this.currentSourceState = { sourceId: baseId, step: 'reading' }
         }
-        // The repo's own manifest names the source; move the checkout along so
-        // the registered id and its `.sources/` directory stay coherent. URL
-        // derived candidates stay as readable fallbacks before numeric suffixes.
-        // 中文：优先采用清单/仓库可读名称，并保持登记 ID 与 `.sources/` 目录一致。
+
         const named = [...new Set([sanitizeId(await repoName(checkout)), ...deriveSourceIdCandidates(input.url)])]
         const finalId = await this.pickSourceId(named, kind === 'local', kind === 'local' ? undefined : checkout)
         if (kind !== 'local' && finalId !== baseId) {
@@ -521,13 +405,6 @@ export class Catalog {
     })
   }
 
-  /**
-   * First candidate id whose `.sources/` checkout already exists and whose
-   * `origin` remote matches the input URL (canonical-form equality) — the
-   * signature of a manual clone of the very same repository. Registered ids
-   * and checkouts of differently-origined directories never adopt.
-   * 中文：只收编远程地址规范化后完全相同、且尚未登记的既有 Git 检出。
-   */
   private async findAdoptableCheckout(url: string, candidates: string[]): Promise<string | undefined> {
     const registered = new Set(this.state.sources.map(source => source.id))
     for (const candidate of candidates) {
@@ -545,15 +422,10 @@ export class Catalog {
     return undefined
   }
 
-  /** Register one unmanaged `.sources/` checkout as a source without touching its files. */
-  /** 中文：将磁盘上未登记的 `.sources/` 检出登记为源，不复制或修改其文件。 */
   async adoptSource(id: string): Promise<SourceRef> {
     return this.enqueue(async () => {
       if (this.state.sources.some(source => source.id === id)) throw new Error(`source "${id}" is already registered`)
-      // The id becomes one path segment under `.sources/`: only flat safe
-      // names qualify. Anything else (separators, `..`, leading dots) could
-      // traverse out of the checkouts root and register an outside directory.
-      // 中文：ID 必须是单一路径段，拒绝分隔符、`..` 和前导点，防止越出检出根目录。
+
       if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(id) || id.includes('..')) {
         throw new Error(`invalid checkout id "${id}" — use letters, digits, dots, dashes, or underscores`)
       }
@@ -566,8 +438,6 @@ export class Catalog {
         const head = await tryHead(dir)
         if (head !== undefined) this.headCache.set(id, head)
       } catch {
-        // Not a git checkout: read it in place, like a local source.
-        // 中文：非 Git 目录按本地源原地读取，不尝试修改或转换。
         source = { id, url: dir, local: true, adopted: true }
       }
       this.state = { ...this.state, sources: [...this.state.sources, source] }
@@ -577,8 +447,6 @@ export class Catalog {
     })
   }
 
-  /** Unmanaged `.sources/` checkouts: present on disk, absent from state. */
-  /** 中文：列出磁盘存在但状态文件未登记的 `.sources/` 检出。 */
   async unmanagedSources(): Promise<Array<{ id: string; url?: string }>> {
     const checkoutRoot = sourcesDir(this.options.userRoot)
     let entries: import('node:fs').Dirent[]
@@ -601,29 +469,14 @@ export class Catalog {
     return unmanaged
   }
 
-  /** Progress snapshot of the source mutation currently in flight. */
-  /** 中文：记录当前正在执行的源变更及其步骤，供进度接口读取。 */
   private currentSourceState: { sourceId: string; step: string } | undefined
 
-  /** Progress snapshot for the progress route. */
-  /** 中文：返回进度路由所需的当前步骤快照。 */
   sourceProgress(): { active: boolean; sourceId: string; step: string } {
     const state = this.currentSourceState
     return state === undefined ? { active: false, sourceId: '', step: '' } : { active: true, sourceId: state.sourceId, step: state.step }
   }
 
-  /**
-   * First candidate id not claimed by a registered source; for git candidates
-   * the checkout directory must also be free, so a stale or foreign directory
-   * under `.sources/` is never cloned over (it would fail `git clone` with a
-   * confusing "destination exists" error). `ownedCheckout` marks the directory
-   * the in-flight mutation already controls, keeping a rename onto it legal.
-   * Local sources skip the disk check: they read their own path in place and
-   * never occupy `.sources/`.
-   * 中文：选择第一个未被状态或磁盘占用的源 ID；本地源不占用托管检出目录。
-   */
   private async pickSourceId(candidates: string[], skipDisk: boolean, ownedCheckout?: string): Promise<string> {
-    /** 检查候选 ID 是否既未被状态占用，也未覆盖非本次操作所有的 checkout 目录。 */
     const free = async (id: string): Promise<boolean> => {
       if (this.state.sources.some(source => source.id === id)) return false
       if (skipDisk) return true
@@ -639,17 +492,13 @@ export class Catalog {
     }
   }
 
-  /** Update one source's URL, branch, kind, or archive digest. */
-  /** 中文：更新一个源的地址、分支、类型或压缩包摘要，并处理旧检出失效。 */
   async updateSource(sourceId: string, patch: { url?: string; branch?: string; local?: boolean; kind?: SourceKind; sha256?: string }): Promise<void> {
     return this.enqueue(async () => {
       const index = this.state.sources.findIndex(source => source.id === sourceId)
       if (index === -1) throw new Error(`unknown source "${sourceId}"`)
       const current = this.state.sources[index]!
       const nextLocal = patch.local !== undefined ? patch.local : current.local === true
-      // A local source carries the legacy flag only; `kind` stays unwritten
-      // so the persisted shape matches the pre-kind records.
-      // 中文：本地源继续只保存旧 local 标记，保持历史状态文件结构兼容。
+
       const nextKind: SourceKind | undefined = nextLocal ? undefined : (patch.kind ?? current.kind)
       const next: SourceRef = {
         id: sourceId,
@@ -661,9 +510,7 @@ export class Catalog {
         ...(current.adopted === true ? { adopted: true } : {})
       }
       const urlChanged = patch.url !== undefined && patch.url !== current.url
-      // A URL change invalidates the old checkout — except for adopted (user
-      // cloned) and local sources, whose directories we never own.
-      // 中文：地址变化会使托管检出失效，但不删除收编检出或外部本地目录。
+
       if (urlChanged && current.local !== true && current.adopted !== true) {
         this.headCache.delete(sourceId)
         await gitRemove(sourceCheckoutDir(this.options.userRoot, sourceId))
@@ -674,16 +521,6 @@ export class Catalog {
     })
   }
 
-  /**
-   * Remove a source and its install entries. `deleteCheckout` (the UI's
-   * "also delete the managed market directory" option) physically removes the
-   * `.sources/<id>` checkout — including an adopted one, since a directory
-   * under `.sources` is manager-owned storage. A `local` source whose URL
-   * points outside `.sources` is registration-only: its directory is never
-   * touched. Deleting the checkout is what keeps a removed source from
-   * reappearing as an unmanaged entry.
-   * 中文：移除源及其安装记录；仅在明确要求且目录属于管理器存储时删除托管检出。
-   */
   async removeSource(sourceId: string, deleteCheckout = false): Promise<void> {
     return this.enqueue(async () => {
       const source = this.state.sources.find(entry => entry.id === sourceId)
@@ -694,18 +531,13 @@ export class Catalog {
       }
       await saveState(this.statePath, this.state)
       this.headCache.delete(sourceId)
-      // A checkout under `.sources` is manager-owned even when it was first
-      // discovered/adopted. Only an explicit local path points outside the
-      // manager's storage and must remain untouched.
-      // 中文：`.sources` 下目录均属于管理器存储；外部本地路径始终保留。
+
       const externalLocal = source?.local === true && source.url !== sourceCheckoutDir(this.options.userRoot, sourceId)
       if (!externalLocal && deleteCheckout) await gitRemove(sourceCheckoutDir(this.options.userRoot, sourceId))
       await this.notifyChanged()
     })
   }
 
-  /** Refresh one source checkout, or every source when sourceId is omitted. */
-  /** 中文：刷新指定源或全部源，区分本地目录、压缩包、收编 Git 和托管 Git 的安全策略。 */
   async refreshSource(sourceId?: string): Promise<void> {
     return this.enqueue(async () => {
       const targets = sourceId === undefined ? this.state.sources : this.state.sources.filter(source => source.id === sourceId)
@@ -718,24 +550,15 @@ export class Catalog {
         const checkout = sourceCheckoutDir(this.options.userRoot, source.id)
         this.headCache.delete(source.id)
         if (kind === 'archive') {
-          // Re-download and swap; the fresh digest becomes the lock value.
-          // 中文：重新下载并替换压缩包检出，新摘要成为锁定值。
           const lock = await this.acquire(source)
           if (lock !== undefined) this.headCache.set(source.id, lock)
           continue
         }
-        // Adopted checkouts are user-owned working trees: no `reset --hard`
-        // (it would destroy uncommitted work), and no re-acquire either —
-        // a broken HEAD means the user repairs the checkout, not that the
-        // manager may clone or extract over their directory.
-        // 中文：收编检出属于用户工作树，不执行破坏性重置或重新获取。
+
         if (source.adopted === true) {
           try {
             this.headCache.set(source.id, await gitHead(checkout))
-          } catch {
-            // A failed HEAD read means the next overview re-probes.
-            // 中文：HEAD 读取失败时留给下一次总览重新探测。
-          }
+          } catch {}
           continue
         }
         try {
@@ -747,21 +570,13 @@ export class Catalog {
           } else {
             try {
               this.headCache.set(source.id, await gitHead(checkout))
-            } catch {
-              // A failed HEAD read means the next overview re-probes.
-              // 中文：HEAD 读取失败时留给下一次总览重新探测。
-            }
+            } catch {}
           }
           continue
         }
-        // Shallow-friendly sync: fetch depth 1 into FETCH_HEAD, hard reset.
-        // 中文：使用浅同步更新托管检出，再将工作树重置到远程最新提交。
+
         const branch = source.branch ?? (await gitCurrentBranch(checkout).catch(() => undefined))
-        // Keep origin on the region's route: a clone made before a region
-        // switch (or an explicit flip) re-points origin so the fetch follows.
-        // Only origins this plugin itself wrote (the direct or proxied
-        // source.url) are re-pointed — a foreign remote is left untouched.
-        // 中文：只改写插件自己设置的 origin，外部远程地址保持不动。
+
         if (source.kind === 'git' || (source.kind === undefined && source.local !== true)) {
           try {
             const region = resolveRegion(await this.downloadRegionProvider(), await readLocalePreference())
@@ -770,28 +585,17 @@ export class Catalog {
             if (origin !== routed && (origin === source.url || origin === githubCloneUrl('china', source.url))) {
               await gitSetRemoteUrl(checkout, routed)
             }
-          } catch {
-            // Origin reconciliation is best effort; plain sync still runs.
-            // 中文：远程地址校准失败不阻断普通同步。
-          }
+          } catch {}
         }
         await gitSync(checkout, branch, this.options.git ?? {})
         try {
           this.headCache.set(source.id, await gitHead(checkout))
-        } catch {
-          // A failed HEAD read means the next overview re-probes.
-          // 中文：HEAD 读取失败时留给下一次总览重新探测。
-        }
+        } catch {}
       }
       await this.notifyChanged()
     })
   }
 
-  /** Install a suite from a source and enable it. The client confirms the
-   * injected surfaces (skills / MCP / hooks / commands) in a pre-install
-   * dialog before this runs; disabling afterwards is always available.
-   * 中文：确认源和套件后获取缺失检出、记录锁定值并启用安装项；后续仍可关闭。
-   */
   async install(sourceId: string, suiteId: string, options: { surfaces?: SurfaceOverrides; configurationOnly?: true } = {}): Promise<void> {
     return this.enqueue(async () => {
       const source = this.state.sources.find(entry => entry.id === sourceId)
@@ -803,9 +607,7 @@ export class Catalog {
       const suite = suites.find(entry => entry.id === suiteId)
       if (suite === undefined) throw new Error(`suite "${suiteId}" not found in source "${sourceId}"`)
       if (suite.remote !== undefined) throw new Error(`suite "${suiteId}" is a remote reference (${suite.remote.url}); add its repository as a source before installing`)
-      // Archive (or tarball-fallback) sources have no git HEAD; their digest
-      // is the lock value.
-      // 中文：压缩包或 tarball 回退没有 Git HEAD，使用内容摘要作为锁定值。
+
       const lockCommit = (await tryHead(checkout)) ?? freshLock ?? this.headCache.get(sourceId)
       await this.setInstalled(sourceId, suiteId, {
         enabled: true,
@@ -818,8 +620,6 @@ export class Catalog {
     })
   }
 
-  /** Uninstall a suite while retaining the source checkout. */
-  /** 中文：移除套件安装记录但保留源检出目录。 */
   async uninstall(sourceId: string, suiteId: string): Promise<void> {
     return this.enqueue(async () => {
       const key = installKey(sourceId, suiteId)
@@ -831,8 +631,6 @@ export class Catalog {
     })
   }
 
-  /** Enable or disable an installed suite. */
-  /** 中文：切换已安装套件整体启用状态。 */
   async setEnabled(sourceId: string, suiteId: string, enabled: boolean): Promise<void> {
     return this.enqueue(async () => {
       const key = installKey(sourceId, suiteId)
@@ -843,8 +641,6 @@ export class Catalog {
     })
   }
 
-  /** Enable or disable one runtime surface of an installed suite. */
-  /** 中文：切换已安装套件的单个运行时能力面。 */
   async setSurface(sourceId: string, suiteId: string, surface: SuiteSurfaceKey, enabled: boolean): Promise<void> {
     return this.enqueue(async () => {
       const key = installKey(sourceId, suiteId)
@@ -857,22 +653,17 @@ export class Catalog {
     })
   }
 
-  /** Append config-seeded sources missing from user state and persist them. */
-  /** 中文：将配置预置但状态中缺失的源追加保存，并使扫描/快照失效。 */
   async mergeSources(sources: SourceRef[]): Promise<void> {
     const existing = new Set(this.state.sources.map(source => source.id))
     const additions = sources.filter(source => !existing.has(source.id))
     if (additions.length === 0) return
     this.state = { ...this.state, sources: [...this.state.sources, ...additions] }
     await saveState(this.statePath, this.state)
-    // New sources change the fingerprint, but their content arrives through
-    // an acquire, so mark the scan cache dirty conservatively.
-    // 中文：新增源会改变指纹，且内容由获取流程提供，因此保守地清空扫描缓存。
+
     this.invalidateScans()
     this.invalidateSnapshot(true)
   }
 
-  /** Serialize a resource write with catalog changes and publish only successful writes. */
   async changePanelResources<T>(change: () => Promise<T>): Promise<T> {
     return this.enqueue(async () => {
       const result = await change()
@@ -881,19 +672,11 @@ export class Catalog {
     })
   }
 
-  /** 更新一个套件的持久化安装记录，不负责触发变更通知。 */
   private async setInstalled(sourceId: string, suiteId: string, entry: InstalledEntry): Promise<void> {
     this.state = { ...this.state, installed: { ...this.state.installed, [installKey(sourceId, suiteId)]: entry } }
     await saveState(this.statePath, this.state)
   }
 
-  /**
-   * Acquire one source's content by kind: clone (git), download+extract
-   * (archive), or an in-place existence check (local). Returns a lock value
-   * when the acquisition yields one (archive SHA-256, tarball fallback
-   * digest); git HEAD is read separately by the callers.
-   * 中文：按源类型获取内容；本地只检查存在，压缩包返回摘要，Git 由调用方另读 HEAD。
-   */
   private async acquire(source: SourceRef): Promise<string | undefined> {
     const kind = resolveSourceKind(source)
     if (kind === 'local') {
@@ -912,9 +695,6 @@ export class Catalog {
       return sha256
     }
     try {
-      // The region routes github.com clones through the China mirror prefix;
-      // the proxied URL becomes `origin`, so refreshes follow the same route.
-      // 中文：按生效下载区域选择 GitHub 克隆地址，并让 origin 沿用同一路由。
       const region = resolveRegion(await this.downloadRegionProvider(), await readLocalePreference())
       await gitClone(githubCloneUrl(region, source.url), source.branch, checkout, this.options.git ?? {})
       return undefined
@@ -922,9 +702,7 @@ export class Catalog {
       if (this.options.git?.fallbackTarball !== true) throw error
       const tarballUrl = codeloadTarballUrl(source.url, source.branch)
       if (tarballUrl === undefined) throw error
-      // The codeload URL ends in a branch path, not `.tar.gz`, so the format
-      // must be stated explicitly — extension detection cannot see it.
-      // 中文：codeload 地址以分支路径结尾，必须显式指定 targz 格式，不能依赖扩展名推断。
+
       const { sha256 } = await archiveInstall(tarballUrl, checkout, {
         ...(this.options.git?.timeoutMs === undefined ? {} : { timeoutMs: this.options.git.timeoutMs }),
         format: 'targz'
@@ -933,19 +711,14 @@ export class Catalog {
     }
   }
 
-  /** The filesystem location of one source. */
-  /** 中文：解析一个源实际使用的文件系统路径，本地源读取自身目录。 */
   private sourceCheckoutPath(source: SourceRef): string {
     return source.local === true ? expandHome(source.url) : sourceCheckoutDir(this.options.userRoot, source.id)
   }
 
-  /** 按维度、源状态和缓存策略构建一致性套件快照。 */
   private async buildSnapshot(state: SuiteState, dimension: SuiteDimension, dimensionRoot: string, skipScanCache = false): Promise<CatalogSnapshot> {
     const fingerprint = JSON.stringify([dimension, dimensionRoot, state.sources, this.scanProjectLayouts])
     const cached = this.scanCache.get(fingerprint)
-    // The user snapshot's TTL also bounds scan reuse: a snapshot rebuild that
-    // replays a 30s scan cache would silently outlive its own staleness bound.
-    // 中文：用户快照 TTL 同样限制扫描缓存复用，避免快照重建后超过自身新鲜度边界。
+
     const scanCacheTtl = dimension === 'user' ? Math.min(this.userSnapshotTtlMs, Catalog.SCAN_CACHE_TTL_MS) : Catalog.SCAN_CACHE_TTL_MS
     const cacheFresh = !skipScanCache && cached !== undefined && Date.now() - cached.at < scanCacheTtl
     let discovered: Suite[]
@@ -968,8 +741,7 @@ export class Catalog {
       }
       discovered = result.suites
       scanNotes = result.scanNotes
-      // A scan started before a content mutation must not repopulate its cache.
-      // 中文：内容变更前启动的扫描不能在完成后重新填充旧缓存。
+
       if (generation === this.scanGeneration) {
         if (this.scanCache.size >= Catalog.SCAN_CACHE_MAX_ENTRIES) this.scanCache.clear()
         this.scanCache.set(fingerprint, { at: Date.now(), discovered, scanNotes })
@@ -977,9 +749,7 @@ export class Catalog {
     }
     const suites = discovered.map(suite => {
       const installed = state.installed[installKey(suite.sourceId, suite.id)]
-      // Native project layouts (`.claude/`, `.agents/`) are the repository's
-      // own files read in place: they carry no install state and stay enabled.
-      // 中文：项目原生布局直接读取仓库自身文件，不依赖安装记录且始终保持启用。
+
       const enabled = suite.manifest.layout === 'project-native' || installed?.enabled === true
       return {
         ...suite,
@@ -1003,7 +773,6 @@ export class Catalog {
     }
   }
 
-  /** 清空用户/项目快照缓存，并按需递增目录修订号。 */
   private invalidateSnapshot(increment: boolean): void {
     if (increment) this.revision++
     this.userSnapshot = undefined
@@ -1013,20 +782,12 @@ export class Catalog {
     this.projectSnapshotPromises.clear()
   }
 
-  /** 清空扫描结果与进行中的扫描承诺，并推进扫描代数。 */
   private invalidateScans(): void {
     this.scanGeneration++
     this.scanCache.clear()
     this.scanPromises.clear()
   }
 
-  /**
-   * Invalidate snapshots and run the change pipeline. `keepScanCache` marks
-   * state-only mutations (install, enable, surface toggles, MCP overrides)
-   * whose inputs leave every checkout untouched, so the next snapshot
-   * re-derives from cached discovery instead of rescanning the filesystem.
-   * 中文：失效快照并执行宿主变更回调；纯状态变更可保留发现缓存。
-   */
   private async notifyChanged(keepScanCache = false): Promise<void> {
     if (!keepScanCache) this.invalidateScans()
     this.invalidateSnapshot(true)
@@ -1035,7 +796,6 @@ export class Catalog {
     for (const listener of this.listeners) listener()
   }
 
-  /** 串行排队所有目录变更，保证前一个失败后队列仍能继续处理。 */
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.mutationQueue.then(operation, operation)
     this.mutationQueue = result.catch(() => {})
@@ -1043,13 +803,10 @@ export class Catalog {
   }
 }
 
-/** 生成源 ID 与套件 ID 的稳定安装记录键。 */
 function installKey(sourceId: string, suiteId: string): string {
   return `${sourceId}/${suiteId}`
 }
 
-/** Read a checkout's HEAD when it is a Git repository. */
-/** 中文：尽力读取 Git 检出的 HEAD；非 Git 或损坏目录返回 undefined。 */
 async function tryHead(dir: string): Promise<string | undefined> {
   try {
     return await gitHead(dir)
@@ -1058,14 +815,6 @@ async function tryHead(dir: string): Promise<string | undefined> {
   }
 }
 
-/**
- * The codeload tarball URL of a GitHub repository, or undefined for any
- * other host. `https://github.com/<owner>/<repo>` maps to
- * `https://codeload.github.com/<owner>/<repo>/tar.gz/refs/heads/<branch>`
- * (or `/tar.gz/HEAD` for the default branch) — the git-protocol fallback
- * when a clone cannot get through but plain HTTPS file download can.
- * 中文：仅把标准 GitHub 仓库地址转换成对应 codeload tarball，其他主机返回 undefined。
- */
 export function codeloadTarballUrl(url: string, branch: string | undefined): string | undefined {
   const match = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/i.exec(url.trim())
   if (match === null) return undefined
