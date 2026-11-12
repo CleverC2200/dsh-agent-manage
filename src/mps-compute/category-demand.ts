@@ -42,7 +42,7 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
   const recent = [-2, -1, 0].map(amount => offset(end, amount))
   const categories = [...new Set(input.categories)]
   const historical = categories.flatMap(category =>
-    Array.from({ length: 6 }, (_, index) => {
+    Array.from({ length: 8 }, (_, index) => {
       const month = offset(input.month, index - 4)
       const years = [1, 2, 3].map(year => {
         const period = offset(month, -12 * year)
@@ -105,31 +105,24 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
     return Array.from({ length: 4 }, (_, index) => {
       const month = offset(input.month, index)
       const factors = historical.find(row => row.category === category && row.month === month)
-      let chain: MpsQuantity = 1
-      let momMethod: MpsQuantity = null
-      let shareMethod: MpsQuantity = null
-      let weighted: MpsQuantity = null
-      let quantity: MpsQuantity = null
+      let chain: MpsQuantity
       const submissions = input.submissions.filter(row => row.category === category && row.month === month)
-      const salesSubmission = index < 2 && submissions.length === 1 ? (submissions[0]?.quantity ?? null) : null
-      const salesCorrected = index < 2 ? multiply(salesSubmission, basis.achievementRate) : null
-      let methodAverage: MpsQuantity = null
+      const salesSubmission = index === 0 && submissions.length === 1 ? (submissions[0]?.quantity ?? null) : null
+      const salesCorrected = index === 0 ? multiply(salesSubmission, basis.achievementRate) : null
       if (index < 2) {
         chain = factors?.mom ?? null
-        momMethod = multiply(previousMom, chain)
-        shareMethod = multiply(basis.annualEstimate, factors?.share ?? null)
-        methodAverage = divide(sum([momMethod, shareMethod]), 2)
-        weighted = divide(sum([methodAverage, salesCorrected]), 2)
-        quantity = weighted
       } else {
         const amount = (period: string) => {
           const values = input.annual.filter(row => row.month === period && row.category === category)
           return values.length === 1 ? (values[0]?.quantity ?? null) : null
         }
         chain = divide(amount(month), amount(offset(month, -1)))
-        momMethod = multiply(previousMom, chain)
-        quantity = momMethod
       }
+      const momMethod = multiply(previousMom, chain)
+      const shareMethod = multiply(basis.annualEstimate, factors?.share ?? null)
+      const methodAverage = divide(sum([momMethod, shareMethod]), 2)
+      const weighted = index === 0 ? divide(sum([methodAverage, salesCorrected]), 2) : null
+      let quantity = index === 0 ? weighted : methodAverage
       const systemQuantity = quantity
       previousMom = momMethod
       const edits = (input.adjustments ?? []).filter(row => row.month === month && row.category === category)
@@ -143,7 +136,7 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
         mom: index < 2 ? (factors?.mom ?? null) : null,
         chain,
         momMethod,
-        share: index < 2 ? (factors?.share ?? null) : null,
+        share: factors?.share ?? null,
         shareMethod,
         methodAverage,
         salesSubmission,
@@ -155,7 +148,7 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
         quantity,
         systemQuantity,
         adjusted,
-        method: index < 2 ? '两法平均与销售提报×达成率各占一半' : '上月环比测算量×年度环比'
+        method: index === 0 ? '两法平均与销售提报×达成率各占一半' : '环比测算量与占比测算量各占一半'
       }
     })
   })
