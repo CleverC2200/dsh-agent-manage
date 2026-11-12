@@ -12,6 +12,8 @@ Workbench 用 `parts.inventoryInsight.evidence` 发布既有引擎的确定性�
 
 本决定补充[业务资源归属](../architecture/2026-09-29-workbench-business-resources.zh.md)，不取代其装载和权限契约。
 
+页面核对补充：`parts.stockOverview` 的卡片、基地行、版本、来源与 comparisonBasis 只在同一 ready 状态使用。库存卡片展示目标月份/版本及库存与目标匹配的SKU覆盖。纠偏版存在且目标为0时不能自动回退月初版；当前卡片差额只含库存与目标均有效的行，“全范围库存减已知目标”必须另行命名。本次只澄清页面证据合同，不修改计算公式，也不证明源零值符合业务实际。回归验证真实零目标保留、缺目标不混入卡片差额。
+
 ## Alternatives considered
 
 **由提示词重算。** 会重复分类与排序逻辑，并可能补造授权结果没有返回的数值。

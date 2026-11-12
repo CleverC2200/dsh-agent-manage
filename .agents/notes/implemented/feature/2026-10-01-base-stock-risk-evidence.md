@@ -12,6 +12,8 @@ Workbench publishes the existing deterministic engine result through `parts.inve
 
 This complements the existing [business resource ownership](../architecture/2026-09-29-workbench-business-resources.md) decision and does not supersede its loading or authority contract.
 
+Page reconciliation also consumes `parts.stockOverview` cards, rows, version, sources and comparisonBasis from the same ready state. The visible inventory card exposes its target month/version and matched inventory/target SKU coverage. A present correction version with zero targets cannot silently fall back to month-start targets. The existing card gap uses matched valid inventory/target rows; a full-scope inventory-minus-known-target calculation must be named separately. This clarifies the page evidence contract without changing the calculations or certifying upstream zero values as correct. Regression coverage retains real zero targets and excludes missing targets from the card gap.
+
 ## Alternatives considered
 
 **Recompute in prompts.** This would duplicate classification and ranking logic and could invent values absent from the authorized result.
