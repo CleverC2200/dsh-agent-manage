@@ -5,6 +5,8 @@ export interface MpsCategoryDemandInput {
   month: string
   pull: 'monthly' | 'adjust'
   categories: string[]
+  shipment: { month: string; category: string; quantity: MpsQuantity }[]
+  submissions: { month: string; category: string; quantity: MpsQuantity }[]
   historical: {
     month: string
     category: string
@@ -96,8 +98,10 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
   })
   const rows = bases.flatMap(basis => {
     const category = basis.category
-    let previous: MpsQuantity = null
-    let previousSystem: MpsQuantity = null
+    const baseMonth = offset(input.month, -1)
+    const shipments = input.shipment.filter(row => row.category === category && row.month === baseMonth)
+    const shipment = shipments.length === 1 ? (shipments[0]?.quantity ?? null) : null
+    let previousMom: MpsQuantity = shipment
     return Array.from({ length: 4 }, (_, index) => {
       const month = offset(input.month, index)
       const factors = historical.find(row => row.category === category && row.month === month)
@@ -106,30 +110,33 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
       let shareMethod: MpsQuantity = null
       let weighted: MpsQuantity = null
       let quantity: MpsQuantity = null
+      const submissions = input.submissions.filter(row => row.category === category && row.month === month)
+      const salesSubmission = index < 2 && submissions.length === 1 ? (submissions[0]?.quantity ?? null) : null
+      const salesCorrected = index < 2 ? multiply(salesSubmission, basis.achievementRate) : null
+      let methodAverage: MpsQuantity = null
       if (index < 2) {
-        for (let period = offset(end, 1); period <= month; period = offset(period, 1))
-          chain = multiply(chain, historical.find(row => row.category === category && row.month === period)?.mom ?? null)
-        momMethod = multiply(basis.baseActual, chain)
+        chain = factors?.mom ?? null
+        momMethod = multiply(previousMom, chain)
         shareMethod = multiply(basis.annualEstimate, factors?.share ?? null)
-        weighted = divide(sum([momMethod, shareMethod]), 2)
-        quantity = divide(weighted, basis.achievementRate)
+        methodAverage = divide(sum([momMethod, shareMethod]), 2)
+        weighted = divide(sum([methodAverage, salesCorrected]), 2)
+        quantity = weighted
       } else {
         const amount = (period: string) => {
           const values = input.annual.filter(row => row.month === period && row.category === category)
           return values.length === 1 ? (values[0]?.quantity ?? null) : null
         }
         chain = divide(amount(month), amount(offset(month, -1)))
-        quantity = multiply(previous, chain)
-        momMethod = quantity
+        momMethod = multiply(previousMom, chain)
+        quantity = momMethod
       }
-      const systemQuantity = index < 2 ? quantity : multiply(previousSystem, chain)
+      const systemQuantity = quantity
+      previousMom = momMethod
       const edits = (input.adjustments ?? []).filter(row => row.month === month && row.category === category)
       const edit = edits[0]
       const adjusted = edits.length === 1 && edit !== undefined && finite(edit.quantity) && edit.quantity >= 0
       if (edits.length && !adjusted) adjustmentIssues.push(`${month} ${category} 大类需求调整无效或重复`)
       if (adjusted) quantity = edit.quantity
-      previousSystem = systemQuantity
-      previous = quantity
       return {
         category,
         month,
@@ -138,11 +145,17 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
         momMethod,
         share: index < 2 ? (factors?.share ?? null) : null,
         shareMethod,
+        methodAverage,
+        salesSubmission,
+        achievementRate: basis.achievementRate,
+        salesCorrected,
+        baseMonth,
+        shipment,
         weighted,
         quantity,
         systemQuantity,
         adjusted,
-        method: index < 2 ? '两法平均后除计划达成率' : '上月需求×年度分月环比'
+        method: index < 2 ? '两法平均与销售提报×达成率各占一半' : '上月环比测算量×年度环比'
       }
     })
   })

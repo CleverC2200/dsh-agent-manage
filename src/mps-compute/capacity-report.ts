@@ -46,6 +46,8 @@ interface AnnualCapacityInput {
 }
 
 export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof solveMpsPlan>, annual?: AnnualCapacityInput) {
+  const odmCodes = new Set([...(input.odmProductCodes ?? []), ...(input.odmSupplies ?? []).map(row => row.code), ...(input.odmConflicts ?? []).map(row => row.code)])
+  const zero = { value: 0, known: 0, missing: 0 }
   const referenceMonth = annual?.referenceMonth ?? input.context.month
   const annualRows = (annual?.rows ?? []).filter(row => row.base !== '全国')
   const fiscalMonths = capacityFiscalMonths(referenceMonth)
@@ -186,8 +188,8 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
         (candidateIndex.get(JSON.stringify([row.base, row.code])) ?? []).some(
           candidate => (!candidate.month || candidate.month === row.month) && resources.some(resource => resource.id === candidate.resourceId && resource.base === row.base)
         )
-      const ownRows = rows.filter(assigned)
-      const unassigned = rows.filter(row => !assigned(row))
+      const ownRows = rows.filter(row => !odmCodes.has(row.code) && assigned(row))
+      const unassigned = rows.filter(row => !odmCodes.has(row.code) && !assigned(row))
       const demand = ownRows.length ? sum(ownRows.map(row => row.demandTons)) : { value: 0, known: 0, missing: 0 }
       const orphanDemand = unassigned.length ? sum(unassigned.map(row => row.demandTons)) : { value: 0, known: 0, missing: 0 }
       const capacity = sum(physical.map(row => row.capacity)).value
@@ -196,9 +198,9 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
       const seriesGroups = new Map<string, typeof rows>()
       for (const row of rows) seriesGroups.set(row.group, [...(seriesGroups.get(row.group) ?? []), row])
       const series = [...seriesGroups].map(([group, items]) => {
-        const eligible = items.filter(assigned)
+        const eligible = items.filter(row => !odmCodes.has(row.code) && assigned(row))
         const quantity = eligible.length ? sum(eligible.map(row => row.demandTons)) : { value: 0, known: 0, missing: 0 }
-        const orphan = items.filter(row => !assigned(row))
+        const orphan = items.filter(row => !odmCodes.has(row.code) && !assigned(row))
         const share = quantity.value !== null && demand.value !== null && demand.value > 0 ? quantity.value / demand.value : null
         const quota = share !== null && capacity !== null ? capacity * share : null
         return {
@@ -217,6 +219,7 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
         category: first.category,
         demand,
         unassigned: orphanDemand,
+        odmDemand: rows.some(row => odmCodes.has(row.code)) ? sum(rows.filter(row => odmCodes.has(row.code)).map(row => row.demandTons)) : zero,
         dailyTons,
         capacity,
         load,
@@ -233,7 +236,9 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
     [...bases, '全国'].map(base => {
       const selected = lines.filter(row => row.month === month && (base === '全国' || row.base === base))
       const rows = plan.rows.filter(row => row.month === month && (base === '全国' || row.base === base))
-      const demand = sum(rows.map(row => row.demandTons))
+      const internal = rows.filter(row => !odmCodes.has(row.code))
+      const external = rows.filter(row => odmCodes.has(row.code))
+      const demand = internal.length ? sum(internal.map(row => row.demandTons)) : external.length ? zero : sum([])
       const capacity = sum(selected.map(row => row.capacity)).value
       const dailyTons = sum(selected.map(row => row.dailyTons)).value
       const days = [...new Set(selected.map(row => row.days))]
@@ -243,11 +248,12 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
         base,
         lines: selected.length,
         demand,
+        odmDemand: external.length ? sum(external.map(row => row.demandTons)) : zero,
         dailyTons,
         days: days.length === 1 ? days[0] : null,
         capacity,
         load,
-        knownLoad: capacity !== null && capacity > 0 && rows.length > demand.missing ? demand.known / capacity : null,
+        knownLoad: capacity !== null && capacity > 0 && internal.length > demand.missing ? demand.known / capacity : null,
         band: capacityLoadBand(load),
         margin: demand.value !== null && capacity !== null ? capacity - demand.value : null
       }
@@ -257,16 +263,19 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
     [...bases, '全国'].map(base => {
       const rows = annualRows.filter(row => row.month === month && (base === '全国' || row.base === base))
       const unknown = (annual?.unmapped ?? []).filter(row => !row.month || row.month === month).map(() => null)
-      const demand = sum([...rows.map(annualTons), ...unknown])
+      const internal = rows.filter(row => !odmCodes.has(row.code))
+      const external = rows.filter(row => odmCodes.has(row.code))
+      const demand = !internal.length && !unknown.length && external.length ? zero : sum([...internal.map(annualTons), ...unknown])
       const capacity = totals.find(row => row.month === month && row.base === base)?.capacity ?? null
       const load = demand.value !== null && capacity !== null && capacity > 0 ? demand.value / capacity : null
       return {
         month,
         base,
         demand,
+        odmDemand: external.length ? sum(external.map(annualTons)) : zero,
         capacity,
         load,
-        knownLoad: capacity !== null && capacity > 0 && rows.some(row => annualTons(row) !== null) ? demand.known / capacity : null,
+        knownLoad: capacity !== null && capacity > 0 && internal.some(row => annualTons(row) !== null) ? demand.known / capacity : null,
         band: capacityLoadBand(load)
       }
     })
@@ -275,6 +284,7 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
     for (const total of totals.filter(row => row.month === referenceMonth)) {
       const row = annualTotals.find(row => row.month === referenceMonth && row.base === total.base)
       if (!row) continue
+      total.odmDemand = row.odmDemand
       total.demand = row.demand
       total.load = row.load
       total.knownLoad = row.knownLoad

@@ -7,6 +7,8 @@ const fixture = (pull = 'monthly') => {
     month: '2026-10',
     pull,
     categories: ['汤圆'],
+    shipment: [{ month: '2026-09', category: '汤圆', quantity: 100 }],
+    submissions: ['2026-10', '2026-11'].map(month => ({ month, category: '汤圆', quantity: 150 })),
     historical: [2023, 2024, 2025].flatMap(year =>
       [6, 7, 8, 9, 10, 11].map(month => ({
         month: `${year}-${String(month).padStart(2, '0')}`,
@@ -31,7 +33,7 @@ test('confirmed three-month windows produce both methods and extend M+3/M+4 by a
     assert.equal(result.bases[0].annualEstimate, 1200)
     assert.deepEqual(
       result.rows.map(row => row.quantity),
-      [125, 125, 187.5, 375]
+      [110, 110, 150, 300]
     )
     assert.equal(result.rows[0].momMethod, 100)
     assert.equal(result.rows[0].shareMethod, 100)
@@ -49,7 +51,7 @@ test('missing a historical year or zero denominators stop only dependent results
   annual.annual = annual.annual.filter(row => row.month !== '2026-12')
   assert.deepEqual(
     computeMpsCategoryDemand(annual).rows.map(row => row.quantity),
-    [125, 125, null, null]
+    [110, 110, null, null]
   )
   const noMix = fixture()
   noMix.checks[0].month = '2026-09'
@@ -66,23 +68,23 @@ test('incomplete DMS classification does not hide valid BI methods', () => {
   assert.equal(result.rows[0].quantity, null)
 })
 
-test('有效大类调整向后传递年度分月环比，保留系统值并拒绝重复或负数', () => {
+test('人工有效量不回流独立环比链，保留系统值并拒绝重复或负数', () => {
   const sample = fixture()
   sample.adjustments = [{ month: '2026-11', category: '汤圆', quantity: 200 }]
   const result = computeMpsCategoryDemand(sample)
   assert.deepEqual(
     result.rows.map(row => row.quantity),
-    [125, 200, 300, 600]
+    [110, 200, 150, 300]
   )
   assert.deepEqual(
     result.rows.map(row => row.systemQuantity),
-    [125, 125, 187.5, 375]
+    [110, 110, 150, 300]
   )
   assert.equal(result.rows[1].adjusted, true)
   sample.adjustments[0].quantity = -1
   assert.deepEqual(
     computeMpsCategoryDemand(sample).rows.map(row => row.quantity),
-    [125, 125, 187.5, 375]
+    [110, 110, 150, 300]
   )
   assert.match(computeMpsCategoryDemand(sample).adjustmentIssues.join(''), /调整/)
 })
@@ -141,4 +143,55 @@ test('同比给出两端年月、数量和排除原因，三组全部有效才�
   assert.deepEqual(factors.years[0].excludedReasons, [])
   assert.match(factors.years[1].excludedReasons.join(''), /分子/)
   assert.match(factors.years[2].excludedReasons.join(''), /分母.*0/)
+})
+
+test('本月预估1200与占比1000先平均，再与1500提报的80%平均得到1150', () => {
+  const input = fixture()
+  input.shipment[0].quantity = 1200
+  input.checks.forEach(row => {
+    row.actual = 1000
+    row.plan = 1250
+  })
+  input.submissions.forEach(row => (row.quantity = 1500))
+  const result = computeMpsCategoryDemand(input)
+  assert.equal(result.rows[0].momMethod, 1200)
+  assert.equal(result.rows[0].shareMethod, 1000)
+  assert.equal(result.rows[0].quantity, 1150)
+  assert.deepEqual(
+    result.rows.map(row => row.momMethod),
+    [1200, 1200, 1800, 3600]
+  )
+  input.shipment[0].quantity = 600
+  assert.equal(computeMpsCategoryDemand(input).rows[0].quantity, 1000)
+})
+
+test('历史环比逐月递推，来源缺项不污染独立链，真实零达成率保留为零', () => {
+  const input = fixture()
+  input.historical.forEach(row => {
+    if (row.month.endsWith('-10')) row.priorMonthQuantity = 50
+    if (row.month.endsWith('-11')) row.priorMonthQuantity = 25
+  })
+  input.adjustments = [{ month: '2026-10', category: '汤圆', quantity: 999 }]
+  assert.deepEqual(
+    computeMpsCategoryDemand(input).rows.map(row => row.momMethod),
+    [200, 800, 1200, 2400]
+  )
+  input.submissions = []
+  assert.deepEqual(
+    computeMpsCategoryDemand(input).rows.map(row => row.quantity),
+    [999, null, 1200, 2400]
+  )
+  input.shipment[0].month = '2026-10'
+  assert.deepEqual(
+    computeMpsCategoryDemand(input).rows.map(row => row.momMethod),
+    [null, null, null, null]
+  )
+  const zero = fixture()
+  zero.checks.forEach(row => (row.actual = 0))
+  assert.equal(computeMpsCategoryDemand(zero).rows[0].quantity, 25)
+  zero.shipment[0].quantity = 0
+  assert.deepEqual(
+    computeMpsCategoryDemand(zero).rows.map(row => row.quantity),
+    [0, 0, 0, 0]
+  )
 })

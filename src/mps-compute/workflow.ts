@@ -85,6 +85,7 @@ export interface MpsResourceLoad extends MpsResource {
 }
 export interface MpsWorkflowInput {
   inventoryTargets?: MpsInventoryTarget[]
+  inventoryTurnoverMonth?: string
   inventoryTargetVersion?: MpsInventoryVersion
   inventoryTargetPriority?: Exclude<MpsInventoryVersion, 'auto'>[]
   requireSourceTurnoverDays?: boolean
@@ -128,6 +129,7 @@ export interface MpsWorkflowRow extends MpsProduct {
   safetyDaysSource: 'target-turnover-days' | 'manual-turnover-days' | 'missing-turnover-days-zero' | 'base-policy' | 'rule' | 'missing'
   evaluation: 'unconstrained'
   nextMonthDemand: MpsQuantity
+  nextMonth: string
   nextMonthDays: number
   requiredProduction: MpsQuantity
   projectedClosing: MpsQuantity
@@ -205,13 +207,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const historyIndex = groupBy(input.history, periodKey)
   const coefficientKey = (row: Pick<MpsProduct, 'base' | 'code' | 'historyCode'>, source: 'report' | 'history' = 'report') =>
     periodKey({ ...row, code: source === 'history' ? row.historyCode || row.code : row.code, month: input.context.month })
+  const indexedWeights = groupBy(input.unitWeights ?? [], key)
   const openingIndex = groupBy(input.openingInventory, key)
   const capacityIndex = groupBy(input.capacities, key)
   const daysIndex = groupBy(input.constraints.safetyDays, row => row.base)
   const inventoryTarget = inventoryTargetIndex(input.inventoryTargets ?? [], input.inventoryTargetVersion, input.inventoryTargetIssues, input.inventoryTargetPriority)
   const turnoverPolicy = inventoryTurnoverIndex(
     input.inventoryTargets ?? [],
-    months.slice(0, 3),
+    [input.inventoryTurnoverMonth ?? input.context.month],
     input.inventoryTargetVersion,
     input.inventoryTargetIssues,
     input.inventoryTargetPriority
@@ -247,8 +250,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const domain = (source === 'history' ? monthlyHistoryIndexes : monthlyProductIndexes).get(month)
       if (!domain || domain.has(key(fact))) continue
       const catalog = source === 'history' ? historyCatalog : catalogByCode
-      const categories = new Set([fact.category ?? '', ...(catalog.get(fact.code) ?? []).map(product => product.category)].filter(Boolean))
-      const category = categories.size === 1 ? [...categories][0] : ''
+      const categories = new Set((catalog.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
+      const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? fact.category ?? '' : ''
       excludedSources.push({ ...fact, source, reason: !fact.base ? '源记录缺基地' : '物料编码未对应当前产品明细或指定基地' })
       if (!fact.base && catalog.has(fact.code) && fact.quantity !== 0) unassignedBases.add(JSON.stringify([source, month, category]))
       const unmatched = unmatchedMonths[source].get(month) ?? new Set<string>()
@@ -320,6 +323,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         historyQuantity,
         evaluation: 'unconstrained',
         nextMonthDemand: null,
+        nextMonth: monthOffset(month, 1),
         nextMonthDays: daysInMonth(monthOffset(month, 1)),
         requiredProduction: null,
         projectedClosing: null,
@@ -491,9 +495,9 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       } else if (edits.length && !valid) adjustmentIssues.push(`${category.month} ${materialGroup[0]?.group} 占比调整拒绝：来源不完整、重复或会产生负托底`)
     }
     for (const row of group) {
-      row.missing.demand = [...category.missing, ...row.missing.share]
-      row.demand = category.quantity !== null && row.share !== null ? safe(category.quantity * row.share) : null
-      row.systemDemand = category.systemQuantity !== null && row.systemShare !== null ? safe(category.systemQuantity * row.systemShare) : null
+      row.missing.demand = category.quantity === 0 ? [] : [...category.missing, ...row.missing.share]
+      row.demand = category.quantity === 0 ? 0 : category.quantity !== null && row.share !== null ? safe(category.quantity * row.share) : null
+      row.systemDemand = category.systemQuantity === 0 ? 0 : category.systemQuantity !== null && row.systemShare !== null ? safe(category.systemQuantity * row.systemShare) : null
       if (row.demand === null && !row.missing.demand.length) row.missing.demand.push('需求超出可靠计算范围')
     }
     if (category.quantity !== null && group.every(row => row.demand !== null)) {
@@ -522,14 +526,16 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   }
   const rowIndex = groupBy(rows, periodKey)
   for (const row of rows) {
-    const nextMonth = monthOffset(row.month, 1)
+    const nextMonth = row.nextMonth
     const nextRow = rowIndex.get(periodKey({ month: nextMonth, base: row.base, code: row.code }))?.[0]
     const nextCategory = categoryRows.find(candidate => candidate.month === nextMonth && candidate.category === row.category)
     row.nextMonthDemand = nextRow
       ? nextRow.demand
-      : row.month === months[2] && nextCategory?.quantity !== null && nextCategory?.quantity !== undefined && row.share !== null
-        ? safe(nextCategory.quantity * row.share)
-        : null
+      : row.month === months[2] && nextCategory?.quantity === 0
+        ? 0
+        : row.month === months[2] && nextCategory?.quantity !== null && nextCategory?.quantity !== undefined && row.share !== null
+          ? safe(nextCategory.quantity * row.share)
+          : null
     row.targetInventory =
       row.safetyDays === 0 ? 0 : row.safetyDays !== null && row.nextMonthDemand !== null ? safe((row.safetyDays * row.nextMonthDemand) / row.nextMonthDays) : null
     row.targetInventoryMissing =
@@ -558,9 +564,9 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     row.missing.mainPlan = ['所需生产由需求、库存和已采用规则推导，未生成可执行主计划']
     row.missing.transfer = ['调拨、外协需人工决策，未自动生成']
     row.productionDays = productionDays(row.base, row.month)
-    const weights = (input.unitWeights ?? []).filter(weight => key(weight) === key(row))
+    const weights = indexedWeights.get(key(row)) ?? []
     const weight = weights[0]?.tonsPerPiece ?? null
-    row.requiredProductionTons = weights.length === 1 && finite(weight) && weight > 0 && row.requiredProduction !== null ? safe(row.requiredProduction * weight) : null
+    row.requiredProductionTons = row.requiredProduction === 0 ? 0 : weights.length === 1 && finite(weight) && weight > 0 && row.requiredProduction !== null ? safe(row.requiredProduction * weight) : null
     row.missing.requiredProductionTons = row.requiredProductionTons === null ? ['缺明确SKU件吨系数或所需生产，禁止由日产吨/日产件推断重量'] : []
     row.missing.productionDays = row.productionDays === null ? ['缺基地月份显式可用生产天数'] : row.productionDays === 0 ? ['可用生产天数为0，负荷比率未定义'] : []
     row.missing.resourceAssignments = []
