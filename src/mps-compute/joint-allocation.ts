@@ -1,4 +1,5 @@
 import solver, { type Model } from 'javascript-lp-solver'
+import { fairAllocate } from './fair-allocation.ts'
 
 export interface JointDemand {
   id: string
@@ -7,6 +8,17 @@ export interface JointDemand {
 }
 
 export function jointAllocate(demands: JointDemand[], capacities: { id: string; quantity: number }[]) {
+  if (demands.every(row => row.options.every(option => option.usage.length === 1 && option.usage[0].resourceId === option.resourceId && option.usage[0].share === 1))) {
+    if (demands.some(row => row.options.some(option => !capacities.some(resource => resource.id === option.resourceId)))) throw Error('联合产能分配引用未知资源')
+    const result = fairAllocate(
+      demands.map(row => ({ id: row.id, quantity: row.quantity, resources: row.options.map(option => option.resourceId) })),
+      capacities
+    )
+    return {
+      allocations: result.allocations.map(row => ({ ...row, usage: [{ resourceId: row.resourceId, share: 1 }] })),
+      demands: result.demands.map(({ id, allocated }) => ({ id, allocated }))
+    }
+  }
   const selected = demands.filter(row => row.quantity > 0 && row.options.length > 0).toSorted((a, b) => a.id.localeCompare(b.id))
   const fixed = new Map<string, number>()
   const resourceIndex = new Map(capacities.map((row, index) => [row.id, index]))

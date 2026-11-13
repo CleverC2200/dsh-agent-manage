@@ -8,6 +8,8 @@ Manual forming resources and approved monthly shares reached the reference workf
 
 ## Decision
 
+Partially superseded by the [tunnel-only correction](2026-11-13-mps-tunnel-default.md). Forming is not a prerequisite for the current business; the explicit-configuration consumption path below is retained.
+
 The [MPS calculation contract](../../../../docs/design/mps-compute.md) owns the joint solve. Candidate tunnels and approved forming shares consume capacities for the same physical production. A continuous linear solver preserves common fulfillment and permits alternative tunnels; fixed forming shares remain business inputs. Missing forming assignments isolate affected positive production requirements. Zero production and external ODM remain independent of internal forming resources.
 
 ## Alternatives considered

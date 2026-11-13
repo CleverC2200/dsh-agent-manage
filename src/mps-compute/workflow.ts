@@ -586,8 +586,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     row.missing.productionDays = row.productionDays === null ? ['缺基地月份显式可用生产天数'] : row.productionDays === 0 ? ['可用生产天数为0，负荷比率未定义'] : []
     row.missing.resourceAssignments = []
     row.missing.monthlyCapacity = ['按唯一资源评估共享产能，不生成SKU可加总月产能']
-    row.missing.load = ['负荷及缺口见隧道、成型机逐资源评估']
-    row.missing.gap = ['缺口见隧道、成型机逐资源评估，SKU缺口未分配']
+    row.missing.load = ['负荷及缺口见已配置产能逐资源评估']
+    row.missing.gap = ['缺口见已配置产能逐资源评估，SKU缺口未分配']
   }
   const resources = groupBy(input.resources ?? [], resource => resource.id)
   const allocations = input.resourceAssignments ?? []
@@ -597,6 +597,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     invalidAssignments.set(row.id, invalidKinds)
     for (const kind of ['tunnel', 'forming'] as const) {
       const candidates = [...resources.values()].flat().filter(resource => resource.base === row.base && resource.kind === kind)
+      if (kind === 'forming' && !candidates.length) continue
       const assigned = allocations.filter(
         assignment => assignment.month === row.month && key(assignment) === key(row) && candidates.some(resource => resource.id === assignment.resourceId)
       )
