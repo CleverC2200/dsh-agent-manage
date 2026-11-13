@@ -186,6 +186,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
     resourceSchedules.push(...monthResources)
     const capacityMap = new Map(monthResources.filter(row => row.capacity !== null).map(row => [row.resourceId, row.capacity ?? 0]))
     const forming = (base: string, code: string) => {
+      if (!resources.some(resource => resource.base === base && resource.kind === 'forming')) return []
       const machines = uniqueResources.filter(resource => resource.base === base && resource.kind === 'forming')
       const assigned = (input.resourceAssignments ?? []).filter(
         row => row.base === base && row.code === code && row.month === month && machines.some(machine => machine.id === row.resourceId)

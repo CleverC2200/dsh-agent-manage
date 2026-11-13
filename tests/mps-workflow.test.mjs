@@ -288,11 +288,8 @@ const planInput = () => {
     month,
     days: 1
   }))
-  sample.resources = [
-    { id: 'R', base: '甲', name: '共享隧道', kind: 'tunnel', dailyTons: 5 },
-    { id: 'F', base: '甲', name: '已批准成型机', kind: 'forming', dailyTons: 100 }
-  ]
-  sample.resourceAssignments = sample.categoryDemand.flatMap(({ month }) => sample.products.map(({ base, code }) => ({ month, base, code, resourceId: 'F', share: 1 })))
+  sample.resources = [{ id: 'R', base: '甲', name: '共享隧道', kind: 'tunnel', dailyTons: 5 }]
+  sample.resourceAssignments = []
   sample.planCandidates = sample.products.map(row => ({
     base: row.base,
     code: row.code,
@@ -472,7 +469,7 @@ test('中等SKU域的件吨读取有界，重复系数保留未知且不同基�
   assert.ok(weightCodeReads <= sample.unitWeights.length * 4, `件吨编码读取${weightCodeReads}次，不应随计划行数反复读取整表`)
 })
 
-test('三月计划按共同满足率不超产，未满足量与原需求分开且两类设备配置有效', () => {
+test('仅使用隧道的三月计划按共同满足率不超产，未满足量与原需求分开', () => {
   const result = solveMpsPlan(planInput())
   const first = result.rows.filter(row => row.month === '2026-12')
   assert.ok(Math.abs(first[0].mainPlan - 40) < 1e-6)
@@ -1992,8 +1989,9 @@ test('实际求解同时占用隧道和批准成型机份额，成型机瓶颈�
   assert.ok(result.resourceSchedules.every(row => row.scheduledTons <= row.capacity + 1e-8))
 })
 
-test('成型机缺失或批准分配无效只隔离相关SKU，零补产和ODM无需内部设备', () => {
+test('显式配置成型机后分配无效只隔离相关SKU，零补产和ODM无需内部设备', () => {
   const sample = planInput()
+  approveForming(sample, '甲')
   sample.resourceAssignments = sample.resourceAssignments.filter(row => row.code !== 'B')
   let result = solveMpsPlan(sample)
   assert.ok(result.rows.filter(row => row.code === 'B').every(row => row.mainPlan === null && row.planMissing.some(reason => /成型机/.test(reason))))
@@ -2010,16 +2008,19 @@ test('成型机缺失或批准分配无效只隔离相关SKU，零补产和ODM�
 
 test('共享成型机瓶颈释放后，独立成型机上的SKU继续提高满足率', () => {
   const sample = planInput()
+  approveForming(sample, '甲')
   sample.resources[0].dailyTons = 100
   sample.resources.push({ id: 'FB', base: '甲', kind: 'forming', name: 'B成型机', dailyTons: 100 })
-  sample.resources.find(row => row.id === 'F').dailyTons = 1
+  sample.resources.find(row => row.id === 'forming:甲').dailyTons = 1
   sample.resourceAssignments = sample.resourceAssignments.map(row => (row.code === 'B' ? { ...row, resourceId: 'FB' } : row))
   const result = solveMpsPlan(sample)
   const first = result.rows.filter(row => row.month === sample.context.month)
   assert.ok(Math.abs(first.find(row => row.code === 'A').mainPlan - 10) < 1e-5)
   assert.ok(Math.abs(first.find(row => row.code === 'B').mainPlan - 20) < 1e-5)
   assert.ok(
-    result.allocations.every(row => row.resourceUsage.some(item => item.resourceId === 'R') && row.resourceUsage.some(item => item.resourceId === (row.code === 'A' ? 'F' : 'FB')))
+    result.allocations.every(
+      row => row.resourceUsage.some(item => item.resourceId === 'R') && row.resourceUsage.some(item => item.resourceId === (row.code === 'A' ? 'forming:甲' : 'FB'))
+    )
   )
 })
 
@@ -2073,4 +2074,17 @@ test('不均匀共享设备需求不因公共满足率输出舍入而误判不�
     assert.ok(result.demands.every(row => Math.abs(row.allocated / demands.find(demand => demand.id === row.id).quantity - expected) < 1e-7))
     assert.ok(Math.abs(result.allocations.reduce((sum, row) => sum + row.quantity, 0) - capacity) < 1e-7)
   }
+})
+
+test('未使用成型机的实际业务按隧道产能求解，不生成成型机补数要求', () => {
+  const sample = planInput()
+  sample.resources = sample.resources.filter(row => row.kind === 'tunnel')
+  sample.resourceAssignments = []
+  assert.ok(computeMpsWorkflow(sample).rows.every(row => !row.missing.resourceAssignments.some(reason => /成型机/.test(reason))))
+  const result = solveMpsPlan(sample)
+  const first = result.rows.filter(row => row.month === sample.context.month)
+  assert.ok(Math.abs(first.find(row => row.code === 'A').mainPlan - 40) < 1e-6)
+  assert.ok(Math.abs(first.find(row => row.code === 'B').mainPlan - 10) < 1e-6)
+  assert.ok(result.rows.every(row => !row.planMissing.some(reason => /成型机/.test(reason))))
+  assert.ok(result.resourceSchedules.every(row => row.kind === 'tunnel' && row.scheduledTons <= row.capacity))
 })
