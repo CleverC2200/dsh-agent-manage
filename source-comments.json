@@ -1,11 +1,6 @@
 {
   "assets": [
     {
-      "path": "tests/fixtures",
-      "kind": "fixture",
-      "source": "tests/"
-    },
-    {
       "path": "docs/history",
       "kind": "historical-evidence",
       "source": "Git history"
@@ -22,6 +17,10 @@
     }
   ],
   "manifests": [
+    {
+      "path": "tests/fixtures/company-forecast-original/provenance.json",
+      "root": "tests/fixtures/company-forecast-original"
+    },
     {
       "path": "business-resources/sinian-demand-forecast/SOURCE.json",
       "root": "business-resources/sinian-demand-forecast"
