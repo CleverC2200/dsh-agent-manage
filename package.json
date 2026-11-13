@@ -77,7 +77,6 @@
     "check:architecture": "depcruise --validate .dependency-cruiser.cjs src",
     "check:refactor": "pnpm run check:static && pnpm run test:contract && pnpm run check:capabilities",
     "prepack": "pnpm run build",
-    "prepare": "pnpm run build",
     "check:knowledge": "node scripts/check-agent-knowledge.mjs",
     "test:knowledge": "node --test tests/agent-knowledge.test.mjs",
     "test:package-version": "node --test tests/plugin-package-version.test.mjs",
