@@ -2,6 +2,8 @@
 
 Status: implemented
 
+Partially superseded by the [tunnel-only correction](2026-11-13-mps-tunnel-default.md). Forming is not a prerequisite for the current business; the explicit-configuration consumption path below is retained.
+
 ## Problem
 
 Manual forming resources and approved monthly shares reached the reference workflow but were filtered out of the actual plan. Resource configuration could therefore appear complete while forming capacity never limited production.
