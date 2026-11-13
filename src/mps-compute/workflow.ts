@@ -149,6 +149,9 @@ export interface MpsWorkflowRow extends MpsProduct {
   reportQuantity: MpsQuantity
   historyQuantity: MpsQuantity
   historyReferenceQuantity: MpsQuantity
+  historyOwnQuantity: MpsQuantity
+  historyOwnRows: number
+  historyReferenceRows: number
   reportShare: MpsQuantity
   historyShare: MpsQuantity
   share: MpsQuantity
@@ -200,6 +203,8 @@ function groupBy<T>(rows: T[], keyOf: (row: T) => string) {
   return result
 }
 
+const historyCodes = (product: Pick<MpsProduct, 'code' | 'historyCode'>) => [...new Set([product.code, product.historyCode || product.code])]
+
 export function computeMpsWorkflow(input: MpsWorkflowInput) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.context.month)) throw Error('评估月份无效')
   const adjustmentIssues: string[] = []
@@ -209,6 +214,10 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const historyIndex = groupBy(input.history, periodKey)
   const coefficientKey = (row: Pick<MpsProduct, 'base' | 'code' | 'historyCode'>, source: 'report' | 'history' = 'report') =>
     periodKey({ ...row, code: source === 'history' ? row.historyCode || row.code : row.code, month: input.context.month })
+  const hasCoefficient = (product: MpsProduct, source: 'report' | 'history') =>
+    source === 'history'
+      ? historyCodes(product).some(code => historyIndex.has(periodKey({ ...product, code, month: input.context.month })))
+      : reportIndex.has(coefficientKey(product))
   const indexedWeights = groupBy(input.unitWeights ?? [], key)
   const openingIndex = groupBy(input.openingInventory, key)
   const capacityIndex = groupBy(input.capacities, key)
@@ -238,10 +247,19 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   )
   const monthlyProductIndexes = new Map([...productsByMonth].map(([month, products]) => [month, groupBy(products, key)]))
   const monthlyHistoryIndexes = new Map(
-    [...productsByMonth].map(([month, products]) => [month, groupBy(products, row => key({ base: row.base, code: row.historyCode || row.code }))])
+    [...productsByMonth].map(([month, products]) => [
+      month,
+      groupBy(
+        products.flatMap(product => historyCodes(product).map(code => ({ ...product, code }))),
+        key
+      )
+    ])
   )
   const catalogByCode = groupBy(input.products, row => row.code)
-  const historyCatalog = groupBy(input.products, row => row.historyCode || row.code)
+  const historyCatalog = groupBy(
+    input.products.flatMap(product => historyCodes(product).map(sourceCode => ({ ...product, sourceCode }))),
+    row => row.sourceCode
+  )
   const excludedSources: (MpsQuantityRow & { source: 'report' | 'history'; reason: string })[] = []
   const unassignedBases = new Set<string>()
   const unmatchedMonths = { report: new Map<string, Set<string>>(), history: new Map<string, Set<string>>() }
@@ -257,7 +275,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       excludedSources.push({ ...fact, source, reason: !fact.base ? '源记录缺基地' : '物料编码未对应当前产品明细或指定基地' })
       if (!fact.base && fact.quantity !== 0) {
         const activeProducts = productsByMonth.get(month) ?? []
-        const affected = activeProducts.filter(product => (source === 'history' ? product.historyCode || product.code : product.code) === fact.code)
+        const affected = activeProducts.filter(product => (source === 'history' ? historyCodes(product).includes(fact.code) : product.code === fact.code))
         for (const product of affected) unassignedBases.add(JSON.stringify([source, month, product.category]))
       }
       const unmatched = unmatchedMonths[source].get(month) ?? new Set<string>()
@@ -297,11 +315,25 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const rows: MpsWorkflowRow[] = months.slice(0, 3).flatMap(month =>
     (productsByMonth.get(month) ?? []).map(product => {
       const reportQuantity = quantity(reportIndex.get(coefficientKey(product)) ?? [])
-      const historyReferenceQuantity = quantity(historyIndex.get(coefficientKey(product, 'history')) ?? [])
+      const ownHistory = historyIndex.get(coefficientKey(product)) ?? []
+      const replacementHistory = product.historyCode && product.historyCode !== product.code ? (historyIndex.get(coefficientKey(product, 'history')) ?? []) : []
+      const historyOwnQuantity = quantity(ownHistory)
+      const historyReferenceQuantity = replacementHistory.length
+        ? quantity(replacementHistory)
+        : product.historyCode && product.historyCode !== product.code
+          ? null
+          : historyOwnQuantity
       const historyFactor = product.historyCode ? (product.historyFactor === undefined ? 1 : product.historyFactor) : 1
-      const validHistoryFactor = finite(historyFactor) && historyFactor >= 0
-      const adjustedHistory = historyReferenceQuantity !== null && validHistoryFactor ? historyReferenceQuantity * historyFactor : null
-      const historyQuantity = finite(adjustedHistory) ? adjustedHistory : null
+      const validHistoryFactor = !replacementHistory.length || (finite(historyFactor) && historyFactor >= 0)
+      const historyMissing = [
+        ...(!ownHistory.length && !replacementHistory.length ? ['缺上一财年自身及替换品发货数量'] : []),
+        ...(ownHistory.length && historyOwnQuantity === null ? ['自身历史发货数量缺失或无效'] : []),
+        ...(replacementHistory.length && historyReferenceQuantity === null ? ['替换品历史发货数量缺失或无效'] : []),
+        ...(!validHistoryFactor ? ['替换系数缺失、冲突或无效'] : [])
+      ]
+      const totalHistory = historyMissing.length ? null : (historyOwnQuantity ?? 0) + (replacementHistory.length ? (historyReferenceQuantity ?? 0) * (historyFactor ?? 0) : 0)
+      const historyQuantity = finite(totalHistory) ? totalHistory : null
+      if (!historyMissing.length && historyQuantity === null) historyMissing.push('自身与替换品历史合计超出可靠计算范围')
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
@@ -332,6 +364,9 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         reportQuantity,
         historyQuantity,
         historyReferenceQuantity,
+        historyOwnQuantity,
+        historyOwnRows: ownHistory.length,
+        historyReferenceRows: replacementHistory.length,
         evaluation: 'unconstrained',
         nextMonthDemand: null,
         nextMonth: monthOffset(month, 1),
@@ -370,10 +405,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         capacities,
         missing: {
           reportQuantity: reportQuantity === null ? ['缺本期销售提报数量'] : [],
-          historyQuantity:
-            historyQuantity === null
-              ? [!validHistoryFactor ? '替换系数缺失、冲突或无效' : historyReferenceQuantity === null ? '缺上一财年全年发货数量' : '替换参考量超出可靠计算范围']
-              : [],
+          historyQuantity: historyMissing,
           reportShare: [],
           historyShare: [],
           share: [],
@@ -401,8 +433,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     for (const source of ['report', 'history'] as const) {
       const field = source === 'report' ? 'reportQuantity' : 'historyQuantity'
       const shareField = source === 'report' ? 'reportShare' : 'historyShare'
-      const index = source === 'report' ? reportIndex : historyIndex
-      const entries = group.filter(row => index.has(coefficientKey(row, source)))
+      const entries = group.filter(row => hasCoefficient(row, source))
       const total = quantity(entries.map(row => ({ quantity: row[field] })))
       const issues = [
         ...input.sourceIssues[source],
@@ -416,12 +447,12 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       if (source === 'report' && total === 0 && !issues.length && group.every(row => row.reportQuantity === 0)) zeroReportCategory = true
       if (total === 0) issues.push('同大类合计为0，占比未定义')
       const groupTotals = new Map(
-        [...materialGroups].map(([name, entries]) => [name, quantity(entries.filter(row => index.has(coefficientKey(row, source))).map(row => ({ quantity: row[field] })))])
+        [...materialGroups].map(([name, entries]) => [name, quantity(entries.filter(row => hasCoefficient(row, source)).map(row => ({ quantity: row[field] })))])
       )
       const skuTotals = new Map(
         [...skuGroups].map(([name, codes]) => [
           name,
-          new Map([...codes].map(([code, entries]) => [code, quantity(entries.filter(row => index.has(coefficientKey(row, source))).map(row => ({ quantity: row[field] })))]))
+          new Map([...codes].map(([code, entries]) => [code, quantity(entries.filter(row => hasCoefficient(row, source)).map(row => ({ quantity: row[field] })))]))
         ])
       )
       const largestGroup = [...groupTotals].filter((entry): entry is [string, number] => entry[1] !== null).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'en'))[0]?.[0]

@@ -11,7 +11,7 @@ test('已发布工作台仍可从 workflow 读取原八类产品目录', () => {
   assert.deepEqual(mpsCategories, ['饺子', '调理肉制品', '汤圆', '面点', '休闲', '馄饨', '粽子', '饼类'])
 })
 
-test('老品关系按同基地同财年直接引用历史，原始发货不改且不递归替换', () => {
+test('自身及替换品按同基地同财年合计历史，原始发货不改且不递归替换', () => {
   const sample = input()
   sample.products[0].historyCode = 'OLD'
   sample.products[1].historyCode = 'A'
@@ -20,13 +20,13 @@ test('老品关系按同基地同财年直接引用历史，原始发货不改�
   const raw = globalThis.structuredClone(sample.history)
   const result = computeMpsWorkflow(sample)
   const row = result.rows.find(row => row.base === '甲' && row.code === 'A')
-  assert.equal(row.historyQuantity, 100)
-  assert.equal(row.historyLayers.categoryQuantity, 140)
-  assert.equal(row.historyShare, 100 / 140)
-  assert.equal(result.rows.find(row => row.code === 'B').historyQuantity, 40)
+  assert.equal(row.historyQuantity, 160)
+  assert.equal(row.historyLayers.categoryQuantity, 240)
+  assert.equal(row.historyShare, 160 / 240)
+  assert.equal(result.rows.find(row => row.code === 'B').historyQuantity, 80)
   assert.deepEqual(sample.history, raw)
   sample.history = sample.history.filter(row => row.code !== 'OLD' || row.base !== '甲')
-  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, null)
+  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, 60)
 })
 
 test('部分需求缺失保留已知负荷和逐SKU原因，不把已知负荷当完整负荷', () => {
@@ -1930,7 +1930,7 @@ test('自动库存版本在期间内一致，缺源单品及空天数不混取�
   assert.ok(conflict.missing[0].includes('冲突'))
 })
 
-test('老品参考量按系数参与各层占比，保留源数量，零系数有效而缺失不视为一', () => {
+test('自身历史加替换品按系数参与各层占比，零系数不抹掉自身历史', () => {
   const sample = input()
   sample.products[0].historyCode = 'OLD'
   sample.products[0].historyFactor = 2
@@ -1939,12 +1939,12 @@ test('老品参考量按系数参与各层占比，保留源数量，零系数�
   const result = computeMpsWorkflow(sample)
   const row = result.rows.find(row => row.base === '甲')
   assert.equal(row.historyReferenceQuantity, 100)
-  assert.equal(row.historyQuantity, 200)
-  assert.equal(row.historyLayers.categoryQuantity, 240)
-  assert.equal(row.historyShare, 200 / 240)
+  assert.equal(row.historyQuantity, 260)
+  assert.equal(row.historyLayers.categoryQuantity, 300)
+  assert.equal(row.historyShare, 260 / 300)
   assert.deepEqual(sample.history, raw)
   sample.products[0].historyFactor = 0
-  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, 0)
+  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, 60)
   for (const factor of [null, -1, Infinity, Number.MAX_SAFE_INTEGER]) {
     sample.products[0].historyFactor = factor
     assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, null)
@@ -2087,4 +2087,27 @@ test('未使用成型机的实际业务按隧道产能求解，不生成成型�
   assert.ok(Math.abs(first.find(row => row.code === 'B').mainPlan - 10) < 1e-6)
   assert.ok(result.rows.every(row => !row.planMissing.some(reason => /成型机/.test(reason))))
   assert.ok(result.resourceSchedules.every(row => row.kind === 'tunnel' && row.scheduledTons <= row.capacity))
+})
+
+test('当前SKU与替换品同基地历史共同构成历史，不覆盖自身、不跨基地或递归', () => {
+  const sample = input()
+  sample.products[0].historyCode = 'REPLACEMENT'
+  sample.products[0].historyFactor = 2
+  sample.history.push({ month: sample.context.month, base: '甲', code: 'REPLACEMENT', quantity: 100 })
+  sample.history.push({ month: sample.context.month, base: '乙', code: 'REPLACEMENT', quantity: 999 })
+  const raw = globalThis.structuredClone(sample.history)
+  let row = computeMpsWorkflow(sample).rows.find(row => row.base === '甲' && row.month === sample.context.month)
+  assert.equal(row.historyQuantity, 260)
+  assert.equal(row.historyOwnQuantity, 60)
+  assert.equal(row.historyReferenceQuantity, 100)
+  assert.equal(row.historyLayers.categoryQuantity, 300)
+  sample.history = sample.history.filter(row => row.code !== 'REPLACEMENT' || row.base !== '甲')
+  row = computeMpsWorkflow(sample).rows.find(row => row.base === '甲' && row.month === sample.context.month)
+  assert.equal(row.historyQuantity, 60)
+  sample.products[0].historyCode = 'A'
+  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, 60)
+  sample.history = globalThis.structuredClone(raw)
+  sample.history.find(row => row.base === '甲' && row.code === 'A').quantity = null
+  sample.products[0].historyCode = 'REPLACEMENT'
+  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, null)
 })
