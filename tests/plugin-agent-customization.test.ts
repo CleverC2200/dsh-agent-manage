@@ -1,4 +1,3 @@
-/** Trusted plugin edits retain the native identity and original source/profile. */
 import { join } from 'node:path'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { expect, it } from 'vitest'

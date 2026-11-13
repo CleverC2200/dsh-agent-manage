@@ -1,4 +1,3 @@
-/** Actual Core/GEA Host for the public Workbench resource client's wire adapter. */
 import { expect, it } from 'vitest'
 import { writeFile } from 'node:fs/promises'
 import { baseInventoryHarness } from './base-inventory-harness.js'

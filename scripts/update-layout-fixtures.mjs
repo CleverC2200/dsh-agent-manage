@@ -1,4 +1,3 @@
-/** Snapshot README sample declarations and runtime text into offline, commit-pinned fixtures. */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'

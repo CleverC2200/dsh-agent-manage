@@ -1,6 +1,5 @@
 import type { DealerDashboardRecord, DealerCategoryInventorySummary } from './dealer-dashboard.js'
 
-/** Chinese-calendar season, evaluated in the business timezone (including leap months). */
 export function seasonalReplenishmentReason(category: string, now = new Date()) {
   if (!category.includes('粽')) return null
   const parts = new Intl.DateTimeFormat('en-u-ca-chinese', {
@@ -102,7 +101,7 @@ export function finite(value: number | null | undefined) {
 
 export function actionFor(record: DealerDashboardRecord) {
   if (record.orderException || record.dataIssues.length > 0) return ''
-  // 订补货动作直接以数据通道返回的已核验建议量为准。
+
   if (record.suggestedQuantity > 0) return '建议补货'
   return '暂无补货建议'
 }
@@ -139,7 +138,6 @@ export function reasonFor(record: DealerDashboardRecord) {
   return reasons.join('；')
 }
 export type LiveDemoSku = {
-  // 公司商品与购物车只消费真实字段，不能复用旧库存演示补齐值。
   commerceFacts: {
     stock: number | null
     transit: number | null
@@ -167,7 +165,7 @@ export type LiveDemoSku = {
     reason: string
     action: string
   }
-  // 用户指定按平均货龄判断整款在仓库存；未知货龄不按0处理。
+
   nearExpiryStock: number | null
   expiredStock: number | null
   remainingValidityDays: number | null

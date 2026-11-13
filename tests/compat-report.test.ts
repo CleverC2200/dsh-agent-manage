@@ -1,10 +1,3 @@
-/**
- * Guards the compatibility report: every schema in `schemas/` must have a
- * pinned sample, the checked-in report must stay structurally valid, and both
- * READMEs must cite the sampled repositories and link the report. The network
- * harness (`scripts/compat-report.mjs`) is not run here — this test keeps the
- * checked-in evidence honest between regenerations.
- */
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -61,7 +54,7 @@ interface PinnedSample {
 
 const report = JSON.parse(await readFile(join(ROOT, 'docs', 'compat-report.json'), 'utf8')) as Report
 const config = JSON.parse(await readFile(join(ROOT, 'scripts', 'compat-sources.json'), 'utf8')) as { samples: PinnedSample[] }
-/** Dialect directories that ship a plugin schema; `1.0.0/` is vendored and `skill-collection/` has no manifest. */
+
 const schemaDirectories: string[] = []
 for (const entry of await readdir(join(ROOT, 'schemas'), { withFileTypes: true })) {
   if (!entry.isDirectory() || entry.name === '1.0.0') continue

@@ -1,4 +1,3 @@
-/** Real Core Sessions and tool assembly; no business transport or real model is used. */
 import { expect, it, onTestFinished } from 'vitest'
 import { resolve } from 'node:path'
 import { agentOn, completion, official, presetHarness, record, turn } from './core-preset-harness.js'

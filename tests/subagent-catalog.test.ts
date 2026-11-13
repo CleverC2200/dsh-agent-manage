@@ -15,7 +15,6 @@ import { projectAgentRoles } from '../src/application/project-agent-roles.js'
 import { createUserPanelStores } from '../src/runtime/user-panels.js'
 import { createPanelResources } from '../src/application/panel-resources.js'
 
-// Resolve the actual session/prompt runtime already installed with dsh-tools.
 const hostRequire = createRequire(createRequire(import.meta.url).resolve('@deepseek-ai/dsh-tools'))
 const { Session, SessionId } = await import(pathToFileURL(hostRequire.resolve('@deepseek-ai/dsh-session')).href)
 const { default: SystemPrompt } = await import(pathToFileURL(hostRequire.resolve('@deepseek-ai/dsh-system-prompt')).href)
@@ -235,7 +234,7 @@ describe('durable subagent catalog on the real host session and tool registries'
     const first = publish(parent, await step(parent))[0]!
     expect(first.source.kind === 'subagent-catalog' && first.source.entries).toHaveLength(3)
     expect(JSON.stringify(first.content)).not.toContain('Private')
-    // A temporarily unreadable role directory must not publish a smaller catalog.
+
     const roleDir = stores.agents.dirPath()
     await rename(roleDir, `${roleDir}.backup`)
     await writeFile(roleDir, 'temporarily not a directory')

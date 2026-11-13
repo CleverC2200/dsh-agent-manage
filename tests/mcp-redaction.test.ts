@@ -4,8 +4,6 @@ import { credentialRefsInServer } from '../src/runtime/mcp-config.js'
 
 describe('MCP config redaction', () => {
   it('keeps the OAuth opt-in block while redacting secret values inside it and beside it', () => {
-    // `auth` names a structure, not a secret: redacting the whole block erased
-    // the `enabled` flag before it reached the mount, so OAuth never armed.
     expect(redactMcpConfig({ type: 'streamable-http', url: 'https://x/mcp', auth: { enabled: true, scope: 'user' } })).toEqual({
       type: 'streamable-http',
       url: 'https://x/mcp',
@@ -17,7 +15,7 @@ describe('MCP config redaction', () => {
   it('redacts non-obvious secret keys such as X-Auth', () => {
     const redacted = redactMcpConfig({ headers: { 'X-Auth': 'super-secret', 'x-trace-id': 'abc123' } }) as Record<string, Record<string, string>>
     expect(redacted.headers['X-Auth']).toBe('[redacted]')
-    // Unrelated headers survive so the config stays diagnosable.
+
     expect(redacted.headers['x-trace-id']).toBe('abc123')
   })
 
@@ -28,7 +26,7 @@ describe('MCP config redaction', () => {
 
   it('redacts secret-bearing query values in an endpoint url', () => {
     expect(redactUrl('https://example.com/mcp?key=abc123&other=1')).toBe('https://example.com/mcp?key=[redacted]&other=1')
-    // A placeholder in a URL is a reference, not a secret.
+
     expect(redactUrl('https://example.com/mcp?key=${TOKEN}')).toBe('https://example.com/mcp?key=${TOKEN}')
     expect(redactUrl('https://example.com/mcp')).toBe('https://example.com/mcp')
   })

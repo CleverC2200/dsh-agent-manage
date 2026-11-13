@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { LspMountRegistry, toLspServerConfig, type LspStdioServerConfig } from '../src/runtime/lsp-mounts.js'
 import type { Suite } from '../src/model/types.js'
 
-/** A suite carrying one inline typescript server. */
 function lspSuite(id: string, lsp = true, active = true): Suite {
   return {
     sourceId: 'src',
@@ -36,7 +35,6 @@ interface MountedConfig {
   servers: Record<string, LspStdioServerConfig>
 }
 
-/** Build a host loader whose plugin function behaves as directed. */
 function hostLoader(behavior: 'ok' | 'fail-startup' | 'conflict' | 'missing', mounted: MountedConfig[] = []) {
   return async (): Promise<unknown> => {
     if (behavior === 'missing') return undefined
@@ -55,7 +53,6 @@ function mountCtx(handleBehavior: 'ok' | 'await-rejects', applyThrows = false): 
   const ctx = {
     logger: { warn: () => {} },
     plugin(plugin: unknown, config: MountedConfig) {
-      // cordis mounts call the plugin function; the stub mirrors that.
       if (applyThrows) (plugin as (ctx: unknown, config: MountedConfig) => void)({}, config)
       return {
         await(): Promise<void> {
@@ -96,7 +93,7 @@ describe('LspMountRegistry', () => {
     expect(mounted).toHaveLength(1)
     expect(Object.keys(mounted[0]!.servers)).toEqual(['src/ts/typescript'])
     expect(mounted[0]!.servers['src/ts/typescript']).toMatchObject({ command: 'typescript-language-server', args: ['--stdio'], extensionToLanguage: { '.ts': 'typescript' } })
-    // Unmounts when the suite disappears between passes.
+
     await registry.reconcile([])
     await expect(registry.disposeAll()).resolves.toBeUndefined()
   })
@@ -109,8 +106,7 @@ describe('LspMountRegistry', () => {
       const first = await registry.reconcile([lspSuite('ts')])
       expect(first).toHaveLength(1)
       expect(first[0]).toMatchObject({ suiteId: 'src/ts', code: 'host-missing' })
-      // Later passes keep reporting honestly (a missing package is a state,
-      // not a transient error), and no retry timer fires.
+
       const second = await registry.reconcile([lspSuite('ts')])
       expect(second).toHaveLength(1)
       expect(second[0]!.code).toBe('host-missing')
@@ -148,8 +144,7 @@ describe('LspMountRegistry', () => {
       const failRegistry = new LspMountRegistry(ctx as never, hostLoader('fail-startup'))
       const failures = await failRegistry.reconcile([lspSuite('ts')])
       expect(failures[0]!.code).toBe('mount-failed')
-      // The bounded retry schedule re-runs reconcile; intercept through the
-      // public surface by observing subsequent diagnostics after advancing.
+
       const retryPass = vi.spyOn(failRegistry, 'reconcile')
       await vi.advanceTimersByTimeAsync(200_000)
       expect(retryPass).toHaveBeenCalled()

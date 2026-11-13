@@ -1,4 +1,3 @@
-/** Independent production Host behind the resource client's offline wire adapter. */
 import { expect, it } from 'vitest'
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'

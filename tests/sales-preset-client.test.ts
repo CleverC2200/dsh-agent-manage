@@ -1,4 +1,3 @@
-/** Sales roles keep their own resource, Consumer and official draft assertions. */
 import { expect, it } from 'vitest'
 import { resourceClientFixture } from './resource-client-fixture.js'
 

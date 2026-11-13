@@ -1,15 +1,3 @@
-/** 文件作用：只读发现项目原生 Agent 目录，转换为不安装/不修改的合成套件。 */
-/**
- * Native project-layout discovery: read a coding agent's own project-local
- * directories from the shared layout registry in place as read-only suites.
- *
- * Migrating a repository from Claude Code / Codex / Cursor should not
- * require copying files into `.dsh/agent-plugins/`. For the layouts with a
- * project-local convention, the project dimension discovers each content-carrying directory
- * as one synthetic suite so skills and agents reuse the ordinary injection
- * pipeline. The directories are the repository's own: they are never
- * installed, uninstalled, or mutated by this manager.
- */
 import { join } from 'node:path'
 import { stat } from 'node:fs/promises'
 import { sanitizeId } from './paths.js'
@@ -20,20 +8,10 @@ import { discoverProjectMcp } from './project-config.js'
 import { discoverProjectHooks } from './project-hooks.js'
 import { discoverMarkdownResources } from './component-files.js'
 
-/**
- * Project-local directory conventions, in precedence order. Each entry maps
- * one agent convention onto the content subdirectories it owns.
- */
 export const NATIVE_PROJECT_DIRS: readonly NativeProjectDir[] = PROJECT_LAYOUTS
 
 export type NativeProjectDir = ProjectLayout
 
-/**
- * Discover native project-layout suites under a project root. Each
- * convention directory that carries content becomes one synthetic suite;
- * empty or absent directories contribute nothing.
- */
-/** 只读发现项目布局中的技能/MCP/hooks/Agent 目录并生成合成套件。 */
 export async function discoverNativeProjectSuites(projectRoot: string, dimension: SuiteDimension): Promise<Suite[]> {
   const suites: Suite[] = []
   for (const native of NATIVE_PROJECT_DIRS) {
@@ -55,9 +33,7 @@ export async function discoverNativeProjectSuites(projectRoot: string, dimension
         errors.push(`${path}: project LSP configuration is not mounted; the host LSP registry does not isolate projects`)
       }
     }
-    // Skills live in `<dir>/skills/<name>/SKILL.md` — the same shape as the
-    // ordinary skills container; agents/commands only surface as counts here
-    // and are read by the runtime providers directly from the same files.
+
     const skills = await discoverSkills(root, errors)
     const mcp = await discoverProjectMcp(projectRoot, native.mcpFiles ?? [], errors, native.mcpFormat)
     const hooks = await discoverProjectHooks(projectRoot, native.hookFiles ?? [], errors, native.hookFormat)

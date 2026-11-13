@@ -9,8 +9,7 @@ export function customerMetrics(workspace: FullChainWorkspace) {
   const age = workspace.agingDetails?.find(row => row.layer === 'customer')?.values.averageAgeDays
   return {
     inventory,
-    // Company quantities are labelled 件; dealer inventory is labelled 箱.
-    // Do not derive a cross-unit percentage without a published conversion.
+
     share: null,
     turnover: observedInventory != null && demand != null && demand > 0 ? (observedInventory * 30) / demand : null,
     demandIncomplete: rows.length > 0 && !completeDemand,

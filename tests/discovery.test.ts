@@ -33,14 +33,14 @@ describe('discovery: Claude Code marketplace layout', () => {
     expect(suites.map(suite => suite.id)).toEqual(['demo-one', 'demo-two', 'demo-three', 'external-one', 'typescript-lsp', 'extra-plugin'])
     expect(suites[0]!.manifest.layout).toBe('claude-code')
     expect(suites[0]!.skills[0]!.name).toBe('demo-one')
-    // A manifest-less marketplace entry still surfaces as a skill collection.
+
     expect(suites[2]!.manifest.layout).toBe('skill-collection')
     expect(suites[2]!.skills[0]!.name).toBe('demo-three')
-    // Remote-URL entries surface as metadata-only remote suites.
+
     expect(suites[3]!.manifest.layout).toBe('remote')
     expect(suites[3]!.remote).toEqual({ url: 'https://github.com/example/external.git' })
     expect(suites[3]!.root).toBe('')
-    // A manifest-bearing container dir the marketplace did not list is supplemented.
+
     expect(suites[5]!.manifest.layout).toBe('claude-code')
     expect(suites[5]!.manifest.name).toBe('extra-plugin')
   })
@@ -49,7 +49,7 @@ describe('discovery: Claude Code marketplace layout', () => {
     const suites = await discoverSuitesInSource(join(fixtures, 'cc-marketplace'), 'cc', 'user')
     const lsp = suites.find(suite => suite.id === 'typescript-lsp')!
     expect(lsp).toBeDefined()
-    // A declaration-only suite: the entry's inline lspServers are its manifest.
+
     expect(lsp.manifest.layout).toBe('claude-code')
     expect(lsp.lsp).toBeDefined()
     const spec = lsp.lsp!.servers['typescript']!
@@ -57,7 +57,7 @@ describe('discovery: Claude Code marketplace layout', () => {
     expect(spec.extensionToLanguage).toEqual({ '.ts': 'typescript', '.tsx': 'typescriptreact', '.js': 'javascript', '.jsx': 'javascriptreact' })
     expect(lsp.surfaces.lsp).toBe(1)
     expect(lsp.errors).toEqual([])
-    // Suites without declarations carry no lsp field.
+
     expect(suites[0]!.lsp).toBeUndefined()
     expect(suites[0]!.surfaces.lsp).toBe(0)
   })
@@ -124,9 +124,6 @@ describe('discovery: containment of broken content', () => {
   })
 
   it('rejects manifest-declared skills paths that escape the suite root', async () => {
-    // Regression: containment used a bare string-prefix test, so a declared
-    // path resolving to a sibling directory (`<root>-evil`) passed the check
-    // and SKILL.md files outside the suite were scanned.
     const { mkdir, writeFile, rm } = await import('node:fs/promises')
     const stage = await mkdtemp(join(tmpdir(), 'dsh-escape-'))
     const suiteRoot = join(stage, 'suite')
@@ -137,11 +134,11 @@ describe('discovery: containment of broken content', () => {
     await writeFile(join(suiteRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'suite', skills: '../suite-evil' }))
     const suites = await discoverSuitesInSource(suiteRoot, 'esc', 'user')
     expect(suites[0]!.skills).toEqual([])
-    // A `../` escape is rejected the same way.
+
     await writeFile(join(suiteRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'suite', skills: '../../out' }))
     const suites2 = await discoverSuitesInSource(suiteRoot, 'esc', 'user')
     expect(suites2[0]!.skills).toEqual([])
-    // A legitimate declared subdirectory still scans.
+
     await mkdir(join(suiteRoot, 'skills', 'real'), { recursive: true })
     await writeFile(join(suiteRoot, 'skills', 'real', 'SKILL.md'), '---\nname: real\ndescription: r\n---\n')
     await writeFile(join(suiteRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'suite', skills: 'skills' }))

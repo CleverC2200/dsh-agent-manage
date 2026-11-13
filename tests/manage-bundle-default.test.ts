@@ -38,7 +38,7 @@ it('uses the ordinary bundle default and preserves explicit official choices wit
     await restarted.fiber.dispose()
     const bundlePath = join(fixture.profile.dir, 'node_modules/test-bundle/cordis.patch.yml')
     const layers = load(await readFile(bundlePath, 'utf8'), { schema: entryListSchema }) as unknown[]
-    // Remove the shipped Manage layer; the first layer is the unchanged Core declaration.
+
     await writeFile(bundlePath, dump(layers.slice(0, 1), { schema: entryListSchema }))
     input.waitForResources = false
     const removed = await fixture.start()

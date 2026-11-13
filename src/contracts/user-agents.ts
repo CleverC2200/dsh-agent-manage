@@ -1,5 +1,5 @@
 import type { AgentSourceBaseline } from './agent-sources.js'
-/** A provider reference keeps source ownership; a content override is personal to this Agent. */
+
 export interface SkillDirectorySnapshot {
   root: string
   bundle: string
@@ -34,7 +34,6 @@ export interface UserAgentSkillOption {
   path?: string
 }
 
-/** Complete personal Agent configuration; distinct from a reusable subagent role. */
 export interface UserAgentConfig {
   id: string
   name: string
@@ -43,7 +42,7 @@ export interface UserAgentConfig {
   enabled: boolean
   revision: number
   source?: AgentSourceBaseline
-  /** Soft deletion keeps the stable preset identity and dependency configuration. */
+
   deletedAt?: string
   skills: UserAgentSkill[]
   cube?: { sourceRef: string; enabled: boolean }
@@ -55,7 +54,7 @@ export interface UserAgentView extends UserAgentConfig {
   pluginSource?: { sourceRef: string; version: string }
   preset: string
   publication: 'ready' | 'disabled' | 'deleted' | 'failed'
-  /** The host default still points here; only an explicit host selection changes it. */
+
   defaultUnavailable: boolean
   error?: string
 }

@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { act, createElement as h, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'

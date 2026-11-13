@@ -1,4 +1,3 @@
-/** Browser UI through an authenticated temporary Core Host; no installed-client or model claim. */
 import { createServer } from 'node:http'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
@@ -45,7 +44,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
     .map(tool => tool.name)
     .sort()
   const started: Awaited<ReturnType<typeof agentOn>>[] = []
-  // The browser's native-start port crosses HTTP into the actual Core operation.
+
   ctx.connection.fetch.register({
     path: '/api/browser-journey/start',
     methods: ['POST'],
@@ -153,7 +152,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   const address = server.address()
   if (!address || typeof address === 'string') throw Error('BROWSER_JOURNEY_ADDRESS')
   const base = `http://127.0.0.1:${address.port}`
-  // The existing installed browser runs headless with a fresh Playwright profile.
+
   const browser = await chromium.launch({ headless: true, ...(process.env.DSH_TEST_BROWSER_CHANNEL ? { channel: process.env.DSH_TEST_BROWSER_CHANNEL } : {}) })
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' })
   const failures: string[] = []
@@ -215,7 +214,7 @@ it('creates and enables an Agent in the ordinary browser entry, then starts its 
   expect(foreign.status()).toBe(403)
   await personalStart.click()
   await browserExpect.poll(() => started.length).toBe(1)
-  const { forwardWebRequest } = await import(/* @vite-ignore */ `${core}/apps/desktop/src/web-document.ts`)
+  const { forwardWebRequest } = await import(`${core}/apps/desktop/src/web-document.ts`)
   const cookie = (await page.context().cookies(base)).map(value => `${value.name}=${value.value}`).join('; ')
   const nativeRequest = (origin: string) =>
     new Request('dsh-app://app' + USER_AGENT_ROUTES.enabled, {

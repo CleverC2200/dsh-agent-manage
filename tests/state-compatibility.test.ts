@@ -3,15 +3,6 @@ import { join } from 'node:path'
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import { loadState, saveState, EMPTY_STATE, type SuiteState } from '../src/model/state.js'
 
-/**
- * Regression tests for state.json backward/forward compatibility.
- *
- * The persisted state file is the only durable contract between releases.
- * These tests lock in the promise from ADR-0001: "Persisted state.json stays
- * readable throughout the migration." A future version-2 state must not crash
- * the loader; a v1 state written by any past release must round-trip.
- */
-
 let tmpRoot: string
 
 beforeEach(async () => {

@@ -1,5 +1,3 @@
-/** The four V0.2 analysis views use the same evidence and boundary rules as the
- * business prompts. This pure function never fills missing measures with demo data. */
 import { sumMetricQuantity, type MetricData } from './metrics.js'
 import { productionOutputMetric } from './production-output.js'
 export type AnalysisMetric = { name: string; value: number; unit: string; previous?: number | null }
@@ -19,7 +17,7 @@ const definitions: Record<string, { scope: AnalysisScope[]; classify: (value: nu
 }
 export type MetricJudgement =
   { kind: 'missing'; risk: null; achieved: null } | { kind: 'observation'; risk: null; achieved: null } | { kind: 'evaluated'; risk: '健康' | '预警' | '严重'; achieved: boolean }
-/** Classify returned values using the same thresholds as perspective analysis. */
+
 export function judgeMetric(name: string, value: number): MetricJudgement {
   if (!finite(value)) return { kind: 'missing', risk: null, achieved: null }
   const risk = definitions[name]?.classify(value)
@@ -92,11 +90,10 @@ export function analyzeProductionMatrix(metric: string, period: string, cells: M
   }
 }
 
-/** Matrix cells are recomputed from mutually exclusive base/category source rows. */
 export function matrixCellsFromData(data: Pick<MetricData, 'sections' | 'missingValuePolicy'> | null | undefined, metric: string): MatrixCell[] {
   if (!['订单满足率', '可发货天数', '库存量', '生产计划达成率'].includes(metric)) return []
   const source = metric === '订单满足率' ? 'orders' : metric === '生产计划达成率' ? 'production' : metric === '可发货天数' ? 'shippable' : 'stock'
-  // An explicit failed shippable source cannot fall back to another section.
+
   const section = data?.sections.find(s => s.id === source) ?? (source === 'shippable' ? data?.sections.find(s => s.id === 'stock') : undefined)
   if (!section || section.status !== 'ready') return []
   const grouped = new Map<string, Record<string, unknown>[]>()
@@ -117,8 +114,7 @@ export function matrixCellsFromData(data: Pick<MetricData, 'sections' | 'missing
     const aggregate = (key: string) => sumMetricQuantity(rows, key, data?.missingValuePolicy)
     const amount = aggregate(metric === '订单满足率' ? 'shortage' : metric === '可发货天数' ? 'available' : 'inventory')
     if (amount === null) return []
-    // Inventory does not depend on plan completeness. Ratios follow the same
-    // configured policy as headline metrics; failed sources never become zero.
+
     if (metric === '库存量') return [{ scope, value: amount / 10000 }]
     if (data?.missingValuePolicy !== 'zero' && rows.some(row => finite(row.invalid) && row.invalid !== 0)) return []
     const denominator = aggregate('demand')

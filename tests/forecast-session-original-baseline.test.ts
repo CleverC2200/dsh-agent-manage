@@ -53,7 +53,7 @@ test('Manage entry registers pure calculation for an official Session and the un
   await ctx.plugin(Tools)
   await ctx.plugin(Skills)
   t.onTestFinished(() => ctx.fiber.dispose())
-  // Inert host services complete the normal Manage entry injection. No GEA, LLM or Agent Task is mounted.
+
   ctx.provide('agents', { list: () => [] })
   ctx.provide('commands', { register: () => () => {} })
   ctx.provide('agentPresets', { register: async () => async () => {}, resolve: async () => undefined })

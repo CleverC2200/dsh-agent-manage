@@ -1,4 +1,3 @@
-/** Cold-start production Manage registration without external marketplace/Home assets. */
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, readdir, rm, realpath } from 'node:fs/promises'

@@ -1,7 +1,6 @@
 type Row = Record<string, unknown>
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 
-/** Same-period MES quantity contract. No IO, organization assignment or authorization. */
 export function productionOutputMetric(rows: Row[], missingValuePolicy?: 'zero') {
   const unavailable = (note: string) => ({ value: null, note })
   if (!rows.length || rows.some(row => row.source_basis !== 'MES_QUANTITY')) return unavailable('当前无同期间、同数量口径的生产计划与实际产出；未来排程不当作生产实绩')
@@ -41,7 +40,6 @@ export function productionOutputMetric(rows: Row[], missingValuePolicy?: 'zero')
   }
 }
 
-/** Valid same-record subset only. Never substitutes the complete metric or its alerts. */
 export function productionOutputObservation(rows: Row[]) {
   if (
     !rows.length ||

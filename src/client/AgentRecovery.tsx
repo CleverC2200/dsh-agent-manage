@@ -3,7 +3,6 @@ import type { Translate } from './index.js'
 import { userAgentApi, type UserAgentView } from './user-agent-api.js'
 import css from './user-agents.module.css'
 
-/** Personal configuration actions only; Core remains the Session/default/draft owner. */
 export function AgentRecovery({ agent, t, onChanged, onChooseAnother }: {
   agent: UserAgentView
   t: Translate

@@ -1,18 +1,7 @@
-/** 文件作用：读取宿主语言偏好，为运行时注入消息提供中英文翻译。 */
-/**
- * Host-side runtime locale: bilingual copy for strings injected into agent
- * context (subagent catalogs and command acknowledgements), resolved
- * from the harness's `locale.preference` setting.
- *
- * The web client resolves locale through its own injected service; the host
- * process has no such service, so this module reads `$DSH_HOME/settings.yaml`
- * (the same file the GUI preference editor writes) and falls back to zh.
- */
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolveDshHome } from '../catalog/paths.js'
 
-/** Host runtime dictionary keys (mirrored for zh and en). */
 export type HostLocaleKey =
   | 'subagentCatalogIntro'
   | 'subagentCatalogUpdated'
@@ -83,8 +72,6 @@ interface ResolvedLocale {
   t: HostTranslate
 }
 
-/** Resolve the active host language from settings; unknown values default to zh. */
-/** 将语言偏好绑定为翻译函数；未知偏好回退中文并保留参数插值。 */
 export function bindHostLocale(preference: string | undefined): HostTranslate {
   const dict = preference !== undefined && preference.toLowerCase().startsWith('en') ? DICTS.en : DICTS.zh
   return (key, params) => {
@@ -96,8 +83,6 @@ export function bindHostLocale(preference: string | undefined): HostTranslate {
   }
 }
 
-/** Read `locale.preference` from `$DSH_HOME/settings.yaml` (best effort). */
-/** 从宿主 settings.yaml 读取 locale.preference，文件不可读时返回 undefined。 */
 export async function readLocalePreference(): Promise<string | undefined> {
   try {
     const text = await readFile(join(resolveDshHome(), 'settings.yaml'), 'utf8')
@@ -108,8 +93,6 @@ export async function readLocalePreference(): Promise<string | undefined> {
   }
 }
 
-/** Bind a host translator against the persisted locale preference. */
-/** 读取并解析宿主语言，返回可直接调用的翻译函数。 */
 export async function loadHostLocale(): Promise<ResolvedLocale> {
   return { t: bindHostLocale(await readLocalePreference()) }
 }

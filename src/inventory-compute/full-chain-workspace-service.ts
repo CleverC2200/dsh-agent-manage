@@ -33,7 +33,6 @@ const sum = (values: Array<number | null | undefined>) => values.reduce<number>(
 const completeSum = (values: Array<number | null | undefined>) => (values.length > 0 && values.every(value => value != null) ? sum(values) : null)
 const latest = (dates: Array<string | null | undefined>) => dates.reduce<string | null>((result, date) => (date && (result == null || date > result) ? date : result), null)
 
-// Preserve insertion order and row identity without requiring Node 22's Map.groupBy.
 function groupBy<T, K>(rows: Iterable<T>, keyOf: (row: T) => K): Map<K, T[]> {
   const groups = new Map<K, T[]>()
   for (const row of rows) {
@@ -567,7 +566,7 @@ function buildOrderDetails(data: FullChainData, filters: WorkspaceFilters): Work
     ...data.baseInventory.map(row => ({ ...row, layer: 'base' as const, objectName: row.base })),
     ...data.branchInventory.map(row => ({ ...row, layer: 'branch' as const, objectName: row.branch }))
   ]
-  // Request-local indexes preserve original row order and first-match semantics.
+
   const inventoriesByLayer = groupBy(inventories, row => row.layer)
   const inventoriesByObject = groupBy(inventories, row => JSON.stringify([row.layer, row.objectName]))
   const firstBranchStock = new Map<string, (typeof inventories)[number]>()
@@ -576,7 +575,7 @@ function buildOrderDetails(data: FullChainData, filters: WorkspaceFilters): Work
     if (row.layer === 'branch' && !firstBranchStock.has(key)) firstBranchStock.set(key, row)
   }
   const pendingByBranch = groupBy(data.pendingOrders, row => row.branch)
-  // Pending-only warehouses/SKUs must remain visible even when this month has no fulfillment row.
+
   for (const pending of data.pendingOrders) {
     if (!pending.sku) continue
     const stock = firstBranchStock.get(JSON.stringify([pending.branch, pending.sku]))

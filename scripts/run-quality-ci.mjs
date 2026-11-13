@@ -145,7 +145,7 @@ try {
         refuse('QUALITY_TOOLCHAIN_REQUIRED', 'Workbench npm@11.11.0')
       run('npm', ['ci', '--ignore-scripts', '--prefer-offline', '--no-audit', '--no-fund'], workbench.path)
       run('corepack', ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--prefer-offline'], manifest.repositories.find(entry => entry.repo === 'dsh-gea-plugin').path)
-      // Workbench's public declarations are tracked source inputs, not missing cold outputs.
+
       for (const targets of Object.values(JSON.parse(readFileSync('tsconfig.official-paths.json', 'utf8')).compilerOptions.paths)) {
         for (const target of targets.filter(path => path.startsWith('../dsh-agent-workbench/'))) readFileSync(resolve(target))
       }

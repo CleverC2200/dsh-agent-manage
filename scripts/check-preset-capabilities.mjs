@@ -1,4 +1,3 @@
-/** Existing Vitest lanes, one public capability check; no installation or runtime switch. */
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -45,9 +44,7 @@ for (const [name, files] of phases) {
   let summary
   try {
     summary = JSON.parse(readFileSync(report, 'utf8'))
-  } catch {
-    /* Missing report rejects this phase. */
-  }
+  } catch {}
   const requiredFiles = files.map(file => {
     const matches = summary?.testResults?.filter(result => resolve(result.name) === resolve(file)) ?? []
     const assertions = matches[0]?.assertionResults ?? []

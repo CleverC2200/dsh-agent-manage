@@ -1,14 +1,7 @@
-/**
- * Guards the specification library under `schemas/`: every vendored and
- * authored schema must compile, `$id`s must stay unique, the runtime
- * agent-plugins ids must stay pinned to `validate.ts`, and each dialect must
- * keep a sibling spec document and a paired marketplace schema.
- */
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-// Same 2020-12 dist quirk as src/catalog/validate.ts: the d.ts resolves to a
-// CJS namespace, the runtime default export is the class itself.
+
 import Ajv2020Default from 'ajv/dist/2020.js'
 import { describe, expect, it } from 'vitest'
 import { MCP_SCHEMA_ID, PLUGIN_SCHEMA_ID } from '../src/catalog/validate.js'
@@ -18,7 +11,6 @@ const SCHEMAS_DIR = fileURLToPath(new URL('../schemas/', import.meta.url))
 const Ajv2020 = Ajv2020Default as unknown as { new (options?: Record<string, unknown>): { compile(schema: unknown): unknown } }
 
 interface SchemaFile {
-  /** Path relative to `schemas/`, e.g. `zcode/plugin.schema.json`. */
   relative: string
   document: Record<string, unknown>
 }
@@ -70,8 +62,6 @@ describe('schemas library', () => {
   })
 
   it('pairs every dialect schema with a marketplace schema and a spec document', async () => {
-    // `1.0.0/` is the vendored upstream directory: its schemas are documented
-    // by schemas/agent-plugins/spec.md and schemas/README.md, not a sibling file.
     const directories = (await readdir(SCHEMAS_DIR, { withFileTypes: true })).filter(entry => entry.isDirectory() && entry.name !== '1.0.0').map(entry => entry.name)
     expect(directories.length).toBeGreaterThanOrEqual(9)
     for (const directory of directories) {

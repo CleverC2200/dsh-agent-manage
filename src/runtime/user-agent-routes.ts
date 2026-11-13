@@ -8,7 +8,6 @@ import { readJsonRequest, RequestBodyTooLarge } from './request-body.js'
 import { isSameOriginRequest } from './request-origin.js'
 import type { UserAgents } from './user-agents.js'
 
-/** Authenticated Host Fetch routes share the same complete configuration module as publication. */
 export function mountUserAgentRoutes(host: Pick<Context, 'connection' | 'effect'>, agents: UserAgents): void {
   const action = z.object({ id: z.uuid(), enabled: z.boolean() })
   const selection = z.object({ id: z.uuid() }).strict()

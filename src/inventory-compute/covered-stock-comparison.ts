@@ -1,7 +1,6 @@
 export type ComparableStock = { inventory: number | null; target: number | null; demand: number | null }
 const valid = (n: number | null): n is number => n !== null && Number.isFinite(n) && n >= 0
 
-/** Supplied, scoped SKU facts only. Every ratio uses the same matched SKU cohort. */
 export function coveredStockComparison(rows: ComparableStock[]) {
   const pairs = rows.filter(r => valid(r.inventory) && valid(r.target))
   const daily = pairs.filter(r => valid(r.demand))

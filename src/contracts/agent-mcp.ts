@@ -1,5 +1,5 @@
 import type { McpConnectionState } from './mcp-status.js'
-/** Connection definitions are shared. Each Agent owns only its enabled association. */
+
 export interface AgentMcpView {
   connectionId: string
   serverId: string

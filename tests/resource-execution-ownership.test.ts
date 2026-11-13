@@ -7,7 +7,6 @@ import { Catalog } from '../src/application/catalog.js'
 import { SuiteSkillProvider } from '../src/runtime/skills-provider.js'
 import { createForecastTool } from '../src/runtime/forecast-compute.js'
 
-// Use the registered standard artifacts directly; no historical Core alias or cross-repository build output.
 import { official } from './core-preset-harness.js'
 const { Context } = await official('@deepseek-ai/cordis')
 const { default: Tools } = await official('@deepseek-ai/dsh-tools')

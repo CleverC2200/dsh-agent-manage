@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'

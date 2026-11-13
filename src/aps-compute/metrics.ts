@@ -7,7 +7,7 @@ const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFi
 function sum(rows: Row[], key: string) {
   return rows.length && rows.every(r => finite(r[key])) ? rows.reduce((n, r) => n + (r[key] as number), 0) : null
 }
-/** Shared quantity aggregation for headline and dimensional metrics. */
+
 export function sumMetricQuantity(rows: Row[], key: string, missingValuePolicy?: 'zero') {
   if (missingValuePolicy !== 'zero') return sum(rows, key)
   if (!rows.length || rows.some(row => row[key] != null && !finite(row[key]))) return null
@@ -99,9 +99,7 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
       ? (actual / plan) * 100
       : null
   }
-  // The demand plan has different SKU replacement keys from the accuracy fact.
-  // Never join those rows to calculate absolute deviations. Only reuse separately
-  // aggregated base/month totals when the initial plan reconciles in every base.
+
   const demandPlanFallback = () => {
     if (!zero || expectedMonths !== 1 || data.granularity !== 'month') return null
     const facts = get('demand-accuracy')
@@ -126,8 +124,7 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
       const initial = aggregate(f, 'initial_plan') ?? (f.length ? null : 0)
       const sourceInitial = sumValues(p, 'demand_initial_plan') ?? (p.length ? null : 0)
       const sourceAdjusted = sumValues(p, 'demand_adjusted_plan') ?? (p.length ? null : 0)
-      // A zero-only unassigned group adds nothing. Nonzero unassigned quantities
-      // or missing/partially returned plan fields cannot establish an equal scope.
+
       if (
         initial === null ||
         sourceInitial === null ||

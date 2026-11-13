@@ -1,5 +1,3 @@
-/** 文件作用：读取套件 LSP、hooks 和系统提示组件，转换为运行时统一资源。 */
-/** Resolve all plugin component declarations into the same normalized resources used by runtime consumers. */
 import { readFile } from 'node:fs/promises'
 import { relative } from 'node:path'
 import type { ProjectHooks, SuiteManifest, LspSuiteConfig } from '../model/types.js'
@@ -8,7 +6,6 @@ import { parseLspServers } from './lsp-spec.js'
 import { normalizeHookDocuments } from './project-hooks.js'
 import { PLUGIN_ROOT_VARIABLES } from '../model/layouts.js'
 
-/** 读取套件 LSP 声明或兼容文件，解析失败写入 errors 并返回 undefined。 */
 export async function discoverSuiteLsp(root: string, manifest: SuiteManifest, errors: string[]): Promise<LspSuiteConfig | undefined> {
   const declaration = manifest.components?.lspServers
   const fallback = await firstComponentFile(
@@ -23,11 +20,10 @@ export async function discoverSuiteLsp(root: string, manifest: SuiteManifest, er
   return Object.keys(servers).length > 0 ? { servers } : undefined
 }
 
-/** 为 hooks 命令参数生成安全的 shell 单引号表示。 */
 function quote(argument: string): string {
   return `'${argument.replaceAll("'", "'\\''")}'`
 }
-/** 将 Claude 插件根变量替换为套件真实根路径。 */
+
 function rootVariables(text: string, root: string): string {
   return text.replace(/\$\{([A-Z_]+)\}/g, (match, name: string) => (PLUGIN_ROOT_VARIABLES.has(name) ? root : match))
 }
@@ -43,8 +39,6 @@ const EVENT_ALIASES: Record<string, string> = {
   subagentStop: 'SubagentStop'
 }
 
-/** File configs and Kimi's inline array converge on the established command-hook bridge shape. */
-/** 读取 hooks 组件、展开根变量并转换为宿主 ProjectHooks。 */
 export async function discoverSuiteHooks(root: string, manifest: SuiteManifest, errors: string[]): Promise<ProjectHooks | undefined> {
   let declaration = manifest.components?.hooks
   if (manifest.layout === 'kimi' && Array.isArray(declaration)) {
@@ -106,7 +100,6 @@ export async function discoverSuiteHooks(root: string, manifest: SuiteManifest, 
   return normalizeHookDocuments(root, normalized, errors)
 }
 
-/** 读取套件系统提示组件，文件缺失返回 undefined，坏文件进入 errors。 */
 export async function discoverSystemPrompt(root: string, manifest: SuiteManifest, errors: string[]): Promise<string | undefined> {
   const parts: string[] = []
   if (manifest.systemPrompt !== undefined) parts.push(manifest.systemPrompt)

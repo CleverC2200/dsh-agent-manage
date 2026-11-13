@@ -1,4 +1,3 @@
-/** Sales roles pass the actual Core Session and GEA Host authorization interfaces. */
 import { expect, it } from 'vitest'
 import { agentOn, completion, history, record, turn } from './core-preset-harness.js'
 import { baseInventoryHarness } from './base-inventory-harness.js'

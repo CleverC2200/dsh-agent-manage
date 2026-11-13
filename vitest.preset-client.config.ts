@@ -1,4 +1,3 @@
-/** Official browser sources share one source graph, as in Core's own client tests. */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ts from 'typescript'
@@ -29,7 +28,6 @@ export default defineConfig({
     dedupe: ['react', 'react-dom']
   },
   test: {
-    // Each client file starts an official Host process; keep those process groups serial.
     fileParallelism: false,
     include: Object.keys(presetLanes.client),
     environment: 'jsdom',

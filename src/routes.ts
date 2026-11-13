@@ -1,4 +1,3 @@
-/** Read-only host support for Agent configuration; mutations use the Agent-owned routes. */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { MARKET_ROUTES } from './contracts/market.js'
 import type { McpBackendPayload } from './contracts/market.js'
@@ -12,7 +11,6 @@ interface RouteHost {
   get?(name: string): unknown
 }
 
-/** No generic resource or global service write route is registered here. */
 export function mountSuiteRoutes(hostCtx: unknown, manager: { runtime: { mcpBackendInfo(): Promise<McpBackendPayload> } }): () => void {
   const host = hostCtx as RouteHost
   const disposers = [

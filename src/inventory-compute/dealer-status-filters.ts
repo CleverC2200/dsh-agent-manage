@@ -1,4 +1,3 @@
-/** Read-only business predicates. Unknown facts remain unknown under exclusion. */
 export const statusLabels = {
   fuse_normal: '货龄正常',
   fuse_low: '低风险',
@@ -137,7 +136,7 @@ export function statusMatches(row: Row, code: DealerStatusFilter['code'], contex
   }
   return null
 }
-/** Shared with the answer summary: review-needed OR deferred, with guard priority. */
+
 export function rowActionStatus(row: Row, context: StatusContext): string {
   const value = (key: string) => statusNumber(row[`dealer_plan_order.${key}`]) ?? 0
   if (context.dataIssues(row)) return '需核查'

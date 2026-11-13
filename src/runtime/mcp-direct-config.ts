@@ -1,4 +1,3 @@
-/** 文件作用：维护用户直接配置的 MCP 服务，并转换为虚拟用户 suite。 */
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -8,8 +7,6 @@ import type { McpSuiteConfig, Suite } from '../model/types.js'
 export const USER_MCP_SOURCE = '@user-mcp'
 export const USER_MCP_SUITE = 'user-mcp'
 
-/** User-created services reuse the owned bridge lifecycle without changing host configuration. */
-/** 读取用户 MCP 文件并包装成虚拟套件；坏配置保留错误但不影响其他套件。 */
 export async function loadUserMcpSuite(dataRoot: string): Promise<Suite> {
   const path = join(dataRoot, 'mcp-servers.json')
   let mcp: McpSuiteConfig = { schema: MCP_SCHEMA_ID, servers: {} }
@@ -34,7 +31,6 @@ export async function loadUserMcpSuite(dataRoot: string): Promise<Suite> {
   }
 }
 
-/** 先过 JSON Schema，再复用 MCP 目录校验器，确保用户配置失败关闭。 */
 async function validateUserMcp(dataRoot: string, raw: unknown, roots: Record<string, string> = {}): Promise<McpSuiteConfig> {
   const errors = await validateAgainstSchema(USER_MCP_SCHEMA_ID, raw)
   if (errors.length > 0) throw new Error(`invalid MCP configuration: ${errors.join('; ')}`)
@@ -48,8 +44,6 @@ async function validateUserMcp(dataRoot: string, raw: unknown, roots: Record<str
   return { schema: MCP_SCHEMA_ID, servers, serverRoots: roots }
 }
 
-/** Add one service atomically; reject collisions and malformed config before writing. */
-/** 校验新增服务并原子写入用户 MCP 文件，拒绝非法名称和重复键。 */
 export async function addUserMcpServer(dataRoot: string, name: string, server: unknown, sourceRoot?: string): Promise<void> {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(name)) throw new Error('invalid MCP server name')
   const suite = await loadUserMcpSuite(dataRoot)
@@ -71,7 +65,6 @@ export async function addUserMcpServer(dataRoot: string, name: string, server: u
   await rename(`${path}.tmp`, path)
 }
 
-/** Roots come only from Host import resolution, outside editable server configuration. */
 async function loadServerRoots(dataRoot: string): Promise<Record<string, string>> {
   try {
     return z.record(z.string(), z.string().min(1)).parse(JSON.parse(await readFile(join(dataRoot, 'mcp-server-roots.json'), 'utf8')))

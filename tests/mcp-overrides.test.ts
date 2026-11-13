@@ -94,8 +94,6 @@ describe('toMcpMounts with overrides', () => {
     const suite = httpSuite()
     process.env.DSH_MCP_OVERRIDE_TEST_TOKEN = 'secret-value'
     try {
-      // Mirrors the host fallback resolver, which reads the ambient env when
-      // the profile has no credentials service.
       const resolver = {
         resolve: async (ref: string) => {
           const value = process.env[ref]
@@ -111,8 +109,7 @@ describe('toMcpMounts with overrides', () => {
       expect(result.mounts).toHaveLength(1)
       const config = result.mounts[0]!.config as McpServerStreamableHttp
       expect(config.url).toBe('https://override.example/mcp')
-      // The secret never needs to persist: the override stores only the
-      // reference, resolved in memory when the mount config is built.
+
       expect(config.headers?.authorization).toBe('Bearer secret-value')
     } finally {
       delete process.env.DSH_MCP_OVERRIDE_TEST_TOKEN
@@ -140,8 +137,6 @@ describe('toMcpMounts with source-declared auth', () => {
   })
 
   it('forwards auth from a disk override through to the mount config', async () => {
-    // Regression: redaction erased the whole `auth` object as secret-shaped,
-    // so an override-enabled OAuth flow never reached the mount.
     const suite = httpSuite()
     const dataRoot = await mkdtemp(join(tmpdir(), 'mcp-auth-override-'))
     await saveSuiteOverrides(dataRoot, suite.id, { docs: { auth: { enabled: true } } })
@@ -204,7 +199,6 @@ describe('Catalog runtime overrides', () => {
     const after = await manager.suiteDetail('demo', 'v1-suite')
     expect(after.mcpOverrides?.[serverKey]).toEqual({ enabled: false })
 
-    // mcpOverrides query returns the same record.
     expect(await manager.runtime.mcpOverrides('demo', 'v1-suite')).toEqual({ [serverKey]: { enabled: false } })
   })
 

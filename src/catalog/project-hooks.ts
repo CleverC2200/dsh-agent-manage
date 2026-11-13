@@ -1,17 +1,13 @@
-/** 文件作用：读取并归一化项目原生 Claude hooks，合并事件层并去重。 */
-/** Normalize native Claude-shaped command hooks for the existing host execution bridge. */
 import type { ProjectHooks } from '../model/types.js'
 import { readProjectDocument } from './project-config.js'
 import type { ProjectHookFormat } from '../model/layouts.js'
 
 const EVENTS = new Set(['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop', 'SubagentStart', 'SubagentStop'])
-/** 判断 hooks 层是否为普通对象，过滤数组/null 等非法层。 */
+
 function object(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** Merge settings layers additively, deduplicating identical event/matcher/command triples. */
-/** 读取项目 hooks 配置层并合并为宿主桥接格式，单层失败进入 errors。 */
 export async function discoverProjectHooks(
   projectRoot: string,
   files: readonly string[],
@@ -27,8 +23,6 @@ export async function discoverProjectHooks(
   return normalizeHookDocuments(projectRoot, documents, errors, format)
 }
 
-/** Pure validation shared by native settings and plugin file/inline declarations. */
-/** 将多个文档的事件组归一化，去重相同事件/匹配器/命令三元组。 */
 export function normalizeHookDocuments(
   projectRoot: string,
   documents: Array<{ file: string; settings: Record<string, unknown> }>,

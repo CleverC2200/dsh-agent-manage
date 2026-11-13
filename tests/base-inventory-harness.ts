@@ -1,4 +1,3 @@
-/** Production Manage and GEA modules; only the external gateway is replaced. */
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { onTestFinished, vi } from 'vitest'
@@ -13,7 +12,7 @@ export interface BusinessPresetHarnessInput {
   resource?: BusinessResourceDefinition
   additionalResources?: readonly BusinessResourceDefinition[]
   businessConfig?: Partial<Deployment>
-  /** Additional external API responses; actual Business transport and authorization remain unchanged. */
+
   externalResponse?: (url: URL, init?: RequestInit) => Promise<Response | undefined>
   contract?: CapabilityContract
   seed?: readonly unknown[]
@@ -38,7 +37,6 @@ export async function baseInventoryResource(): Promise<BusinessResourceDefinitio
   }
 }
 
-/** Other role tickets supply their actual package resource and contract; the external adapter remains shared. */
 export async function baseInventoryHarness(input: BusinessPresetHarnessInput = {}) {
   const { installPromptProfile } = await import('preset-integration-gea/host/prompt-policy')
   const { Business } = await import('preset-integration-gea/host/business')

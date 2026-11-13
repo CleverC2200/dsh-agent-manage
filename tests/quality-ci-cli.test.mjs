@@ -589,7 +589,6 @@ test('retired business exceptions have no executable route while behavior tests 
   assert.ok(!existsSync('scripts/business-profile-ci.mjs'))
   assert.ok(!existsSync('scripts/business-profile-ci.test.mjs'))
   assert.ok(!existsSync('scripts/verify-lifecycle.cjs'))
-  assert.ok(existsSync('docs/history/verification/verify-lifecycle.cjs'))
   for (const file of ['tests/business-resources.test.ts', 'tests/business-admission-gea.test.ts', 'tests/gea-mcp-scope.test.ts']) assert.ok(existsSync(file))
 })
 

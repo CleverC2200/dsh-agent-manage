@@ -122,19 +122,10 @@ describe('McpMountRegistry', () => {
     await registry.disposeAll()
   })
 
-  // No dedicated "duplicate derived serverName" test: since serverNames hash
-  // over (sourceId, suiteId), two different suites can no longer derive the
-  // same name, and the identical suite listed twice is deduped by the wanted
-  // map before mounting. The owner guard in mountWith stays as
-  // defense-in-depth; the observable collision path is the foreign-mount
-  // test below.
-
   it('surfaces a failed startup as `failed` and leaves no orphan child behind', async () => {
     const disposed: string[] = []
     const ctx = {
       plugin: () => ({
-        // `dsh-mcp-client` rejects on startup failure because mounts are
-        // created with failOnStartupError, so the real error reaches us.
         await: async () => {
           throw new Error('connection refused')
         },
@@ -149,15 +140,13 @@ describe('McpMountRegistry', () => {
 
     const diagnostics = await registry.reconcile([broken])
 
-    // The connection error is reported with its real message, not swallowed
-    // into a silent "degraded" row.
     expect(diagnostics).toContainEqual({
       suiteId: 'demo/broken',
       serverKey: 'service',
       code: 'mount-failed',
       reason: 'mount failed: connection refused'
     })
-    // The half-mounted handle is disposed so no child process survives.
+
     expect(disposed).toEqual(['disposed'])
     await registry.disposeAll()
   })
@@ -241,9 +230,6 @@ describe('McpMountRegistry', () => {
   })
 
   it('rebuilds a live mount flagged by forceRemount even when the config is unchanged', async () => {
-    // Regression: re-authorize drops a grant without changing any resolved
-    // config field, so a fingerprint-only reconcile kept the live bridge —
-    // with its in-memory tokens — and the re-authorization never ran.
     const mounted: Array<Record<string, unknown> & { disposed?: boolean }> = []
     const ctx = {
       plugin: (_plugin: unknown, config: Record<string, unknown>) => {
@@ -264,15 +250,15 @@ describe('McpMountRegistry', () => {
 
     await registry.reconcile([authSuite])
     expect(mounted).toHaveLength(1)
-    // No remount without a flag: identical config, live bridge stays.
+
     await registry.reconcile([authSuite])
     expect(mounted).toHaveLength(1)
-    // Force-remount (re-authorize): same config, but the bridge is rebuilt.
+
     registry.forceRemount('demo/auth', 'service')
     await registry.reconcile([authSuite])
     expect(mounted).toHaveLength(2)
     expect(mounted[0]!.disposed).toBe(true)
-    // A subsequent pass with no flag does not rebuild again.
+
     await registry.reconcile([authSuite])
     expect(mounted).toHaveLength(2)
     await registry.disposeAll()
@@ -293,8 +279,7 @@ describe('McpMountRegistry', () => {
       logger: { warn: () => {} }
     }
     const registry = new McpMountRegistry(ctx as never, '/tmp/data')
-    // A native host MCP client (or another plugin) already registered tools
-    // under this suite's derived namespace.
+
     registry.setToolNamesProvider(() => ['mcp__alpha__db__query', 'other_tool'])
 
     const diagnostics = await registry.reconcile([suite('alpha', 'db')])
@@ -307,7 +292,6 @@ describe('McpMountRegistry', () => {
       reason: expect.stringContaining('already mounted by another MCP client')
     })
 
-    // Once the foreign owner goes away, a later reconcile mounts normally.
     registry.setToolNamesProvider(() => [])
     await expect(registry.reconcile([suite('alpha', 'db')])).resolves.toEqual([])
     expect(mounted).toHaveLength(1)
@@ -334,7 +318,7 @@ describe('CommandMountRegistry (CC commands compat)', () => {
     suites[0]!.enabled = true
     const diagnostics = await registry.reconcile(suites)
     expect(diagnostics).toEqual([])
-    // Role definitions are catalog entries, never generated slash commands.
+
     expect(registered.map(def => def.name)).toEqual(['review'])
     expect(registered[0]!.description).toBe('[cc-commands] Run a challenge review')
     let followup: { content: Array<{ type: string; text: string }> } | undefined
@@ -413,24 +397,19 @@ describe('HooksMountRegistry (CC hooks compat)', () => {
     const suites = await (await import('../src/catalog/suite-scanner.js')).discoverSuitesInSource(CC_COMMANDS_ROOT, 'cc', 'user')
     suites[0]!.enabled = true
 
-    // Mounted while enabled.
     await registry.reconcile(suites)
     expect(handles).toHaveLength(1)
     expect(handles[0]!.disposed).toBe(false)
 
-    // Disabling the suite: the caller reconciles with the enabled list only
-    // (the disabled suite is absent from it) → bridge disposed.
     suites[0]!.enabled = false
     await registry.reconcile([])
     expect(handles[0]!.disposed).toBe(true)
 
-    // Re-enabling mounts a fresh bridge.
     suites[0]!.enabled = true
     await registry.reconcile(suites)
     expect(handles).toHaveLength(2)
     expect(handles[1]!.disposed).toBe(false)
 
-    // Uninstalling (suite absent) disposes the live bridge again.
     await registry.reconcile([])
     expect(handles[1]!.disposed).toBe(true)
   })

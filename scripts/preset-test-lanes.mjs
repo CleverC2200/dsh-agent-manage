@@ -1,4 +1,3 @@
-/** Required capability cases and client-owned Host helpers share one discovery policy. */
 export const presetLanes = {
   'standard-skill': {
     'tests/business-resource-snapshot-race.test.ts': true,
@@ -30,7 +29,6 @@ export const presetLanes = {
   }
 }
 
-// These execute only inside their owning client test with a request/receipt pair.
 export const presetHostOwners = {
   'tests/base-resource-host.test.ts': 'tests/base-preset-client.test.ts',
   'tests/skill-resource-host.test.ts': 'tests/skill-preset-client.test.ts',

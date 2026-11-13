@@ -13,7 +13,7 @@ declare module '@deepseek-ai/cordis' {
     userAgents: UserAgents
   }
 }
-/** Core owns this service's isolated revision and inherits it into child Agents. */
+
 export function apply(ctx: Context, config: UserAgentCubeDeclaration): void {
   ctx.provide('userAgentCube', Object.freeze({ ...config }))
 }

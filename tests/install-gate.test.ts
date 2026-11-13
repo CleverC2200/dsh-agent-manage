@@ -4,14 +4,6 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Catalog } from '../src/application/catalog.js'
 
-/**
- * Install lifecycle regression tests (dsh-web PR #1098 review).
- *
- * Model: install == enable (the pre-install dialog is the confirmation
- * gate; cancel never reaches the host). The safety property lives in the
- * lifecycle: disabling stops injection, uninstalling clears everything,
- * and state round-trips across reloads.
- */
 const here = dirname(fileURLToPath(import.meta.url))
 const fixture = join(here, 'fixtures', 'v1-suite')
 
@@ -53,7 +45,6 @@ describe('install lifecycle: install enables, disable stops, uninstall clears', 
     const source = await catalog.addSource({ url: fixture, local: true })
     const suiteId = (await catalog.readUserCatalog()).suites.find(s => s.sourceId === source.id)!.id
 
-    // Cancel = no install() call at all (client-side gate). State stays untouched.
     const after = await catalog.readUserCatalog()
     const card = after.suites.find(s => s.sourceId === source.id && s.id === suiteId)
     expect(card!.enabled).toBe(false)

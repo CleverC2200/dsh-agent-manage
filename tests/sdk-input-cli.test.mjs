@@ -159,7 +159,7 @@ test('cold SDK clone preserves lock bytes even when the runner defaults to CRLF'
     process.env.GIT_CONFIG_GLOBAL = globalConfig
     git(['clone', '--quiet', upstream, ordinary], fixture)
     assert.equal(readFileSync(join(ordinary, 'pnpm-lock.yaml'), 'utf8'), 'lockfileVersion: 9.0\r\n')
-    // An unregistered source must stop before installation; its clone still exposes the checkout policy.
+
     assert.throws(() => prepareOfficialSDK({ core: owned, consumer: process.cwd(), source: upstream, coreHead: selected.head }), /SDK_COMMAND_FAILED/)
     assert.equal(git(['config', '--local', '--get', 'core.autocrlf'], owned), 'false')
     git(['checkout', '--quiet', '--detach', head], owned)

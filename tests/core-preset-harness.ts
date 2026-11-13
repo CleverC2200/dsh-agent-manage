@@ -1,4 +1,3 @@
-/** Fixed official libraries and production Loader/Session; only completion is local. */
 import { mkdtemp, mkdir, readFile, rm, writeFile, realpath, symlink } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { isAbsolute, relative, resolve, join } from 'node:path'
@@ -12,25 +11,24 @@ import { core, officialModulePath } from './official-core-input.js'
 
 export { core }
 export async function official(name: string) {
-  return import(/* @vite-ignore */ officialModulePath(name))
+  return import(officialModulePath(name))
 }
 
 export interface PresetHarnessOptions {
-  /** Read the ordinary Manage bundle patch or omit company plugins entirely. */
   companyBundle?: 'manage' | 'absent'
-  /** Existing user UI preference; null means a genuinely fresh profile. */
+
   selectedDefault?: string | null
-  /** Full production Manage entry; the default keeps existing preset tests narrow. */
+
   fullManage?: boolean
-  /** Ordinary shipped config is passed through the real Loader Config parser. */
+
   manageConfig?: Record<string, unknown>
-  /** Failure tests observe missing routes instead of waiting for publication. */
+
   waitForResources?: boolean
-  /** Retain public Logger diagnostics even when app-boot rejects. */
+
   startupMessages?: { type: string; args: string[] }[]
-  /** Owned by an independent caller so DSH_HOME is set before this module loads. */
+
   home?: string
-  /** Loader's module-import boundary, used only to control real module loading order. */
+
   importModule?: (name: string, runtime: Context) => Promise<unknown>
 }
 
@@ -55,7 +53,7 @@ export async function presetHarness(options: PresetHarnessOptions = {}) {
   await writeFile(join(home, 'package.json'), '{"name":"preset-test-installation"}\n')
   await writeFile(join(bundle, 'package.json'), JSON.stringify({ name: 'test-bundle', version: '1.0.0', dsh: { bundle: { patch: 'cordis.patch.yml' } } }))
   const base = load(await readFile(join(core, 'packages/bundle/base/cordis.patch.yml'), 'utf8'), { schema: entryListSchema }) as { insert: { id: string; config?: unknown }[] }[]
-  // Host providers from the shipped base; all standard child rows remain unchanged.
+
   const providers = new Set([
     'timer',
     'typert',
@@ -243,7 +241,6 @@ export async function agentOn(ctx: Context, id: string, preset?: string, seed?: 
   ).agent
 }
 
-/** Scripted model tool calls still run through the production Agent loop and guards. */
 export interface CompletionToolStep {
   name: string
   arguments: Record<string, unknown>
@@ -352,12 +349,10 @@ export async function turn(ctx: Context, agent: Awaited<ReturnType<typeof agentO
   await idle
 }
 
-/** Save only compact execution observations; fixture histories stay in temporary profiles. */
 export async function record(name: string, observation: unknown): Promise<void> {
   if (process.env.PRESET_EVIDENCE_DIR) await writeFile(join(process.env.PRESET_EVIDENCE_DIR, `${name}.json`), JSON.stringify(observation, null, 2) + '\n')
 }
 
-/** Legacy lifecycle fixtures read the same shipped declaration; Session acceptance uses the registry above. */
 export async function officialStandardDocument() {
   const { dump } = await import('js-yaml')
   const rows = load(await readFile(join(core, 'packages/bundle/web-app/presets/standard.patch.yml'), 'utf8'), { schema: entryListSchema }) as {

@@ -1,5 +1,3 @@
-// @vitest-environment node
-/** Actual GEA hooks on the production Session; business identity is an offline adapter. */
 import { expect, it, onTestFinished } from 'vitest'
 import { agentOn, completion, history, official, presetHarness, record, turn } from './core-preset-harness.js'
 import { baseInventoryResource } from './base-inventory-harness.js'
@@ -372,8 +370,7 @@ it('prunes an oversized actual tool result through GEA turn pressure and continu
   const events = f.agent.session.snapshotEvents()
   expect(events.at(-1)).toMatchObject({ type: 'turn/end', data: { reason: { kind: 'completed' } } })
   expect(JSON.stringify(events.filter(event => event.type === 'assistant/message'))).toContain('Continued original task from the checkpoint.')
-  // rc2 reserves 65536 tokens of headroom in the unchanged 98304-token model.
-  // The real read must cross that pressure line on each supported platform.
+
   const pressureThreshold = 32768
   const afterRead = pressure.find(row => row.toolResult?.callId === 'scripted-task-step-2')
   const beforeRead = pressure.findLast(row => row.type === 'step/start' && row.seq < (afterRead?.seq ?? -1))

@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-/** Official client source graph; separate Host process keeps Core module identities intact. */
 import { expect, it, onTestFinished } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { execFile } from 'node:child_process'

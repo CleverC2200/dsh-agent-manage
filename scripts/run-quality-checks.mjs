@@ -1,4 +1,3 @@
-/** Collect every independent quality command; admission and preparation run outside this collector. */
 export async function runQualityChecks(checks) {
   const results = []
   for (const { name, execute } of checks) {

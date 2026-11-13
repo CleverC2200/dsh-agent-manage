@@ -1,6 +1,5 @@
 import type { UserAgentConfig } from './user-agents.js'
 
-/** Host-generated source provenance, never trusted from a save request or package metadata. */
 export interface AgentSourceBaseline {
   sourceId: string
   suiteId: string
@@ -8,7 +7,7 @@ export interface AgentSourceBaseline {
   url: string
   kind: 'git' | 'local' | 'archive'
   importPending?: boolean
-  /** Removed local members and absent upstream baselines remain comparable without credential snapshots. */
+
   mcpReferences?: Array<{ serverKey: string; serverId: string; connectionId: string; removed?: boolean; baseMissing?: boolean }>
   lockCommit?: string
   version?: string
@@ -49,7 +48,6 @@ export const AGENT_SOURCE_ROUTES = {
   cancel: '/api/agent-manage/agent-sources/cancel'
 } as const
 
-/** A preview contains editable data only. MCP secrets remain in the Host. */
 export interface AgentSourceConflict {
   key: string
   base: unknown
