@@ -4,9 +4,6 @@ import type { Scope } from './adapter.js'
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const count = (value: unknown): value is number => finite(value) && Number.isSafeInteger(value) && value >= 0
 
-/** Display-only customer-SKU intersection. Never substitutes full-company metrics,
- * health judgments or comparisons between independently selected cohorts.
- */
 export function budgetPerformanceObservation(data?: MetricData | null, scope: Scope = {}) {
   if (!data || Object.values(scope).some(value => value !== undefined) || !['month', 'year'].includes(data.granularity) || !data.start.endsWith('-01')) return null
   const section = data.sections.find(section => section.id === 'finance')

@@ -21,15 +21,10 @@ export const ORCHESTRATION_PRESET = {
 type Plugin = PresetDefinition['plugins'][number]
 export interface StandardPresetAdditions {
   personaPrefix?: string
-  /** Extra plugin rows must not duplicate an existing plugin or its entry id. */
+
   plugins?: readonly Plugin[]
 }
 
-/**
- * Reuse the active official standard declaration through its public registry document.
- * The Loader dialect preserves expressions, disabled rows and isolated nested groups.
- * Missing standard or conflicting additions reject; callers own registration and disposal.
- */
 export async function composeStandardPreset(
   registry: Pick<Context['agentPresets'], 'readDocument'>,
   metadata: Omit<PresetDefinition, 'plugins'>,

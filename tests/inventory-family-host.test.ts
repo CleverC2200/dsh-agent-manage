@@ -1,4 +1,3 @@
-/** Actual Core/GEA Host behind the public Workbench selection wire adapter. */
 import { expect, it } from 'vitest'
 import { writeFile } from 'node:fs/promises'
 import { inventoryFamilyHarness, inventoryRoles } from './inventory-family-harness.js'

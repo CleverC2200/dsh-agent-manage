@@ -19,7 +19,7 @@ export function scopedData(data: MetricData, scope: Scope): MetricData {
     .filter(section => !section.id.endsWith('-products'))
     .map(section => {
       const source = products ? (data.sections.find(s => s.id === `${section.id}-products`) ?? section) : section
-      // Unknown classifications may belong to this group; do not report partial totals.
+
       const incomplete = source.rows.some(
         row => entries.some(([key]) => row[key] == null || row[key] === '') && entries.every(([key, value]) => row[key] == null || row[key] === '' || row[key] === value)
       )
@@ -59,8 +59,6 @@ function compareSnapshots(now: ReturnType<typeof metricValues>, prev: ReturnType
 }
 export const formatNumber = (value: number | null | undefined, digits = 2) => (typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '—')
 
-// Results are immutable snapshots. Keep each period's scoped computation while
-// another period progresses; weak keys release obsolete or cleared identities.
 const snapshotValues = new WeakMap<MetricData, Map<string, ReturnType<typeof metricValues>>>()
 function snapshotMetricValues(data: MetricData | null | undefined, scope: Scope, key: string) {
   if (!data) return metricValues(data, scope)

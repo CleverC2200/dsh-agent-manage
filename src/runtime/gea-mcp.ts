@@ -1,4 +1,3 @@
-/** Register authorized GEA gateway schemas; GEA owns execution identity and transport. */
 import type { Context } from '@deepseek-ai/cordis'
 import { publicToolName, type ToolHost, type ToolDefinition } from './mcp-client/tools.js'
 import { restrictGeaMcp, type GeaScopeHost } from './gea-mcp-scope.js'
@@ -9,7 +8,6 @@ export interface GeaMcpTool {
   inputSchema: Record<string, unknown>
 }
 
-/** Host-only capability: credentials and Consumer selection remain in GEA. */
 export interface GeaMcpService {
   version: 2
   authenticated(): boolean
@@ -24,7 +22,6 @@ interface Mount {
   dispose(): void | Promise<void>
 }
 
-/** Runtime publication state shared by login events and first-request admission. */
 export interface GeaLoginRuntime {
   readonly revision: number
   retryDiscovery(): void
@@ -32,7 +29,6 @@ export interface GeaLoginRuntime {
   dispose(): Promise<void>
 }
 
-/** Prepare same-identity refreshes before replacing tools; revoke changed identities first. */
 export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool[], signal: AbortSignal) => Mount, warn: () => void): GeaLoginRuntime {
   let closed = false
   let generation = new AbortController()
@@ -136,7 +132,6 @@ export function followGeaLogin(service: GeaMcpService, mount: (tools: GeaMcpTool
   }
 }
 
-/** Publish server-qualified native MCP methods without another model-facing query wrapper. */
 export function mountGeaMcp(ctx: Context): void {
   ctx.inject(['geaMcp', 'tools', 'agents', 'agentPresets', 'systemPrompt'], host => {
     const service = (host as unknown as { geaMcp: GeaMcpService }).geaMcp
@@ -165,7 +160,7 @@ export function mountGeaMcp(ctx: Context): void {
                   identity.throwIfAborted()
                   if (!id || !service.allows(id)) throw Error('GEA_BUSINESS_PROFILE_REQUIRED')
                   if (!args || typeof args !== 'object' || Array.isArray(args)) throw Error('GEA_MCP_ARGUMENTS_INVALID')
-                  // Discovery can refresh for another Session; GEA owns this call's identity and resource lifetime.
+
                   return service.call(id, tool.name, args as Record<string, unknown>, exec.signal)
                 }
               }
@@ -188,9 +183,7 @@ export function mountGeaMcp(ctx: Context): void {
       const stopRetry = host.on('agent/inbox/inserted', ({ agent }) => {
         if (service.allows(agent.id)) login.retryDiscovery()
       })
-      // Core collects tool providers before its assembly waterfall. Capture that
-      // publication revision, await discovery, and ask Core to assemble again only
-      // when it collected an older generation. Core still owns scope, PTC and order.
+
       const observed = new WeakMap<object, number>()
       const stopCapture = host.systemPrompt.tools(context => {
         observed.set(context, login.revision)

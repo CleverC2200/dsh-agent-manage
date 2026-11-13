@@ -1,4 +1,3 @@
-/** Official client lifecycle plus an independent real Host resource-selection wire. */
 import { expect, onTestFinished } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { execFile } from 'node:child_process'
@@ -23,7 +22,6 @@ export interface ResourceHostReceipt {
   commands: string[]
 }
 
-/** One owner for provider wiring, Session holds, draft storage and Host receipts. */
 export async function resourceClientFixture<Receipt extends ResourceHostReceipt = ResourceHostReceipt>(options: {
   resourceId: string
   workspaceId: string

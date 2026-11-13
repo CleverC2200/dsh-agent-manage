@@ -6,7 +6,6 @@ import { SkillDirectoryEditor } from './SkillDirectoryEditor.js'
 import { SkillDirectoryImport } from './SkillDirectoryImport.js'
 import type { SkillEditorSession } from '../contracts/skill-editor.js'
 
-/** Agent-local forms own unsaved content; unmounting cancels reads and ignores late writes. */
 export function AgentSkills({ agent, t, onSaved, openEditor }: { agent: UserAgentView; t: Translate; onSaved: (agent: UserAgentView) => void; openEditor?: (session: SkillEditorSession) => Promise<void> }) {
   const [catalog, setCatalog] = useState<UserAgentSkillOption[]>([])
   const [mode, setMode] = useState<'existing' | 'personal'>()

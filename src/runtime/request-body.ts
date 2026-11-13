@@ -1,4 +1,3 @@
-/** Local limit for mutating JSON routes, independent of the host transport cap. */
 export const MAX_JSON_BODY_BYTES = 64 * 1024
 
 export class RequestBodyTooLarge extends Error {
@@ -7,7 +6,6 @@ export class RequestBodyTooLarge extends Error {
   }
 }
 
-/** Read a Fetch stream with the same bound as the existing node:http JSON routes. */
 export async function readJsonRequest(request: Request, maxBytes = MAX_JSON_BODY_BYTES): Promise<unknown> {
   request.signal.throwIfAborted()
   const reader = request.body?.getReader()

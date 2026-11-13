@@ -5,7 +5,6 @@ import type { Translate } from './index.js'
 import { agentSourceApi } from './agent-source-api.js'
 import css from './user-agents.module.css'
 
-/** Config sources share Catalog acquisition without installing executable plugins. */
 export function AgentSources({ t, onImported, onClose, agents = [], initialSyncId }: { t: Translate; onImported: () => Promise<void>; onClose: () => void; agents?: UserAgentView[]; initialSyncId?: string }) {
   const explain = (failure: string) => {
     if (['AGENT_SOURCE_PREVIEW_STALE', 'AGENT_SOURCE_PREVIEW_EXPIRED'].includes(failure)) return t('agentSourcePreviewStale')

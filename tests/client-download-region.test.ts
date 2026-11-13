@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { act, createElement as h } from 'react'
 import { createRoot } from 'react-dom/client'
 import { describe, expect, it, vi } from 'vitest'

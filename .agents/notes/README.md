@@ -44,11 +44,9 @@ The archive is path-encoded as `archived/{class}/yyyy-mm-dd-topic-title.md`; `im
 
 ## When to write one
 
-Every non-trivial change MUST add or update at least one Agent Note in the same PR. A change is non-trivial when it alters behavior, architecture, a contract shared across files, process or tooling, testing strategy, an on-disk, wire, or configuration format, or another decision a maintainer may reasonably revisit. A proposal for substantial future work starts in `proposed/`; a decision already made starts in `implemented/`. Pick the class folder that matches the decision (see [Classification](#classification)).
+Write a Note only for a decision whose rationale, alternatives or unresolved constraints cannot be expressed by code, types, configuration or behavior tests. Ordinary implementation changes do not require a Note. Maintain the existing owner when a retained decision changes; do not add another description of current symbols, commands or module structure.
 
-Updating the Agent Note that already owns the decision satisfies the rule; do not create a duplicate. Every new note triggers a supersession audit of active notes covering the same decision — classify full or partial supersession in the same change. Only a purely mechanical or local edit with no change to behavior, contracts, structure, process, or rationale is exempt. An Agent Note is never edited into a _different decision_: supersede it with a new one, and keep both notes cross-linked unless the old note is later fully consolidated.
-
-An implemented Agent Note that is fully superseded may be consolidated into the current owning note and deleted only when the owner preserves every unique rationale, alternative, consequence, and required verification, and repairs every inbound link. Partial supersession does not qualify: keep both notes cross-linked and update every fact that remains current.
+New notes still require a supersession check for the same decision. Preserve unique business requirements, unresolved acceptance and original failure evidence before retiring a record. A historical note does not establish current implementation or authorization.
 
 ## The file format
 

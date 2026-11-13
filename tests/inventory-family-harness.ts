@@ -1,4 +1,3 @@
-/** Actual package resources; role expectations remain independent of the GEA policy. */
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { profileFor } from 'preset-integration-gea/host/prompt-policy'

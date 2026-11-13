@@ -1,4 +1,3 @@
-/** One selection policy for workbench cards and conversational overviews. */
 import type { DealerDashboardSummary, DealerInventoryDailySummary } from './dealer-dashboard.js'
 
 export function dealerOverviewFacts(plan: DealerDashboardSummary | null, daily: DealerInventoryDailySummary | null) {
@@ -20,7 +19,7 @@ export function dealerOverviewFacts(plan: DealerDashboardSummary | null, daily: 
     shortageSkuCount: shortage,
     coveredSkuCount: plan?.coveredSkuCount ?? null,
     skuCount: plan?.skuCount ?? null,
-    // 批次临期、无动销和异常品类计数尚未发布，按 v1.0.1 显示待完善分数。
+
     healthScore: 0,
     healthStatus: '数据待完善',
     expirySkuCount: null,

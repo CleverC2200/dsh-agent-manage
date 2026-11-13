@@ -1,24 +1,3 @@
-/** 文件作用：检测和读取多种 manifest 方言，按优先级确定套件身份及组件声明。 */
-/**
- * Manifest layer: detects and parses the suite-manifest dialects a checkout
- * can carry, and resolves a repo-level name for source-id derivation.
- *
- * Dialects (each a JSON document at the suite root):
- * - agent-plugin-v1: root `plugin.json` (agent-plugins.org), schema-validated;
- * - universal: `.plugin/plugin.json`;
- * - claude-code: `.claude-plugin/plugin.json`;
- * - cursor: `.cursor-plugin/plugin.json`;
- * - kimi: `.kimi-plugin/plugin.json`;
- * - codex: `.codex-plugin/plugin.json`;
- * - zcode: `.zcode-plugin/plugin.json`;
- * - qoder: `.qoder-plugin/plugin.json`;
- * - github-copilot: `.github/plugin/plugin.json`.
- *
- * The same repo can declare several dialects (e.g. vercel/vercel-plugin ships
- * all of them); a suite's identity comes from the highest-precedence dialect
- * present, while surfaces (skills/commands/agents/hooks/mcp) are scanned from
- * the directories regardless of which dialect won.
- */
 import { readFile, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { sanitizeId } from './paths.js'
@@ -28,37 +7,27 @@ import { PLUGIN_LAYOUTS, MANIFEST_ALIASES, MARKETPLACE_PATHS, type ManifestKind 
 
 export type { ManifestKind } from '../model/layouts.js'
 
-/** One manifest candidate: its file path and the dialect it selects. */
 export interface ManifestCandidate {
   kind: ManifestKind
   path: string
 }
 
-/** The highest-precedence manifest file a directory carries, if any. */
-/** 按方言优先级检测目录 manifest，返回实际布局、路径和原始记录。 */
 export async function detectManifest(dir: string): Promise<ManifestCandidate | undefined> {
   for (const { kind, manifest } of PLUGIN_LAYOUTS) {
     for (const relative of [...(MANIFEST_ALIASES[kind] ?? []), manifest]) {
       const path = join(dir, relative)
       try {
         if ((await stat(path)).isFile()) return { kind, path }
-      } catch {
-        // try the next candidate
-        // 中文：当前方言读取失败时继续尝试下一候选，不把整个 checkout 静默判为空。
-      }
+      } catch {}
     }
   }
   return undefined
 }
 
-/** Whether a directory carries any known suite manifest. */
-/** 判断目录是否包含可识别 suite manifest，用于扫描策略快速筛选。 */
 export async function hasSuiteManifest(dir: string): Promise<boolean> {
   return (await detectManifest(dir)) !== undefined
 }
 
-/** Fallback suite identity for manifest-less skill collections. */
-/** 为无 manifest 的原生/扁平目录生成稳定可展示名称。 */
 export function syntheticManifestName(root: string): string {
   return root.split(/[\\/]/).at(-1) ?? 'plugin'
 }
@@ -73,18 +42,11 @@ interface ParsedRecord {
   $schema?: unknown
 }
 
-/** 从 manifest 记录抽取组件声明，保持方言差异在目录层消化。 */
 export function componentDeclarations(record: object): SuiteComponents {
   const value = record as Record<string, unknown>
   return Object.fromEntries(['skills', 'commands', 'agents', 'hooks', 'mcpServers', 'lspServers'].filter(key => value[key] !== undefined).map(key => [key, value[key]]))
 }
 
-/**
- * Parse one manifest document into a normalized SuiteManifest. The v1 dialect
- * is schema-validated (fail-closed); the others are structurally read with
- * light tolerance, and `hint` (a marketplace plugin entry) fills in gaps.
- */
-/** 读取并校验 manifest，返回规范套件身份和组件声明；坏文件失败关闭。 */
 export async function readManifest(
   root: string,
   errors: string[],
@@ -104,15 +66,7 @@ export async function readManifest(
     return undefined
   }
   const record = raw as ParsedRecord
-  // The v1 dialect is identified by position AND declaration: the spec's
-  // schema requires `$schema`, so a root `plugin.json` without it is not a
-  // v1 manifest. Real-world single-repo marketplaces (agent-skills) ship a
-  // plain metadata object at the root alongside their Claude dialect
-  // manifests; reading that as strict v1 would fail-closed on a repo that
-  // is perfectly usable. Such a file is read leniently as the Claude
-  // layout instead — strict validation only ever applies to manifests
-  // that actually declare the v1 schema.
-  // 中文：只有同时满足固定位置和 $schema 声明才按 v1 严格校验，避免误伤兼容方言。
+
   const kind: ManifestKind = candidate.kind === 'agent-plugin-v1' && !isRecognizedSchema(record.$schema) ? 'claude-code' : candidate.kind
   let fallbackComponents: SuiteComponents = {}
   if (candidate.kind === 'agent-plugin-v1' && kind === 'claude-code') {
@@ -165,7 +119,6 @@ export async function readManifest(
   }
 }
 
-/** 从未知字段读取非空字符串，用于名称/描述等宽松方言字段。 */
 function pickString(value: unknown): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined
 }
@@ -176,10 +129,9 @@ export interface MarketplaceEntry extends SuiteComponents {
   name?: string
   version?: string
   description?: string
-  /** Claude Code: inline `lspServers` table declared on the entry itself. */
+
   lspServers?: unknown
-  /** Claude Code: a relative path string or `{ source: 'url', url }`.
-   *  Codex: `{ source: 'local', path }` or `{ source: 'remote', url }`. */
+
   source: string | { source?: string; url?: string; path?: string }
 }
 
@@ -190,12 +142,9 @@ export interface Marketplace {
 }
 
 export interface ReadMarketplaceResult extends Marketplace {
-  /** The manifest file the entries were read from. */
   path: string
 }
 
-/** Read one marketplace manifest file; malformed documents are diagnosed, not thrown. */
-/** 读取一个 marketplace manifest 并规范化 entries，坏项记录诊断。 */
 async function readOneMarketplace(path: string, errors: string[]): Promise<ReadMarketplaceResult | undefined> {
   let text: string
   try {
@@ -255,13 +204,6 @@ async function readOneMarketplace(path: string, errors: string[]): Promise<ReadM
   }
 }
 
-/**
- * Read every marketplace manifest the checkout carries, in dialect
- * precedence order shared with suite manifests, then the shared root catalog.
- * The scan strategy selects the first catalog that produces suites; an empty
- * or invalid catalog allows the next candidate to be tried.
- */
-/** 按支持方言顺序读取 checkout 内全部 marketplace 文件。 */
 export async function readMarketplaces(checkoutDir: string, errors: string[] = []): Promise<ReadMarketplaceResult[]> {
   const results: ReadMarketplaceResult[] = []
   for (const relative of MARKETPLACE_PATHS) {
@@ -279,16 +221,11 @@ export async function readMarketplaces(checkoutDir: string, errors: string[] = [
   return results
 }
 
-/** Read the highest-precedence marketplace manifest, or undefined when absent. */
-/** 返回优先级最高的 marketplace，兼容旧调用方只需要单值的场景。 */
 export async function readMarketplace(checkoutDir: string): Promise<Marketplace | undefined> {
   const results = await readMarketplaces(checkoutDir)
   return results[0]
 }
 
-/** Resolve one marketplace entry to a local checkout-relative directory, or
- *  `undefined` for remote-URL entries that are not present in the clone. */
-/** 将 marketplace 本地 entry 解析为 checkout 内路径，拒绝越界路径。 */
 export function marketplaceEntryDir(checkoutDir: string, entry: MarketplaceEntry): string | undefined {
   const source = entry.source
   if (typeof source === 'string') return resolve(checkoutDir, source)
@@ -296,20 +233,11 @@ export function marketplaceEntryDir(checkoutDir: string, entry: MarketplaceEntry
   return undefined
 }
 
-/**
- * Resolve a repo-level name for source-id derivation, in precedence order:
- * marketplace plugin entry name > marketplace name > root manifest name >
- * the checkout basename. The suite repo's own JSON is authoritative; the
- * basename is only the fallback.
- */
-/** 从 manifest、目录名或 Git 远端推导仓库展示名，供 sourceId 回退。 */
 export async function repoName(checkoutDir: string): Promise<string> {
   const marketplace = await readMarketplace(checkoutDir)
   if (marketplace !== undefined) {
     const entries = marketplace.entries
     if (entries.length === 1) {
-      // A single-suite marketplace: the plugin entry names the repo (vercel → vercel-plugin).
-      // 中文：单套件 marketplace 用 plugin entry 的名称作为仓库展示名。
       const entryName = pickString(entries[0]!.name)
       if (entryName !== undefined) return entryName
     }
@@ -328,15 +256,11 @@ export async function repoName(checkoutDir: string): Promise<string> {
         const name = (raw as Record<string, unknown>)['name']
         if (typeof name === 'string' && name !== '') return name
       }
-    } catch {
-      // fall through to basename
-    }
+    } catch {}
   }
   return syntheticManifestName(checkoutDir)
 }
 
-/** The winning manifest's declared `skills` path (string or array), or undefined. */
-/** 读取 manifest 声明的 skills 字段，供技能表面按声明扫描。 */
 export async function declaredSkillsPath(root: string): Promise<unknown> {
   const candidate = await detectManifest(root)
   if (candidate === undefined) return undefined
@@ -351,8 +275,6 @@ export async function declaredSkillsPath(root: string): Promise<unknown> {
   return undefined
 }
 
-/** The winning manifest's inline `mcpServers`, or undefined. */
-/** 读取并抽取 manifest 的 MCP 声明，未声明时返回 undefined。 */
 export async function declaredMcpServers(root: string): Promise<Record<string, unknown> | undefined> {
   const candidate = await detectManifest(root)
   if (candidate === undefined) return undefined
@@ -368,8 +290,6 @@ export async function declaredMcpServers(root: string): Promise<Record<string, u
   return undefined
 }
 
-/** The winning manifest's inline `lspServers`, or undefined. */
-/** 读取并抽取 manifest 的 LSP 声明，未声明时返回 undefined。 */
 export async function declaredLspServers(root: string): Promise<Record<string, unknown> | undefined> {
   const candidate = await detectManifest(root)
   if (candidate === undefined) return undefined

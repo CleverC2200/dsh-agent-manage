@@ -1,4 +1,3 @@
-/** Actual Core/GEA Host used by the sales Workbench client's public wire adapter. */
 import { expect, it } from 'vitest'
 import { writeFile } from 'node:fs/promises'
 import { baseInventoryHarness } from './base-inventory-harness.js'

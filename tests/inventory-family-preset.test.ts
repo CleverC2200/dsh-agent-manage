@@ -1,4 +1,3 @@
-/** Registry and resources expose one catalog over actual fixed Core Sessions. */
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { inventoryFamilyHarness, inventoryRoleInput, inventoryRoles } from './inventory-family-harness.js'
 import { agentOn, completion, history, presetHarness, record, turn } from './core-preset-harness.js'

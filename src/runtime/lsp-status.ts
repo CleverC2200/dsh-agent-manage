@@ -1,43 +1,21 @@
-/** 文件作用：把 LSP 声明、挂载诊断和直接配置汇总成前端状态。 */
-/**
- * LSP status aggregation: declared language servers of enabled+installed
- * suites and the user's direct configuration, merged with the mount
- * registry's latest diagnostics into rows for the status surface.
- *
- * The DSH `ctx.lsp` seam exposes no provider snapshot and no process probe,
- * so a row's state is a declaration-and-diagnostic judgment: a suite whose
- * mount succeeded yields `mounted` (the seam guarantees registration), a
- * stored diagnostic yields its own state, and a declaration with neither
- * mounts nor diagnostics means the host packages are absent (`host-missing`).
- * Direct user-configured rows follow the same model under the sentinel suite
- * id `direct` (mirroring mcp-status's `plugin`/`direct` split).
- */
 import type { LspStatusEntry, LspStatusPayload, LspStatusState } from '../contracts/lsp-status.js'
 import type { LspMountDiagnostic } from './lsp-mounts.js'
 import { qualifiedSuiteId } from '../catalog/paths.js'
 import type { LspServerSpec, Suite } from '../model/types.js'
 
-/** Sentinel suite id for user-configured (non-suite) LSP servers. */
 export const DIRECT_LSP_SUITE_ID = 'direct'
 
-/** The subset of LspMountRegistry the aggregator consumes (structural, for tests). */
 export interface LspMountStatusSource {
   diagnosticsSnapshot(): Map<string, LspMountDiagnostic>
   hasLiveMounts(): boolean
   disabledServers?(): Set<string>
 }
 
-/** The direct servers table the aggregator merges in (structural, for tests). */
 export interface LspDirectServersSource {
   servers: Record<string, LspServerSpec>
   errors: string[]
 }
 
-/**
- * Derive one row's state from its suite's diagnostic and the live-mount flag.
- * Shared by suite rows and direct rows so both kinds report identically.
- */
-/** 按禁用标记、最新诊断和活跃挂载事实推导单行状态；没有运行时事实时保持 host-missing。 */
 function deriveState(disabled: boolean, diagnostic: LspMountDiagnostic | undefined, anyLive: boolean): { state: LspStatusState; reason?: string; retryable?: boolean } {
   if (disabled) return { state: 'disabled' }
   if (diagnostic?.code === 'host-missing') return { state: 'host-missing', reason: diagnostic.reason }
@@ -47,16 +25,10 @@ function deriveState(disabled: boolean, diagnostic: LspMountDiagnostic | undefin
   }
   if (diagnostic !== undefined) return { state: 'failed', reason: diagnostic.reason }
   if (anyLive) return { state: 'mounted' }
-  // A declaration with neither a diagnostic nor a live mount is mid-flight:
-  // the reconciler runs after the host finishes discovery, so the first
-  // panel reads during startup land here. Report `starting` — the panel
-  // polls while any row is starting — instead of the misleading
-  // host-missing verdict, which is reserved for an actual import failure.
+
   return { state: 'starting' }
 }
 
-/** Build the status payload from declarations, direct configuration, and mount diagnostics. */
-/** 汇总套件与 direct LSP 条目，输出状态行和统计计数，供管理界面展示。 */
 export function buildLspStatus(suites: readonly Suite[], registry: LspMountStatusSource, direct: LspDirectServersSource = { servers: {}, errors: [] }): LspStatusPayload {
   const diagnostics = registry.diagnosticsSnapshot()
   const anyLive = registry.hasLiveMounts()
@@ -64,9 +36,6 @@ export function buildLspStatus(suites: readonly Suite[], registry: LspMountStatu
   const entries: LspStatusEntry[] = []
   const mountedSuiteIds = new Set<number | string>()
   for (const suite of suites) {
-    // Operational inventory, mirroring mcp-status: only installed+enabled
-    // suites' declarations appear. The diagnostic key is the qualified suite
-    // id, matching the mount registry's wanted key exactly.
     if (suite.lsp === undefined || suite.installedAt === undefined || !suite.enabled) continue
     const suiteKey = qualifiedSuiteId(suite.sourceId, suite.id)
     const disabled = suite.activeSurfaces?.lsp === false
@@ -90,8 +59,7 @@ export function buildLspStatus(suites: readonly Suite[], registry: LspMountStatu
       })
     }
   }
-  // Direct user-configured rows: no install state or surface toggle of their
-  // own — configured means on; the mount diagnostic decides the state.
+
   const directDiagnostic = diagnostics.get(DIRECT_LSP_SUITE_ID)
   const { state: directState, reason: directReason, retryable: directRetryable } = deriveState(false, directDiagnostic, anyLive)
   if (directState === 'mounted') mountedSuiteIds.add(DIRECT_LSP_SUITE_ID)

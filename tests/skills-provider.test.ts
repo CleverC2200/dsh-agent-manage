@@ -94,7 +94,7 @@ describe('local-directory sources (local: true)', () => {
     const candidates = await provider.list({})
     expect(candidates.map(candidate => candidate.name)).toEqual(['greet'])
     await manager.removeSource('local-repo')
-    // The local directory and any stale checkout path must survive removal.
+
     expect(await (await import('node:fs/promises')).stat(join(staleCheckout, 'sentinel'))).toBeTruthy()
     const marker = join(localRepo, 'plugin.json')
     expect(await (await import('node:fs/promises')).stat(marker)).toBeTruthy()
@@ -141,26 +141,26 @@ describe('source id auto-derivation', () => {
     const manager = new Catalog({ userRoot, dataRoot: `${userRoot}/data`, onChanged: () => {} })
     await manager.load()
     const source = await manager.addSource({ url: join(fixtures, 'v1-suite'), local: true })
-    expect(source.id).toBe('v1-suite') // manifest name, not the fixtures basename
+    expect(source.id).toBe('v1-suite')
   })
 
   it('prefers the suite repo JSON name even when the basename differs', async () => {
     const userRoot = await mkdtemp(join(tmpdir(), 'dsh-agent-plugins-id3-'))
     const manager = new Catalog({ userRoot, dataRoot: `${userRoot}/data`, onChanged: () => {} })
     await manager.load()
-    // Local dir whose basename (misc-repo) differs from the manifest name (vercel-plugin).
+
     const parent = await mkdtemp(join(tmpdir(), 'id3-p-'))
     await mkdir(join(parent, 'misc-repo'))
     await cp(join(fixtures, 'cursor-only'), join(parent, 'misc-repo'), { recursive: true })
     const source = await manager.addSource({ url: join(parent, 'misc-repo'), local: true })
-    expect(source.id).toBe('cursor-only') // manifest name, not basename
+    expect(source.id).toBe('cursor-only')
   })
 
   it('derives a multi-suite repo id from its basename and dedupes collisions', async () => {
     const userRoot = await mkdtemp(join(tmpdir(), 'dsh-agent-plugins-id2-'))
     const manager = new Catalog({ userRoot, dataRoot: `${userRoot}/data`, onChanged: () => {} })
     await manager.load()
-    // Two different parents, same basename -> both derive "agent-plugins"; the second gets a suffix.
+
     const parentA = await mkdtemp(join(tmpdir(), 'id2-a-'))
     const parentB = await mkdtemp(join(tmpdir(), 'id2-b-'))
     await mkdir(join(parentA, 'agent-plugins'))

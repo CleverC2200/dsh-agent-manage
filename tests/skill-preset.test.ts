@@ -1,4 +1,3 @@
-/** Selected resources exercise production Core registry, Session and compaction. */
 import { expect, it, onTestFinished } from 'vitest'
 import { join } from 'node:path'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'

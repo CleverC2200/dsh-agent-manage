@@ -88,11 +88,12 @@
     "sdk:prepare": "node scripts/prepare-official-sdk.mjs --prepare",
     "quality:ci": "node scripts/run-quality-ci.mjs",
     "test:ci-inputs": "node --test tests/ci-applicability.test.mjs tests/plugin-package-version.test.mjs tests/sdk-input-cli.test.mjs tests/quality-ci-cli.test.mjs tests/run-quality-checks.test.mjs tests/preset-capabilities-cli.test.mjs tests/sdk-artifact-cache.test.mjs tests/download-cache.test.mjs",
-    "check:static": "pnpm run check:knowledge && pnpm run test:knowledge && pnpm run test:ci-inputs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
+    "check:static": "pnpm run check:knowledge && pnpm run check:comments && pnpm run test:knowledge && pnpm run test:ci-inputs && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
     "test:ci-unit": "pnpm run test:mps-compute && pnpm run test:package-version && vitest run --config vitest.ci-unit.config.ts",
     "test:agent-browser": "vitest run --config vitest.agent-browser.config.ts",
-    "check:static:ci": "pnpm run check:knowledge && node scripts/generate-plugin-package-version.mjs --check && tsc -p tsconfig.client.json --noEmit && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
-    "test:mps-compute": "node --experimental-strip-types --test tests/mps-workflow.test.mjs tests/mps-category-demand.test.mjs"
+    "check:static:ci": "pnpm run check:knowledge && pnpm run check:comments && node scripts/generate-plugin-package-version.mjs --check && tsc -p tsconfig.client.json --noEmit && pnpm run lint && pnpm run format:check && pnpm run check:architecture",
+    "test:mps-compute": "node --experimental-strip-types --test tests/mps-workflow.test.mjs tests/mps-category-demand.test.mjs",
+    "check:comments": "node scripts/check-source-comments.mjs"
   },
   "dsh": {
     "bundle": {
@@ -209,7 +210,10 @@
     "tsdown": "^0.22.14",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.67.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "parse5": "7.3.0",
+    "postcss": "8.5.26",
+    "highlight.js": "11.11.1"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"

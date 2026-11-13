@@ -1,27 +1,9 @@
-/**
- * Tests for the OAuth loopback provider: the durable-state contract over the
- * credentials seam (and its memory fallback), the redirect metadata the SDK
- * reads, and the loopback callback leg. The SDK's `auth()` protocol itself is
- * SDK-owned and covered upstream; these tests pin the provider half.
- *
- * Ported from the harness `dsh-mcp-client` oauth.spec (archived patch series
- * `docs/upstream-proposal/patches/`), adapted to the market's self-built
- * bridge modules.
- */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createServer, type Server } from 'node:http'
 import { LoopbackOAuthClientProvider, type BrowserOpener } from '../src/runtime/mcp-client/oauth.js'
 import { credentialKey } from '../src/runtime/mcp-client/host-seams.js'
 
-/**
- * No-op opener: tests must NEVER open a real browser — every provider in this
- * file passes this stub, because the default is the platform opener and would
- * launch the developer's browser at the fake auth URL. Callback-leg tests
- * drive the loopback endpoint themselves.
- */
 const openerStub: BrowserOpener = async () => {}
-
-// ---- Credential store fake: mirrors CredentialProvider's record surface ----
 
 interface StoreCalls {
   modified: Array<{ key: string; kind: string }>
@@ -64,9 +46,6 @@ afterEach(async () => {
 
 describe('LoopbackOAuthClientProvider record addressing', () => {
   it('folds a __-separated serverName into a valid credential key segment', async () => {
-    // Regression: `credentialKey` threw on `cloudflare__cloudflare-api`
-    // (double underscore fails the key grammar), which crashed the provider
-    // constructor before any auth flow could start.
     const store = createRecordStore()
     const provider = new LoopbackOAuthClientProvider('cloudflare__cloudflare-api', {}, undefined, () => {}, store, openerStub)
     await provider.saveTokens({ ...TOKENS })
@@ -89,7 +68,7 @@ describe('LoopbackOAuthClientProvider state', () => {
     const stored = (await store.readRecord(key)) as { kind: string; payload: { tokens?: unknown } }
     expect(stored.kind).toBe('grant')
     expect(stored.payload.tokens).toMatchObject({ access_token: 'at-1' })
-    // A fresh provider over the same store reads the tokens back.
+
     const second = new LoopbackOAuthClientProvider('cloudflare-api', {}, undefined, () => {}, store, openerStub)
     await expect(second.tokens()).resolves.toMatchObject({ access_token: 'at-1' })
   })
@@ -101,7 +80,7 @@ describe('LoopbackOAuthClientProvider state', () => {
     await expect(provider.codeVerifier()).resolves.toBe('verifier-1')
     await provider.saveTokens({ ...TOKENS })
     await expect(provider.codeVerifier()).rejects.toThrow(/no PKCE verifier/)
-    // The verifier never reaches the durable record.
+
     const key = String(credentialKey('mcp-auth', 'srv'))
     const stored = (await store.readRecord(key)) as { payload: Record<string, unknown> }
     expect(stored.payload).not.toHaveProperty('codeVerifier')
@@ -141,12 +120,9 @@ describe('LoopbackOAuthClientProvider state', () => {
     const provider = new LoopbackOAuthClientProvider('srv', {}, undefined, () => {}, store, openerStub)
     await expect(provider.tokens()).resolves.toBeUndefined()
 
-    // Another process refreshes the record behind our back.
     records.set(key, { kind: 'grant', payload: { tokens: { ...TOKENS } } })
     await expect(provider.tokens()).resolves.toMatchObject({ access_token: 'at-1' })
 
-    // A foreign overwrite of the whole record (kind no longer ours) reads as
-    // absent, never as a crash.
     records.set(key, { kind: 'api-key', key: 'x' })
     await expect(provider.tokens()).resolves.toBeUndefined()
     await expect(provider.clientInformation()).resolves.toBeUndefined()
@@ -188,7 +164,6 @@ describe('LoopbackOAuthClientProvider redirect metadata', () => {
 })
 
 describe('LoopbackOAuthClientProvider callback leg', () => {
-  /** Bind a throwaway HTTP listener to learn a free port before the provider takes one. */
   function freePort(): Promise<number> {
     return new Promise((resolve, reject) => {
       const probe: Server = createServer()
@@ -213,7 +188,7 @@ describe('LoopbackOAuthClientProvider callback leg', () => {
     const provider = new LoopbackOAuthClientProvider('srv', { callbackPort: port }, undefined, () => {}, undefined, openerStub)
     provider.bindTransport({ finishAuth: async () => {} })
     const redirect = provider.redirectToAuthorization(new URL('https://auth.example/authorize'))
-    // While waiting for the user agent the supervisor must hold the generation.
+
     expect(provider.awaitingBrowser).toBe(true)
     const response = await fetch(`http://127.0.0.1:${port}/callback?code=abc`)
     expect(response.status).toBe(200)
@@ -226,8 +201,7 @@ describe('LoopbackOAuthClientProvider callback leg', () => {
     const provider = new LoopbackOAuthClientProvider('srv', { callbackPort: port }, undefined, () => {}, undefined, openerStub)
     provider.bindTransport({ finishAuth: async () => {} })
     const redirect = provider.redirectToAuthorization(new URL('https://auth.example/authorize'))
-    // Attach the rejection assertion before the callback lands, so the
-    // rejection is never observably unhandled.
+
     const rejection = expect(redirect).rejects.toThrow(/access_denied/)
     await vi.waitFor(() => {
       expect(provider.awaitingBrowser).toBe(true)
@@ -248,19 +222,16 @@ describe('LoopbackOAuthClientProvider callback leg', () => {
     })
 
     const redirect = provider.redirectToAuthorization(new URL('https://auth.example/authorize'))
-    // While the leg is open, the getter reports the bound loopback URL the
-    // SDK embedded into the authorization request.
+
     await vi.waitFor(() => {
       expect(provider.redirectUrl).toBe(`http://127.0.0.1:${port}/callback`)
     })
 
-    // Simulate the user agent landing back with a code.
     const response = await fetch(`http://127.0.0.1:${port}/callback?code=abc&state=s1`)
     expect(response.status).toBe(200)
     await expect(redirect).resolves.toBeUndefined()
     expect(finished).toEqual(['abc'])
 
-    // The listener is one-use: the socket no longer answers.
     await expect(fetch(`http://127.0.0.1:${port}/callback?code=abc`)).rejects.toThrow()
   }, 15_000)
 
@@ -304,12 +275,11 @@ describe('LoopbackOAuthClientProvider callback leg', () => {
       }
     })
     const redirect = provider.redirectToAuthorization(new URL('https://auth.example/authorize'))
-    // The announce line fires in the listen callback; the leg does not depend
-    // on whether the platform helper managed to open a browser.
+
     await vi.waitFor(() => {
       expect(logs.some(line => /opening the browser/.test(line))).toBe(true)
     })
-    // A late user agent (slower than the helper's fate) still completes it.
+
     await new Promise(resolve => setTimeout(resolve, 100))
     const response = await fetch(`http://127.0.0.1:${port}/callback?code=late`)
     expect(response.status).toBe(200)

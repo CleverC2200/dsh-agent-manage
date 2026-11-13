@@ -1,4 +1,3 @@
-/** DMS mock packet calculation only. No credentials, connection or mutable simulator state. */
 import { Decimal } from 'decimal.js'
 
 export type DmsMockSku = {
@@ -31,9 +30,6 @@ function quantity(value: string): string {
   return number.toFixed(3)
 }
 
-/** 构造 mock 报文；只有 PLANE_NUM 映射是已确认的外部字段名。
- * Caller owns terminal approval and workflow validation; this calculation owns quantities and keys.
- */
 export function buildDmsMockPackets(plan: DmsMockPlan): DmsMockPacket[] {
   if (!plan.planId || !plan.versionId || !plan.typeCode) throw new Error('MOCK_INVALID_PLAN')
   if (!plan.skus.length || new Set(plan.skus.map(sku => sku.skuCode)).size !== plan.skus.length) throw new Error('MOCK_INVALID_SKUS')

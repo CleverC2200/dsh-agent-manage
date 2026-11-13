@@ -1,13 +1,5 @@
 #!/usr/bin/env node
-/**
- * Post-process the tsdown client bundle into the Web app's module-loader
- * contract:
- * 1. expose emitted CSS to the plugin apply effect, which owns style disposal
- *    (the loader evaluates the factory in a plain function scope,
- *    so an `import './style.css'` statement would be a syntax error);
- * 2. wrap the CJS body in `window.__ModuleLoader__.load({ id, factory })`
- *    with its own `var module/exports` scaffolding.
- */
+
 import { readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'

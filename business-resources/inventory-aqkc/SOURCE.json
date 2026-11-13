@@ -27,6 +27,13 @@
     "2026-10-25：以用户提供的最新提示词与 Skill 包替换对应业务资源，保留既有 Agent ID、Consumer 与跨业务授权声明。",
     "将附件的独立 Cube/知识工具名适配为 GEA Gateway；固定查询、知识库发现和证据回读沿当前公开工具，不增加授权。",
     "保留当前缺货固定入口与当前有效订单范围，修正附件的近60天旧描述、截零层级矛盾和无效章节引用。",
-    "业务规则与当前页面/固定补货测算口径不一致时分列并标注待复核，本次不修改计算引擎、SQL 或业务写入能力。"
-  ]
+    "业务规则与当前页面/固定补货测算口径不一致时分列并标注待复核，本次不修改计算引擎、SQL 或业务写入能力。",
+    "2026-11-12：同步 main 提交 876a496、1a334b0 已采用的页面证据核对提示词摘要；正文不变，前一摘要保留在 previousPersonaSha256。",
+    "2026-11-12：核对当前主线业务原件后同步 data-access-contract 摘要，保留 previousFileSha256，不改变规则正文。"
+  ],
+  "previousPersonaSha256": "b4efaa32ebe074110ef8c10ac285fb873e6fd8813c8a9e63c21fc648aa178d9f",
+  "previousFileSha256": {
+    "skills/inventory-policy/rules/data-access-contract.md": "ff8856ab6e0c2bd4b811728f8c26cb87bdf97c70291a85ce6329490f50b3dc4e"
+  },
+  "previousRetainedSkillSha256": "d60e791fc1b90eb789539a5637b6d6d9135c0b5ad191aab5c599d2644c08337f"
 }

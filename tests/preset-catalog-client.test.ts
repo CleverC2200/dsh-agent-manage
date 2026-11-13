@@ -1,4 +1,3 @@
-/** Actual official settings and selector render the real Host registry projection. */
 import { expect, it, onTestFinished } from 'vitest'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'

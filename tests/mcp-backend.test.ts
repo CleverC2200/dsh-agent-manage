@@ -1,17 +1,9 @@
-/**
- * Tests for the MCP backend switch: persistence under the data root, the
- * mount registry's dispatch between the built-in bridge and the host
- * `dsh-mcp-client`, and the per-server diagnostics when the host backend is
- * selected but unusable (package missing, legacy SSE transport).
- */
 import { describe, expect, it, vi } from 'vitest'
 import { MCP_SETTINGS_NAMESPACE, probeHostMcpClient } from '../src/runtime/mcp-backend.js'
 import { MarketSettingsSchema } from '../src/runtime/manage-settings.js'
 import { McpMountRegistry } from '../src/runtime/mcp-mounts.js'
 import type { Suite } from '../src/model/types.js'
 
-// The hoisted switch lets one mock serve both the available and the missing
-// host-client scenarios.
 const hostClientState = vi.hoisted(() => ({ mode: 'available' as 'available' | 'missing' }))
 
 vi.mock('@deepseek-ai/dsh-mcp-client', () => {
@@ -57,7 +49,7 @@ function fakeContext(): { ctx: Record<string, unknown>; mounted: Array<{ module:
 describe('MCP backend settings', () => {
   it('exposes the settings namespace and schema the plugin-config tab pairs by', async () => {
     expect(MCP_SETTINGS_NAMESPACE).toBe('dsh-agent-manage')
-    // The schemastery schema resolves a missing section to both defaults.
+
     const resolved = MarketSettingsSchema(undefined) as { mcpEnhanced?: boolean; downloadRegion?: string }
     expect(resolved.mcpEnhanced).toBe(true)
     expect(resolved.downloadRegion).toBe('auto')
@@ -81,7 +73,7 @@ describe('MCP backend dispatch at mount time', () => {
     const registry = new McpMountRegistry(ctx as never, '/tmp/data')
     await registry.reconcile([suite('alpha', 'db')])
     expect(mounted).toHaveLength(1)
-    // The bridge module's plugin name marks the built-in backend.
+
     expect((mounted[0]!.module as { name?: string }).name).toBe('market-mcp-client')
     expect(mounted[0]!.config['transport']).toBe('stdio')
     await registry.disposeAll()
@@ -100,8 +92,6 @@ describe('MCP backend dispatch at mount time', () => {
   })
 
   it('reports a per-server diagnostic when the host client cannot resolve', async () => {
-    // Re-register the mock as a throwing factory for imports made after this
-    // point, then restore the hoisted available-mode factory afterwards.
     vi.resetModules()
     vi.doMock('@deepseek-ai/dsh-mcp-client', () => {
       throw new Error('Cannot find package')

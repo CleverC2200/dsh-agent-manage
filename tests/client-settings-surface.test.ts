@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({ Button: () => null, Input: () => null, Modal: () => null, Toast: () => null, Tooltip: () => null }))
 vi.mock('../src/client/PluginWorkspace.js', () => ({ PluginWorkspace: () => null }))

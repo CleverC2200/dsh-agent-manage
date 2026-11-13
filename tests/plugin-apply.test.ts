@@ -44,8 +44,7 @@ describe('dsh-agent-plugins-market host entry', () => {
     await apply(context as never)
 
     expect(registrations.map(tool => tool.name)).not.toContain('agent_plugins')
-    // Dispose the instance: a live plugin keeps reconciling and would leak
-    // calls into the next test's RuntimeReconciler spy.
+
     cleanups.forEach(cleanup => cleanup())
   })
 })

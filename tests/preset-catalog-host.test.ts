@@ -1,4 +1,3 @@
-/** Actual Host registry receipt consumed by the official client catalog test. */
 import { expect, it, onTestFinished } from 'vitest'
 import { record } from './core-preset-harness.js'
 

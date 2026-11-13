@@ -174,7 +174,7 @@ export type StructureRow = {
   forecastInventoryQty?: number | null
   targetTurnoverDays?: number | null
   projectedTurnoverDays?: number | null
-  /** Additive denominator; never average already-divided turnover days. */
+
   turnoverDemand30d?: number | null
   key: string
   layer: InventoryLayer
@@ -225,7 +225,7 @@ export type FullChainWorkspace = {
     fulfillment: MetricValue
     orderGap: MetricValue
   }
-  /** Current snapshot auxiliaries; historical trend points are not current KPI values. */
+
   layerMetrics?: Record<'base' | 'branch', { averageAgeDays: number | null; turnoverDays: number | null }>
   freshness: {
     minDate: string | null
@@ -242,7 +242,7 @@ export type FullChainWorkspace = {
     summary: string
   }
   structure: StructureRow[]
-  /** Full authorized category × organization summaries, before display pagination. */
+
   categoryStructure?: StructureRow[]
   agingDetails?: WorkspaceDetailNode[]
   orderDetails?: WorkspaceDetailNode[]

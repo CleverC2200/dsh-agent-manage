@@ -43,7 +43,6 @@ function zeroAgeBatches(rows: Row[]): Row[] {
   })
 }
 
-/** Original company source mappings and quantity/velocity rules; no identity or IO. */
 export function normalizeCompanySource(rows: CompanySourceRows): FullChainData {
   if (rows.branch.some(row => Number(row.mapping_issue_count ?? 0) > 0)) throw Error('分仓目录映射缺失或存在编码/名称冲突，请核对计划、库存与货龄快照；未展示不完整的分仓汇总')
   const baseInventory = rows.base.map(row => ({

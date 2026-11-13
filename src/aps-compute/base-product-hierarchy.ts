@@ -1,7 +1,6 @@
 export type BaseProductItem = { name: string; materials: string[] }
 export type BaseProductCategory = { name: string; items: BaseProductItem[] }
 
-// Product hierarchy supplied for the base-view drilldown: category -> item -> material group.
 export const baseProductHierarchy: BaseProductCategory[] = [
   {
     name: '饼类',

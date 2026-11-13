@@ -124,7 +124,6 @@ export function deriveWorkbenchInsights(data?: MetricData | null, previous?: Met
   return { warnings, actions }
 }
 
-/** Full risk list from the same page facts and thresholds as the workbench. */
 export function deriveOrderRisks(data: MetricData | null | undefined, dimension: 'category' | 'base' | 'cross') {
   const fields = dimension === 'category' ? ['category'] : dimension === 'base' ? ['base'] : ['base', 'category']
   return fulfillmentBy(rows(data, 'orders'), fields)

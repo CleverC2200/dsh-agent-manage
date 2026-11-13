@@ -80,8 +80,7 @@ describe('MCP status aggregation', () => {
 
   it('distinguishes a zero-tool server from a mount failure', () => {
     const healthy = buildMcpStatus([suite({ mcp: { schema: 'native-client', servers: { app: { type: 'stdio', command: 'node' } } } })], [], [])
-    // No tool observed and no diagnostic: a legitimate zero-tool server is
-    // reported as degraded but never retryable.
+
     expect(healthy.entries[0]?.state).toBe('degraded')
     expect(healthy.entries[0]?.advertisedTools).toBe(false)
     expect(healthy.entries[0]?.retryable).toBe(false)
@@ -118,13 +117,9 @@ describe('MCP status aggregation', () => {
 
 describe('MCP status: cross-source suite collisions', () => {
   it('keeps two sources with the same suite id distinct in names, keys, and diagnostics', () => {
-    // Regression: status keyed by the bare suite id, so a mounted
-    // source-a/same row showed as degraded while source-b's server looked
-    // like the only plugin row.
     const a = suite({ sourceId: 'source-a' })
     const b = suite({ sourceId: 'source-b' })
-    // Same suite/server pair across sources derives ONE serverName by
-    // design, so the single live namespace serves both rows.
+
     const observed = [{ name: 'mcp__codex__app__probe', description: 'probe' }]
     const payload = buildMcpStatus(
       [a, b],
@@ -141,16 +136,16 @@ describe('MCP status: cross-source suite collisions', () => {
     )
     const pluginRows = payload.entries.filter(entry => entry.kind === 'plugin' && entry.serverKey === 'app')
     expect(pluginRows).toHaveLength(2)
-    // Both rows share the one derived name; identity stays in sourceId/suiteId.
+
     expect(pluginRows.map(row => row.name).sort()).toEqual(['codex__app', 'codex__app'])
-    // The diagnostic lands on source-a's row only.
+
     const rowA = pluginRows.find(row => row.suiteId === 'source-a/codex')!
     const rowB = pluginRows.find(row => row.suiteId === 'source-b/codex')!
     expect(rowA.state).toBe('failed')
     expect(rowA.reason).toBe('connection refused')
-    // source-b's copy is skipped as a duplicate: informational foreign state.
+
     expect(rowB.state).toBe('foreign')
-    // The one live namespace's tools appear on the connected row.
+
     expect(rowA.tools.map(tool => tool.name)).toEqual(['probe'])
     expect(rowB.tools.map(tool => tool.name)).toEqual(['probe'])
   })

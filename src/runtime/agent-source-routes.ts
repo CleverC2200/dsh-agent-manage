@@ -4,7 +4,6 @@ import { AGENT_SOURCE_ROUTES } from '../contracts/agent-sources.js'
 import type { AgentSources } from './agent-sources.js'
 import { readJsonRequest, RequestBodyTooLarge } from './request-body.js'
 
-/** Authenticated Host transport; imported declarations cannot choose owner or Consumer. */
 export function mountAgentSourceRoutes(host: Pick<Context, 'connection' | 'effect'>, sources: AgentSources): void {
   for (const [action, path] of Object.entries(AGENT_SOURCE_ROUTES)) {
     const mutation = action !== 'list'

@@ -1,10 +1,3 @@
-/** 文件作用：读写用户面板资源，并把技能、命令和 Agent 条目转换为应用层结果。 */
-/**
- * Installed suite and user resources share one inventory; paths never come from HTTP callers.
- *
- * 中文：本文件将用户自建资源与已安装 suite 提供的 skills、commands、agents 合并成统一面板清单。
- * 编辑和删除使用服务端已解析的资源 id，不信任 HTTP 调用方直接提供的文件路径。
- */
 import { z } from 'zod'
 import type { UserPanelEntryWire, UserPanelKind } from '../contracts/market.js'
 import { defaultMarkdownResources, resourceText } from '../catalog/component-files.js'
@@ -16,21 +9,18 @@ import type { Suite } from '../model/types.js'
 
 const installedResourceIdentity = z.tuple([z.string().min(1), z.string().min(1), z.enum(['skills', 'commands', 'agents']), z.string().min(1)])
 
-/** The routes consume this structural surface, also implemented by user-only stores in tests. 中文：路由层依赖的面板资源仓库接口，测试可用纯用户资源实现替换。 */
 export interface PanelResourceStore {
-  /** Strict runtime reads propagate I/O failures so catalogs cannot publish partial replacements. 中文：列出全部资源；严格模式会向上抛出 I/O 失败，避免发布不完整快照。 */
   list(strict?: boolean): Promise<UserPanelEntryWire[]>
-  /** 按稳定 id 查找单个面板资源，不存在时返回 undefined。 */
+
   get(id: string): Promise<UserPanelEntryWire | undefined>
-  /** 在用户资源区创建一个新条目。 */
+
   create(name: string, text: string): Promise<UserPanelEntryWire>
-  /** 更新用户资源；插件资源只读。 */
+
   update(id: string, text: string): Promise<void>
-  /** 删除用户资源；插件资源只读。 */
+
   remove(id: string): Promise<void>
 }
 
-/** 为三类用户面板创建统一资源仓库，共享同一 Catalog 与对应的用户存储。 */
 export function createPanelResources(catalog: Catalog, users: Record<UserPanelKind, UserPanelStore>): Record<UserPanelKind, PanelResourceStore> {
   return {
     skills: new PanelResources(catalog, users.skills, 'skills'),
@@ -40,14 +30,12 @@ export function createPanelResources(catalog: Catalog, users: Record<UserPanelKi
 }
 
 class PanelResources implements PanelResourceStore {
-  /** 绑定目录服务、用户资源存储和当前面板类型。 */
   constructor(
     private catalog: Catalog,
     private users: UserPanelStore,
     private kind: UserPanelKind
   ) {}
 
-  /** 合并用户资源与已安装的本地 suite 资源，同时投影禁用状态、frontmatter 和所属 suite。 */
   async list(strict = false): Promise<UserPanelEntryWire[]> {
     const entries: UserPanelEntryWire[] = await this.users.list(strict)
     for (const suite of await this.catalog.readInstalledSuites()) entries.push(...(await this.suiteEntries(suite, strict)))
@@ -90,7 +78,6 @@ class PanelResources implements PanelResourceStore {
     return entries
   }
 
-  /** Read one user entry or a stable installed identity without loading other resource bodies. */
   async get(id: string): Promise<UserPanelEntryWire | undefined> {
     if (!id.startsWith('[')) return this.users.get(id)
     let identity: unknown
@@ -106,12 +93,10 @@ class PanelResources implements PanelResourceStore {
     return suite === undefined ? undefined : (await this.suiteEntries(suite, false, name))[0]
   }
 
-  /** 将创建请求交给对应的用户资源存储，不直接修改 suite 源文件。 */
   create(name: string, text: string): Promise<UserPanelEntryWire> {
     return this.catalog.changePanelResources(() => this.users.create(name, text))
   }
 
-  /** Source-owned resources are customized through Agent configuration, never edited in place. */
   async update(id: string, text: string): Promise<void> {
     if (id.startsWith('[')) throw Error('PLUGIN_RESOURCE_READ_ONLY')
     await this.catalog.changePanelResources(() => this.users.update(id, text))

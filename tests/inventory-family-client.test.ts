@@ -1,4 +1,3 @@
-/** Inventory roles keep catalog, Consumer and official draft behavior in one client lane. */
 import { expect, it } from 'vitest'
 import { resourceClientFixture, type ResourceHostReceipt } from './resource-client-fixture.js'
 import { inventoryRoles } from './inventory-family-cases.js'

@@ -5,7 +5,6 @@ import type { TrustedCubeSource } from '../contracts/user-agents.js'
 import { agentIcon } from './ui/agent-icon.js'
 import css from './user-agents.module.css'
 
-/** Only the association is editable; GEA retains its connection and authorization. */
 export function TrustedCubePanel({ agent, t, editing, onClose, onSaved }: { agent: UserAgentView; t: Translate; editing: boolean; onClose(): void; onSaved(agent: UserAgentView): void }) {
   const [sources, setSources] = useState<TrustedCubeSource[]>([])
   const [sourceRef, setSourceRef] = useState(agent.cube?.sourceRef ?? '')
@@ -38,7 +37,6 @@ export function TrustedCubePanel({ agent, t, editing, onClose, onSaved }: { agen
   </>
 }
 
-/** Fixed plugin members remain separately controllable from Agent enablement. */
 export function PluginMcpPanel({ agent, t, onSaved }: { agent: UserAgentView; t: Translate; onSaved(agent: UserAgentView): void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -50,7 +48,6 @@ export function PluginMcpPanel({ agent, t, onSaved }: { agent: UserAgentView; t:
   </section>
 }
 
-/** Trusted plugin rows open the same editor; personal copy is a separate action. */
 export function TrustedPluginAgents({ t, onEdit, onMessage }: { t: Translate; onEdit(agent: UserAgentView): void; onMessage(message: string): void }) {
   const [sources, setSources] = useState<UserAgentView[]>([])
   const [busy, setBusy] = useState(false)

@@ -21,7 +21,6 @@ export interface UserAgentWorkspaceProps {
 const blank = (): SaveUserAgent => ({ name: '', description: '', prompt: '', enabled: true })
 type Tab = 'prompt' | 'skill' | 'mcp'
 
-/** One shared list/editor for the public main and settings seats. */
 export function UserAgentWorkspace({ t, startAgent, openEditor, surface = 'main' }: UserAgentWorkspaceProps) {
   const [showSources, setShowSources] = useState(false)
   const [sourceRequest, setSourceRequest] = useState<{ id: string; request: number }>()

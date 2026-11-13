@@ -19,8 +19,6 @@ describe('host locale', () => {
   })
 
   it('reads locale.preference from a settings file when present', async () => {
-    // The real file may or may not exist in the test environment; both
-    // outcomes are valid — the function must not throw.
     const preference = await readLocalePreference()
     expect(preference === undefined || typeof preference === 'string').toBe(true)
   })

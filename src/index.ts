@@ -1,23 +1,6 @@
 import { AgentSources } from './runtime/agent-sources.js'
 import { mountAgentSourceRoutes } from './runtime/agent-source-routes.js'
-/** 文件作用：插件宿主入口，注册技能提供器、运行时协调器、市场 HTTP 路由和项目级资源挂载。 */
-/**
- * dsh-agent-plugins-market host entry: the Agent Plugins Market manager.
- *
- * Function plugin (named exports, no default export). It registers one skill
- * provider feeding enabled suites into `ctx.skills`, reconciles enabled
- * suites' `mcp.json` servers into live self-built bridge mounts (stdio,
- * Streamable HTTP with OAuth, and legacy SSE — no host MCP client needed),
- * and mounts the market page's HTTP routes on the web server. Skills and MCP
- * tools are exposed through the host's native model surfaces; this plugin
- * does not register a redundant suite-inventory model tool.
- *
- * Requires `ctx.skills` (the dsh skill registry). MCP mounting is
- * self-contained: suites' MCP servers mount through the market's own bridge
- * plugin on the host `tools` registry.
- *
- * 业务职责：组装 Catalog 与各运行时桥接，串行化变更后的重协调，并负责宿主服务注入、监听和销毁生命周期。
- */
+
 import { createForecastTool } from './runtime/forecast-compute.js'
 import { mountSkillReferenceReader } from './runtime/skill-reference.js'
 import { isAbsolute, resolve } from 'node:path'
@@ -57,28 +40,16 @@ export { pluginPackageVersion } from './plugin-package-version.js'
 export const name = 'dsh-agent-manage'
 export const inject = ['skills', 'commands']
 
-/** Host configuration. */
-/** 中文：插件启动时可传入 GEA MCP、初始来源和 Git 获取策略；存储根目录由宿主 DSH_HOME 决定。 */
 export interface Config {
-  /** Live fields belong to the official Loader config and SettingsForms. */
   mcpEnhanced: Volatile<boolean>
   downloadRegion: Volatile<'auto' | 'global' | 'china'>
   feedbackEnabled: Volatile<boolean>
   scanProjectLayouts: Volatile<boolean>
-  /** Registered GEA Consumer for automatic MCP discovery after GEA plugin login. */
-  /** 中文：GEA 登录后用于自动发现 MCP 的消费者；显式 false 时不挂载。 */
+
   geaMcp?: false
-  /** Initial repository sources, merged into the persisted state on first load. */
-  /** 中文：首次加载时并入持久化状态的初始仓库源。 */
+
   sources?: SourceRef[]
-  /**
-   * Git/archive acquisition tuning: `proxy` (http/https proxy URL),
-   * `insteadOf` URL-prefix rewrites (mirror acceleration), `timeoutMs` per
-   * git invocation, `cloneRetry` (default true), `fallbackTarball` (retry a
-   * failed GitHub clone as a codeload tarball download; default false), and
-   * `allowHttpArchives` (permit plain-http archive URLs; default false).
-   * 中文：统一控制代理、镜像改写、超时、重试、GitHub 压缩包回退和 HTTP 压缩包许可。
-   */
+
   git?: {
     proxy?: string
     insteadOf?: Record<string, string>
@@ -91,7 +62,6 @@ export interface Config {
 
 export const Config = ManageConfigSchema
 
-/** 启动插件：恢复目录状态，注册运行时资源、设置监听、路由和最终销毁器。 */
 export async function apply(ctx: Context, config: Config = Config({})): Promise<void> {
   if ('userRoot' in config || 'dataRoot' in config) throw new Error('MANAGE_STORAGE_UPGRADE_REQUIRED: legacy storage overrides require a separately authorized upgrade')
   await assertCanonicalStorageDirectories()
@@ -103,9 +73,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   const dataRoot = resolveDataRoot()
   let providerControl: SkillProviderControl | undefined
   let userPanelControl: SkillProviderControl | undefined
-  // Host runtime copy resolves from the harness `locale.preference` setting;
-  // the async settings read lands before the first session starts in practice.
-  // 中文：先用默认语言建立同步翻译器，异步读取宿主语言后刷新两个技能提供器。
+
   const t = bindHostLocale(undefined)
   void loadHostLocale().then(locale => {
     hostLocale.t = locale.t
@@ -114,9 +82,6 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   })
   const hostLocale: { t: HostTranslate } = { t }
 
-  // User panel stores (skills / commands / agent personas) and their runtime
-  // contributions: one extra skill provider plus one command mount registry.
-  // 中文：创建用户面板存储，并分别接入技能提供器和命令挂载注册表。
   const panels = createUserPanelStores(userRoot)
   const userCommands = new UserCommandMountRegistry(ctx, panels.commands, (key, params) => hostLocale.t(key, params))
 
@@ -126,7 +91,7 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   let projectMcp: ReturnType<typeof mountProjectMcp> | undefined
   let projectHooks: ReturnType<typeof mountProjectHooks> | undefined
   let suitePrompts: ReturnType<typeof mountSuiteInstructions> | undefined
-  /** 响应 Catalog 变更，刷新各资源挂载并触发运行时重协调。 */
+
   const onChanged = async (): Promise<void> => {
     if (disposed) return
     agentSources?.changed()
@@ -168,8 +133,6 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     toolHost.effect(() => toolHost.tools.register(createForecastTool(toolHost.skills)))
   })
   ctx.inject(['agentPresets', 'connection', 'tools', 'agents'], async host => {
-    // Selected identities compose the same standard declaration as orchestration.
-    // Wait on that initialization fiber, never the parent Host tree.
     await standardInitialization
     const userAgents = new UserAgents(
       host,
@@ -315,21 +278,16 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
     .catch(() => {})
 
   ctx.skills.registerProvider(control => {
-    // 中文：注册套件技能提供器；保存 control 供目录或语言变化时失效缓存。
     providerControl = control
     return new SuiteSkillProvider(catalog)
   })
 
-  // User panel skills ride a second provider so a panel
-  // edit invalidates only its own catalog contribution.
-  // 中文：用户面板单独使用第二个提供器，面板编辑只失效自身目录贡献。
   ctx.skills.registerProvider(control => {
     userPanelControl = control
     return new UserPanelSkillProvider(panels.skills, (key, params) => hostLocale.t(key, params))
   })
 
   ctx.inject(['tools', 'llm', 'subagents', 'agents'], hostCtx => {
-    // 中文：把用户面板角色和项目角色合并后交给宿主角色工具路由。
     hostCtx.effect(
       () =>
         mountAgentRoleTool(
@@ -345,7 +303,6 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   })
 
   ctx.inject(['agents'], hostCtx => {
-    // 中文：挂载项目命令、MCP、Hook 和套件提示，并以同一 effect 管理销毁。
     hostCtx.effect(() => {
       const mounted = mountProjectCommands(hostCtx, catalog, (key, params) => hostLocale.t(key, params))
       const mcp = mountProjectMcp(hostCtx, catalog, dataRoot)
@@ -366,12 +323,10 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   })
 
   ctx.inject(['webServer', 'loader'], hostCtx => {
-    // 中文：把 Catalog 和资源仓库接入市场 HTTP 路由，效果销毁时卸载路由。
     hostCtx.effect(() => mountSuiteRoutes(hostCtx, catalog), 'dsh-agent-plugins-market: http routes')
   })
 
   ctx.effect(
-    // 中文：插件销毁时停止监听、清空待处理事件、卸载用户命令并释放运行时桥接。
     () => async () => {
       disposed = true
       userCommands.disposeAll()

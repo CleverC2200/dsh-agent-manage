@@ -1,5 +1,3 @@
-/** Check current plugin storage before startup effects; never inspect or migrate retired trees. */
-/** 启动前只核当前标准目录，不读取、搬移或删除旧存储。 */
 import { lstat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolveDshHome, resolveUserRoot, resolveDataRoot } from '../catalog/paths.js'

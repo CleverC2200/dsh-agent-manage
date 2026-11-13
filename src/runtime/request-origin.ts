@@ -1,4 +1,3 @@
-/** Core admits the browser before dispatch; its Fetch bridge replaces the URL's origin. */
 export function isSameOriginRequest(request: Request): boolean {
   const origin = request.headers.get('origin')
   if (!origin) return true

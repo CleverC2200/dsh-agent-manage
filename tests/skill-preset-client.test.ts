@@ -1,4 +1,3 @@
-/** Official InputHub uses a separate real Host process for resource/Session receipts. */
 import { expect, it, onTestFinished } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { execFile } from 'node:child_process'

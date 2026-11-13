@@ -1,13 +1,3 @@
-/**
- * Tests for the market's self-built MCP bridge: public tool naming,
- * two-phase tool synchronization over a structural host, tool execution
- * mapping, transport construction (stdio / streamable-http / sse with the
- * OAuth provider wiring), and the bridge plugin shell's apply lifecycle.
- *
- * Core cases are ported from the harness `dsh-mcp-client` specs (archived
- * patch series `docs/upstream-proposal/patches/`); the host is faked
- * structurally because the bridge must not depend on host test packages.
- */
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { publicToolName, syncTools, type ToolBridgeOptions, type ToolDefinition, type ToolHost } from '../src/runtime/mcp-client/tools.js'
 import { createTransport } from '../src/runtime/mcp-client/transport.js'
@@ -16,8 +6,6 @@ import type { Config } from '../src/runtime/mcp-client/config.js'
 import type { Context } from '@deepseek-ai/cordis'
 
 const testToolSignal = new AbortController().signal
-
-// ---- Mock MCP Client ----
 
 interface MockTool {
   name: string
@@ -44,8 +32,6 @@ function createMockClient(tools: MockTool[], callResult: Record<string, unknown>
   }
 }
 
-// ---- Structural fake host ----
-
 function createFakeHost(): ToolHost & { registered: Map<string, ToolDefinition> } {
   const registered = new Map<string, ToolDefinition>()
   return {
@@ -63,8 +49,6 @@ function createFakeHost(): ToolHost & { registered: Map<string, ToolDefinition> 
 }
 
 const defaultOpts: ToolBridgeOptions = { registrationFailure: 'throw', serverName: 'srv', toolCallTimeoutMs: 60_000 }
-
-// ---- publicToolName ----
 
 describe('publicToolName', () => {
   it('joins clean names verbatim', () => {
@@ -87,15 +71,12 @@ describe('publicToolName', () => {
   })
 
   it('is deterministic and collision-free for distinct identities', () => {
-    // Two raw names that normalize to the same base must not collapse.
     const a = publicToolName('srv', 'admin.reset')
     const b = publicToolName('srv', 'admin_reset')
     expect(a).toBe(publicToolName('srv', 'admin.reset'))
     expect(a).not.toBe(b)
   })
 })
-
-// ---- syncTools ----
 
 describe('syncTools', () => {
   it('enforces allow/deny lists on raw tool names across synchronization generations', async () => {
@@ -143,7 +124,7 @@ describe('syncTools', () => {
       { name: 'dup', inputSchema: { type: 'object' } }
     ])
     await expect(syncTools(badClient as never, host, defaultOpts, previous)).rejects.toThrow(/more than once/)
-    // The failed fetch leaves the previous generation registered untouched.
+
     expect([...host.registered.keys()]).toEqual(['mcp__srv__first'])
   })
 
@@ -166,13 +147,13 @@ describe('syncTools', () => {
 
     const definition = host.registered.get('mcp__srv__weird')!
     expect(definition.output.schema).toMatchObject({ type: 'object' })
-    // The structuredContent property exists but is unconstrained ({}).
+
     expect((definition.output.schema.properties as Record<string, unknown>)['structuredContent']).toEqual({})
   })
 
   it('contains a registry conflict for ordinary syncs and rolls back to zero tools', async () => {
     const host = createFakeHost()
-    // Squatting registration on the server's namespace.
+
     host.registered.set('mcp__srv__squatted', {
       name: 'mcp__srv__squatted',
       description: '',
@@ -196,8 +177,6 @@ describe('syncTools', () => {
     expect(host.logger.error).toHaveBeenCalledWith(expect.stringContaining('tool registration failed'))
   })
 })
-
-// ---- tool execution ----
 
 describe('tool execution', () => {
   it('sends the raw name on the wire and returns the canonical MCP result', async () => {
@@ -232,12 +211,10 @@ describe('tool execution', () => {
   })
 })
 
-// ---- transport construction ----
-
 const { constructedOptions, constructedUrls, clientConnectFailures } = vi.hoisted(() => {
   const constructedOptions: Array<Record<string, unknown>> = []
   const constructedUrls: Array<string> = []
-  /** Queued one-shot errors the mocked Client's next connect() rejects with. */
+
   const clientConnectFailures: Error[] = []
   return { constructedOptions, constructedUrls, clientConnectFailures }
 })
@@ -319,7 +296,7 @@ describe('transport construction with auth', () => {
     const { oauthProvider: provider } = createTransport(httpConfig({ enabled: true, scope: 'repo' }), undefined, () => {})
     expect(provider).toBeDefined()
     expect(provider!.clientMetadata.client_name).toBe('DeepSeek Harness (dsh-agent-plugins-market)')
-    // Default loopback: ephemeral port placeholder until the listener binds.
+
     expect(provider!.redirectUrl).toBe('http://127.0.0.1:0/callback')
     expect(provider!.clientMetadata.scope).toBe('repo')
   })
@@ -344,7 +321,7 @@ describe('transport construction with auth', () => {
     const { transport, oauthProvider } = createTransport(httpConfig({ enabled: true }), undefined)
     expect(constructedUrls[0]).toBe('https://mcp.example/mcp')
     expect(constructedOptions[0]).toHaveProperty('authProvider')
-    // The provider's bound transport is the handed-out generation.
+
     expect(transport).toBeDefined()
     expect(oauthProvider).toBeDefined()
   })
@@ -393,9 +370,6 @@ describe('transport construction with auth', () => {
   })
 })
 
-// ---- bridge plugin shell ----
-
-/** A fake cordis context: effects run immediately and their disposers are collected. */
 function fakeContext(options: { credentials?: unknown } = {}): Context & { effects: Array<() => void> } {
   const effects: Array<() => void> = []
   const tools = { register: () => () => {} }

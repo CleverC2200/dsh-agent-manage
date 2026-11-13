@@ -10,7 +10,6 @@ import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { verifySDKArtifacts, writeSDKArtifacts } from './sdk-artifact-cache.mjs'
 
-// GEA owns the registered Core source, original lock and toolchain authority.
 function supportedCore(coreHead) {
   const registry = json(new URL('../../dsh-gea-plugin/scripts/supported-cores.json', import.meta.url))
   const selectedHead = coreHead === undefined ? json(new URL('../../dsh-gea-plugin/scripts/current-core.json', import.meta.url)).adaptation : coreHead
@@ -56,7 +55,6 @@ function source(core, writing, coreHead) {
   return baseline
 }
 
-/** Verify fixed Git source and original lock without requiring or preparing SDK outputs. */
 export function verifyOfficialSource(core, { coreHead } = {}) {
   const { coreCommit, coreLock, packageManager } = source(core, false, coreHead)
   return { root: realpathSync(core), commit: coreCommit, lockSha256: coreLock, packageManager }
@@ -200,7 +198,7 @@ export function verifyOfficialSDK({ core, consumer, coreHead, withWeb = false, w
   const paths = json(resolve(consumer, configuration)).compilerOptions.paths
   const artifacts = new Set()
   const notApplicable = []
-  // Consumer maps cover the full alpha SDK; applicability comes from the selected Git source.
+
   const registeredPackages = new Map()
   for (const file of run('git', ['ls-files', '*package.json'], core, true).split('\n')) {
     if (!file || !(file.startsWith('packages/') || file.startsWith('vendor/') || file.startsWith('apps/'))) continue
@@ -262,7 +260,6 @@ export function verifyOfficialSDK({ core, consumer, coreHead, withWeb = false, w
   }
 }
 
-/** Build only the official static Web product in an already-owned, prepared SDK. */
 export function prepareOfficialWeb(options) {
   const core = resolve(options.core)
   const coreHead = options.coreHead
@@ -306,7 +303,6 @@ export function prepareOfficialWeb(options) {
   return verifyOfficialSDK({ ...options, withWeb: true })
 }
 
-/** Compile only the declared host Node-API flock dependency for real writer-lock tests. */
 export function prepareOfficialFlock(options) {
   const core = resolve(options.core)
   const coreHead = options.coreHead

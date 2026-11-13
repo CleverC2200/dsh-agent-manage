@@ -1,5 +1,5 @@
 import { open } from 'node:fs/promises'
-/** Read only the frontmatter bytes; discovery never expands instruction bodies. */
+
 export async function readSkillHeader(file: string, signal?: AbortSignal): Promise<string> {
   const handle = await open(file, 'r')
   try {

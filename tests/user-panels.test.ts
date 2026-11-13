@@ -18,10 +18,8 @@ describe('user panel stores', () => {
       const listed = await stores.skills.list()
       expect(listed.map(entry => entry.name)).toEqual(['my-skill'])
 
-      // A duplicate name is refused.
       await expect(stores.skills.create('my-skill', 'x')).rejects.toThrow(/already exists/)
 
-      // Disable through the frontmatter key; the body survives.
       await stores.skills.update('my-skill', '---\nname: my-skill\ndescription: does things\ndisabled: true\n---\nBody here')
       const disabled = await stores.skills.get('my-skill')
       expect(disabled?.disabled).toBe(true)
@@ -29,7 +27,7 @@ describe('user panel stores', () => {
 
       await stores.skills.remove('my-skill')
       expect(await stores.skills.list()).toEqual([])
-      // Idempotent delete.
+
       await stores.skills.remove('my-skill')
     } finally {
       await rm(root, { recursive: true, force: true })
@@ -48,7 +46,6 @@ describe('user panel stores', () => {
   })
 })
 
-/** Bilingual-stub host translator for user-panel catalog strings. */
 const tStub = (key: string, params?: Record<string, string>): string => {
   const dict: Record<string, string> = {
     userSkillDescription: '[user skill] {description}',
@@ -91,8 +88,7 @@ describe('user panel skill provider', () => {
     try {
       const stores = createUserPanelStores(root)
       await stores.skills.create('ok-name', '---\ndescription: fine\n---\nBody')
-      // A stray underscored file on disk (written out-of-band) never reaches
-      // discovery: the registry would drop or reject it.
+
       const { writeFile } = await import('node:fs/promises')
       await writeFile(join(root, 'user', 'skills', 'my_skill.md'), '---\ndescription: underscored\n---\nBody', 'utf8')
       const provider = new UserPanelSkillProvider(stores.skills, tStub)

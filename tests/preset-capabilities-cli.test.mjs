@@ -8,7 +8,6 @@ import { join, resolve } from 'node:path'
 import process from 'node:process'
 import { presetLanes, presetHostOwners } from '../scripts/preset-test-lanes.mjs'
 
-// Child-process completion is the CLI seam; real client/Host lanes run separately.
 const files = Object.fromEntries(Object.entries(presetLanes).map(([lane, entries]) => [lane, Object.fromEntries(Object.keys(entries).map(file => [file.slice(6, -8), 1]))]))
 
 function run(change = () => {}, plan, missingFile) {

@@ -1,4 +1,3 @@
-/** Specification expectations, independent of the runtime policy. */
 export const inventoryRoles = [
   {
     id: 'inventory-qll',

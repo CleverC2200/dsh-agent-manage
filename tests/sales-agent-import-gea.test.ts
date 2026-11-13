@@ -1,4 +1,3 @@
-/** Original user assets cross configuration import, native publication and actual GEA gates. */
 import { readFile, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { expect, it } from 'vitest'
