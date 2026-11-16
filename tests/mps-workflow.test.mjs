@@ -2098,6 +2098,11 @@ test('基地SKU修正独立改变上层总量，缺项及第四月参考不挤�
   sample.adjustments.quantities = [{ ...sample.adjustments.quantities[0], month: '2027-03', quantity: 7 }]
   const reference = computeMpsWorkflow(sample)
   assert.equal(reference.referenceRows.find(row => row.base === '甲' && row.code === 'A').demand, 7)
+  assert.deepEqual(
+    reference.rows.map(row => row.demand),
+    before.rows.map(row => row.demand)
+  )
+  assert.ok(reference.rows.every(row => row.month !== '2027-03'))
   assert.equal(reference.rows.find(row => row.month === '2027-02' && row.base === '甲' && row.code === 'A').nextMonthDemand, 7)
   sample.adjustments.quantities = []
   assert.deepEqual(

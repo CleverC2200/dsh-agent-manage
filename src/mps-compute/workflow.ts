@@ -549,7 +549,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     }
     const quantityEdits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
     if (quantityEdits.length) {
-      const quantities = adjustedQuantities(group, category.quantity, quantityEdits)
+      const quantities = adjustedQuantities(group, quantityEdits)
       if (quantities) {
         for (const row of group) {
           row.demand = quantities.get(row.id) ?? null
@@ -583,7 +583,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     const group = referenceRows.filter(row => row.category === category.category)
     const edits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
     if (!edits.length) continue
-    const quantities = adjustedQuantities(group, category.quantity, edits)
+    const quantities = adjustedQuantities(group, edits)
     if (!quantities) {
       adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：仅支持唯一基地SKU，历史上层修正须归档，数量须有效`)
       continue

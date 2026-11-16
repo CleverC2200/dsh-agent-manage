@@ -1,4 +1,4 @@
-import type { MpsQuantity, MpsWorkflowRow } from './workflow.ts'
+import type { MpsWorkflowRow } from './workflow.ts'
 
 export type MpsQuantityAdjustment = {
   month: string
@@ -7,7 +7,7 @@ export type MpsQuantityAdjustment = {
   quantity: number
 } & ({ kind: 'group' } | { kind: 'sku'; code: string } | { kind: 'base-sku'; code: string; base: string })
 
-export function adjustedQuantities(rows: MpsWorkflowRow[], _total: MpsQuantity, edits: MpsQuantityAdjustment[]) {
+export function adjustedQuantities(rows: MpsWorkflowRow[], edits: MpsQuantityAdjustment[]) {
   const result = new Map(rows.map(row => [row.id, row.demand]))
   const used = new Set<string>()
   for (const edit of edits) {
