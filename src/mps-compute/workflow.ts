@@ -298,16 +298,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const baseline = matches.length === 1 ? matches[0].systemQuantity : undefined
       const systemQuantity = baseline === undefined ? effectiveQuantity : quantity([{ quantity: baseline }])
       const edits = (input.adjustments?.categoryDemand ?? []).filter(row => row.month === month && row.category === category)
-      const edit = edits[0]
-      const accepted = edits.length === 1 && edit !== undefined && finite(edit.quantity) && edit.quantity >= 0
-      if (edits.length && !accepted) adjustmentIssues.push(`${month} ${category} 大类需求调整无效或重复`)
-      const value = accepted ? edit.quantity : effectiveQuantity
+      if (edits.length) adjustmentIssues.push(`${month} ${category} 历史上层修正冲突，未参与计算，请归档后按基地SKU修正`)
+      const value = effectiveQuantity
       return {
         month,
         category,
         quantity: value,
         systemQuantity,
-        adjusted: accepted || value !== systemQuantity,
+        adjusted: value !== systemQuantity,
         missing: value === null ? ['缺大类需求，本月有效值不可用'] : []
       }
     })
@@ -551,17 +549,62 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     }
     const quantityEdits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
     if (quantityEdits.length) {
-      const shareEdits = (input.adjustments?.shares ?? []).some(edit => group.some(row => row.id === edit.rowId))
-      const quantities = !shareEdits && months.slice(0, 2).includes(category.month) ? adjustedQuantities(group, category.quantity, quantityEdits) : null
+      const quantities = adjustedQuantities(group, category.quantity, quantityEdits)
       if (quantities) {
         for (const row of group) {
           row.demand = quantities.get(row.id) ?? null
-          row.quantityAdjusted = true
-          row.share = category.quantity && row.demand !== null ? row.demand / category.quantity : row.share
-          const groupTotal = group.filter(candidate => candidate.group === row.group).reduce((sum, candidate) => sum + (quantities.get(candidate.id) ?? 0), 0)
-          row.groupShare = category.quantity ? groupTotal / category.quantity : row.groupShare
+          row.quantityAdjusted = quantityEdits.some(edit => edit.kind === 'base-sku' && edit.base === row.base && edit.code === row.code && edit.group === row.group)
+          if (row.quantityAdjusted) row.missing.demand = []
         }
-      } else adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：月份、范围、权重、重复、固定下级合计或占比调整冲突`)
+        category.quantity = quantity(group.map(row => ({ quantity: row.demand })))
+        category.adjusted = true
+        category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
+      } else adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：仅支持唯一基地SKU，历史上层修正须归档，数量须有效`)
+    }
+  }
+  const referenceRows = rows
+    .filter(row => row.month === months[2])
+    .map(row => {
+      const category = categoryRows.find(category => category.month === months[3] && category.category === row.category)
+      const systemDemand =
+        category?.systemQuantity === 0 ? 0 : category?.systemQuantity != null && row.systemShare !== null ? safe(category.systemQuantity * row.systemShare) : null
+      const demand = category?.quantity === 0 ? 0 : category?.quantity != null && row.share !== null ? safe(category.quantity * row.share) : null
+      return {
+        ...row,
+        id: JSON.stringify([months[3], row.base, row.code]),
+        month: months[3],
+        demand,
+        systemDemand,
+        quantityAdjusted: false,
+        missing: { ...row.missing, demand: demand === null ? ['第四月需求参考缺项'] : [] }
+      }
+    })
+  for (const category of categoryRows.filter(category => category.month === months[3])) {
+    const group = referenceRows.filter(row => row.category === category.category)
+    const edits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
+    if (!edits.length) continue
+    const quantities = adjustedQuantities(group, category.quantity, edits)
+    if (!quantities) {
+      adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：仅支持唯一基地SKU，历史上层修正须归档，数量须有效`)
+      continue
+    }
+    for (const row of group) {
+      row.demand = quantities.get(row.id) ?? null
+      row.quantityAdjusted = edits.some(edit => edit.kind === 'base-sku' && edit.base === row.base && edit.code === row.code && edit.group === row.group)
+      if (row.quantityAdjusted) row.missing.demand = []
+    }
+    category.quantity = quantity(group.map(row => ({ quantity: row.demand })))
+    category.adjusted = true
+    category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
+  }
+  for (const category of categoryRows) {
+    if (!category.adjusted) continue
+    const group = [...rows, ...referenceRows].filter(row => row.month === category.month && row.category === category.category)
+    for (const row of group) {
+      row.share = category.quantity === null || row.demand === null ? null : category.quantity === 0 ? 0 : row.demand / category.quantity
+      const members = group.filter(member => member.group === row.group)
+      const groupTotal = quantity(members.map(member => ({ quantity: member.demand })))
+      row.groupShare = category.quantity === null || groupTotal === null ? null : category.quantity === 0 ? 0 : groupTotal / category.quantity
     }
   }
   const productionDays = (base: string, month: string) => {
@@ -569,7 +612,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     const value = matches[0]?.days ?? null
     return ruleProductionDays(matches.length === 1 && finite(value) && value >= 0 && value <= daysInMonth(month) ? value : null, base, month, resolvedRules.rules)
   }
-  const rowIndex = groupBy(rows, periodKey)
+  const rowIndex = groupBy([...rows, ...referenceRows], periodKey)
   for (const row of rows) {
     const nextMonth = row.nextMonth
     const nextRow = rowIndex.get(periodKey({ month: nextMonth, base: row.base, code: row.code }))?.[0]
@@ -727,7 +770,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     if (!categoryRows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('大类需求调整不属于本版月份或分类范围')
   }
   for (const edit of input.adjustments?.quantities ?? []) {
-    if (!rows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('数量调整不属于本版月份或产品范围')
+    if (![...rows, ...referenceRows].some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('数量调整不属于本版月份或产品范围')
   }
   const demandScope = categoryRows.filter(category => months.slice(0, 3).includes(category.month))
   const categoryScopeIssues = demandScope.flatMap(category => {
@@ -790,6 +833,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     shipmentMonth: monthOffset(input.context.month, -1),
     categoryRows,
     rows,
+    referenceRows,
     constraints: {
       safetyDays: input.constraints.safetyDays.map(row => ({ ...row })),
       ...(input.constraints.turnoverDays ? { turnoverDays: input.constraints.turnoverDays.map(row => ({ ...row })) } : {}),

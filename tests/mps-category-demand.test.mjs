@@ -68,25 +68,26 @@ test('incomplete DMS classification does not hide valid BI methods', () => {
   assert.equal(result.rows[0].quantity, null)
 })
 
-test('人工有效量不回流独立环比链，保留系统值并拒绝重复或负数', () => {
+test('历史上层修正不生效，独立环比链和原系统量保留', () => {
   const sample = fixture()
   sample.adjustments = [{ month: '2026-11', category: '汤圆', quantity: 200 }]
   const result = computeMpsCategoryDemand(sample)
   assert.deepEqual(
     result.rows.map(row => row.quantity),
-    [110, 200, 125, 200]
+    [110, 100, 125, 200]
   )
   assert.deepEqual(
     result.rows.map(row => row.systemQuantity),
     [110, 100, 125, 200]
   )
-  assert.equal(result.rows[1].adjusted, true)
+  assert.equal(result.rows[1].adjusted, false)
+  assert.match(result.adjustmentIssues.join(''), /历史上层修正冲突/)
   sample.adjustments[0].quantity = -1
   assert.deepEqual(
     computeMpsCategoryDemand(sample).rows.map(row => row.quantity),
     [110, 100, 125, 200]
   )
-  assert.match(computeMpsCategoryDemand(sample).adjustmentIssues.join(''), /调整/)
+  assert.match(computeMpsCategoryDemand(sample).adjustmentIssues.join(''), /历史上层修正冲突/)
 })
 
 test('同比在最近三年中按有效年份等权平均，标明实际样本年份，其他系数不改口径', () => {
@@ -179,7 +180,7 @@ test('历史环比逐月递推，来源缺项不污染独立链，真实零达�
   input.submissions = []
   assert.deepEqual(
     computeMpsCategoryDemand(input).rows.map(row => row.quantity),
-    [999, 450, 650, 1250]
+    [null, 450, 650, 1250]
   )
   input.shipment[0].month = '2026-10'
   assert.deepEqual(

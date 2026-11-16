@@ -122,14 +122,12 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
       const shareMethod = multiply(basis.annualEstimate, factors?.share ?? null)
       const methodAverage = divide(sum([momMethod, shareMethod]), 2)
       const weighted = index === 0 ? divide(sum([methodAverage, salesCorrected]), 2) : null
-      let quantity = index === 0 ? weighted : methodAverage
+      const quantity = index === 0 ? weighted : methodAverage
       const systemQuantity = quantity
       previousMom = momMethod
       const edits = (input.adjustments ?? []).filter(row => row.month === month && row.category === category)
-      const edit = edits[0]
-      const adjusted = edits.length === 1 && edit !== undefined && finite(edit.quantity) && edit.quantity >= 0
-      if (edits.length && !adjusted) adjustmentIssues.push(`${month} ${category} 大类需求调整无效或重复`)
-      if (adjusted) quantity = edit.quantity
+      const adjusted = false
+      if (edits.length) adjustmentIssues.push(`${month} ${category} 历史上层修正冲突，未参与计算，请归档后按基地SKU修正`)
       return {
         category,
         month,
