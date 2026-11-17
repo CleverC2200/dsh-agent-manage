@@ -131,3 +131,22 @@ test('下市基地SKU也不为其他基地自动新增生产，其他基地的�
   assert.ok(result.rows.filter(row => row.base === '乙').every(row => row.planMissing.some(reason => /供应基地SKU已下市/.test(reason))))
   assert.ok(result.rows.filter(row => row.base === '乙').every(row => row.demand === 50))
 })
+
+test('后续自然月用库存来源日均2而非当月发货参考10推导日均', () => {
+  const sample = input()
+  sample.openingInventory[0].quantity = 300
+  sample.categoryDemand.forEach(row => {
+    row.quantity = 10
+  })
+  for (const calculate of [computeMpsWorkflow, solveMpsPlan]) {
+    const rows = calculate(sample).rows
+    assert.deepEqual(
+      rows.map(row => row.expectedShipment),
+      [10, 62, 62]
+    )
+    assert.deepEqual(
+      rows.map(row => row.projectedClosing),
+      [290, 228, 166]
+    )
+  }
+})
