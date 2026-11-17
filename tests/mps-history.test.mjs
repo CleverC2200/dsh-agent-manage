@@ -26,7 +26,7 @@ const sample = () => ({
 
 test('历史缺失按用途补0，保留自身及替换品独立有效数量并用于占比和需求', () => {
   const input = sample()
-  const raw = structuredClone(input)
+  const raw = globalThis.structuredClone(input)
   const row = computeMpsWorkflow(input).rows[0]
   assert.equal(row.historyQuantity, 60)
   assert.equal(row.historyOwnQuantity, null)
