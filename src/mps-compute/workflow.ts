@@ -7,6 +7,7 @@ import {
   type MpsInventoryTargetResult,
   type MpsInventoryVersion
 } from './inventory-targets.ts'
+import { historyClassification, type MpsHistoryAudit, type MpsHistoryPeriod } from './history.ts'
 import { mpsPoolExceptions } from './pool-exceptions.ts'
 import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
 import { applyReportFallback, type MpsReportRatio } from './split-fallback.ts'
@@ -110,6 +111,10 @@ export interface MpsWorkflowInput {
   report: MpsQuantityRow[]
   reportRatios?: MpsReportRatio[]
   history: MpsQuantityRow[]
+  historyPeriods?: MpsHistoryPeriod[]
+  historyAsOfMonth?: string
+  historySourceIssues?: string[]
+  historySourceStatus?: MpsHistoryPeriod['status']
   sourceIssues: { report: string[]; history: string[] }
   openingInventory: Omit<MpsQuantityRow, 'month'>[]
   capacities: MpsCapacity[]
@@ -151,8 +156,11 @@ export interface MpsWorkflowRow extends MpsProduct {
   historyQuantity: MpsQuantity
   historyReferenceQuantity: MpsQuantity
   historyOwnQuantity: MpsQuantity
+  historyOwnCalculationQuantity: MpsQuantity
+  historyReferenceCalculationQuantity: MpsQuantity
   historyOwnRows: number
   historyReferenceRows: number
+  historyAudit: MpsHistoryAudit
   reportShare: MpsQuantity
   historyShare: MpsQuantity
   share: MpsQuantity
@@ -213,12 +221,10 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const resolvedRules = resolveMpsRules(input, months.slice(0, 3))
   const reportIndex = groupBy(input.report, periodKey)
   const historyIndex = groupBy(input.history, periodKey)
+  const classifyHistory = historyClassification(input.context.month, input.historyPeriods, input.historyAsOfMonth)
   const coefficientKey = (row: Pick<MpsProduct, 'base' | 'code' | 'historyCode'>, source: 'report' | 'history' = 'report') =>
     periodKey({ ...row, code: source === 'history' ? row.historyCode || row.code : row.code, month: input.context.month })
-  const hasCoefficient = (product: MpsProduct, source: 'report' | 'history') =>
-    source === 'history'
-      ? historyCodes(product).some(code => historyIndex.has(periodKey({ ...product, code, month: input.context.month })))
-      : reportIndex.has(coefficientKey(product))
+  const hasCoefficient = (product: MpsProduct, source: 'report' | 'history') => source === 'history' || reportIndex.has(coefficientKey(product))
   const indexedWeights = groupBy(input.unitWeights ?? [], key)
   const openingIndex = groupBy(input.openingInventory, key)
   const capacityIndex = groupBy(input.capacities, key)
@@ -334,6 +340,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   )
   const rows: MpsWorkflowRow[] = months.slice(0, 3).flatMap(month =>
     (productsByMonth.get(month) ?? []).map(product => {
+      const historyClassification = classifyHistory(product)
       const reportQuantity = quantity(reportIndex.get(coefficientKey(product)) ?? [])
       const ownHistory = historyIndex.get(coefficientKey(product)) ?? []
       const replacementHistory = product.historyCode && product.historyCode !== product.code ? (historyIndex.get(coefficientKey(product, 'history')) ?? []) : []
@@ -344,14 +351,21 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
           ? null
           : historyOwnQuantity
       const historyFactor = product.historyCode ? (product.historyFactor === undefined ? 1 : product.historyFactor) : 1
-      const validHistoryFactor = !replacementHistory.length || (finite(historyFactor) && historyFactor >= 0)
+      const validHistoryFactor = !product.historyCode || product.historyCode === product.code || (finite(historyFactor) && historyFactor >= 0)
       const historyMissing = [
-        ...(!ownHistory.length && !replacementHistory.length ? ['缺上一财年自身及替换品发货数量'] : []),
+        ...(!ownHistory.length ? ['缺上一财年自身发货数量，计算用值补0'] : []),
+        ...(product.historyCode && product.historyCode !== product.code && !replacementHistory.length ? ['缺上一财年替换品发货数量，计算用值补0'] : []),
         ...(ownHistory.length && historyOwnQuantity === null ? ['自身历史发货数量缺失或无效'] : []),
         ...(replacementHistory.length && historyReferenceQuantity === null ? ['替换品历史发货数量缺失或无效'] : []),
         ...(!validHistoryFactor ? ['替换系数缺失、冲突或无效'] : [])
       ]
-      const totalHistory = historyMissing.length ? null : (historyOwnQuantity ?? 0) + (replacementHistory.length ? (historyReferenceQuantity ?? 0) * (historyFactor ?? 0) : 0)
+      const knownHistory = (entries: MpsQuantityRow[]) => safe(entries.reduce((sum, row) => sum + (finite(row.quantity) && row.quantity >= 0 ? row.quantity : 0), 0))
+      const historyOwnCalculationQuantity = knownHistory(ownHistory)
+      const historyReferenceCalculationQuantity = knownHistory(replacementHistory)
+      const totalHistory =
+        !validHistoryFactor || historyOwnCalculationQuantity === null || historyReferenceCalculationQuantity === null
+          ? null
+          : historyOwnCalculationQuantity + historyReferenceCalculationQuantity * (historyFactor ?? 0)
       const historyQuantity = finite(totalHistory) ? totalHistory : null
       if (!historyMissing.length && historyQuantity === null) historyMissing.push('自身与替换品历史合计超出可靠计算范围')
       const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
@@ -385,8 +399,24 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         historyQuantity,
         historyReferenceQuantity,
         historyOwnQuantity,
+        historyOwnCalculationQuantity,
+        historyReferenceCalculationQuantity,
         historyOwnRows: ownHistory.length,
         historyReferenceRows: replacementHistory.length,
+        historyAudit: {
+          zeroFilled:
+            !ownHistory.length ||
+            ownHistory.some(row => !finite(row.quantity) || row.quantity < 0) ||
+            Boolean(
+              product.historyCode &&
+              product.historyCode !== product.code &&
+              (!replacementHistory.length || replacementHistory.some(row => !finite(row.quantity) || row.quantity < 0))
+            ),
+          reasons: [...(input.historySourceIssues ?? []), ...historyMissing],
+          ...historyClassification,
+          classification: (input.historySourceIssues ?? []).length ? '来源异常或其他历史异常' : historyClassification.classification,
+          sourceStatus: input.historySourceStatus ?? 'unread'
+        },
         evaluation: 'unconstrained',
         nextMonthDemand: null,
         nextMonth: monthOffset(month, 1),
