@@ -1,6 +1,7 @@
 <!-- collaboration-record
 {"kind": "bug", "id": "BUG-20261117-aps-brief-priority", "date": "2026-11-17", "title": "经营简报未按指标达成状态排序", "module": "产销协同", "category": "数据计算", "cause": "原始遗漏", "severity": "P2", "status": "已验证待发布"}
 -->
+
 # 经营简报未按指标达成状态排序
 
 简报曾优先任意正缺货量而不判断履约达成；现在优先未达指标，已达标履约仅跟进剩余订单。

@@ -1,6 +1,7 @@
 <!-- collaboration-record
 {"kind": "bug", "id": "BUG-20261117-aps-budget-progress", "date": "2026-11-17", "title": "月中预算进度错误使用整月健康线", "module": "产销协同", "category": "数据计算", "cause": "原始遗漏", "severity": "P2", "status": "已验证待发布"}
 -->
+
 # 月中预算进度错误使用整月健康线
 
 月中预算达成率曾直接与整月健康目标比较。改为与截止日已过日数/当月日数比较，完整月份仍保留原阈值。
