@@ -228,6 +228,10 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
     '天',
     '基地可用库存 ÷ 同范围计划日均需求' + (missing(supply, 'invalid') ? `；${missing(supply, 'invalid')}条可用库存或计划需求缺失、异常` : '')
   )
+  if (result['可发货天数'].value !== null && available !== null && daily !== null) {
+    const format = (value: number) => (value / 10000).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+    result['可发货天数'].detail = `同范围可用库存${format(available)}万箱 ÷ 计划日均需求${format(daily)}万箱/天；分子不是实物库存，分母不是期间实际发货量的日均。`
+  }
   if (zero) {
     const formulas: Record<string, string> = {
       计划库存支撑天数: '基地库存合计 ÷ 计划日均需求合计',

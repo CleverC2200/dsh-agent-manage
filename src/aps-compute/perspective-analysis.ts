@@ -1,5 +1,6 @@
 import { sumMetricQuantity, type MetricData } from './metrics.js'
 import { productionOutputMetric } from './production-output.js'
+import { budgetProgress } from './budget-progress.js'
 export type AnalysisMetric = { name: string; value: number; unit: string; previous?: number | null }
 export type AnalysisScope = 'overview' | 'production' | 'sales'
 export type AnalysisResult = { title: string; copy: string; score: number; total: number; question: string }
@@ -18,8 +19,10 @@ const definitions: Record<string, { scope: AnalysisScope[]; classify: (value: nu
 export type MetricJudgement =
   { kind: 'missing'; risk: null; achieved: null } | { kind: 'observation'; risk: null; achieved: null } | { kind: 'evaluated'; risk: '健康' | '预警' | '严重'; achieved: boolean }
 
-export function judgeMetric(name: string, value: number): MetricJudgement {
+export function judgeMetric(name: string, value: number, data?: MetricData | null): MetricJudgement {
   if (!finite(value)) return { kind: 'missing', risk: null, achieved: null }
+  const progress = name === '销售预算达成率' ? budgetProgress(data, value) : null
+  if (progress) return { kind: 'evaluated', risk: progress.achieved ? '健康' : '预警', achieved: progress.achieved }
   const risk = definitions[name]?.classify(value)
   if (!risk) return { kind: 'observation', risk: null, achieved: null }
   return { kind: 'evaluated', risk, achieved: risk === '健康' }
@@ -29,11 +32,12 @@ const questions: Record<AnalysisScope, string> = {
   production: '当前周期哪个基地或品类对订单履约影响最大？',
   sales: '当前周期哪些销售组织对预算差距贡献最大？'
 }
-export function analyzePerspective(scope: AnalysisScope, period: string, metrics: AnalysisMetric[]): AnalysisResult {
+export function analyzePerspective(scope: AnalysisScope, period: string, metrics: AnalysisMetric[], data?: MetricData | null): AnalysisResult {
   const current = metrics.filter(m => finite(m.value) && definitions[m.name]?.scope.includes(scope))
   const evaluable = current.flatMap(m => {
-    const level = definitions[m.name].classify(m.value)
-    return level ? [{ ...m, level, target: definitions[m.name].target! }] : []
+    const judgement = judgeMetric(m.name, m.value, data)
+    const progress = m.name === '销售预算达成率' ? budgetProgress(data, m.value) : null
+    return judgement.kind === 'evaluated' ? [{ ...m, level: judgement.risk, target: progress?.target ?? definitions[m.name].target!, progress: !!progress }] : []
   })
   const score = evaluable.filter(m => m.level === '健康').length
   const ranked = [...evaluable].sort((a, b) => ({ 严重: 0, 预警: 1, 健康: 2 })[a.level] - { 严重: 0, 预警: 1, 健康: 2 }[b.level])
@@ -48,7 +52,7 @@ export function analyzePerspective(scope: AnalysisScope, period: string, metrics
           const gap = m.value - m.target
           const difference = m.unit === '%' ? `${gap >= 0 ? '+' : ''}${fmt(gap)}个百分点` : `${gap >= 0 ? '+' : ''}${fmt(gap)}${m.unit}`
           const trend = finite(m.previous) ? `，较上期${m.value - m.previous >= 0 ? '+' : ''}${fmt(m.value - m.previous)}${m.unit === '%' ? '个百分点' : m.unit}` : ''
-          return `${m.name}${fmt(m.value)}${m.unit}（${m.level}，距参考线${difference}${trend}）`
+          return `${m.name}${fmt(m.value)}${m.unit}（${m.progress ? `进度偏慢，时间进度${fmt(m.target)}%` : m.level}，${m.progress ? '较时间进度' : '距参考线'}${difference}${trend}）`
         })
         .join('；')
     )
