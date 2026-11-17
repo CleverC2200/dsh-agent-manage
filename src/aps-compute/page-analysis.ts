@@ -1,11 +1,13 @@
 import { deriveMetrics, type MetricData } from './metrics.js'
+import { budgetProgress } from './budget-progress.js'
+import { judgeMetric } from './perspective-analysis.js'
 export const pageAnalysisPolicy = { source: 'current-page', allowAdditionalQueries: false, allowAutomaticRefresh: false, conclusionFirst: true, partialDataAllowed: true } as const
 
 export function summarizePage(data: MetricData | null | undefined, busy = false, visibleMetrics?: readonly string[]) {
   const empty = { title: busy ? '正在读取经营数据' : '暂无可分析的数据', copy: busy ? '已有数据返回后即生成简报。' : '当前页面暂无可用指标。' }
   if (!data) return empty
   const metrics = deriveMetrics({ ...data, sections: data.sections.filter(s => s.status === 'ready') })
-  const names = ['未税销售额', '销售预算达成率', '库存量', '订单满足率', '订单缺货量', '可发货天数', '销售提报准确率', '需求预测准确率', '日发货量']
+  const names = ['未税销售额', '销售预算达成率', '生产计划达成率', '库存量', '订单满足率', '订单缺货量', '可发货天数', '销售提报准确率', '需求预测准确率', '日发货量']
   const included = visibleMetrics ? names.filter(name => visibleMetrics.includes(name)) : names
   const available = included.map(n => metrics[n]).filter(m => m && m.value !== null && Number.isFinite(m.value))
   if (!available.length) return empty
@@ -16,24 +18,50 @@ export function summarizePage(data: MetricData | null | undefined, busy = false,
     rate = value('订单满足率'),
     stock = value('库存量'),
     budget = value('销售预算达成率')
+  const progress = budget === null ? null : budgetProgress(data, budget)
+  const priorities = ['销售预算达成率', '生产计划达成率', '订单满足率']
+    .flatMap(name => {
+      const current = value(name)
+      if (current === null) return []
+      const judgement = judgeMetric(name, current, data)
+      const target = name === '销售预算达成率' ? (progress?.target ?? 95) : name === '生产计划达成率' ? 99 : 95
+      return judgement.kind === 'evaluated' && !judgement.achieved ? [{ name, risk: judgement.risk, relativeGap: Math.abs(current - target) / target }] : []
+    })
+    .sort((a, b) => Number(b.risk === '严重') - Number(a.risk === '严重') || b.relativeGap - a.relativeGap)
+  const focus = priorities[0]?.name
   let title = '已有经营数据已汇总',
     action = ''
-  if (shortage !== null && shortage > 0) {
+  if (focus === '销售预算达成率') {
+    title = progress ? '销售预算进度偏慢，优先核查销售差距' : '销售预算未达目标，优先核查销售差距'
+    action = progress
+      ? `时间进度${format(progress.target)}%，预算完成${format(budget!)}%，较时间进度${format(progress.gap)}个百分点。建议核对销售节奏和主要差距组织。`
+      : '建议核对销售额与预算差距及主要贡献组织。'
+  } else if (focus === '生产计划达成率') {
+    title = '生产计划未达目标，优先核查产出差距'
+    action = '建议核对计划量、实际产出和偏差产线。'
+  } else if (focus === '订单满足率' || (rate === null && shortage !== null && shortage > 0)) {
     title = '订单仍有缺口，优先核查缺货明细'
     action = stock !== null ? '建议核对缺货品项与可用库存的匹配情况，确认可调拨或补产范围。' : '建议优先核对缺货订单，确认补货与交付安排。'
+  } else if (rate !== null && judgeMetric('订单满足率', rate).achieved) {
+    title = shortage === 0 ? '当前订单无缺货，继续跟踪交付' : '订单满足率已达标，继续跟踪剩余订单'
   } else if (shortage === 0) {
     title = '当前订单无缺货，继续跟踪交付'
-  } else if (rate !== null && rate < 100) {
-    title = '订单尚未完全满足，需关注履约缺口'
-    action = '建议核查未满足订单及交付安排。'
   } else if (budget !== null) {
-    title = `销售预算已完成${format(budget)}%`
+    title = progress ? '销售预算进度正常，继续跟踪执行' : `销售预算已完成${format(budget)}%`
   } else if (stock !== null) {
     title = `当前库存${format(stock)}万箱，需结合需求评估`
   } else {
     const first = available[0]
     title = `${label(first.name)}${format(first.value!)}${first.unit}`
   }
-  const evidence = available.map(m => `${label(m.name)}${format(m.value!)}${m.unit}`).join('，')
-  return { title, copy: `截至${data.end}，${evidence}。${action}` }
+  const evidence = available
+    .map(m => {
+      const text = `${label(m.name)}${format(m.value!)}${m.unit}`
+      if (m.name === '订单满足率' && judgeMetric(m.name, m.value!).achieved) return text + '（已达标）'
+      if (m.name === '订单缺货量' && rate !== null && judgeMetric('订单满足率', rate).achieved) return text + '（剩余订单跟进）'
+      if (m.name === '可发货天数' && m.detail) return `${text}（${m.detail}）`
+      return text
+    })
+    .join('，')
+  return { title, copy: `统计截至${data.end}，${evidence}。${action}` }
 }

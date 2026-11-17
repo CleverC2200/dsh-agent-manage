@@ -25,6 +25,7 @@ describe('APS configured zero-fill policy', () => {
     expect(result['库存量'].value).toBe(0.01)
     expect(result['计划库存支撑天数'].value).toBe(10)
     expect(result['可发货天数'].value).toBe(8)
+    expect(result['可发货天数'].detail).toContain('可用库存0.008万箱 ÷ 计划日均需求0.001万箱/天')
     expect(result['订单满足率'].value).toBe(80)
   })
   it('keeps production planned and actual totals rather than their complete-row intersection', () => {

@@ -2,6 +2,8 @@
 
 已有任务先核自己的冻结输入、实际 HEAD 与未提交改动；新任务以登记 GitHub 仓库当前 main 建立自有源码输入。根同名历史克隆和稳定运行环境都不代表最新主线。
 
+源码开发使用本票登记的 Manage、相邻 GEA 构建工具与只读官方 SDK。准备依赖只安装依赖，不再隐式构建；普通 `pnpm install` 后，先通过既有“构建插件”动作或 `node --run build` 生成公开导出，再加载插件。普通 pack 保留 `prepack` 构建；GEA raw pack 继续验证构建回执并跳过钩子。生产安装沿既有已打包产物合同。独立 Git 来源安装仍缺相邻工具和 SDK link 输入，本批不新增支持承诺。
+
 工具链、scripts、exports、依赖和锁以 [package.json](../package.json)、[pnpm-lock.yaml](../pnpm-lock.yaml) 和配置为准。本机准备、影响计划与构建复用读相邻 GEA 的[开发构建入口](../../dsh-gea-plugin/docs/development-builds.md)。修改前直接定位所属源码与已有测试。
 
 | 功能                  | 源码入口                                                                                                               |

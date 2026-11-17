@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-manage",
   "description": "配置个人智能体、技能和 MCP 连接，管理原生预设与资源。",
-  "version": "0.6.3-company.77",
+  "version": "0.6.3-company.81",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -77,7 +77,6 @@
     "check:architecture": "depcruise --validate .dependency-cruiser.cjs src",
     "check:refactor": "pnpm run check:static && pnpm run test:contract && pnpm run check:capabilities",
     "prepack": "pnpm run build",
-    "prepare": "pnpm run build",
     "check:knowledge": "node scripts/check-agent-knowledge.mjs",
     "test:knowledge": "node --test tests/agent-knowledge.test.mjs",
     "test:package-version": "node --test tests/plugin-package-version.test.mjs",
