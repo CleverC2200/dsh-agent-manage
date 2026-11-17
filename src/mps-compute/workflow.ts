@@ -60,6 +60,9 @@ export interface MpsDemandAdjustment {
   quantity: number
 }
 export interface MpsResource {
+  workshop?: string
+  productionLines?: string[]
+  tunnel?: string
   id: string
   base: string
   kind: 'tunnel' | 'forming'
