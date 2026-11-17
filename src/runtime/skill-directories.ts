@@ -718,7 +718,7 @@ function equalTrees(a: Tree, b: Tree): boolean {
 async function assertLocalDependencies(root: string, definition: SkillDefinition): Promise<void> {
   if (definition.resourceBase?.kind !== 'directory') return
   for (const match of definition.content.matchAll(/(?:\]\(|[`"'\s])((?:\.\.\/|\.\/|references\/|scripts\/|assets\/|templates\/)[^\s)`"'<>]+)/g)) {
-    const path = match[1].replace(/[.,;:]$/, '')
+    const path = match[1].replace(/[.,;:]$/, '').split('#', 1)[0]
     const target = resolve(definition.resourceBase.path, path)
     if (!inside(root, target)) throw Error(`SKILL_DEPENDENCY_OUTSIDE_ROOT: ${path}`)
     if (!(await stat(target).catch(() => undefined))) throw Error(`SKILL_DEPENDENCY_MISSING: ${path}`)

@@ -51,7 +51,7 @@ if (!isolatedHome) {
     const { ctx, home } = await presetHarness()
     const root = join(home, 'input')
     await mkdir(join(root, 'references'), { recursive: true })
-    await writeFile(join(root, 'SKILL.md'), '---\nname: directory-skill\ndescription: Full directory\nuser-invocable: true\n---\nRead references/data.txt')
+    await writeFile(join(root, 'SKILL.md'), '---\nname: directory-skill\ndescription: Full directory\nuser-invocable: true\n---\nRead [data](references/data.txt#业务表达)')
     await writeFile(join(root, 'references/data.txt'), 'ORIGINAL_REFERENCE')
     await mkdir(join(root, 'scripts'))
     await writeFile(join(root, 'scripts/check.sh'), '#!/bin/sh\nprintf CORE_SCRIPT_EXECUTED')
@@ -66,7 +66,7 @@ if (!isolatedHome) {
     const first = await agentOn(ctx, 'directory-first', a.preset, undefined, home)
     const other = await agentOn(ctx, 'directory-other', b.preset, undefined, home)
     const loaded = await ctx.skills.get('directory-skill', { scope: first, cwd: home })
-    expect(loaded?.content).toBe('Read references/data.txt')
+    expect(loaded?.content).toBe('Read [data](references/data.txt#业务表达)')
     expect(await readFile(join(loaded!.resourceBase!.path!, 'references/data.txt'), 'utf8')).toBe('ORIGINAL_REFERENCE')
     const requests = await completion(ctx, 262144, false, undefined, {
       tools: [
