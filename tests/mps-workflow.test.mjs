@@ -1031,13 +1031,15 @@ test('真实0保留，缺行或零分母不补0，不影响独立源产能', () 
   assert.match(computeMpsWorkflow(denominator).rows[0].missing.historyShare.join(''), /合计为0/)
 })
 
-test('当前产品范围外的源记录单列，产品键重复仍拒绝计算', () => {
+test('当前产品范围外的源记录单列，相同产品键仅计算一次', () => {
   const unmatched = input()
   unmatched.report.push({ month: '2026-12', base: '丙', code: 'C', quantity: 100 })
   assert.equal(computeMpsWorkflow(unmatched).rows[0].reportShare, 0.3)
   const duplicate = input()
   duplicate.products.push({ ...duplicate.products[0] })
-  assert.match(computeMpsWorkflow(duplicate).rows[0].missing.demand.join(''), /重复/)
+  const deduplicated = computeMpsWorkflow(duplicate)
+  assert.equal(deduplicated.rows.filter(row => row.month === '2026-12').length, 2)
+  assert.equal(deduplicated.rows[0].demand, 54)
 })
 
 test('预计结存允许负数，局部草稿不误报可执行主计划', () => {
@@ -2109,4 +2111,87 @@ test('基地SKU修正独立改变上层总量，缺项及第四月参考不挤�
     computeMpsWorkflow(sample).rows.map(row => row.demand),
     before.rows.map(row => row.demand)
   )
+})
+
+test('产品清单中被引用的替换SKU仍参与计算，重复清单不扩量且来源冲突保留问题', () => {
+  const sample = input()
+  sample.products[0].historyCode = 'B'
+  sample.products[1].base = '甲'
+  sample.report[1].base = '甲'
+  sample.history[1].base = '甲'
+  sample.products.push({ ...sample.products[1] })
+  sample.productMonths = [
+    { month: '2026-12', base: '甲', code: 'A' },
+    { month: '2026-12', base: '甲', code: 'B' },
+    { month: '2026-12', base: '甲', code: 'B' }
+  ]
+  const result = computeMpsWorkflow(sample)
+  const rows = result.rows.filter(row => row.month === '2026-12')
+  assert.deepEqual(
+    rows.map(row => row.code),
+    ['A', 'B']
+  )
+  assert.equal(rows[0].historyQuantity, 100)
+  assert.equal(rows[1].historyQuantity, 40)
+  assert.equal(rows[1].demand, (120 * (0.7 + 40 / 140)) / 2)
+  sample.products[2].historyFactor = 2
+  const conflict = computeMpsWorkflow(sample)
+  assert.equal(conflict.rows.filter(row => row.month === '2026-12').length, 2)
+  assert.match(conflict.rows[0].missing.demand.join(''), /冲突/)
+})
+
+test('池外三类保留来源，替换专用SKU免报，总清单按基地SKU去重且不阻断正常需求', () => {
+  const sample = input()
+  sample.products[0].historyCode = 'OLD'
+  sample.history.push(
+    { month: '2026-12', base: '甲', code: 'OLD', quantity: 20 },
+    { month: '2026-12', base: '甲', code: 'OUT', quantity: 5 },
+    { month: '2026-12', base: '乙', code: 'OLD', quantity: 7 },
+    { month: '2026-12', base: '甲', code: 'ZERO', quantity: 0 }
+  )
+  sample.report.push({ month: '2026-12', base: '甲', code: 'OLD', quantity: 10 }, { month: '2026-12', base: '甲', code: 'OUT', quantity: 8 })
+  sample.openingInventory.push({ base: '甲', code: 'STOCK', quantity: 9 })
+  const result = computeMpsWorkflow(sample)
+  assert.deepEqual(
+    result.poolExceptions.history.map(row => [row.base, row.code]),
+    [
+      ['甲', 'OUT'],
+      ['乙', 'OLD']
+    ]
+  )
+  assert.deepEqual(
+    result.poolExceptions.report.map(row => row.code),
+    ['OUT']
+  )
+  assert.deepEqual(
+    result.poolExceptions.other.map(row => row.code),
+    ['ZERO', 'STOCK']
+  )
+  assert.ok(result.poolExceptions.other.every(row => row.reason))
+  assert.equal(result.poolExceptions.total.length, 4)
+  assert.equal(
+    result.excludedSources.some(row => row.base === '甲' && row.code === 'OLD'),
+    false
+  )
+  const outside = result.poolExceptions.total.find(row => row.base === '甲' && row.code === 'OUT')
+  assert.deepEqual(outside.sources, ['history', 'report'])
+  assert.deepEqual(
+    outside.records.map(row => row.quantity),
+    [5, 8]
+  )
+  assert.ok(Math.abs(result.rows.find(row => row.code === 'A').demand - 58) < 1e-10)
+  assert.equal(
+    result.rows.some(row => ['OUT', 'STOCK', 'OLD'].includes(row.code)),
+    false
+  )
+})
+
+test('公开计算入口不以月份候选为缺基地产品扩张范围', () => {
+  const sample = input()
+  sample.products = [{ ...sample.products[0], base: '' }]
+  sample.productMonths = [{ month: sample.context.month, base: '甲', code: 'A' }]
+  const result = computeMpsWorkflow(sample)
+  assert.equal(result.rows.length, 0)
+  assert.ok(result.poolExceptions.other.some(row => row.source === 'product-list' && row.code === 'A'))
+  assert.ok(result.poolExceptions.report.some(row => row.base === '甲' && row.code === 'A'))
 })
