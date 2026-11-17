@@ -49,3 +49,23 @@ test('上一环节已归0的结存仍将原始负数传入期初报告', () => {
   assert.equal(row.rawOpeningInventory, -20)
   assert.equal(row.inventoryIssues[0].rawValue, -20)
 })
+
+test('负库存归0后仍保留产能不足形成的供需缺口', () => {
+  const sample = input()
+  sample.products = [sample.products[0]]
+  sample.openingInventory = [sample.openingInventory[0]]
+  sample.categoryDemand = sample.categoryDemand.map(row => ({ ...row, quantity: 100 }))
+  sample.report = sample.categoryDemand.map(row => ({ month: row.month, base: '甲', code: 'A', quantity: 1 }))
+  sample.history = structuredClone(sample.report)
+  sample.resources = [{ id: 'R', base: '甲', kind: 'tunnel', name: '隧道', dailyTons: 1 }]
+  sample.productionDays = sample.categoryDemand.map(row => ({ base: '甲', month: row.month, days: 25 }))
+  sample.unitWeights = [{ base: '甲', code: 'A', tonsPerPiece: 1 }]
+  sample.planCandidates = [{ base: '甲', code: 'A', resourceId: 'R' }]
+  const result = solveMpsPlan(sample)
+  assert.equal(result.rows[0].rawOpeningInventory, -20)
+  assert.equal(result.rows[0].openingInventory, 0)
+  assert.ok(
+    result.rows.every(row => Math.abs(row.mainPlan - 25) < 1e-6 && Math.abs(row.unfulfilled - 75) < 1e-6 && row.closingInventory === 0),
+    JSON.stringify(result.rows.map(({ mainPlan, unfulfilled, closingInventory, planMissing }) => ({ mainPlan, unfulfilled, closingInventory, planMissing })))
+  )
+})
