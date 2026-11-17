@@ -90,6 +90,16 @@ export interface MpsResourceLoad extends MpsResource {
   missing: string[]
 }
 export interface MpsWorkflowInput {
+  inventoryMovements?: {
+    month: string
+    base: string
+    code: string
+    productionInbound: MpsQuantity
+    inTransitInbound: MpsQuantity
+    transferIn: MpsQuantity
+    transferOut: MpsQuantity
+  }[]
+  delistedProducts?: { base: string; code: string; dailyShipment: MpsQuantity; dailyShipmentIssue?: string }[]
   inventoryTargets?: MpsInventoryTarget[]
   inventoryTurnoverMonth?: string
   inventoryTargetVersion?: MpsInventoryVersion
@@ -139,6 +149,17 @@ export interface MpsInventoryIssue {
   reason: string
 }
 export interface MpsWorkflowRow extends MpsProduct {
+  existingProductionInbound: MpsQuantity
+  existingInTransitInbound: MpsQuantity
+  existingTransferIn: MpsQuantity
+  existingTransferOut: MpsQuantity
+  delisted: boolean
+  automaticDemandStopped: boolean
+  shipmentReference: MpsQuantity
+  expectedShipment: MpsQuantity
+  dailyShipment: MpsQuantity
+  dailyShipmentCalculation: number
+  dailyShipmentIssue: string | null
   rawOpeningInventory: MpsQuantity
   rawProjectedClosing: MpsQuantity
   inventoryIssues: MpsInventoryIssue[]
@@ -225,6 +246,27 @@ function groupBy<T>(rows: T[], keyOf: (row: T) => string) {
 
 const historyCodes = (product: Pick<MpsProduct, 'code' | 'historyCode'>) => [...new Set([product.code, product.historyCode || product.code])]
 
+export function mpsAvailableInventory(
+  row: Pick<MpsWorkflowRow, 'openingInventory' | 'existingProductionInbound' | 'existingInTransitInbound' | 'existingTransferIn' | 'existingTransferOut'>
+): MpsQuantity {
+  const values = [row.openingInventory, row.existingProductionInbound, row.existingInTransitInbound, row.existingTransferIn, row.existingTransferOut]
+  return values.every(finite)
+    ? safe(
+        (row.openingInventory ?? 0) + (row.existingProductionInbound ?? 0) + (row.existingInTransitInbound ?? 0) + (row.existingTransferIn ?? 0) - (row.existingTransferOut ?? 0)
+      )
+    : null
+}
+export function mpsExpectedShipment(
+  row: Pick<MpsWorkflowRow, 'automaticDemandStopped' | 'demand' | 'month' | 'shipmentReference' | 'dailyShipmentCalculation'>,
+  firstMonth: string,
+  available: MpsQuantity
+): MpsQuantity {
+  if (!row.automaticDemandStopped) return row.demand
+  if (row.month === firstMonth) return row.shipmentReference
+  const forecast = safe(row.dailyShipmentCalculation * daysInMonth(row.month))
+  return available !== null && forecast !== null ? Math.min(Math.max(0, available), forecast) : null
+}
+
 export function computeMpsWorkflow(input: MpsWorkflowInput) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.context.month)) throw Error('评估月份无效')
   const adjustmentIssues: string[] = []
@@ -238,6 +280,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const hasCoefficient = (product: MpsProduct, source: 'report' | 'history') => source === 'history' || reportIndex.has(coefficientKey(product))
   const indexedWeights = groupBy(input.unitWeights ?? [], key)
   const openingIndex = groupBy(input.openingInventory, key)
+  const movementIndex = groupBy(input.inventoryMovements ?? [], periodKey)
+  const delistedIndex = new Map((input.delistedProducts ?? []).map(row => [key(row), row]))
   const capacityIndex = groupBy(input.capacities, key)
   const daysIndex = groupBy(input.constraints.safetyDays, row => row.base)
   const inventoryTarget = inventoryTargetIndex(input.inventoryTargets ?? [], input.inventoryTargetVersion, input.inventoryTargetIssues, input.inventoryTargetPriority)
@@ -388,6 +432,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
               true
             )
           : null
+      const movements = movementIndex.get(periodKey({ ...product, month })) ?? []
+      const movement = (field: 'productionInbound' | 'inTransitInbound' | 'transferIn' | 'transferOut') =>
+        movements.length
+          ? quantity(
+              movements.map(row => ({ quantity: row[field] })),
+              true
+            )
+          : 0
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
       const baseSafetyDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
@@ -406,9 +458,22 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
               : !input.requireSourceTurnoverDays && baseSafetyDays !== null
                 ? 'base-policy'
                 : 'missing'
+      const delisted = delistedIndex.get(key(product))
+      const validDaily = delisted?.dailyShipment != null && finite(delisted.dailyShipment) && delisted.dailyShipment >= 0
       const capacities = (capacityIndex.get(key(product)) ?? []).map(row => ({ ...row, missing: [...row.missing] }))
       return {
         ...product,
+        existingProductionInbound: movement('productionInbound'),
+        existingInTransitInbound: movement('inTransitInbound'),
+        existingTransferIn: movement('transferIn'),
+        existingTransferOut: movement('transferOut'),
+        delisted: delistedIndex.has(key(product)),
+        automaticDemandStopped: false,
+        shipmentReference: null,
+        expectedShipment: null,
+        dailyShipment: delisted?.dailyShipment ?? null,
+        dailyShipmentCalculation: validDaily ? (delisted.dailyShipment ?? 0) : 0,
+        dailyShipmentIssue: delisted ? (delisted.dailyShipmentIssue ?? (validDaily ? null : '截止日近30天日均发货缺失或无效，计算用值补0')) : null,
         id: JSON.stringify([month, product.base, product.group, product.code]),
         month,
         reportQuantity,
@@ -671,7 +736,24 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     category.adjusted = true
     category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
   }
+  for (const row of [...rows, ...referenceRows]) {
+    row.shipmentReference = row.demand
+    if (!row.delisted) continue
+    row.systemDemand = 0
+    row.automaticDemandStopped = !(row.quantityAdjusted && row.demand !== null && row.demand > 0)
+    if (row.automaticDemandStopped) {
+      row.demand = 0
+      row.missing.demand = []
+    }
+  }
   for (const category of categoryRows) {
+    const members = [...rows, ...referenceRows].filter(row => row.month === category.month && row.category === category.category)
+    if (members.some(row => row.delisted)) {
+      category.quantity = quantity(members.map(row => ({ quantity: row.demand })))
+      category.systemQuantity = quantity(members.map(row => ({ quantity: row.systemDemand })))
+      category.adjusted = true
+      category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
+    }
     if (!category.adjusted) continue
     const group = [...rows, ...referenceRows].filter(row => row.month === category.month && row.category === category.category)
     for (const row of group) {
@@ -718,10 +800,15 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       row.openingInventory = row.rawOpeningInventory === null ? null : Math.max(0, row.rawOpeningInventory)
     }
     row.missing.openingInventory = row.openingInventory === null ? ['缺上月结存或上月期末参考'] : []
-    row.requiredProduction =
-      row.demand !== null && row.targetInventory !== null && row.openingInventory !== null ? safe(Math.max(0, row.demand + row.targetInventory - row.openingInventory)) : null
+    const available = mpsAvailableInventory(row)
+    row.expectedShipment = mpsExpectedShipment(row, input.context.month, available)
+    row.requiredProduction = row.automaticDemandStopped
+      ? 0
+      : row.demand !== null && row.targetInventory !== null && available !== null
+        ? safe(Math.max(0, row.demand + row.targetInventory - available))
+        : null
     row.rawProjectedClosing =
-      row.requiredProduction !== null && row.openingInventory !== null && row.demand !== null ? safe(row.openingInventory + row.requiredProduction - row.demand) : null
+      row.requiredProduction !== null && available !== null && row.expectedShipment !== null ? safe(available + row.requiredProduction - row.expectedShipment) : null
     row.projectedClosing = row.rawProjectedClosing === null ? null : Math.max(0, row.rawProjectedClosing)
     if (row.rawProjectedClosing !== null && row.rawProjectedClosing < 0)
       row.inventoryIssues.push({
