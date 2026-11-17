@@ -65,7 +65,7 @@ test('零需求无需件吨系数即可计入零吨，未知需求仍不可计�
   assert.equal(report.rccp.find(row => row.month === '2026-12').load, 0)
 })
 
-test('确认零需求不依赖缺失占比，缺库存只隔离该SKU，真实负库存仍要求补产', () => {
+test('确认零需求不依赖缺失占比，缺库存只隔离该SKU，负库存归0保留异常', () => {
   const sample = planInput()
   sample.categoryDemand = sample.categoryDemand.map(row => ({ ...row, quantity: 0 }))
   sample.categoryDemand.push({ month: '2027-03', category: '点心', quantity: 0 })
@@ -92,8 +92,10 @@ test('确认零需求不依赖缺失占比，缺库存只隔离该SKU，真实�
   assert.equal(plan.summary.evaluatedRows, 3)
   sample.openingInventory[0].quantity = -20
   const shortage = solveMpsPlan(sample).rows.find(row => row.code === 'A' && row.month === '2026-12')
-  assert.equal(shortage.requiredProduction, 20)
-  assert.ok(shortage.planMissing.includes('缺唯一有效件吨系数'))
+  assert.equal(shortage.requiredProduction, 0)
+  assert.equal(shortage.rawOpeningInventory, -20)
+  assert.equal(shortage.inventoryIssues[0].rawValue, -20)
+  assert.deepEqual(shortage.planMissing, [])
   sample.categoryDemand[0].quantity = null
   assert.equal(solveMpsPlan(sample).rows.find(row => row.code === 'A' && row.month === '2026-12').demand, null)
 })
@@ -135,7 +137,8 @@ test('已满足补库的求解尾差不制造下月零需求的假补产', () =>
   sample.openingInventory[0].quantity = -5
   sample.planCandidates = sample.planCandidates.map(row => ({ ...row, month: '2026-12' }))
   const rows = solveMpsPlan(sample).rows.filter(row => row.code === 'A')
-  assert.ok(rows[0].mainPlan > 4.99)
+  assert.equal(rows[0].mainPlan, 0)
+  assert.equal(rows[0].rawOpeningInventory, -5)
   assert.ok(rows.every(row => row.closingInventory === 0 && !row.planMissing.length))
   assert.ok(rows.slice(1).every(row => row.requiredProduction === 0 && row.mainPlan === 0))
 })
@@ -1042,13 +1045,14 @@ test('当前产品范围外的源记录单列，相同产品键仅计算一次',
   assert.equal(deduplicated.rows[0].demand, 54)
 })
 
-test('预计结存允许负数，局部草稿不误报可执行主计划', () => {
+test('负期初库存归0留存原值，局部草稿不误报可执行主计划', () => {
   const sample = input()
   sample.openingInventory[0].quantity = -5
   sample.constraints.safetyDays = [{ base: '甲', days: 0 }]
   sample.constraints.rules = { local: [{ description: '只作核对', strength: '硬' }] }
   const result = computeMpsWorkflow(sample)
-  assert.equal(result.rows[0].openingInventory, -5)
+  assert.equal(result.rows[0].openingInventory, 0)
+  assert.equal(result.rows[0].rawOpeningInventory, -5)
   assert.equal(result.rows[0].safetyDays, 0)
   for (const field of ['mainPlan', 'gap', 'load', 'transfer']) assert.equal(result.rows[0][field], null)
   assert.deepEqual(result.constraints.rules, sample.constraints.rules)
@@ -1152,7 +1156,7 @@ test('全国Top1同量按编码稳定选择，缺去年来源不猜托底', () =
   assert.equal(computeMpsWorkflow(sample).rows[1].share, null)
 })
 
-test('安全库存使用下月自然月，负结存滚动无约束所需生产，M+4只作库存参考', () => {
+test('安全库存使用下月自然月，负期初归0滚动所需生产，M+4只作库存参考', () => {
   const sample = input()
   sample.products = [sample.products[0]]
   sample.report = ['2026-12', '2027-01', '2027-02'].map(month => ({ month, base: '甲', code: 'A', quantity: 1 }))
@@ -1167,11 +1171,11 @@ test('安全库存使用下月自然月，负结存滚动无约束所需生产�
   )
   assert.deepEqual(
     result.rows.map(row => row.openingInventory),
-    [-5, 20, 20]
+    [0, 20, 20]
   )
   assert.deepEqual(
     result.rows.map(row => row.requiredProduction),
-    [125, 310, 300]
+    [120, 310, 300]
   )
   assert.deepEqual(
     result.rows.map(row => row.projectedClosing),
