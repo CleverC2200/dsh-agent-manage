@@ -5,7 +5,7 @@ import { computeMpsWorkflow, mpsCategories } from '../src/mps-compute/workflow.t
 import { fairAllocate } from '../src/mps-compute/fair-allocation.ts'
 import { jointAllocate } from '../src/mps-compute/joint-allocation.ts'
 import { solveMpsPlan } from '../src/mps-compute/plan.ts'
-import { buildCapacityReport, capacityLoadBand } from '../src/mps-compute/capacity-report.ts'
+import { buildCapacityReport, capacityLoadBand, selectCapacityScope } from '../src/mps-compute/capacity-report.ts'
 
 test('已发布工作台仍可从 workflow 读取原八类产品目录', () => {
   assert.deepEqual(mpsCategories, ['饺子', '调理肉制品', '汤圆', '面点', '休闲', '馄饨', '粽子', '饼类'])
@@ -2253,4 +2253,75 @@ test('公开计算入口不以月份候选为缺基地产品扩张范围', () =>
   assert.equal(result.rows.length, 0)
   assert.ok(result.poolExceptions.other.some(row => row.source === 'product-list' && row.code === 'A'))
   assert.ok(result.poolExceptions.report.some(row => row.base === '甲' && row.code === 'A'))
+})
+
+test('设备范围按物理资源汇总，候选SKU只计一次，产品占用与设备占用对平', () => {
+  const sample = planInput()
+  sample.resources[0] = { ...sample.resources[0], workshop: '一车间', productionLines: ['一产线', '共用产线'], tunnel: 'T1' }
+  sample.resources.push({ id: 'R2', base: '甲', name: '备用隧道', kind: 'tunnel', workshop: '一车间', productionLines: ['二产线', '共用产线'], tunnel: 'T2', dailyTons: 5 })
+  sample.planCandidates.push(...sample.planCandidates.map(row => ({ ...row, resourceId: 'R2' })))
+  const plan = solveMpsPlan(sample)
+  const report = buildCapacityReport(sample, plan)
+  for (const scope of [{}, { base: '甲' }, { base: '甲', workshop: '一车间' }]) {
+    const selected = selectCapacityScope(report, { month: '2026-12', ...scope }, 'sku')
+    assert.equal(selected.capacity, 10)
+    assert.equal(selected.demand.value, 10)
+    assert.ok(Math.abs(selected.scheduledTons - 10) < 1e-7)
+    assert.ok(Math.abs(selected.products.reduce((total, row) => total + row.scheduledTons, 0) - 10) < 1e-7)
+    assert.equal(
+      selected.products.reduce((total, row) => total + row.demand.value, 0),
+      10
+    )
+    assert.equal(selected.products.length, 2)
+  }
+  const tunnel = selectCapacityScope(report, { month: '2026-12', resourceId: 'R' }, 'category')
+  assert.equal(tunnel.capacity, 5)
+  assert.equal(tunnel.demand.value, 10)
+  assert.equal(tunnel.products.length, 1)
+  assert.equal(tunnel.products[0].scheduledTons, tunnel.scheduledTons)
+  assert.equal(selectCapacityScope(report, { month: '2026-12', base: '甲', line: '二产线' }, 'group').capacity, 5)
+  assert.equal(selectCapacityScope(report, { month: '2026-12', base: '甲', line: '共用产线' }, 'group').capacity, 10)
+})
+
+test('产能产品分类按基地SKU隔离，无设备需求与ODM不伪造归属', () => {
+  const sample = planInput()
+  sample.products.push({ ...sample.products[0], base: '乙', category: '饼类', group: '饼', name: '乙基地A' })
+  sample.categoryDemand.push(...sample.categoryDemand.map(row => ({ ...row, category: '饼类', quantity: 20 })))
+  sample.report.push(...sample.report.filter(row => row.code === 'A').map(row => ({ ...row, base: '乙', quantity: 20 })))
+  sample.history = structuredClone(sample.report)
+  sample.constraints.turnoverDays = [
+    { base: '甲', code: 'A', days: 0 },
+    { base: '甲', code: 'B', days: 0 },
+    { base: '乙', code: 'A', days: 0 }
+  ]
+  sample.resources.push({ id: 'OTHER', base: '乙', kind: 'tunnel', name: '乙隧道', dailyTons: 5 })
+  sample.productionDays.push({ base: '乙', month: '2026-12', days: 1 })
+  sample.planCandidates.push({ base: '乙', code: 'A', resourceId: 'OTHER' })
+  sample.unitWeights.push({ base: '乙', code: 'A', tonsPerPiece: 0.1 })
+  sample.openingInventory.push({ base: '乙', code: 'A', quantity: 0 })
+  let report = buildCapacityReport(sample, solveMpsPlan(sample))
+  assert.equal(report.rccp.find(row => row.month === '2026-12' && row.base === '甲').capacity, 5)
+  assert.equal(report.rccp.find(row => row.month === '2026-12' && row.base === '乙').capacity, 5)
+  assert.equal(selectCapacityScope(report, { month: '2026-12', base: '乙' }, 'sku').products[0].category, '饼类')
+  sample.planCandidates = sample.planCandidates.filter(row => row.code !== 'B')
+  sample.odmProductCodes = ['A']
+  report = buildCapacityReport(sample, solveMpsPlan(sample))
+  const selected = selectCapacityScope(report, { month: '2026-12' }, 'sku')
+  assert.equal(selected.demand.value, 0)
+  assert.equal(selected.unassigned.length, 1)
+  assert.equal(selected.unassigned[0].code, 'B')
+  assert.ok(
+    report.demandIssues.some(row => row.month === '2026-12' && row.code === 'B' && row.kind === '无有效设备关联' && row.sourceTable.includes('production_line_sku_capacity'))
+  )
+  assert.ok(report.hierarchyIssues.some(row => row.reason.includes('来源未提供独立产线')))
+})
+
+test('设备范围的非求解月份不伪造零需求或零占用', () => {
+  const sample = planInput()
+  const report = buildCapacityReport(sample, solveMpsPlan(sample))
+  const selected = selectCapacityScope(report, { month: '2026-07' }, 'sku')
+  assert.equal(selected.capacity, null)
+  assert.equal(selected.demand.value, null)
+  assert.equal(selected.load, null)
+  assert.equal(selected.scheduledTons, null)
 })
