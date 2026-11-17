@@ -1,3 +1,4 @@
+import { confirmNoExistingInventoryMovements } from './helpers/confirmed-inventory.mjs'
 import { inventoryTargetIndex, inventoryTurnoverIndex } from '../src/mps-compute/inventory-targets.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -118,6 +119,7 @@ test('零需求及缺库存异常不阻断其他大类的正常生产和逐月�
   sample.resourceAssignments.push(
     ...sample.categoryDemand.filter(row => row.category === '完整类').map(({ month }) => ({ month, base: '甲', code: 'C', resourceId: 'F', share: 1 }))
   )
+  confirmNoExistingInventoryMovements(sample)
   const plan = solveMpsPlan(sample)
   assert.equal(plan.summary.evaluatedRows, 6)
   for (const row of plan.rows.filter(row => row.code === 'C')) {
@@ -350,7 +352,7 @@ const planInput = () => {
     code: row.code,
     resourceId: 'R'
   }))
-  return sample
+  return confirmNoExistingInventoryMovements(sample)
 }
 
 const approveForming = (sample, base, codes = sample.products.map(row => row.code)) => {
@@ -370,7 +372,7 @@ const odmInput = () => {
   sample.odmSupplies = [{ supplierId: 'ODM', base: '甲', code: 'A' }]
   sample.resources = []
   sample.planCandidates = []
-  return sample
+  return confirmNoExistingInventoryMovements(sample)
 }
 
 test('ODM按件生成默认计划到货，100需求加20目标减30期初得到90到货且内部排产为0', () => {
@@ -404,6 +406,7 @@ test('ODM多基地经中转逐段守恒，外部到货按供应方SKU月汇总�
   sample.unitWeights = ['甲', '乙', '收货', '中转'].map(base => ({ base, code: 'A', tonsPerPiece: 0.1 }))
   sample.odmSupplies[0].base = '收货'
   sample.transferRoutes = [{ from: '收货', to: '中转', code: 'A' }, ...['甲', '乙'].map(to => ({ from: '中转', to, code: 'A' }))]
+  confirmNoExistingInventoryMovements(sample)
   const result = solveMpsPlan(sample)
   const month = result.rows.filter(row => row.month === sample.context.month)
   assert.ok(month.every(row => row.mainPlan === 0))
@@ -516,6 +519,7 @@ test('中等SKU域的件吨读取有界，重复系数保留未知且不同基�
     },
     tonsPerPiece: row.base === '甲' ? 0.1 : 2
   }))
+  confirmNoExistingInventoryMovements(sample)
   const result = computeMpsWorkflow(sample)
   assert.equal(result.rows.length, 600)
   assert.ok(result.rows.filter(row => row.code === 'SKU-0').every(row => row.requiredProductionTons === null && row.missing.requiredProductionTons.length > 0))
@@ -788,26 +792,27 @@ test('多资源共同约束公平率，输入次序不改变满足率，零产�
   assert.ok(empty.demands.every(row => row.allocated === 0))
 })
 
-const input = () => ({
-  context: { id: 'v1', name: '试算', month: '2026-12' },
-  products: [
-    { base: '甲', code: 'A', name: '甲产品', category: '点心', group: '包点', series: '系列一' },
-    { base: '乙', code: 'B', name: '乙产品', category: '点心', group: '包点', series: '系列一' }
-  ],
-  categoryDemand: [{ month: '2026-12', category: '点心', quantity: 120 }],
-  report: [
-    { month: '2026-12', base: '甲', code: 'A', quantity: 30 },
-    { month: '2026-12', base: '乙', code: 'B', quantity: 70 }
-  ],
-  history: [
-    { month: '2026-12', base: '甲', code: 'A', quantity: 60 },
-    { month: '2026-12', base: '乙', code: 'B', quantity: 40 }
-  ],
-  sourceIssues: { report: [], history: [] },
-  openingInventory: [{ base: '甲', code: 'A', quantity: 0 }],
-  capacities: [],
-  constraints: { safetyDays: [], rules: {} }
-})
+const input = () =>
+  confirmNoExistingInventoryMovements({
+    context: { id: 'v1', name: '试算', month: '2026-12' },
+    products: [
+      { base: '甲', code: 'A', name: '甲产品', category: '点心', group: '包点', series: '系列一' },
+      { base: '乙', code: 'B', name: '乙产品', category: '点心', group: '包点', series: '系列一' }
+    ],
+    categoryDemand: [{ month: '2026-12', category: '点心', quantity: 120 }],
+    report: [
+      { month: '2026-12', base: '甲', code: 'A', quantity: 30 },
+      { month: '2026-12', base: '乙', code: 'B', quantity: 70 }
+    ],
+    history: [
+      { month: '2026-12', base: '甲', code: 'A', quantity: 60 },
+      { month: '2026-12', base: '乙', code: 'B', quantity: 40 }
+    ],
+    sourceIssues: { report: [], history: [] },
+    openingInventory: [{ base: '甲', code: 'A', quantity: 0 }],
+    capacities: [],
+    constraints: { safetyDays: [], rules: {} }
+  })
 
 test('后月库存缺源诊断不按单品重复遍历整张来源', () => {
   let sourceMonthReads = 0
@@ -1374,7 +1379,7 @@ const resourceInput = () => {
   sample.resourceAssignments = sample.products.flatMap(row =>
     sample.resources.map(resource => ({ month: '2026-12', base: '甲', code: row.code, resourceId: resource.id, share: 1 }))
   )
-  return sample
+  return confirmNoExistingInventoryMovements(sample)
 }
 
 test('共享资源按唯一ID汇总吨数评估，资源缺口及边界阈值来自同一结果', () => {
@@ -1518,24 +1523,25 @@ test('缺基地来源按当前产品分类限制影响范围，旧分类不阻�
 
 {
   const months = ['2026-12', '2027-01', '2027-02']
-  const sample = () => ({
-    context: { id: 'rules', name: '规则验收', month: months[0] },
-    products: [{ base: '甲', code: 'A', name: '产品A', category: '汤圆', group: '组', series: '系列' }],
-    categoryDemand: [...months, '2027-03'].map(month => ({ month, category: '汤圆', quantity: 310 })),
-    report: months.map(month => ({ month, base: '甲', code: 'A', quantity: 100 })),
-    history: months.map(month => ({ month, base: '甲', code: 'A', quantity: 100 })),
-    sourceIssues: { report: [], history: [] },
-    openingInventory: [{ base: '甲', code: 'A', quantity: 0 }],
-    capacities: [],
-    constraints: { safetyDays: [{ base: '甲', days: 0 }], rules: { local: [] } },
-    productionDays: months.map(month => ({ month, base: '甲', days: 25 })),
-    unitWeights: [{ base: '甲', code: 'A', tonsPerPiece: 1 }],
-    resources: [
-      { id: 'T', base: '甲', kind: 'tunnel', name: '隧道', dailyTons: 20 },
-      { id: 'F', base: '甲', kind: 'forming', name: '成型机', dailyTons: 20 }
-    ],
-    resourceAssignments: months.flatMap(month => ['T', 'F'].map(resourceId => ({ month, base: '甲', code: 'A', resourceId, share: 1 })))
-  })
+  const sample = () =>
+    confirmNoExistingInventoryMovements({
+      context: { id: 'rules', name: '规则验收', month: months[0] },
+      products: [{ base: '甲', code: 'A', name: '产品A', category: '汤圆', group: '组', series: '系列' }],
+      categoryDemand: [...months, '2027-03'].map(month => ({ month, category: '汤圆', quantity: 310 })),
+      report: months.map(month => ({ month, base: '甲', code: 'A', quantity: 100 })),
+      history: months.map(month => ({ month, base: '甲', code: 'A', quantity: 100 })),
+      sourceIssues: { report: [], history: [] },
+      openingInventory: [{ base: '甲', code: 'A', quantity: 0 }],
+      capacities: [],
+      constraints: { safetyDays: [{ base: '甲', days: 0 }], rules: { local: [] } },
+      productionDays: months.map(month => ({ month, base: '甲', days: 25 })),
+      unitWeights: [{ base: '甲', code: 'A', tonsPerPiece: 1 }],
+      resources: [
+        { id: 'T', base: '甲', kind: 'tunnel', name: '隧道', dailyTons: 20 },
+        { id: 'F', base: '甲', kind: 'forming', name: '成型机', dailyTons: 20 }
+      ],
+      resourceAssignments: months.flatMap(month => ['T', 'F'].map(resourceId => ({ month, base: '甲', code: 'A', resourceId, share: 1 })))
+    })
   const rule = (effect, extra = {}) => ({ id: 'R', description: '规则验证', strength: '硬', base: '甲', from: '2027-01', until: '2027-01', effect, ...extra })
 
   test('inventory rules affect only their month and SKU, recompute production and carry closing stock; soft rules need adoption', () => {
@@ -1703,6 +1709,7 @@ test('缺基地来源按当前产品分类限制影响范围，旧分类不阻�
       result.rows.map(row => row.inventoryTarget.days),
       [10, 20, 30]
     )
+    confirmNoExistingInventoryMovements(input)
     input.constraints.safetyDays = [{ base: '甲', days: 10 }]
     result = computeMpsWorkflow(input)
     assert.equal(result.rows[0].safetyDaysSource, 'base-policy')
@@ -2288,7 +2295,7 @@ test('产能产品分类按基地SKU隔离，无设备需求与ODM不伪造归�
   sample.products.push({ ...sample.products[0], base: '乙', category: '饼类', group: '饼', name: '乙基地A' })
   sample.categoryDemand.push(...sample.categoryDemand.map(row => ({ ...row, category: '饼类', quantity: 20 })))
   sample.report.push(...sample.report.filter(row => row.code === 'A').map(row => ({ ...row, base: '乙', quantity: 20 })))
-  sample.history = structuredClone(sample.report)
+  sample.history = globalThis.structuredClone(sample.report)
   sample.constraints.turnoverDays = [
     { base: '甲', code: 'A', days: 0 },
     { base: '甲', code: 'B', days: 0 },

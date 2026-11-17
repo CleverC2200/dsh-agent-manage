@@ -1,20 +1,22 @@
+import { confirmNoExistingInventoryMovements } from './helpers/confirmed-inventory.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeMpsWorkflow } from '../src/mps-compute/workflow.ts'
 import { solveMpsPlan } from '../src/mps-compute/plan.ts'
 
-const input = () => ({
-  context: { id: 'delisted-v1', name: '下市品验收', month: '2026-11' },
-  products: [{ base: '甲', code: 'A', name: '下市A', category: '点心', group: '组', series: '系列' }],
-  categoryDemand: ['2026-11', '2026-12', '2027-01', '2027-02'].map(month => ({ month, category: '点心', quantity: 0 })),
-  report: [{ month: '2026-11', base: '甲', code: 'A', quantity: 1 }],
-  history: [{ month: '2026-11', base: '甲', code: 'A', quantity: 1 }],
-  sourceIssues: { report: [], history: [] },
-  openingInventory: [{ base: '甲', code: 'A', quantity: 50 }],
-  capacities: [],
-  constraints: { safetyDays: [], rules: {} },
-  delistedProducts: [{ base: '甲', code: 'A', dailyShipment: 2 }]
-})
+const input = () =>
+  confirmNoExistingInventoryMovements({
+    context: { id: 'delisted-v1', name: '下市品验收', month: '2026-11' },
+    products: [{ base: '甲', code: 'A', name: '下市A', category: '点心', group: '组', series: '系列' }],
+    categoryDemand: ['2026-11', '2026-12', '2027-01', '2027-02'].map(month => ({ month, category: '点心', quantity: 0 })),
+    report: [{ month: '2026-11', base: '甲', code: 'A', quantity: 1 }],
+    history: [{ month: '2026-11', base: '甲', code: 'A', quantity: 1 }],
+    sourceIssues: { report: [], history: [] },
+    openingInventory: [{ base: '甲', code: 'A', quantity: 50 }],
+    capacities: [],
+    constraints: { safetyDays: [], rules: {} },
+    delistedProducts: [{ base: '甲', code: 'A', dailyShipment: 2 }]
+  })
 
 test('下市品从评估当月停止自动新增需求与补货，缺周转及产能不阻断库存滚动', () => {
   for (const calculate of [computeMpsWorkflow, solveMpsPlan]) {
@@ -149,4 +151,41 @@ test('后续自然月用库存来源日均2而非当月发货参考10推导日�
       [290, 228, 166]
     )
   }
+})
+
+test('缺既有入库确认仍待补，日均缺失补0不掩盖未知，确认0后才恢复库存滚动', () => {
+  const sample = input()
+  delete sample.inventoryMovements
+  sample.delistedProducts[0].dailyShipment = null
+  for (const calculate of [computeMpsWorkflow, solveMpsPlan]) {
+    assert.ok(calculate(sample).rows.every(row => row.projectedClosing === null))
+    const confirmed = globalThis.structuredClone(sample)
+    confirmed.inventoryMovements = ['2026-11', '2026-12', '2027-01'].map(month => ({
+      month,
+      base: '甲',
+      code: 'A',
+      productionInbound: 0,
+      inTransitInbound: 0,
+      transferIn: 0,
+      transferOut: 0
+    }))
+    assert.deepEqual(
+      calculate(confirmed).rows.map(row => row.projectedClosing),
+      [50, 50, 50]
+    )
+    confirmed.inventoryMovements[1].productionInbound = 20
+    confirmed.inventoryMovements[2].inTransitInbound = 5
+    assert.deepEqual(
+      calculate(confirmed).rows.map(row => row.projectedClosing),
+      [50, 70, 75]
+    )
+  }
+})
+
+test('第四月只作需求参考，不复用第三月既有入库确认', () => {
+  const sample = input()
+  sample.inventoryMovements[2].inTransitInbound = 5
+  const row = computeMpsWorkflow(sample).referenceRows[0]
+  assert.equal(row.month, '2027-02')
+  assert.equal(row.existingInTransitInbound, null)
 })
