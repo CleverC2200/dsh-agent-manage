@@ -31,13 +31,13 @@ test('自身及替换品按同基地同财年合计历史，原始发货不改�
 
 test('部分需求缺失保留已知负荷和逐SKU原因，不把已知负荷当完整负荷', () => {
   const sample = planInput()
-  sample.history = sample.history.filter(row => row.code !== 'B')
+  sample.report = sample.report.filter(row => row.code !== 'B')
   const report = buildCapacityReport(sample, solveMpsPlan(sample))
   const row = report.rccp.find(row => row.month === '2026-12')
   assert.equal(row.load, null)
   assert.equal(row.knownLoad, row.demand.known / row.capacity)
   assert.ok(row.knownLoad > 0)
-  assert.ok(report.demandIssues.some(issue => issue.month === '2026-12' && issue.code === 'B' && issue.kind === '缺历史拆分依据'))
+  assert.ok(report.demandIssues.some(issue => issue.month === '2026-12' && issue.code === 'B' && issue.kind === '缺拆分依据'))
 })
 
 test('年度全国只汇总基地明细，零数量无需件吨系数，缺量仍保留缺项', () => {
@@ -914,7 +914,7 @@ test('提报缺Top1系数时物料组和SKU各承接剩余占比，基地份额�
   assert.equal(computeMpsWorkflow(sample).rows[0].demand, null)
 })
 
-test('两路占比只用本来源已返回的当前产品明细，缺行保留为空且不阻断另一来源', () => {
+test('销售缺行保留为空，历史缺行补0且不阻断另一来源', () => {
   const sample = input()
   sample.products.push({ base: '丙', code: 'C', name: '丙产品', category: '点心', group: '包点', series: '同名系列不作键' })
   sample.history = [
@@ -927,7 +927,8 @@ test('两路占比只用本来源已返回的当前产品明细，缺行保留�
   const c = result.rows.find(row => row.month === '2026-12' && row.code === 'C')
   assert.equal(a.reportShare, 0.3)
   assert.equal(a.historyShare, 0.6)
-  assert.equal(b.historyShare, null)
+  assert.equal(b.historyShare, 0)
+  assert.equal(b.historyAudit.zeroFilled, true)
   assert.equal(c.reportShare, null)
   assert.equal(b.reportShare, 0.7)
   assert.equal(c.historyShare, 0.4)
@@ -996,7 +997,7 @@ test('池外事实按当前产品范围单列，源分类未知也不混入范�
   assert.ok(unknown.excludedSources.some(row => row.code === 'X'))
 })
 
-test('月度正式归属范围内的缺行和NULL仍缺数，未证明全国时仅报告范围内结果', () => {
+test('月度正式归属范围内销售缺行仍待补、历史NULL补0，未证明全国仅报告范围内结果', () => {
   const sample = input()
   sample.productMonths = sample.products.map(({ base, code }) => ({ month: '2026-12', base, code }))
   sample.report.pop()
@@ -1004,8 +1005,9 @@ test('月度正式归属范围内的缺行和NULL仍缺数，未证明全国时�
   const result = computeMpsWorkflow(sample)
   assert.equal(result.rows.length, 6)
   assert.equal(result.rows[1].reportQuantity, null)
-  assert.equal(result.rows[1].historyQuantity, null)
-  assert.equal(result.rows[0].share, null)
+  assert.equal(result.rows[1].historyQuantity, 0)
+  assert.equal(result.rows[1].historyAudit.zeroFilled, true)
+  assert.equal(result.rows[0].share, 1)
   assert.equal(result.scopeCoverage, 'in-scope')
   assert.match(result.missing.join(''), /全国覆盖.*实际证明.*范围内/)
   sample.scopeCoverage = 'national'
@@ -1059,7 +1061,7 @@ test('缺产品时显式需求保留在池外诊断，缺大数不抹去有效�
   assert.match(row.missing.demand.join(''), /缺大类需求/)
 })
 
-test('真实0保留，缺行或零分母不补0，不影响独立源产能', () => {
+test('真实0保留、历史缺行按用途补0，零分母待补且独立源产能保留', () => {
   const zero = input()
   zero.categoryDemand[0].quantity = 0
   zero.report[0].quantity = 0
@@ -1074,8 +1076,9 @@ test('真实0保留，缺行或零分母不补0，不影响独立源产能', () 
   absent.history.pop()
   absent.capacities = [{ base: '甲', code: 'A', line: '一线', dailyPieces: 0, dailyTons: 10, missing: [] }]
   const limited = computeMpsWorkflow(absent).rows[1]
-  assert.equal(limited.historyShare, null)
-  assert.equal(limited.demand, null)
+  assert.equal(limited.historyShare, 0)
+  assert.equal(limited.historyQuantity, 0)
+  assert.equal(limited.demand, 42)
   assert.equal(limited.reportShare, 0.7)
   assert.equal(computeMpsWorkflow(absent).rows[0].capacities[0].dailyPieces, 0)
   assert.equal(limited.monthlyCapacity, null)
@@ -1197,15 +1200,15 @@ test('全国物料组Top1托底承接有效占比，基地按两路占比并拒�
   assert.equal(rejected.rows[2].share, 0.4)
 })
 
-test('全国Top1同量按编码稳定选择，缺去年来源不猜托底', () => {
+test('全国Top1同量按编码稳定选择，历史缺失补0后仍按有效占比选托底', () => {
   const sample = input()
   sample.history.forEach(row => {
     row.quantity = 50
   })
   assert.equal(computeMpsWorkflow(sample).rows[0].fallback, true)
   sample.history.pop()
-  assert.equal(computeMpsWorkflow(sample).rows[0].fallback, false)
-  assert.equal(computeMpsWorkflow(sample).rows[1].share, null)
+  assert.equal(computeMpsWorkflow(sample).rows[0].fallback, true)
+  assert.equal(computeMpsWorkflow(sample).rows[1].share, 0.35)
 })
 
 test('安全库存使用下月自然月，负期初归0滚动所需生产，M+4只作库存参考', () => {
@@ -2135,7 +2138,7 @@ test('当前SKU与替换品同基地历史共同构成历史，不覆盖自身�
   sample.history = globalThis.structuredClone(raw)
   sample.history.find(row => row.base === '甲' && row.code === 'A').quantity = null
   sample.products[0].historyCode = 'REPLACEMENT'
-  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, null)
+  assert.equal(computeMpsWorkflow(sample).rows.find(row => row.base === '甲').historyQuantity, 200)
 })
 
 test('基地SKU修正独立改变上层总量，缺项及第四月参考不挤占其他基地', () => {
