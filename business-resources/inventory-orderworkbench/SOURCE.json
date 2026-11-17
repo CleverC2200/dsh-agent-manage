@@ -24,7 +24,8 @@
     "Align on-time Agent Skill, semantic reference, full execution denominator and 18/12h boundaries with current dashboard; use fixed governed queries on 2026-11-09",
     "Switch amendment cohort to latest-batch final loading completion lastshipmenttime; preserve quantity, exclusions and no-lock rules; distinguish WMS closing and missing shipment times on 2026-11-09",
     "Update supplied KPI details Skill on 2026-11-10; preserve five-part detail format while prioritizing current six-card code, quantity cancellation, shipment amendment, arrival ontime and production/sales snapshots; no business writes",
-    "Move all six KPI definitions and targets to shared dashboard runtime; Skills retain read-only routing and response formats; preserve Cube and knowledge routes for other questions on 2026-11-10"
+    "Move all six KPI definitions and targets to shared dashboard runtime; Skills retain read-only routing and response formats; preserve Cube and knowledge routes for other questions on 2026-11-10",
+    "Use business-facing Chinese explanations of current shared KPI contracts; keep technical identifiers for requested traceability and retain calculation, unit and evidence boundaries, 2026-11-17"
   ],
   "files": [
     {
@@ -70,7 +71,7 @@
     {
       "path": "skills/operations-kpi-performance-analysis/SKILL.md",
       "sourceSha256": "4ffea0fb3eaa810250260429ebb090ea1becad8d4f22f8ddd6f25eb3069f7549",
-      "packagedSha256": "cadf976088394bb1eb6f2f5e27d0affe05c7dafcef3d19f1b5d4fbfdbca76333",
+      "packagedSha256": "bb30047821f25c9d6ccf140e23164f3ed8b2f280587a8e9f8fe5a015d2e1bb73",
       "sourceFileName": "operations-kpi-performance-analysis/SKILL.md"
     },
     {
@@ -94,7 +95,7 @@
       "path": "skills/operations-order-kpi-details/SKILL.md",
       "sourceSha256": "80d00880ebd3fb9c6e3d2febc9f2fa8919b6a231b27d717647d9258467812726",
       "sourceFileName": "operations-order-kpi-details/SKILL.md",
-      "packagedSha256": "f45a286b74ada8c30c0372fefd4a2989b67c384838b754830f57784849bc21d7"
+      "packagedSha256": "37e9cbfc902f7ef44b39872b93f9555357889b644e34cd5463ecfcf7ab2f19a7"
     },
     {
       "path": "agent-prompt.md",
@@ -135,7 +136,7 @@
     },
     {
       "path": "skills/operations-order-kpi-details/references/card-contracts.md",
-      "packagedSha256": "bac629a145e90ff7d671813a945104085d401a5b595dd39af570be1cf09a4ef2",
+      "packagedSha256": "35f6c1f7ec1aadc8a48b20abffb8e7945bad932398da524ccf551fd1e0e67592",
       "sourceFileName": "Current local Workbench six-card code; integration-set.json"
     }
   ],
