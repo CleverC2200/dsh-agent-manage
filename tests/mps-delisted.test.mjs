@@ -19,7 +19,7 @@ const input = () => ({
 test('下市品从评估当月停止自动新增需求与补货，缺周转及产能不阻断库存滚动', () => {
   for (const calculate of [computeMpsWorkflow, solveMpsPlan]) {
     const sample = input()
-    const before = structuredClone(sample)
+    const before = globalThis.structuredClone(sample)
     const result = calculate(sample)
     assert.deepEqual(
       result.rows.map(row => row.demand),
@@ -94,10 +94,10 @@ test('下市品日均缺失仅计算补0，缺库存或当月发货依据仍待�
     assert.equal(result.rows[1].dailyShipment, null)
     assert.equal(result.rows[1].dailyShipmentCalculation, 0)
     assert.match(result.rows[1].dailyShipmentIssue, /读取失败/)
-    const missingStock = structuredClone(sample)
+    const missingStock = globalThis.structuredClone(sample)
     missingStock.openingInventory[0].quantity = null
     assert.ok(calculate(missingStock).rows.every(row => row.projectedClosing === null))
-    const missingReference = structuredClone(sample)
+    const missingReference = globalThis.structuredClone(sample)
     missingReference.categoryDemand.forEach(row => {
       row.quantity = null
     })

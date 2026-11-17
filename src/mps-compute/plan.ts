@@ -354,15 +354,15 @@ export function solveMpsPlan(input: MpsPlanInput) {
               )
             ]
           : []
+      const blockedByDelistedSupplier =
+        !own.length && other.length > 0 && other.every(id => monthResources.some(resource => resource.resourceId === id && stoppedSuppliers.has(rowKey(resource.base, row.code))))
       row.planMissing = [
         ...commonMissing,
         ...(row.requiredProduction !== 0 && weight === null ? ['缺唯一有效件吨系数'] : []),
         ...(row.requiredProductionTons !== null && !finite(row.requiredProductionTons) ? ['生产吨数超出有效范围'] : []),
         ...(row.requiredProduction !== 0 && !own.length && !other.length && !routePending.length ? ['无有效产线承接关系或生产日历'] : []),
         ...(row.requiredProduction !== 0 && (own.length || other.length) && !ownReady.length && !otherReady.length
-          ? [!own.length && other.every(id => monthResources.some(resource => resource.resourceId === id && stoppedSuppliers.has(rowKey(resource.base, row.code))))
-              ? '供应基地SKU已下市，停止自动补货生产'
-              : '缺有效成型机台账、月度批准分配或生产日历']
+          ? [blockedByDelistedSupplier ? '供应基地SKU已下市，停止自动补货生产' : '缺有效成型机台账、月度批准分配或生产日历']
           : []),
         ...pendingAt(row.base).map(entry => entry.reason),
         ...routePending
