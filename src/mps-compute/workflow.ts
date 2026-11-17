@@ -7,6 +7,7 @@ import {
   type MpsInventoryTargetResult,
   type MpsInventoryVersion
 } from './inventory-targets.ts'
+import { mpsPoolExceptions } from './pool-exceptions.ts'
 import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
 import { applyReportFallback, type MpsReportRatio } from './split-fallback.ts'
 export type { MpsQuantityAdjustment } from './quantity-adjustments.ts'
@@ -232,16 +233,37 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   )
   const manualTurnoverIndex = groupBy(input.constraints.turnoverDays ?? [], key)
   const productIndex = groupBy(input.products, key)
+  const products = [...productIndex.values()].map(([product]) => product)
+  const conflictingProducts = new Set(
+    [...productIndex]
+      .filter(
+        ([, entries]) =>
+          new Set(
+            entries.map(product =>
+              JSON.stringify([
+                product.name,
+                product.category,
+                product.group,
+                product.series,
+                product.historyCode || '',
+                product.historyFactor === undefined ? 1 : product.historyFactor
+              ])
+            )
+          ).size > 1
+      )
+      .map(([id]) => id)
+  )
   const productsByMonth = new Map(
     months.slice(0, 3).map(month => [
       month,
       input.productMonths === undefined
-        ? input.products
-        : input.productMonths
+        ? products.filter(product => product.base && product.code)
+        : [...groupBy(input.productMonths, row => periodKey(row)).values()]
+            .map(([assignment]) => assignment)
             .filter(row => row.month === input.context.month)
             .flatMap(assignment => {
-              const matches = productIndex.get(key(assignment)) ?? productIndex.get(key({ base: '', code: assignment.code })) ?? []
-              return matches.map(product => ({ ...product, base: assignment.base }))
+              const matches = assignment.base && assignment.code ? (productIndex.get(key(assignment)) ?? []) : []
+              return matches.slice(0, 1).map(product => ({ ...product, base: assignment.base }))
             })
     ])
   )
@@ -268,7 +290,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       if (fact.month !== input.context.month) continue
       const month = fact.month
       const domain = (source === 'history' ? monthlyHistoryIndexes : monthlyProductIndexes).get(month)
-      if (!domain || domain.has(key(fact))) continue
+      if (!domain || domain.has(key(fact)) || monthlyHistoryIndexes.get(month)?.has(key(fact))) continue
       const catalog = source === 'history' ? historyCatalog : catalogByCode
       const categories = new Set((catalog.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
       const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? (fact.category ?? '') : ''
@@ -425,7 +447,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     if (!group.length) continue
     const materialGroups = groupBy(group, row => row.group)
     const skuGroups = new Map([...materialGroups].map(([name, entries]) => [name, groupBy(entries, row => row.code)]))
-    const duplicate = group.some(row => (monthlyProductIndexes.get(category.month)?.get(key(row))?.length ?? 0) > 1)
+    const duplicate = group.some(row => conflictingProducts.has(key(row)) || conflictingProducts.has(key({ ...row, base: '' })))
     const identityMissing = group.some(row => !row.base || !row.code || !row.category || !row.group)
     let zeroReportCategory = false
     for (const source of ['report', 'history'] as const) {
@@ -439,7 +461,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
           ? ['当前产品的源数量缺基地，范围内分母不可确认']
           : []),
         ...(identityMissing ? ['缺基地、物料组或产品分类，拆分范围不完整'] : []),
-        ...(duplicate ? ['产品拆分键重复'] : []),
+        ...(duplicate ? ['同基地SKU产品分类、替换关系或系数冲突'] : []),
         ...(total === null ? ['同大类明细数量不完整'] : [])
       ]
       if (source === 'report' && total === 0 && !issues.length && group.every(row => row.reportQuantity === 0)) zeroReportCategory = true
@@ -824,6 +846,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     ruleEvaluations,
     scopeCoverage: input.scopeCoverage ?? 'in-scope',
     excludedSources,
+    poolExceptions: mpsPoolExceptions({ ...input, products }),
     excludedCategoryDemand,
     adjustmentIssues,
     resourceLoads,
