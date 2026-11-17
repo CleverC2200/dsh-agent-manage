@@ -144,8 +144,12 @@ export function inventoryTurnoverIndex(
           ? []
           : [
               records.some(row => row.status === 'read-failed')
-                ? '目标周转天数来源读取失败，请同步或人工补充'
-                : `${sourceMonth ?? '所选来源月'}无有效的最终目标周转天数，请人工补充`
+                ? `目标周转天数来源读取失败：${issues.join('；')}，请同步或人工补充`
+                : records.some(row => row.missingCodes.includes('missing-selected-version'))
+                  ? `${sourceMonth}缺选定版本${selectedVersion}的目标记录，请核对或人工补充`
+                  : records.some(row => row.missingCodes.includes('missing-record'))
+                    ? `${sourceMonth} ${selectedVersion ?? '可用版本'}缺目标记录，请核对或人工补充`
+                    : `${sourceMonth ?? '所选来源月'} ${selectedVersion ?? '可用版本'}最终目标周转天数字段为空或无效，请核对或人工补充`
             ]
     }
     policies.set(productKey, policy)

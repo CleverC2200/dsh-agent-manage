@@ -225,13 +225,65 @@ test('确认后的库存版本按期间选择，不因单品缺失或字段为�
   assert.equal(inventoryTurnoverIndex(source, ['2026-11'], 'auto', [], ['纠偏', '月初'])(common).sourceDays, null)
 })
 
-test('缺周转天数按授权临时取零，来源缺项保留，补充和源值优先', () => {
+test('周转天数待补原因可定位到缺记录、缺字段、版本、冲突和读取失败', () => {
+  const product = { base: '甲', code: 'A' }
+  const source = {
+    ...product,
+    month: '2026-12',
+    version: '月初',
+    finalTarget: 100,
+    dailyDemand: 10,
+    sourceRows: 1
+  }
+  assert.match(inventoryTurnoverIndex([], ['2026-12'], '月初')(product).missing.join('；'), /2026-12.*月初.*缺目标记录/)
+  assert.match(inventoryTurnoverIndex([{ ...source, finalTurnoverDays: null }], ['2026-12'])(product).missing.join('；'), /最终目标周转天数字段为空或无效/)
+  assert.match(inventoryTurnoverIndex([{ ...source, finalTurnoverDays: 10 }], ['2026-12'], '纠偏')(product).missing.join('；'), /缺选定版本纠偏/)
+  assert.match(inventoryTurnoverIndex([{ ...source, finalTurnoverDays: null, conflictFields: ['finalTurnoverDays'] }], ['2026-12'])(product).missing.join('；'), /冲突/)
+  assert.match(inventoryTurnoverIndex([], ['2026-12'], 'auto', ['目标接口超时'])(product).missing.join('；'), /来源读取失败.*目标接口超时/)
+})
+
+test('有效零周转的目标库存为零，预测结存继续承接余额', () => {
+  const sample = input()
+  sample.products = [sample.products[0]]
+  sample.report = [sample.report[0]]
+  sample.history = [sample.history[0]]
+  sample.categoryDemand = ['2026-12', '2027-01', '2027-02', '2027-03'].map(month => ({
+    month,
+    category: '点心',
+    quantity: 10
+  }))
+  sample.requireSourceTurnoverDays = true
+  sample.inventoryTargets = [
+    {
+      month: '2026-12',
+      base: '甲',
+      code: 'A',
+      version: '月初',
+      finalTarget: 0,
+      dailyDemand: 10,
+      finalTurnoverDays: 0,
+      sourceRows: 1
+    }
+  ]
+  sample.openingInventory = [{ base: '甲', code: 'A', quantity: 100 }]
+  const rows = computeMpsWorkflow(sample).rows
+  assert.ok(rows.every(row => row.safetyDays === 0 && row.targetInventory === 0 && row.safetyDaysSource === 'target-turnover-days'))
+  assert.deepEqual(
+    rows.map(row => row.projectedClosing),
+    [90, 80, 70]
+  )
+  assert.deepEqual(
+    solveMpsPlan(sample).rows.map(row => row.closingInventory),
+    [90, 80, 70]
+  )
+})
+
+test('缺周转天数保留待补，人工补充和有效源值参与重新计算', () => {
   const sample = input()
   sample.requireSourceTurnoverDays = true
-  sample.missingTurnoverDaysAsZero = true
   sample.categoryDemand = ['2026-12', '2027-01', '2027-02', '2027-03'].map(month => ({ month, category: '点心', quantity: 120 }))
   const result = computeMpsWorkflow(sample)
-  assert.ok(result.rows.every(row => row.safetyDays === 0 && row.targetInventory === 0 && row.safetyDaysSource === 'missing-turnover-days-zero'))
+  assert.ok(result.rows.every(row => row.safetyDays === null && row.targetInventory === null && row.safetyDaysSource === 'missing'))
   assert.ok(result.rows.every(row => row.turnoverPolicy.sourceDays === null && row.turnoverPolicy.missing.length > 0))
   sample.constraints.turnoverDays = [{ base: '甲', code: 'A', days: 15 }]
   assert.ok(
