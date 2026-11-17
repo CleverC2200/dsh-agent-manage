@@ -439,7 +439,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
               movements.map(row => ({ quantity: row[field] })),
               true
             )
-          : 0
+          : null
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
       const baseSafetyDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
@@ -712,6 +712,10 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         ...row,
         id: JSON.stringify([months[3], row.base, row.code]),
         month: months[3],
+        existingProductionInbound: null,
+        existingInTransitInbound: null,
+        existingTransferIn: null,
+        existingTransferOut: null,
         demand,
         systemDemand,
         quantityAdjusted: false,
@@ -818,7 +822,15 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         reason: '库存收支预测为负，原因待核；计算用值归0，原始不足保留'
       })
     row.missing.requiredProduction = row.requiredProduction === null ? ['缺需求、安全库存或期初结存'] : []
-    row.missing.projectedClosing = row.projectedClosing === null ? ['缺所需生产或库存数据'] : []
+    row.missing.projectedClosing =
+      row.projectedClosing === null
+        ? [
+            ...(![row.existingProductionInbound, row.existingInTransitInbound, row.existingTransferIn, row.existingTransferOut].every(finite)
+              ? ['既有生产入库、在途入库或调拨计划未确认']
+              : []),
+            '缺所需生产或库存数据'
+          ]
+        : []
     row.missing.mainPlan = ['所需生产由需求、库存和已采用规则推导，未生成可执行主计划']
     row.missing.transfer = ['调拨、外协需人工决策，未自动生成']
     row.productionDays = productionDays(row.base, row.month)
