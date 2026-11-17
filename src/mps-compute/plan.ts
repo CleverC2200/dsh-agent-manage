@@ -73,6 +73,7 @@ const plannedRow = (row: MpsWorkflowRow): MpsPlannedRow => ({
   unfulfilled: null,
   fulfilledDemand: null,
   closingInventory: null,
+  rawProjectedClosing: null,
   transferIn: null,
   transferOut: null,
   planMissing: [],
@@ -213,7 +214,10 @@ export function solveMpsPlan(input: MpsPlanInput) {
     const remote = new Map<string, string[]>()
     const supplyPaths = new Map<string, Map<string, TransferRoute[]>>()
     for (const row of monthRows) {
-      if (month !== input.context.month) row.openingInventory = previous.get(rowKey(row.base, row.code))?.closingInventory ?? null
+      if (month !== input.context.month) {
+        row.rawOpeningInventory = previous.get(rowKey(row.base, row.code))?.closingInventory ?? null
+        row.openingInventory = row.rawOpeningInventory === null ? null : Math.max(0, row.rawOpeningInventory)
+      }
       row.requiredProduction =
         finite(row.demand) && finite(row.targetInventory) && finite(row.openingInventory) ? Math.max(0, row.demand + row.targetInventory - row.openingInventory) : null
       const weight = unitWeight(row.base, row.code)
@@ -466,7 +470,15 @@ export function solveMpsPlan(input: MpsPlanInput) {
         row.fulfillment = (row.requiredProduction ?? 0) > 0 ? Math.min(1, (own + suppliedImports) / (row.requiredProduction ?? 1)) : 1
         const available = (row.openingInventory ?? 0) + production + arrival + incoming - outgoing
         row.fulfilledDemand = Math.min(row.demand ?? 0, Math.max(0, available))
-        row.closingInventory = available - row.fulfilledDemand
+        row.rawProjectedClosing = available - row.fulfilledDemand
+        row.closingInventory = Math.max(0, row.rawProjectedClosing)
+        if (row.rawProjectedClosing < 0)
+          row.inventoryIssues.push({
+            metric: 'projectedClosing',
+            rawValue: row.rawProjectedClosing,
+            calculationValue: 0,
+            reason: '库存收支预测为负，原因待核；计算用值归0，原始不足保留'
+          })
         if (row.unfulfilled === 0 && (row.requiredProduction ?? 0) > 0 && row.targetInventory !== null && Math.abs(row.closingInventory - row.targetInventory) <= tolerance)
           row.closingInventory = row.targetInventory
         row.projectedClosing = row.closingInventory

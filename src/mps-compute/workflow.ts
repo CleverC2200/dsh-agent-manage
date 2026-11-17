@@ -110,7 +110,7 @@ export interface MpsWorkflowInput {
   reportRatios?: MpsReportRatio[]
   history: MpsQuantityRow[]
   sourceIssues: { report: string[]; history: string[] }
-  openingInventory: Omit<MpsQuantityRow, 'month'>[]
+  openingInventory: (Omit<MpsQuantityRow, 'month'> & { rawQuantity?: MpsQuantity })[]
   capacities: MpsCapacity[]
   constraints: MpsConstraints
 }
@@ -124,7 +124,16 @@ export interface MpsShareLayers {
   baseShare: MpsQuantity
   product: MpsQuantity
 }
+export interface MpsInventoryIssue {
+  metric: 'openingInventory' | 'projectedClosing'
+  rawValue: number
+  calculationValue: 0
+  reason: string
+}
 export interface MpsWorkflowRow extends MpsProduct {
+  rawOpeningInventory: MpsQuantity
+  rawProjectedClosing: MpsQuantity
+  inventoryIssues: MpsInventoryIssue[]
   inventoryTarget: MpsInventoryTargetResult
   turnoverPolicy: MpsTurnoverPolicy
   safetyDaysSource: 'target-turnover-days' | 'manual-turnover-days' | 'missing-turnover-days-zero' | 'base-policy' | 'rule' | 'missing'
@@ -332,7 +341,15 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const totalHistory = historyMissing.length ? null : (historyOwnQuantity ?? 0) + (replacementHistory.length ? (historyReferenceQuantity ?? 0) * (historyFactor ?? 0) : 0)
       const historyQuantity = finite(totalHistory) ? totalHistory : null
       if (!historyMissing.length && historyQuantity === null) historyMissing.push('自身与替换品历史合计超出可靠计算范围')
-      const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
+      const openingRows = openingIndex.get(key(product)) ?? []
+      const openingInventory = month === input.context.month ? quantity(openingRows, true) : null
+      const rawOpeningInventory =
+        month === input.context.month
+          ? quantity(
+              openingRows.map(row => ({ quantity: row.rawQuantity === undefined ? row.quantity : row.rawQuantity })),
+              true
+            )
+          : null
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
       const baseSafetyDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
@@ -387,7 +404,13 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         demand: null,
         systemDemand: null,
         quantityAdjusted: false,
-        openingInventory,
+        openingInventory: openingInventory === null ? null : Math.max(0, openingInventory),
+        rawOpeningInventory,
+        rawProjectedClosing: null,
+        inventoryIssues:
+          rawOpeningInventory !== null && rawOpeningInventory < 0
+            ? [{ metric: 'openingInventory', rawValue: rawOpeningInventory, calculationValue: 0, reason: '原始期初库存为负，原因待核；计算用值归0' }]
+            : [],
         safetyDays,
         baseSafetyDays,
         inventoryTarget: sourceTarget,
@@ -640,13 +663,22 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     )
     if (row.month !== input.context.month) {
       const previous = rowIndex.get(periodKey({ month: monthOffset(row.month, -1), base: row.base, code: row.code }))?.[0]
-      row.openingInventory = previous?.projectedClosing ?? null
+      row.rawOpeningInventory = previous?.projectedClosing ?? null
+      row.openingInventory = row.rawOpeningInventory === null ? null : Math.max(0, row.rawOpeningInventory)
     }
     row.missing.openingInventory = row.openingInventory === null ? ['缺上月结存或上月期末参考'] : []
     row.requiredProduction =
       row.demand !== null && row.targetInventory !== null && row.openingInventory !== null ? safe(Math.max(0, row.demand + row.targetInventory - row.openingInventory)) : null
-    row.projectedClosing =
+    row.rawProjectedClosing =
       row.requiredProduction !== null && row.openingInventory !== null && row.demand !== null ? safe(row.openingInventory + row.requiredProduction - row.demand) : null
+    row.projectedClosing = row.rawProjectedClosing === null ? null : Math.max(0, row.rawProjectedClosing)
+    if (row.rawProjectedClosing !== null && row.rawProjectedClosing < 0)
+      row.inventoryIssues.push({
+        metric: 'projectedClosing',
+        rawValue: row.rawProjectedClosing,
+        calculationValue: 0,
+        reason: '库存收支预测为负，原因待核；计算用值归0，原始不足保留'
+      })
     row.missing.requiredProduction = row.requiredProduction === null ? ['缺需求、安全库存或期初结存'] : []
     row.missing.projectedClosing = row.projectedClosing === null ? ['缺所需生产或库存数据'] : []
     row.missing.mainPlan = ['所需生产由需求、库存和已采用规则推导，未生成可执行主计划']
