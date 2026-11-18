@@ -121,6 +121,7 @@ export interface MpsWorkflowInput {
   products: MpsProduct[]
   categoryDemand: MpsCategoryDemand[]
   report: MpsQuantityRow[]
+  poolEvidence?: { history: MpsQuantityRow[]; report: MpsQuantityRow[] }
   reportRatios?: MpsReportRatio[]
   history: MpsQuantityRow[]
   historyPeriods?: MpsHistoryPeriod[]
@@ -1006,7 +1007,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     ruleEvaluations,
     scopeCoverage: input.scopeCoverage ?? 'in-scope',
     excludedSources,
-    poolExceptions: mpsPoolExceptions({ ...input, products }),
+    poolExceptions: mpsPoolExceptions({ ...input, ...input.poolEvidence }),
     excludedCategoryDemand,
     adjustmentIssues,
     resourceLoads,
