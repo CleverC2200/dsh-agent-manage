@@ -1,4 +1,4 @@
-import { computeMpsWorkflow, type MpsWorkflowInput, type MpsWorkflowRow } from './workflow.ts'
+import { computeMpsWorkflow, mpsAvailableInventory, mpsExpectedShipment, type MpsWorkflowInput, type MpsWorkflowRow } from './workflow.ts'
 import { resolveMpsRules, ruleProductionDays, ruleStopsResource, ruleApplies } from './constraint-rules.ts'
 import { jointAllocate } from './joint-allocation.ts'
 
@@ -73,6 +73,7 @@ const plannedRow = (row: MpsWorkflowRow): MpsPlannedRow => ({
   unfulfilled: null,
   fulfilledDemand: null,
   closingInventory: null,
+  rawProjectedClosing: null,
   transferIn: null,
   transferOut: null,
   planMissing: [],
@@ -110,6 +111,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
     values.push(row)
     coefficientIndex.set(key, values)
   }
+  const stoppedSuppliers = new Set((input.delistedProducts ?? []).map(product => rowKey(product.base, product.code)))
   const routesByCode = Map.groupBy(input.transferRoutes ?? [], route => route.code)
   const unitWeight = (base: string, code: string) => {
     const values = coefficientIndex.get(rowKey(base, code)) ?? []
@@ -118,6 +120,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
   const odmCodes = new Set([...(input.odmProductCodes ?? []), ...(input.odmSupplies ?? []).map(row => row.code), ...(input.odmConflicts ?? []).map(row => row.code)])
   const rows = reference.rows.map(source => {
     const row = plannedRow(source)
+    if (row.delisted) row.projectedClosing = null
     if (odmCodes.has(row.code)) {
       row.supplyMode = 'odm'
       row.mainPlan = 0
@@ -205,6 +208,7 @@ export function solveMpsPlan(input: MpsPlanInput) {
     const optionsFor = (row: MpsPlannedRow, ids: string[]) =>
       ids.flatMap(id => {
         const resource = uniqueResources.find(item => item.id === id && item.kind === 'tunnel')
+        if (resource && resource.base !== row.base && stoppedSuppliers.has(rowKey(resource.base, row.code))) return []
         const assigned = resource ? forming(resource.base, row.code) : null
         return assigned ? [{ resourceId: id, usage: [{ resourceId: id, share: 1 }, ...assigned] }] : []
       })
@@ -213,9 +217,17 @@ export function solveMpsPlan(input: MpsPlanInput) {
     const remote = new Map<string, string[]>()
     const supplyPaths = new Map<string, Map<string, TransferRoute[]>>()
     for (const row of monthRows) {
-      if (month !== input.context.month) row.openingInventory = previous.get(rowKey(row.base, row.code))?.closingInventory ?? null
-      row.requiredProduction =
-        finite(row.demand) && finite(row.targetInventory) && finite(row.openingInventory) ? Math.max(0, row.demand + row.targetInventory - row.openingInventory) : null
+      if (month !== input.context.month) {
+        row.rawOpeningInventory = previous.get(rowKey(row.base, row.code))?.closingInventory ?? null
+        row.openingInventory = row.rawOpeningInventory === null ? null : Math.max(0, row.rawOpeningInventory)
+      }
+      const stockAvailable = mpsAvailableInventory(row)
+      row.expectedShipment = mpsExpectedShipment(row, input.context.month, stockAvailable)
+      row.requiredProduction = row.automaticDemandStopped
+        ? 0
+        : finite(row.demand) && finite(row.targetInventory) && finite(stockAvailable)
+          ? Math.max(0, row.demand + row.targetInventory - stockAvailable)
+          : null
       const weight = unitWeight(row.base, row.code)
       if (weight !== null) weights.set(row.id, weight)
       row.demandTons = row.demand === 0 ? 0 : finite(row.demand) && weight !== null ? row.demand * weight : null
@@ -239,7 +251,9 @@ export function solveMpsPlan(input: MpsPlanInput) {
       const commonMissing = [
         ...(!finite(row.demand) ? ['缺有效需求'] : []),
         ...(!finite(row.openingInventory) ? ['缺前月实际结存'] : []),
-        ...(!finite(row.targetInventory) ? ['缺目标库存'] : []),
+        ...(!row.automaticDemandStopped && !finite(row.targetInventory) ? ['缺目标库存'] : []),
+        ...(!finite(stockAvailable) && finite(row.openingInventory) ? ['既有入库或调拨计划缺项'] : []),
+        ...(row.automaticDemandStopped && !finite(row.expectedShipment) ? ['下市品发货参考或可用库存待补'] : []),
         ...resolved.evaluations.filter(entry => entry.month === month && entry.status === 'draft').map(entry => entry.reason)
       ]
       if (row.supplyMode === 'odm') {
@@ -340,12 +354,16 @@ export function solveMpsPlan(input: MpsPlanInput) {
               )
             ]
           : []
+      const blockedByDelistedSupplier =
+        !own.length && other.length > 0 && other.every(id => monthResources.some(resource => resource.resourceId === id && stoppedSuppliers.has(rowKey(resource.base, row.code))))
       row.planMissing = [
         ...commonMissing,
         ...(row.requiredProduction !== 0 && weight === null ? ['缺唯一有效件吨系数'] : []),
         ...(row.requiredProductionTons !== null && !finite(row.requiredProductionTons) ? ['生产吨数超出有效范围'] : []),
         ...(row.requiredProduction !== 0 && !own.length && !other.length && !routePending.length ? ['无有效产线承接关系或生产日历'] : []),
-        ...(row.requiredProduction !== 0 && (own.length || other.length) && !ownReady.length && !otherReady.length ? ['缺有效成型机台账、月度批准分配或生产日历'] : []),
+        ...(row.requiredProduction !== 0 && (own.length || other.length) && !ownReady.length && !otherReady.length
+          ? [blockedByDelistedSupplier ? '供应基地SKU已下市，停止自动补货生产' : '缺有效成型机台账、月度批准分配或生产日历']
+          : []),
         ...pendingAt(row.base).map(entry => entry.reason),
         ...routePending
       ]
@@ -456,17 +474,25 @@ export function solveMpsPlan(input: MpsPlanInput) {
         row.mainPlan = production
         row.odmArrival = arrival
         row.odmArrivalTons = receipts.some(item => item.tons === null) ? null : receipts.reduce((sum, item) => sum + (item.tons ?? 0), 0)
-        row.transferIn = incoming
-        row.transferOut = outgoing
-        row.transfer = incoming - outgoing
+        row.transferIn = incoming + (row.existingTransferIn ?? 0)
+        row.transferOut = outgoing + (row.existingTransferOut ?? 0)
+        row.transfer = row.transferIn - row.transferOut
         row.scheduledTons = allocations.filter(item => item.rowId === row.id).reduce((sum, item) => sum + item.tons, 0)
         row.unfulfilled = Math.max(0, (row.requiredProduction ?? 0) - own - suppliedImports)
         const tolerance = Math.max(1, row.requiredProduction ?? 0) * 1e-8
         if (row.unfulfilled <= tolerance) row.unfulfilled = 0
         row.fulfillment = (row.requiredProduction ?? 0) > 0 ? Math.min(1, (own + suppliedImports) / (row.requiredProduction ?? 1)) : 1
-        const available = (row.openingInventory ?? 0) + production + arrival + incoming - outgoing
-        row.fulfilledDemand = Math.min(row.demand ?? 0, Math.max(0, available))
-        row.closingInventory = available - row.fulfilledDemand
+        const available = (mpsAvailableInventory(row) ?? 0) + production + arrival + incoming - outgoing
+        row.fulfilledDemand = Math.min(row.expectedShipment ?? row.demand ?? 0, Math.max(0, available))
+        row.rawProjectedClosing = available - row.fulfilledDemand
+        row.closingInventory = Math.max(0, row.rawProjectedClosing)
+        if (row.rawProjectedClosing < 0)
+          row.inventoryIssues.push({
+            metric: 'projectedClosing',
+            rawValue: row.rawProjectedClosing,
+            calculationValue: 0,
+            reason: '库存收支预测为负，原因待核；计算用值归0，原始不足保留'
+          })
         if (row.unfulfilled === 0 && (row.requiredProduction ?? 0) > 0 && row.targetInventory !== null && Math.abs(row.closingInventory - row.targetInventory) <= tolerance)
           row.closingInventory = row.targetInventory
         row.projectedClosing = row.closingInventory

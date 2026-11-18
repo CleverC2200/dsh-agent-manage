@@ -78,6 +78,10 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
         base: resource.base,
         resourceId: resource.id,
         name: resource.name,
+        workshop: resource.workshop ?? '',
+        productionLines: resource.productionLines ?? [],
+        tunnel: resource.tunnel ?? '',
+        scheduledTons: existing?.scheduledTons ?? null,
         days,
         dailyTons,
         capacity: existing?.capacity ?? (days !== null && dailyTons !== null ? days * dailyTons : null)
@@ -85,25 +89,25 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
     })
   )
   const candidates = input.planCandidates ?? (input.resourceAssignments ?? []).filter(row => row.share > 0)
-  const categoryByCode = new Map<string, Set<string>>()
+  const categoryByPair = new Map<string, Set<string>>()
   for (const product of input.products) {
-    const categories = categoryByCode.get(product.code) ?? new Set<string>()
+    const categories = categoryByPair.get(JSON.stringify([product.base, product.code])) ?? new Set<string>()
     categories.add(product.category)
-    categoryByCode.set(product.code, categories)
+    categoryByPair.set(JSON.stringify([product.base, product.code]), categories)
   }
-  const productCodes = new Set(input.products.map(row => row.code))
+  const productPairs = new Set(input.products.map(row => JSON.stringify([row.base, row.code])))
   for (const row of annualRows)
-    if (!productCodes.has(row.code) && row.category) {
-      const categories = categoryByCode.get(row.code) ?? new Set<string>()
+    if (!productPairs.has(JSON.stringify([row.base, row.code])) && row.category) {
+      const categories = categoryByPair.get(JSON.stringify([row.base, row.code])) ?? new Set<string>()
       categories.add(row.category)
-      categoryByCode.set(row.code, categories)
+      categoryByPair.set(JSON.stringify([row.base, row.code]), categories)
     }
   const candidateIndex = new Map<string, typeof candidates>()
   const categoryResources = new Map<string, typeof candidates>()
   for (const row of candidates) {
     const key = JSON.stringify([row.base, row.code])
     candidateIndex.set(key, [...(candidateIndex.get(key) ?? []), row])
-    const categories = categoryByCode.get(row.code)
+    const categories = categoryByPair.get(JSON.stringify([row.base, row.code]))
     if (categories?.size !== 1) continue
     for (const category of categories) {
       const group = JSON.stringify([row.base, category])
@@ -143,11 +147,10 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
   type ReportRow = Pick<(typeof plan.rows)[number], 'month' | 'base' | 'code' | 'category' | 'group' | 'series' | 'demandTons'>
   const reportRows: ReportRow[] = [...plan.rows]
   const productsByPair = new Map(input.products.map(row => [JSON.stringify([row.base, row.code]), row]))
-  const productsByCode = new Map(input.products.map(row => [row.code, row]))
   if (!plan.months.includes(referenceMonth))
     for (const row of annualRows) {
       if (row.month !== referenceMonth) continue
-      const product = productsByPair.get(JSON.stringify([row.base, row.code])) ?? productsByCode.get(row.code)
+      const product = productsByPair.get(JSON.stringify([row.base, row.code]))
       reportRows.push({
         month: row.month,
         base: row.base,
@@ -309,7 +312,49 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
       current.months.push(row.month)
       annualIssues.set(key, current)
     }
+  const productDetails = reportRows.map(row => {
+    const resourceIds = [
+      ...new Set(
+        (candidateIndex.get(JSON.stringify([row.base, row.code])) ?? [])
+          .filter(
+            candidate => (!candidate.month || candidate.month === row.month) && resources.some(resource => resource.id === candidate.resourceId && resource.base === row.base)
+          )
+          .map(candidate => candidate.resourceId)
+      )
+    ]
+    return { ...row, name: productsByPair.get(JSON.stringify([row.base, row.code]))?.name ?? row.code, odm: odmCodes.has(row.code), resourceIds }
+  })
+  const hierarchyIssues = resources.flatMap(resource =>
+    [
+      ...(!resource.workshop ? ['车间归属待补'] : []),
+      ...(!resource.productionLines?.length ? ['产线归属待补：来源未提供独立产线'] : []),
+      ...(!resource.tunnel ? ['隧道号待补'] : [])
+    ].map(reason => ({
+      base: resource.base,
+      resourceId: resource.id,
+      name: resource.name,
+      reason,
+      sourceTable: resource.id.startsWith('source:') ? 'ai_db.agents_dim_tunnel_capacity_mi' : '人工资源配置'
+    }))
+  )
+  for (const row of productDetails.filter(row => !row.odm && !row.resourceIds.length))
+    demandIssues.push({
+      month: row.month,
+      base: row.base,
+      code: row.code,
+      name: row.name,
+      category: row.category,
+      group: row.group,
+      kind: '无有效设备关联',
+      reason: '未取得本基地有效物理隧道关联，需求未归属设备',
+      referenceCode: row.code,
+      sourceTable: 'ai_db.agents_dim_production_line_sku_capacity_mi / 人工资源配置',
+      fields: 'belong_base / material_code / workshop / tunnel_no / resourceId'
+    })
   return {
+    productDetails,
+    allocations: plan.allocations,
+    hierarchyIssues,
     referenceMonth,
     fiscalMonths,
     months,
@@ -330,5 +375,72 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
       error: [annual?.error, annual?.weightError].filter(Boolean).join('；') || (annual ? '' : '全年年度SKU需求尚未读取')
     },
     gaps: rccp.filter(row => row.gap !== null && row.gap > 0)
+  }
+}
+
+export function selectCapacityScope(
+  report: ReturnType<typeof buildCapacityReport>,
+  scope: { month: string; base?: string; workshop?: string; line?: string; resourceId?: string },
+  level: 'category' | 'group' | 'sku' = 'category'
+) {
+  const lines = report.lines.filter(
+    row =>
+      row.month === scope.month &&
+      (!scope.base || row.base === scope.base) &&
+      (scope.workshop === undefined || row.workshop === scope.workshop) &&
+      (scope.line === undefined || (scope.line === '' ? !row.productionLines.length : row.productionLines.includes(scope.line))) &&
+      (!scope.resourceId || row.resourceId === scope.resourceId)
+  )
+  const ids = new Set(lines.map(row => row.resourceId))
+  const rows = report.productDetails.filter(row => row.month === scope.month && !row.odm && row.resourceIds.some(id => ids.has(id)))
+  const allocations = report.allocations.filter(row => row.month === scope.month && ids.has(row.resourceId))
+  const selectedRows = [...rows]
+  for (const allocation of allocations) {
+    if (selectedRows.some(row => row.base === allocation.demandBase && row.code === allocation.code)) continue
+    const product = report.productDetails.find(row => row.month === scope.month && row.base === allocation.demandBase && row.code === allocation.code)
+    if (product) selectedRows.push({ ...product, demandTons: 0 })
+  }
+  const grouped = new Map<string, typeof selectedRows>()
+  for (const row of selectedRows) {
+    const key = JSON.stringify([row.category, ...(level === 'category' ? [] : [row.group]), ...(level === 'sku' ? [row.base, row.code] : [])])
+    grouped.set(key, [...(grouped.get(key) ?? []), row])
+  }
+  const capacity = sum(lines.map(row => row.capacity)).value
+  const demand = rows.length
+    ? sum(rows.map(row => row.demandTons))
+    : report.productDetails.some(row => row.month === scope.month && (!scope.base || row.base === scope.base))
+      ? { value: 0, known: 0, missing: 0 }
+      : sum([])
+  const scheduledTons = lines.every(row => row.scheduledTons !== null) ? allocations.reduce((total, row) => total + row.tons, 0) : null
+  const products = [...grouped.values()].map(items => {
+    const first = items[0]
+    const productDemand = sum(items.map(row => row.demandTons))
+    const occupied = allocations
+      .filter(allocation => items.some(row => row.base === allocation.demandBase && row.code === allocation.code))
+      .reduce((total, row) => total + row.tons, 0)
+    return {
+      category: first.category,
+      group: level === 'category' ? '' : first.group,
+      base: level === 'sku' ? first.base : '',
+      code: level === 'sku' ? first.code : '',
+      name: level === 'sku' ? first.name : level === 'group' ? first.group : first.category,
+      demand: productDemand,
+      scheduledTons: scheduledTons === null ? null : occupied,
+      occupancy: scheduledTons !== null && capacity !== null && capacity > 0 ? occupied / capacity : null
+    }
+  })
+  const unassigned = report.productDetails.filter(row => row.month === scope.month && (!scope.base || row.base === scope.base) && !row.odm && !row.resourceIds.length)
+  const load = demand.value !== null && capacity !== null && capacity > 0 ? demand.value / capacity : null
+  return {
+    lines,
+    products,
+    demand,
+    unassigned,
+    capacity,
+    dailyTons: sum(lines.map(row => row.dailyTons)).value,
+    scheduledTons,
+    load,
+    knownLoad: capacity !== null && capacity > 0 && rows.length > demand.missing ? demand.known / capacity : null,
+    band: capacityLoadBand(load)
   }
 }

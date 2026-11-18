@@ -7,6 +7,8 @@ import {
   type MpsInventoryTargetResult,
   type MpsInventoryVersion
 } from './inventory-targets.ts'
+import { historyClassification, type MpsHistoryAudit, type MpsHistoryPeriod } from './history.ts'
+import { mpsPoolExceptions } from './pool-exceptions.ts'
 import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
 import { applyReportFallback, type MpsReportRatio } from './split-fallback.ts'
 export type { MpsQuantityAdjustment } from './quantity-adjustments.ts'
@@ -59,6 +61,9 @@ export interface MpsDemandAdjustment {
   quantity: number
 }
 export interface MpsResource {
+  workshop?: string
+  productionLines?: string[]
+  tunnel?: string
   id: string
   base: string
   kind: 'tunnel' | 'forming'
@@ -85,12 +90,21 @@ export interface MpsResourceLoad extends MpsResource {
   missing: string[]
 }
 export interface MpsWorkflowInput {
+  inventoryMovements?: {
+    month: string
+    base: string
+    code: string
+    productionInbound: MpsQuantity
+    inTransitInbound: MpsQuantity
+    transferIn: MpsQuantity
+    transferOut: MpsQuantity
+  }[]
+  delistedProducts?: { base: string; code: string; dailyShipment: MpsQuantity; dailyShipmentIssue?: string }[]
   inventoryTargets?: MpsInventoryTarget[]
   inventoryTurnoverMonth?: string
   inventoryTargetVersion?: MpsInventoryVersion
   inventoryTargetPriority?: Exclude<MpsInventoryVersion, 'auto'>[]
   requireSourceTurnoverDays?: boolean
-  missingTurnoverDaysAsZero?: boolean
   inventoryTargetIssues?: string[]
   productMonths?: Pick<MpsQuantityRow, 'month' | 'base' | 'code'>[]
   scopeCoverage?: 'national' | 'in-scope'
@@ -109,8 +123,12 @@ export interface MpsWorkflowInput {
   report: MpsQuantityRow[]
   reportRatios?: MpsReportRatio[]
   history: MpsQuantityRow[]
+  historyPeriods?: MpsHistoryPeriod[]
+  historyAsOfMonth?: string
+  historySourceIssues?: string[]
+  historySourceStatus?: MpsHistoryPeriod['status']
   sourceIssues: { report: string[]; history: string[] }
-  openingInventory: Omit<MpsQuantityRow, 'month'>[]
+  openingInventory: (Omit<MpsQuantityRow, 'month'> & { rawQuantity?: MpsQuantity })[]
   capacities: MpsCapacity[]
   constraints: MpsConstraints
 }
@@ -124,10 +142,30 @@ export interface MpsShareLayers {
   baseShare: MpsQuantity
   product: MpsQuantity
 }
+export interface MpsInventoryIssue {
+  metric: 'openingInventory' | 'projectedClosing'
+  rawValue: number
+  calculationValue: 0
+  reason: string
+}
 export interface MpsWorkflowRow extends MpsProduct {
+  existingProductionInbound: MpsQuantity
+  existingInTransitInbound: MpsQuantity
+  existingTransferIn: MpsQuantity
+  existingTransferOut: MpsQuantity
+  delisted: boolean
+  automaticDemandStopped: boolean
+  shipmentReference: MpsQuantity
+  expectedShipment: MpsQuantity
+  dailyShipment: MpsQuantity
+  dailyShipmentCalculation: number
+  dailyShipmentIssue: string | null
+  rawOpeningInventory: MpsQuantity
+  rawProjectedClosing: MpsQuantity
+  inventoryIssues: MpsInventoryIssue[]
   inventoryTarget: MpsInventoryTargetResult
   turnoverPolicy: MpsTurnoverPolicy
-  safetyDaysSource: 'target-turnover-days' | 'manual-turnover-days' | 'missing-turnover-days-zero' | 'base-policy' | 'rule' | 'missing'
+  safetyDaysSource: 'target-turnover-days' | 'manual-turnover-days' | 'base-policy' | 'rule' | 'missing'
   evaluation: 'unconstrained'
   nextMonthDemand: MpsQuantity
   nextMonth: string
@@ -150,8 +188,11 @@ export interface MpsWorkflowRow extends MpsProduct {
   historyQuantity: MpsQuantity
   historyReferenceQuantity: MpsQuantity
   historyOwnQuantity: MpsQuantity
+  historyOwnCalculationQuantity: MpsQuantity
+  historyReferenceCalculationQuantity: MpsQuantity
   historyOwnRows: number
   historyReferenceRows: number
+  historyAudit: MpsHistoryAudit
   reportShare: MpsQuantity
   historyShare: MpsQuantity
   share: MpsQuantity
@@ -205,6 +246,27 @@ function groupBy<T>(rows: T[], keyOf: (row: T) => string) {
 
 const historyCodes = (product: Pick<MpsProduct, 'code' | 'historyCode'>) => [...new Set([product.code, product.historyCode || product.code])]
 
+export function mpsAvailableInventory(
+  row: Pick<MpsWorkflowRow, 'openingInventory' | 'existingProductionInbound' | 'existingInTransitInbound' | 'existingTransferIn' | 'existingTransferOut'>
+): MpsQuantity {
+  const values = [row.openingInventory, row.existingProductionInbound, row.existingInTransitInbound, row.existingTransferIn, row.existingTransferOut]
+  return values.every(finite)
+    ? safe(
+        (row.openingInventory ?? 0) + (row.existingProductionInbound ?? 0) + (row.existingInTransitInbound ?? 0) + (row.existingTransferIn ?? 0) - (row.existingTransferOut ?? 0)
+      )
+    : null
+}
+export function mpsExpectedShipment(
+  row: Pick<MpsWorkflowRow, 'automaticDemandStopped' | 'demand' | 'month' | 'shipmentReference' | 'dailyShipmentCalculation'>,
+  firstMonth: string,
+  available: MpsQuantity
+): MpsQuantity {
+  if (!row.automaticDemandStopped) return row.demand
+  if (row.month === firstMonth) return row.shipmentReference
+  const forecast = safe(row.dailyShipmentCalculation * daysInMonth(row.month))
+  return available !== null && forecast !== null ? Math.min(Math.max(0, available), forecast) : null
+}
+
 export function computeMpsWorkflow(input: MpsWorkflowInput) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.context.month)) throw Error('评估月份无效')
   const adjustmentIssues: string[] = []
@@ -212,14 +274,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const resolvedRules = resolveMpsRules(input, months.slice(0, 3))
   const reportIndex = groupBy(input.report, periodKey)
   const historyIndex = groupBy(input.history, periodKey)
+  const classifyHistory = historyClassification(input.context.month, input.historyPeriods, input.historyAsOfMonth)
   const coefficientKey = (row: Pick<MpsProduct, 'base' | 'code' | 'historyCode'>, source: 'report' | 'history' = 'report') =>
     periodKey({ ...row, code: source === 'history' ? row.historyCode || row.code : row.code, month: input.context.month })
-  const hasCoefficient = (product: MpsProduct, source: 'report' | 'history') =>
-    source === 'history'
-      ? historyCodes(product).some(code => historyIndex.has(periodKey({ ...product, code, month: input.context.month })))
-      : reportIndex.has(coefficientKey(product))
+  const hasCoefficient = (product: MpsProduct, source: 'report' | 'history') => source === 'history' || reportIndex.has(coefficientKey(product))
   const indexedWeights = groupBy(input.unitWeights ?? [], key)
   const openingIndex = groupBy(input.openingInventory, key)
+  const movementIndex = groupBy(input.inventoryMovements ?? [], periodKey)
+  const delistedIndex = new Map((input.delistedProducts ?? []).map(row => [key(row), row]))
   const capacityIndex = groupBy(input.capacities, key)
   const daysIndex = groupBy(input.constraints.safetyDays, row => row.base)
   const inventoryTarget = inventoryTargetIndex(input.inventoryTargets ?? [], input.inventoryTargetVersion, input.inventoryTargetIssues, input.inventoryTargetPriority)
@@ -232,16 +294,37 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   )
   const manualTurnoverIndex = groupBy(input.constraints.turnoverDays ?? [], key)
   const productIndex = groupBy(input.products, key)
+  const products = [...productIndex.values()].map(([product]) => product)
+  const conflictingProducts = new Set(
+    [...productIndex]
+      .filter(
+        ([, entries]) =>
+          new Set(
+            entries.map(product =>
+              JSON.stringify([
+                product.name,
+                product.category,
+                product.group,
+                product.series,
+                product.historyCode || '',
+                product.historyFactor === undefined ? 1 : product.historyFactor
+              ])
+            )
+          ).size > 1
+      )
+      .map(([id]) => id)
+  )
   const productsByMonth = new Map(
     months.slice(0, 3).map(month => [
       month,
       input.productMonths === undefined
-        ? input.products
-        : input.productMonths
+        ? products.filter(product => product.base && product.code)
+        : [...groupBy(input.productMonths, row => periodKey(row)).values()]
+            .map(([assignment]) => assignment)
             .filter(row => row.month === input.context.month)
             .flatMap(assignment => {
-              const matches = productIndex.get(key(assignment)) ?? productIndex.get(key({ base: '', code: assignment.code })) ?? []
-              return matches.map(product => ({ ...product, base: assignment.base }))
+              const matches = assignment.base && assignment.code ? (productIndex.get(key(assignment)) ?? []) : []
+              return matches.slice(0, 1).map(product => ({ ...product, base: assignment.base }))
             })
     ])
   )
@@ -268,7 +351,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       if (fact.month !== input.context.month) continue
       const month = fact.month
       const domain = (source === 'history' ? monthlyHistoryIndexes : monthlyProductIndexes).get(month)
-      if (!domain || domain.has(key(fact))) continue
+      if (!domain || domain.has(key(fact)) || monthlyHistoryIndexes.get(month)?.has(key(fact))) continue
       const catalog = source === 'history' ? historyCatalog : catalogByCode
       const categories = new Set((catalog.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
       const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? (fact.category ?? '') : ''
@@ -298,22 +381,21 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const baseline = matches.length === 1 ? matches[0].systemQuantity : undefined
       const systemQuantity = baseline === undefined ? effectiveQuantity : quantity([{ quantity: baseline }])
       const edits = (input.adjustments?.categoryDemand ?? []).filter(row => row.month === month && row.category === category)
-      const edit = edits[0]
-      const accepted = edits.length === 1 && edit !== undefined && finite(edit.quantity) && edit.quantity >= 0
-      if (edits.length && !accepted) adjustmentIssues.push(`${month} ${category} 大类需求调整无效或重复`)
-      const value = accepted ? edit.quantity : effectiveQuantity
+      if (edits.length) adjustmentIssues.push(`${month} ${category} 历史上层修正冲突，未参与计算，请归档后按基地SKU修正`)
+      const value = effectiveQuantity
       return {
         month,
         category,
         quantity: value,
         systemQuantity,
-        adjusted: accepted || value !== systemQuantity,
+        adjusted: value !== systemQuantity,
         missing: value === null ? ['缺大类需求，本月有效值不可用'] : []
       }
     })
   )
   const rows: MpsWorkflowRow[] = months.slice(0, 3).flatMap(month =>
     (productsByMonth.get(month) ?? []).map(product => {
+      const historyClassification = classifyHistory(product)
       const reportQuantity = quantity(reportIndex.get(coefficientKey(product)) ?? [])
       const ownHistory = historyIndex.get(coefficientKey(product)) ?? []
       const replacementHistory = product.historyCode && product.historyCode !== product.code ? (historyIndex.get(coefficientKey(product, 'history')) ?? []) : []
@@ -324,25 +406,47 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
           ? null
           : historyOwnQuantity
       const historyFactor = product.historyCode ? (product.historyFactor === undefined ? 1 : product.historyFactor) : 1
-      const validHistoryFactor = !replacementHistory.length || (finite(historyFactor) && historyFactor >= 0)
+      const validHistoryFactor = !product.historyCode || product.historyCode === product.code || (finite(historyFactor) && historyFactor >= 0)
       const historyMissing = [
-        ...(!ownHistory.length && !replacementHistory.length ? ['缺上一财年自身及替换品发货数量'] : []),
+        ...(!ownHistory.length ? ['缺上一财年自身发货数量，计算用值补0'] : []),
+        ...(product.historyCode && product.historyCode !== product.code && !replacementHistory.length ? ['缺上一财年替换品发货数量，计算用值补0'] : []),
         ...(ownHistory.length && historyOwnQuantity === null ? ['自身历史发货数量缺失或无效'] : []),
         ...(replacementHistory.length && historyReferenceQuantity === null ? ['替换品历史发货数量缺失或无效'] : []),
         ...(!validHistoryFactor ? ['替换系数缺失、冲突或无效'] : [])
       ]
-      const totalHistory = historyMissing.length ? null : (historyOwnQuantity ?? 0) + (replacementHistory.length ? (historyReferenceQuantity ?? 0) * (historyFactor ?? 0) : 0)
+      const knownHistory = (entries: MpsQuantityRow[]) => safe(entries.reduce((sum, row) => sum + (finite(row.quantity) && row.quantity >= 0 ? row.quantity : 0), 0))
+      const historyOwnCalculationQuantity = knownHistory(ownHistory)
+      const historyReferenceCalculationQuantity = knownHistory(replacementHistory)
+      const totalHistory =
+        !validHistoryFactor || historyOwnCalculationQuantity === null || historyReferenceCalculationQuantity === null
+          ? null
+          : historyOwnCalculationQuantity + historyReferenceCalculationQuantity * (historyFactor ?? 0)
       const historyQuantity = finite(totalHistory) ? totalHistory : null
       if (!historyMissing.length && historyQuantity === null) historyMissing.push('自身与替换品历史合计超出可靠计算范围')
-      const openingInventory = month === input.context.month ? quantity(openingIndex.get(key(product)) ?? [], true) : null
+      const openingRows = openingIndex.get(key(product)) ?? []
+      const openingInventory = month === input.context.month ? quantity(openingRows, true) : null
+      const rawOpeningInventory =
+        month === input.context.month
+          ? quantity(
+              openingRows.map(row => ({ quantity: row.rawQuantity === undefined ? row.quantity : row.rawQuantity })),
+              true
+            )
+          : null
+      const movements = movementIndex.get(periodKey({ ...product, month })) ?? []
+      const movement = (field: 'productionInbound' | 'inTransitInbound' | 'transferIn' | 'transferOut') =>
+        movements.length
+          ? quantity(
+              movements.map(row => ({ quantity: row[field] })),
+              true
+            )
+          : null
       const days = daysIndex.get(product.base) ?? []
       const sourceTarget = inventoryTarget({ base: product.base, code: product.code, month })
       const baseSafetyDays = days.length === 1 && finite(days[0].days) && days[0].days >= 0 ? days[0].days : null
       const turnover = turnoverPolicy(product)
       const manual = manualTurnoverIndex.get(key(product)) ?? []
       const manualDays = manual.length === 1 && finite(manual[0].days) && manual[0].days >= 0 ? manual[0].days : null
-      const temporaryZero = input.requireSourceTurnoverDays && input.missingTurnoverDaysAsZero && turnover.sourceDays === null && manualDays === null
-      const policyDays = turnover.sourceDays ?? manualDays ?? (temporaryZero ? 0 : input.requireSourceTurnoverDays ? null : baseSafetyDays)
+      const policyDays = turnover.sourceDays ?? manualDays ?? (input.requireSourceTurnoverDays ? null : baseSafetyDays)
       const safetyDays = input.requireSourceTurnoverDays && policyDays === null ? null : ruleSafetyDays(policyDays, { ...product, month }, resolvedRules.rules)
       const safetyDaysSource =
         safetyDays !== policyDays
@@ -351,22 +455,49 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
             ? 'target-turnover-days'
             : manualDays !== null
               ? 'manual-turnover-days'
-              : temporaryZero
-                ? 'missing-turnover-days-zero'
-                : !input.requireSourceTurnoverDays && baseSafetyDays !== null
-                  ? 'base-policy'
-                  : 'missing'
+              : !input.requireSourceTurnoverDays && baseSafetyDays !== null
+                ? 'base-policy'
+                : 'missing'
+      const delisted = delistedIndex.get(key(product))
+      const validDaily = delisted?.dailyShipment != null && finite(delisted.dailyShipment) && delisted.dailyShipment >= 0
       const capacities = (capacityIndex.get(key(product)) ?? []).map(row => ({ ...row, missing: [...row.missing] }))
       return {
         ...product,
+        existingProductionInbound: movement('productionInbound'),
+        existingInTransitInbound: movement('inTransitInbound'),
+        existingTransferIn: movement('transferIn'),
+        existingTransferOut: movement('transferOut'),
+        delisted: delistedIndex.has(key(product)),
+        automaticDemandStopped: false,
+        shipmentReference: null,
+        expectedShipment: null,
+        dailyShipment: delisted?.dailyShipment ?? null,
+        dailyShipmentCalculation: validDaily ? (delisted.dailyShipment ?? 0) : 0,
+        dailyShipmentIssue: delisted ? (delisted.dailyShipmentIssue ?? (validDaily ? null : '截止日近30天日均发货缺失或无效，计算用值补0')) : null,
         id: JSON.stringify([month, product.base, product.group, product.code]),
         month,
         reportQuantity,
         historyQuantity,
         historyReferenceQuantity,
         historyOwnQuantity,
+        historyOwnCalculationQuantity,
+        historyReferenceCalculationQuantity,
         historyOwnRows: ownHistory.length,
         historyReferenceRows: replacementHistory.length,
+        historyAudit: {
+          zeroFilled:
+            !ownHistory.length ||
+            ownHistory.some(row => !finite(row.quantity) || row.quantity < 0) ||
+            Boolean(
+              product.historyCode &&
+              product.historyCode !== product.code &&
+              (!replacementHistory.length || replacementHistory.some(row => !finite(row.quantity) || row.quantity < 0))
+            ),
+          reasons: [...(input.historySourceIssues ?? []), ...historyMissing],
+          ...historyClassification,
+          classification: (input.historySourceIssues ?? []).length ? '来源异常或其他历史异常' : historyClassification.classification,
+          sourceStatus: input.historySourceStatus ?? 'unread'
+        },
         evaluation: 'unconstrained',
         nextMonthDemand: null,
         nextMonth: monthOffset(month, 1),
@@ -389,7 +520,13 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         demand: null,
         systemDemand: null,
         quantityAdjusted: false,
-        openingInventory,
+        openingInventory: openingInventory === null ? null : Math.max(0, openingInventory),
+        rawOpeningInventory,
+        rawProjectedClosing: null,
+        inventoryIssues:
+          rawOpeningInventory !== null && rawOpeningInventory < 0
+            ? [{ metric: 'openingInventory', rawValue: rawOpeningInventory, calculationValue: 0, reason: '原始期初库存为负，原因待核；计算用值归0' }]
+            : [],
         safetyDays,
         baseSafetyDays,
         inventoryTarget: sourceTarget,
@@ -427,7 +564,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     if (!group.length) continue
     const materialGroups = groupBy(group, row => row.group)
     const skuGroups = new Map([...materialGroups].map(([name, entries]) => [name, groupBy(entries, row => row.code)]))
-    const duplicate = group.some(row => (monthlyProductIndexes.get(category.month)?.get(key(row))?.length ?? 0) > 1)
+    const duplicate = group.some(row => conflictingProducts.has(key(row)) || conflictingProducts.has(key({ ...row, base: '' })))
     const identityMissing = group.some(row => !row.base || !row.code || !row.category || !row.group)
     let zeroReportCategory = false
     for (const source of ['report', 'history'] as const) {
@@ -441,7 +578,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
           ? ['当前产品的源数量缺基地，范围内分母不可确认']
           : []),
         ...(identityMissing ? ['缺基地、物料组或产品分类，拆分范围不完整'] : []),
-        ...(duplicate ? ['产品拆分键重复'] : []),
+        ...(duplicate ? ['同基地SKU产品分类、替换关系或系数冲突'] : []),
         ...(total === null ? ['同大类明细数量不完整'] : [])
       ]
       if (source === 'report' && total === 0 && !issues.length && group.every(row => row.reportQuantity === 0)) zeroReportCategory = true
@@ -551,17 +688,83 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     }
     const quantityEdits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
     if (quantityEdits.length) {
-      const shareEdits = (input.adjustments?.shares ?? []).some(edit => group.some(row => row.id === edit.rowId))
-      const quantities = !shareEdits && months.slice(0, 2).includes(category.month) ? adjustedQuantities(group, category.quantity, quantityEdits) : null
+      const quantities = adjustedQuantities(group, quantityEdits)
       if (quantities) {
         for (const row of group) {
           row.demand = quantities.get(row.id) ?? null
-          row.quantityAdjusted = true
-          row.share = category.quantity && row.demand !== null ? row.demand / category.quantity : row.share
-          const groupTotal = group.filter(candidate => candidate.group === row.group).reduce((sum, candidate) => sum + (quantities.get(candidate.id) ?? 0), 0)
-          row.groupShare = category.quantity ? groupTotal / category.quantity : row.groupShare
+          row.quantityAdjusted = quantityEdits.some(edit => edit.kind === 'base-sku' && edit.base === row.base && edit.code === row.code && edit.group === row.group)
+          if (row.quantityAdjusted) row.missing.demand = []
         }
-      } else adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：月份、范围、权重、重复、固定下级合计或占比调整冲突`)
+        category.quantity = quantity(group.map(row => ({ quantity: row.demand })))
+        category.adjusted = true
+        category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
+      } else adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：仅支持唯一基地SKU，历史上层修正须归档，数量须有效`)
+    }
+  }
+  const referenceRows = rows
+    .filter(row => row.month === months[2])
+    .map(row => {
+      const category = categoryRows.find(category => category.month === months[3] && category.category === row.category)
+      const systemDemand =
+        category?.systemQuantity === 0 ? 0 : category?.systemQuantity != null && row.systemShare !== null ? safe(category.systemQuantity * row.systemShare) : null
+      const demand = category?.quantity === 0 ? 0 : category?.quantity != null && row.share !== null ? safe(category.quantity * row.share) : null
+      return {
+        ...row,
+        id: JSON.stringify([months[3], row.base, row.code]),
+        month: months[3],
+        existingProductionInbound: null,
+        existingInTransitInbound: null,
+        existingTransferIn: null,
+        existingTransferOut: null,
+        demand,
+        systemDemand,
+        quantityAdjusted: false,
+        missing: { ...row.missing, demand: demand === null ? ['第四月需求参考缺项'] : [] }
+      }
+    })
+  for (const category of categoryRows.filter(category => category.month === months[3])) {
+    const group = referenceRows.filter(row => row.category === category.category)
+    const edits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
+    if (!edits.length) continue
+    const quantities = adjustedQuantities(group, edits)
+    if (!quantities) {
+      adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：仅支持唯一基地SKU，历史上层修正须归档，数量须有效`)
+      continue
+    }
+    for (const row of group) {
+      row.demand = quantities.get(row.id) ?? null
+      row.quantityAdjusted = edits.some(edit => edit.kind === 'base-sku' && edit.base === row.base && edit.code === row.code && edit.group === row.group)
+      if (row.quantityAdjusted) row.missing.demand = []
+    }
+    category.quantity = quantity(group.map(row => ({ quantity: row.demand })))
+    category.adjusted = true
+    category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
+  }
+  for (const row of [...rows, ...referenceRows]) {
+    row.shipmentReference = row.demand
+    if (!row.delisted) continue
+    row.systemDemand = 0
+    row.automaticDemandStopped = !(row.quantityAdjusted && row.demand !== null && row.demand > 0)
+    if (row.automaticDemandStopped) {
+      row.demand = 0
+      row.missing.demand = []
+    }
+  }
+  for (const category of categoryRows) {
+    const members = [...rows, ...referenceRows].filter(row => row.month === category.month && row.category === category.category)
+    if (members.some(row => row.delisted)) {
+      category.quantity = quantity(members.map(row => ({ quantity: row.demand })))
+      category.systemQuantity = quantity(members.map(row => ({ quantity: row.systemDemand })))
+      category.adjusted = true
+      category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
+    }
+    if (!category.adjusted) continue
+    const group = [...rows, ...referenceRows].filter(row => row.month === category.month && row.category === category.category)
+    for (const row of group) {
+      row.share = category.quantity === null || row.demand === null ? null : category.quantity === 0 ? 0 : row.demand / category.quantity
+      const members = group.filter(member => member.group === row.group)
+      const groupTotal = quantity(members.map(member => ({ quantity: member.demand })))
+      row.groupShare = category.quantity === null || groupTotal === null ? null : category.quantity === 0 ? 0 : groupTotal / category.quantity
     }
   }
   const productionDays = (base: string, month: string) => {
@@ -569,7 +772,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     const value = matches[0]?.days ?? null
     return ruleProductionDays(matches.length === 1 && finite(value) && value >= 0 && value <= daysInMonth(month) ? value : null, base, month, resolvedRules.rules)
   }
-  const rowIndex = groupBy(rows, periodKey)
+  const rowIndex = groupBy([...rows, ...referenceRows], periodKey)
   for (const row of rows) {
     const nextMonth = row.nextMonth
     const nextRow = rowIndex.get(periodKey({ month: nextMonth, base: row.base, code: row.code }))?.[0]
@@ -597,15 +800,37 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     )
     if (row.month !== input.context.month) {
       const previous = rowIndex.get(periodKey({ month: monthOffset(row.month, -1), base: row.base, code: row.code }))?.[0]
-      row.openingInventory = previous?.projectedClosing ?? null
+      row.rawOpeningInventory = previous?.projectedClosing ?? null
+      row.openingInventory = row.rawOpeningInventory === null ? null : Math.max(0, row.rawOpeningInventory)
     }
     row.missing.openingInventory = row.openingInventory === null ? ['缺上月结存或上月期末参考'] : []
-    row.requiredProduction =
-      row.demand !== null && row.targetInventory !== null && row.openingInventory !== null ? safe(Math.max(0, row.demand + row.targetInventory - row.openingInventory)) : null
-    row.projectedClosing =
-      row.requiredProduction !== null && row.openingInventory !== null && row.demand !== null ? safe(row.openingInventory + row.requiredProduction - row.demand) : null
+    const available = mpsAvailableInventory(row)
+    row.expectedShipment = mpsExpectedShipment(row, input.context.month, available)
+    row.requiredProduction = row.automaticDemandStopped
+      ? 0
+      : row.demand !== null && row.targetInventory !== null && available !== null
+        ? safe(Math.max(0, row.demand + row.targetInventory - available))
+        : null
+    row.rawProjectedClosing =
+      row.requiredProduction !== null && available !== null && row.expectedShipment !== null ? safe(available + row.requiredProduction - row.expectedShipment) : null
+    row.projectedClosing = row.rawProjectedClosing === null ? null : Math.max(0, row.rawProjectedClosing)
+    if (row.rawProjectedClosing !== null && row.rawProjectedClosing < 0)
+      row.inventoryIssues.push({
+        metric: 'projectedClosing',
+        rawValue: row.rawProjectedClosing,
+        calculationValue: 0,
+        reason: '库存收支预测为负，原因待核；计算用值归0，原始不足保留'
+      })
     row.missing.requiredProduction = row.requiredProduction === null ? ['缺需求、安全库存或期初结存'] : []
-    row.missing.projectedClosing = row.projectedClosing === null ? ['缺所需生产或库存数据'] : []
+    row.missing.projectedClosing =
+      row.projectedClosing === null
+        ? [
+            ...(![row.existingProductionInbound, row.existingInTransitInbound, row.existingTransferIn, row.existingTransferOut].every(finite)
+              ? ['既有生产入库、在途入库或调拨计划未确认']
+              : []),
+            '缺所需生产或库存数据'
+          ]
+        : []
     row.missing.mainPlan = ['所需生产由需求、库存和已采用规则推导，未生成可执行主计划']
     row.missing.transfer = ['调拨、外协需人工决策，未自动生成']
     row.productionDays = productionDays(row.base, row.month)
@@ -727,7 +952,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     if (!categoryRows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('大类需求调整不属于本版月份或分类范围')
   }
   for (const edit of input.adjustments?.quantities ?? []) {
-    if (!rows.some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('数量调整不属于本版月份或产品范围')
+    if (![...rows, ...referenceRows].some(row => row.month === edit.month && row.category === edit.category)) adjustmentIssues.push('数量调整不属于本版月份或产品范围')
   }
   const demandScope = categoryRows.filter(category => months.slice(0, 3).includes(category.month))
   const categoryScopeIssues = demandScope.flatMap(category => {
@@ -781,6 +1006,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     ruleEvaluations,
     scopeCoverage: input.scopeCoverage ?? 'in-scope',
     excludedSources,
+    poolExceptions: mpsPoolExceptions({ ...input, products }),
     excludedCategoryDemand,
     adjustmentIssues,
     resourceLoads,
@@ -790,6 +1016,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     shipmentMonth: monthOffset(input.context.month, -1),
     categoryRows,
     rows,
+    referenceRows,
     constraints: {
       safetyDays: input.constraints.safetyDays.map(row => ({ ...row })),
       ...(input.constraints.turnoverDays ? { turnoverDays: input.constraints.turnoverDays.map(row => ({ ...row })) } : {}),
