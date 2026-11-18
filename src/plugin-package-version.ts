@@ -1,4 +1,4 @@
 export const pluginPackageVersion = Object.freeze({
   name: 'dsh-agent-manage',
-  version: '0.6.3-company.82'
+  version: '0.6.3-company.83'
 } as const)
