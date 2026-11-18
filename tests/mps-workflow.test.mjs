@@ -2332,3 +2332,36 @@ test('设备范围的非求解月份不伪造零需求或零占用', () => {
   assert.equal(selected.load, null)
   assert.equal(selected.scheduledTons, null)
 })
+
+test('池外报告使用独立源记录，并按基地SKU识别替换关系和缺键记录', () => {
+  const sample = input()
+  sample.products[0].historyCode = 'OLD'
+  sample.poolEvidence = {
+    history: [
+      { month: '2026-12', base: '甲', code: 'OLD', quantity: 20 },
+      { month: '2026-12', base: '乙', code: 'OLD', quantity: 7 },
+      { month: '2026-12', base: '甲', code: 'OUT', quantity: 5 }
+    ],
+    report: [
+      { month: '2026-12', base: '甲', code: 'OUT', quantity: 8 },
+      { month: '2026-12', base: '', code: 'NOBASE', quantity: null }
+    ]
+  }
+  const { poolExceptions, rows } = computeMpsWorkflow(sample)
+  assert.deepEqual(
+    poolExceptions.history.map(({ base, code }) => [base, code]),
+    [
+      ['乙', 'OLD'],
+      ['甲', 'OUT']
+    ]
+  )
+  assert.deepEqual(
+    poolExceptions.report.map(({ code }) => code),
+    ['OUT']
+  )
+  const out = poolExceptions.total.find(({ base, code }) => base === '甲' && code === 'OUT')
+  assert.deepEqual(out.sources, ['history', 'report'])
+  assert.equal(poolExceptions.total.length, 3)
+  assert.match(poolExceptions.other[0].reason, /缺基地或SKU/)
+  assert.equal(rows.find(({ code }) => code === 'A').historyQuantity, 60)
+})
