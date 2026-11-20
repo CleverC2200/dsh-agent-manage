@@ -142,7 +142,6 @@ export function computeMpsCategoryDemand(input: MpsCategoryDemandInput) {
       const years = [1, 2, 3].map(year => {
         const period = offset(month, -12 * year)
         const rows = input.historical.filter(row => row.category === category && row.month === period)
-        const complete = rows.length > 0 && rows.every(row => row.valid) && new Set(rows.map(row => row.base)).size === rows.length
         const amounts = periods.get(periodKey(category, period))
         const quantity = amounts?.quantity ?? null
         const priorYearQuantity = amounts?.priorYearQuantity ?? null
