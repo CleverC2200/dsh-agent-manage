@@ -8,7 +8,7 @@ import {
   type MpsInventoryVersion
 } from './inventory-targets.ts'
 import { historyClassification, type MpsHistoryAudit, type MpsHistoryPeriod } from './history.ts'
-import { mpsPoolExceptions } from './pool-exceptions.ts'
+import { historicalPool, mpsPoolExceptions } from './pool-exceptions.ts'
 import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
 import { applyReportFallback, type MpsReportRatio } from './split-fallback.ts'
 export type { MpsQuantityAdjustment } from './quantity-adjustments.ts'
@@ -274,7 +274,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const months = Array.from({ length: 4 }, (_, offset) => monthOffset(input.context.month, offset))
   const resolvedRules = resolveMpsRules(input, months.slice(0, 3))
   const reportIndex = groupBy(input.report, periodKey)
-  const historyIndex = groupBy(input.history, periodKey)
+  const historyPool = historicalPool(input.products)
+  const historyIndex = groupBy(input.history.filter(historyPool.includes), periodKey)
   const classifyHistory = historyClassification(input.context.month, input.historyPeriods, input.historyAsOfMonth)
   const coefficientKey = (row: Pick<MpsProduct, 'base' | 'code' | 'historyCode'>, source: 'report' | 'history' = 'report') =>
     periodKey({ ...row, code: source === 'history' ? row.historyCode || row.code : row.code, month: input.context.month })
@@ -340,36 +341,28 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     ])
   )
   const catalogByCode = groupBy(input.products, row => row.code)
-  const historyCatalog = groupBy(
-    input.products.flatMap(product => historyCodes(product).map(sourceCode => ({ ...product, sourceCode }))),
-    row => row.sourceCode
-  )
   const excludedSources: (MpsQuantityRow & { source: 'report' | 'history'; reason: string })[] = []
-  const unassignedBases = new Set<string>()
-  const unmatchedMonths = { report: new Map<string, Set<string>>(), history: new Map<string, Set<string>>() }
+  const unassignedReportCategories = new Set<string>()
+  const unmatchedReportCategories = new Set<string>()
+  const month = input.context.month
+  const productDomain = monthlyProductIndexes.get(month)
+  const historyDomain = monthlyHistoryIndexes.get(month)
   for (const source of ['report', 'history'] as const) {
     for (const fact of input[source]) {
-      if (fact.month !== input.context.month) continue
-      const month = fact.month
-      const domain = (source === 'history' ? monthlyHistoryIndexes : monthlyProductIndexes).get(month)
-      if (!domain || domain.has(key(fact)) || monthlyHistoryIndexes.get(month)?.has(key(fact))) continue
-      const catalog = source === 'history' ? historyCatalog : catalogByCode
-      const categories = new Set((catalog.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
-      const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? (fact.category ?? '') : ''
+      if (fact.month !== month) continue
+      const id = key(fact)
+      if (source === 'history' ? historyPool.includes(fact) && historyDomain?.has(id) : productDomain?.has(id) || historyDomain?.has(id)) continue
       excludedSources.push({ ...fact, source, reason: !fact.base ? '源记录缺基地' : '物料编码未对应当前产品明细或指定基地' })
+      if (source === 'history') continue
+      const categories = new Set((catalogByCode.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
+      const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? (fact.category ?? '') : ''
+      unmatchedReportCategories.add(category)
       if (!fact.base && fact.quantity !== 0) {
-        const activeProducts = productsByMonth.get(month) ?? []
-        const affected = activeProducts.filter(product => (source === 'history' ? historyCodes(product).includes(fact.code) : product.code === fact.code))
-        for (const product of affected) unassignedBases.add(JSON.stringify([source, month, product.category]))
+        for (const product of productsByMonth.get(month) ?? []) if (product.code === fact.code) unassignedReportCategories.add(product.category)
       }
-      const unmatched = unmatchedMonths[source].get(month) ?? new Set<string>()
-      unmatched.add(category)
-      unmatchedMonths[source].set(month, unmatched)
     }
   }
-  const scopeIssues = [...unmatchedMonths.report, ...unmatchedMonths.history].flatMap(([month, categories]) =>
-    [...categories].map(category => `${month} ${category || '分类未知'} 源明细不在当前产品明细范围，已单列且未参与占比`)
-  )
+  const scopeIssues = [...unmatchedReportCategories].map(category => `${month} ${category || '分类未知'} 源明细不在当前产品明细范围，已单列且未参与占比`)
   const categories = [...new Set(input.products.map(row => row.category).filter(category => category.trim().length > 0))]
   const excludedCategoryDemand = input.categoryDemand
     .filter(row => !categories.includes(row.category))
@@ -394,6 +387,26 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       }
     })
   )
+  const applyQuantityEdits = (category: (typeof categoryRows)[number], group: MpsWorkflowRow[]) => {
+    const edits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
+    if (edits.some(edit => edit.kind === 'group' || edit.kind === 'sku')) adjustmentIssues.push(`${category.month} ${category.category} 历史上层修正须归档`)
+    if (!edits.some(edit => edit.kind !== 'group' && edit.kind !== 'sku')) return
+    const quantities = adjustedQuantities(group, edits)
+    if (!quantities) {
+      adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：范围无有效SKU、拆分依据不完整、调整重复或数量无效`)
+      return
+    }
+    for (const row of group) {
+      const adjusted = quantities.get(row.id)
+      if (adjusted === undefined) continue
+      row.demand = adjusted
+      row.quantityAdjusted = true
+      row.missing.demand = []
+    }
+    category.quantity = quantity(group.map(row => ({ quantity: row.demand })))
+    category.adjusted = true
+    category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
+  }
   const rows: MpsWorkflowRow[] = months.slice(0, 3).flatMap(month =>
     (productsByMonth.get(month) ?? []).map(product => {
       const historyClassification = classifyHistory(product)
@@ -575,9 +588,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const total = quantity(entries.map(row => ({ quantity: row[field] })))
       const issues = [
         ...input.sourceIssues[source],
-        ...(unassignedBases.has(JSON.stringify([source, input.context.month, category.category])) || unassignedBases.has(JSON.stringify([source, input.context.month, '']))
-          ? ['当前产品的源数量缺基地，范围内分母不可确认']
-          : []),
+        ...(source === 'report' && (unassignedReportCategories.has(category.category) || unassignedReportCategories.has('')) ? ['当前产品的源数量缺基地，范围内分母不可确认'] : []),
         ...(identityMissing ? ['缺基地、物料组或产品分类，拆分范围不完整'] : []),
         ...(duplicate ? ['同基地SKU产品分类、替换关系或系数冲突'] : []),
         ...(total === null ? ['同大类明细数量不完整'] : [])
@@ -619,13 +630,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         }
       }
     }
-    if (
-      !duplicate &&
-      !identityMissing &&
-      !input.sourceIssues.report.length &&
-      !unassignedBases.has(JSON.stringify(['report', input.context.month, category.category])) &&
-      !unassignedBases.has(JSON.stringify(['report', input.context.month, '']))
-    )
+    if (!duplicate && !identityMissing && !input.sourceIssues.report.length && !unassignedReportCategories.has(category.category) && !unassignedReportCategories.has(''))
       applyReportFallback(group, input.reportRatios ?? [])
     for (const row of group) {
       if (zeroReportCategory) {
@@ -687,20 +692,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const last = group.findLast(row => row.fallback && row.share !== 0) ?? group.findLast(row => row.share !== 0) ?? group[group.length - 1]
       last.demand = safe(category.quantity - group.filter(row => row !== last).reduce((sum, row) => sum + (row.demand ?? 0), 0))
     }
-    const quantityEdits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
-    if (quantityEdits.length) {
-      const quantities = adjustedQuantities(group, quantityEdits)
-      if (quantities) {
-        for (const row of group) {
-          row.demand = quantities.get(row.id) ?? null
-          row.quantityAdjusted = quantityEdits.some(edit => edit.kind === 'base-sku' && edit.base === row.base && edit.code === row.code && edit.group === row.group)
-          if (row.quantityAdjusted) row.missing.demand = []
-        }
-        category.quantity = quantity(group.map(row => ({ quantity: row.demand })))
-        category.adjusted = true
-        category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
-      } else adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：仅支持唯一基地SKU，历史上层修正须归档，数量须有效`)
-    }
+    applyQuantityEdits(category, group)
   }
   const referenceRows = rows
     .filter(row => row.month === months[2])
@@ -725,21 +717,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     })
   for (const category of categoryRows.filter(category => category.month === months[3])) {
     const group = referenceRows.filter(row => row.category === category.category)
-    const edits = (input.adjustments?.quantities ?? []).filter(edit => edit.month === category.month && edit.category === category.category)
-    if (!edits.length) continue
-    const quantities = adjustedQuantities(group, edits)
-    if (!quantities) {
-      adjustmentIssues.push(`${category.month} ${category.category} 数量调整拒绝：仅支持唯一基地SKU，历史上层修正须归档，数量须有效`)
-      continue
-    }
-    for (const row of group) {
-      row.demand = quantities.get(row.id) ?? null
-      row.quantityAdjusted = edits.some(edit => edit.kind === 'base-sku' && edit.base === row.base && edit.code === row.code && edit.group === row.group)
-      if (row.quantityAdjusted) row.missing.demand = []
-    }
-    category.quantity = quantity(group.map(row => ({ quantity: row.demand })))
-    category.adjusted = true
-    category.missing = category.quantity === null ? ['基地SKU需求存在缺项，完整合计未知'] : []
+    applyQuantityEdits(category, group)
   }
   for (const row of [...rows, ...referenceRows]) {
     row.shipmentReference = row.demand

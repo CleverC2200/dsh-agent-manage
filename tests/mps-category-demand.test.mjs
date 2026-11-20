@@ -58,6 +58,69 @@ test('missing a historical year or zero denominators stop only dependent results
   assert.equal(computeMpsCategoryDemand(noMix).rows[0].quantity, null)
 })
 
+test('异常环比先用前三个月，再在前六个月找齐三条，否则使用同方向界限', () => {
+  const input = fixture()
+  const row = input.historical.find(row => row.month === '2025-10')
+  row.priorMonthQuantity = 1
+  row.priorYearQuantity = -1
+  const compute = () => computeMpsCategoryDemand(input)
+  const detail = () => compute().growthAnomalies.find(row => row.month === '2025-10' && row.metric === '历史环比')
+  assert.equal(detail().rawRate, 99)
+  assert.equal(detail().usedRate, 0)
+  assert.deepEqual(detail().samples, ['2025-09', '2025-08', '2025-07'])
+  assert.equal(compute().growthAnomalies.find(row => row.month === '2025-10' && row.metric === '同比').usedRate, null)
+  input.historical = input.historical.filter(row => row.month !== '2025-08')
+  assert.deepEqual(detail().samples, ['2025-09', '2025-07', '2025-06'])
+  assert.match(detail().handling, /扩展到前六个月/)
+  input.historical = input.historical.filter(row => !['2025-06', '2025-07'].includes(row.month))
+  assert.equal(detail().usedRate, 10)
+  assert.equal(detail().appliedRatio, 11)
+  assert.deepEqual(detail().samples, [])
+  assert.match(detail().handling, /仅1条有效环比/)
+  assert.equal(compute().rows[0].chain, 13 / 3)
+  row.quantity = -100
+  assert.equal(detail().usedRate, -10)
+  assert.equal(detail().appliedRatio, 0)
+})
+
+test('基期和本期均零时先用前三个月，扩展后平均六个月窗口内的全部有效环比', () => {
+  const input = fixture()
+  const year = input.historical.filter(row => row.month.startsWith('2025'))
+  Object.assign(
+    year.find(row => row.month === '2025-10'),
+    { quantity: 0, priorMonthQuantity: 0 }
+  )
+  const detail = () => computeMpsCategoryDemand(input).growthAnomalies.find(row => row.month === '2025-10' && row.metric === '历史环比')
+  assert.equal(detail().appliedRatio, 1)
+  assert.deepEqual(detail().samples, ['2025-09', '2025-08', '2025-07'])
+  year.find(row => row.month === '2025-08').priorMonthQuantity = null
+  year.find(row => row.month === '2025-06').priorMonthQuantity = 50
+  input.historical.push({ ...year[0], month: '2025-05', quantity: 300, priorMonthQuantity: 100 })
+  assert.deepEqual(detail().samples, ['2025-09', '2025-07', '2025-06', '2025-05'])
+  assert.equal(detail().appliedRatio, 1.75)
+})
+
+test('基期和本期均零且环比样本不足时这一月按零继续递推并保留异常', () => {
+  const input = fixture()
+  for (const row of input.historical) {
+    if (/-(0[4-9]|10)$/.test(row.month)) row.priorMonthQuantity = 0
+    if (row.month.endsWith('-10')) row.quantity = 0
+  }
+  const { rows, growthAnomalies } = computeMpsCategoryDemand(input)
+  assert.deepEqual(
+    rows.map(row => row.momMethod),
+    [0, 0, 0, 0]
+  )
+  assert.equal(rows[0].quantity, 60)
+  const fallback = growthAnomalies.filter(row => row.month.endsWith('-10') && row.metric === '历史环比')
+  assert.equal(fallback.length, 3)
+  for (const entry of fallback) {
+    assert.equal(entry.usedRate, null)
+    assert.equal(entry.appliedRatio, 0)
+    assert.match(entry.handling, /环比法预测量取0/)
+  }
+})
+
 test('incomplete DMS classification does not hide valid BI methods', () => {
   const input = fixture()
   input.checks[0].complete = false
