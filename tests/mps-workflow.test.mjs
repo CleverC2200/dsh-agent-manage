@@ -1494,13 +1494,35 @@ test('闰年二月自然天数和90%/105%产能阈值边界使用明确口径', 
   }
 })
 
-test('当前物料数量缺基地且非零时仍阻断该大类，真实零保留核对记录', () => {
+test('缺基地历史仅进入异常清单，正常需求不受影响', () => {
   const sample = input()
+  const baseline = computeMpsWorkflow(sample)
   sample.history.push({ month: '2026-12', base: '', code: 'A', quantity: 5 })
-  assert.equal(computeMpsWorkflow(sample).rows[0].historyShare, null)
+  const result = computeMpsWorkflow(sample)
+  assert.deepEqual(result.rows, baseline.rows)
+  assert.deepEqual(result.summary, baseline.summary)
+  assert.deepEqual(result.missing, baseline.missing)
+  assert.equal(result.poolExceptions.other.find(row => row.code === 'A' && !row.base)?.quantity, 5)
   sample.history.at(-1).quantity = 0
   assert.equal(computeMpsWorkflow(sample).rows[0].historyShare, 0.6)
   assert.ok(computeMpsWorkflow(sample).excludedSources.some(row => row.reason === '源记录缺基地'))
+})
+
+test('池外老品在同基地对应多个SKU时只进入历史异常，唯一替换仍参与拆分', () => {
+  const sample = input()
+  const month = sample.context.month
+  sample.products[0].historyCode = 'OLD'
+  const peer = { ...sample.products[0], code: 'C', name: 'C' }
+  sample.history.push({ month, base: peer.base, code: 'OLD', quantity: 20 })
+  assert.equal(computeMpsWorkflow(sample).rows[0].historyReferenceCalculationQuantity, 20)
+  sample.products.push(peer)
+  sample.history.push({ month, base: peer.base, code: 'C', quantity: 10 })
+  sample.report.push({ month, base: peer.base, code: 'C', quantity: 10 })
+  const result = computeMpsWorkflow(sample)
+  assert.equal(result.rows[0].historyReferenceCalculationQuantity, 0)
+  assert.ok(result.rows.every(row => row.month !== month || row.demand !== null))
+  assert.match(result.poolExceptions.history.find(row => row.code === 'OLD').reason, /多个当前SKU/)
+  assert.ok(!result.summary.missing.some(reason => reason.includes('源明细不在当前产品明细范围')))
 })
 
 test('缺基地来源按当前产品分类限制影响范围，旧分类不阻断其他大类', () => {
@@ -1514,7 +1536,7 @@ test('缺基地来源按当前产品分类限制影响范围，旧分类不阻�
     const result = computeMpsWorkflow(sample)
     const affected = result.rows.find(row => row.code === 'A')
     const unaffected = result.rows.find(row => row.code === 'C')
-    assert.equal(affected[source + 'Share'], null)
+    assert.equal(affected[source + 'Share'], source === 'report' ? null : 0.6)
     assert.equal(unaffected[source + 'Share'], 1)
     assert.equal(unaffected.demand, 90)
     assert.ok(result.excludedSources.some(row => row.code === 'A' && row.category === '旧分类' && row.reason === '源记录缺基地'))
@@ -1755,6 +1777,36 @@ test('旧上层数量不参与计算并报告冲突，基地SKU单独生效且�
     before.rows.map(row => row.demand)
   )
 })
+test('大类拆到物料组和SKU，物料组调整回算大类，SKU调整回算两层', () => {
+  const sample = input()
+  const month = sample.context.month
+  const category = sample.products[0].category
+  const group = sample.products[0].group
+  const newGroup = { ...sample.products[1], code: 'C', group: '另一组' }
+  sample.products.push(newGroup)
+  sample.report.push({ month, base: newGroup.base, code: newGroup.code, quantity: 100 })
+  sample.history.push({ month, base: newGroup.base, code: newGroup.code, quantity: 100 })
+  const read = () => {
+    const result = computeMpsWorkflow(sample)
+    assert.deepEqual(result.adjustmentIssues, [])
+    return [
+      result.categoryRows.find(row => row.month === month && row.category === category).quantity,
+      result.rows.filter(row => row.month === month).map(row => Math.round(row.demand * 1000) / 1000)
+    ]
+  }
+  const parent = { kind: 'category-total', month, category, quantity: 200 }
+  const material = { kind: 'group-total', month, category, group, quantity: 120 }
+  const leaf = { kind: 'base-sku', month, category, group, base: sample.products[0].base, code: 'A', quantity: 60 }
+  sample.adjustments = { quantities: [parent] }
+  assert.deepEqual(read(), [200, [45, 55, 100]])
+  sample.adjustments.quantities.push(material)
+  assert.deepEqual(read(), [220, [54, 66, 100]])
+  sample.adjustments.quantities.push(leaf)
+  assert.deepEqual(read(), [226, [60, 66, 100]])
+  sample.adjustments.quantities = [material, leaf, parent]
+  assert.deepEqual(read(), [200, [45, 55, 100]])
+})
+
 test('基地SKU数量拒绝无效、重复和范围错误，缺权重可人工补值且不补其他缺项', () => {
   const sample = input()
   const edit = { kind: 'base-sku', base: '甲', month: '2026-12', category: '点心', group: '包点', code: 'A', quantity: 30 }
