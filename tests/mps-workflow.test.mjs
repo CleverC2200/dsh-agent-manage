@@ -1942,7 +1942,7 @@ test('最终目标周转天数读取源字段，独立于库存除日均的诊�
   assert.equal(inventoryTargetIndex([source], 'auto', ['读取失败'])(source).finalTurnoverDays, null)
 })
 
-test('选定来源月及版本供三评估月共用，其他月份不冲突且不按SKU换版本', () => {
+test('选定来源月供三评估月共用，版本按基地SKU回退且其他月份不冲突', () => {
   const sample = input()
   sample.constraints.safetyDays = []
   sample.inventoryTurnoverMonth = '2026-11'
@@ -1956,7 +1956,7 @@ test('选定来源月及版本供三评估月共用，其他月份不冲突且�
   let result = computeMpsWorkflow(sample)
   assert.ok(result.rows.filter(row => row.code === 'A').every(row => row.safetyDays === 10 && row.turnoverPolicy.sourceVersion === '纠偏'))
   assert.ok(result.rows.filter(row => row.code === 'A').every(row => JSON.stringify(row.turnoverPolicy.sourceMonths) === '["2026-11"]'))
-  assert.ok(result.rows.filter(row => row.code === 'B').every(row => row.safetyDays === null))
+  assert.ok(result.rows.filter(row => row.code === 'B').every(row => row.safetyDays === 40 && row.turnoverPolicy.sourceVersion === '月初'))
   sample.inventoryTargets.push({ ...source, finalTurnoverDays: 11 })
   result = computeMpsWorkflow(sample)
   assert.ok(result.rows.filter(row => row.code === 'A').every(row => row.safetyDays === null && row.turnoverPolicy.missing[0].includes('冲突')))
@@ -1997,7 +1997,7 @@ test('同基地SKU共用选定源月最终目标周转天数，全缺和同键�
   )
 })
 
-test('自动库存版本在期间内一致，缺源单品及空天数不混取低优先级版本', () => {
+test('库存数量版本在期间内一致，周转天数对缺源单品及空值采用逐键回退', () => {
   const source = [
     { month: '2026-11', base: '郑州', code: 'A', version: '月初', finalTarget: 100, dailyDemand: 10, finalTurnoverDays: 10, sourceRows: 1 },
     { month: '2026-11', base: '郑州', code: 'B', version: '滚动', finalTarget: 200, dailyDemand: 10, finalTurnoverDays: 19.333333, sourceRows: 1 },
@@ -2007,8 +2007,8 @@ test('自动库存版本在期间内一致，缺源单品及空天数不混取�
   const resolve = inventoryTargetIndex(source)
   assert.equal(resolve({ month: '2026-11', base: '郑州', code: 'B' }).version, '月初')
   const days = inventoryTurnoverIndex(source, ['2026-11', '2026-12', '2027-01'])
-  assert.equal(days({ base: '郑州', code: 'B' }).sourceDays, null)
-  assert.equal(days({ base: '华东', code: 'C' }).sourceDays, null)
+  assert.equal(days({ base: '郑州', code: 'B' }).sourceDays, 19.333333)
+  assert.equal(days({ base: '华东', code: 'C' }).sourceDays, 11)
   assert.equal(inventoryTurnoverIndex(source, ['2026-11'], '滚动')({ base: '华东', code: 'C' }).sourceDays, 11)
   assert.equal(inventoryTurnoverIndex(source, ['2026-11'], '月初')({ base: '郑州', code: 'B' }).sourceDays, null)
   assert.equal(inventoryTurnoverIndex(source, ['2026-11'], '月初')({ base: '华东', code: 'C' }).sourceDays, null)
