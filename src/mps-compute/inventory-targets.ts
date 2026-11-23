@@ -110,10 +110,17 @@ export function inventoryTargetIndex(
   }
 }
 
+export interface MpsTurnoverAttempt {
+  version: string
+  status: 'valid' | 'missing-record' | 'invalid-days' | 'conflict' | 'read-failed'
+  reason: string
+}
 export interface MpsTurnoverPolicy {
   sourceDays: number | null
   sourceMonths: string[]
   sourceVersion: string
+  fallbackReason: string
+  attempts: MpsTurnoverAttempt[]
   missing: string[]
 }
 export function inventoryTurnoverIndex(
@@ -124,33 +131,66 @@ export function inventoryTurnoverIndex(
   order: Exclude<MpsInventoryVersion, 'auto'>[] = priority
 ) {
   const sourceMonth = months[0]
-  const selectedVersion = version === 'auto' ? order.find(current => source.some(row => row.month === sourceMonth && row.version === current)) : version
-  const resolve = inventoryTargetIndex(source, selectedVersion ?? version, issues, order)
+  const versions = version === 'auto' ? order : [version]
+  const sourceIndex = new Map<string, MpsInventoryTarget[]>()
+  for (const row of source) {
+    if (row.month !== sourceMonth) continue
+    const sourceKey = JSON.stringify([row.base, row.code, row.version])
+    sourceIndex.set(sourceKey, [...(sourceIndex.get(sourceKey) ?? []), row])
+  }
   const policies = new Map<string, MpsTurnoverPolicy>()
   return (product: { base: string; code: string }): MpsTurnoverPolicy => {
     const productKey = JSON.stringify([product.base, product.code])
     const cached = policies.get(productKey)
     if (cached) return cached
-    const records = sourceMonth ? [resolve({ ...product, month: sourceMonth })] : []
-    const values = new Set(records.flatMap(row => (row.finalTurnoverDays === null ? [] : [row.finalTurnoverDays])))
-    const conflict = values.size > 1 || records.some(row => row.conflictFields.includes('finalTurnoverDays') || row.missingCodes.includes('duplicate-key'))
-    const policy = {
-      sourceDays: !conflict && values.size === 1 ? [...values][0] : null,
+    const policy: MpsTurnoverPolicy = {
+      sourceDays: null,
       sourceMonths: sourceMonth ? [sourceMonth] : [],
-      sourceVersion: selectedVersion ?? '',
-      missing: conflict
-        ? ['同基地同SKU的最终目标周转天数冲突，请核对或人工补充']
-        : values.size
-          ? []
-          : [
-              records.some(row => row.status === 'read-failed')
-                ? `目标周转天数来源读取失败：${issues.join('；')}，请同步或人工补充`
-                : records.some(row => row.missingCodes.includes('missing-selected-version'))
-                  ? `${sourceMonth}缺选定版本${selectedVersion}的目标记录，请核对或人工补充`
-                  : records.some(row => row.missingCodes.includes('missing-record'))
-                    ? `${sourceMonth} ${selectedVersion ?? '可用版本'}缺目标记录，请核对或人工补充`
-                    : `${sourceMonth ?? '所选来源月'} ${selectedVersion ?? '可用版本'}最终目标周转天数字段为空或无效，请核对或人工补充`
-            ]
+      sourceVersion: versions[0] ?? '',
+      fallbackReason: '',
+      attempts: [],
+      missing: []
+    }
+    for (const candidate of versions) {
+      const rows = sourceIndex.get(JSON.stringify([product.base, product.code, candidate])) ?? []
+      const row = rows[0]
+      const status: MpsTurnoverAttempt['status'] = issues.length
+        ? 'read-failed'
+        : !row
+          ? 'missing-record'
+          : rows.length > 1 || !Number.isSafeInteger(row.sourceRows) || row.sourceRows <= 0 || row.conflictFields?.includes('finalTurnoverDays')
+            ? 'conflict'
+            : valid(row.finalTurnoverDays ?? null)
+              ? 'valid'
+              : 'invalid-days'
+      const prefix = `${sourceMonth ?? '所选来源月'} ${candidate}`
+      const reason =
+        status === 'read-failed'
+          ? `目标周转天数来源读取失败：${issues.join('；')}，请同步或人工补充`
+          : status === 'missing-record'
+            ? `${prefix}缺目标记录（缺选定版本${candidate}），请核对或人工补充`
+            : status === 'conflict'
+              ? `${prefix}同基地同SKU的最终目标周转天数冲突，请核对或人工补充`
+              : status === 'invalid-days'
+                ? `${prefix}最终目标周转天数字段为空或无效，请核对或人工补充`
+                : ''
+      policy.attempts.push({ version: candidate, status, reason })
+      if (status === 'valid') {
+        policy.sourceDays = row.finalTurnoverDays ?? null
+        policy.sourceVersion = candidate
+        policy.fallbackReason = policy.attempts
+          .slice(0, -1)
+          .map(attempt => attempt.reason)
+          .join('；')
+        break
+      }
+      if (status === 'conflict' || status === 'read-failed') break
+    }
+    if (policy.sourceDays === null) {
+      const blocking = policy.attempts.find(attempt => attempt.status === 'conflict' || attempt.status === 'read-failed')
+      policy.missing = blocking
+        ? [blocking.reason, ...policy.attempts.filter(attempt => attempt !== blocking).map(attempt => attempt.reason)]
+        : policy.attempts.map(attempt => attempt.reason)
     }
     policies.set(productKey, policy)
     return policy
