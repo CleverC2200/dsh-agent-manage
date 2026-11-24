@@ -16,7 +16,10 @@ test('自身及替换品按同基地同财年合计历史，原始发货不改�
   const sample = input()
   sample.products[0].historyCode = 'OLD'
   sample.products[1].historyCode = 'A'
-  sample.products.push({ ...sample.products[0], code: 'OLD', historyCode: undefined, category: '历史参考' }, { ...sample.products[0], base: '乙', historyCode: undefined, category: '历史参考' })
+  sample.products.push(
+    { ...sample.products[0], code: 'OLD', historyCode: undefined, category: '历史参考' },
+    { ...sample.products[0], base: '乙', historyCode: undefined, category: '历史参考' }
+  )
   sample.history.push({ month: '2026-12', base: '甲', code: 'OLD', quantity: 100 }, { month: '2026-12', base: '乙', code: 'OLD', quantity: 999 })
   sample.history.push({ month: '2026-12', base: '乙', code: 'A', quantity: 40 })
   const raw = globalThis.structuredClone(sample.history)
@@ -2430,7 +2433,7 @@ test('V5只使用入池基地SKU的历史，池外替换品不进入需求或排
   const result = computeMpsWorkflow(sample)
   const row = result.rows.find(row => row.base === '甲' && row.code === 'A')
   assert.equal(row.historyQuantity, 60)
-  assert.ok(result.rows.every(row => row.base === '甲' && row.code === 'A' || row.base === '乙' && row.code === 'B'))
+  assert.ok(result.rows.every(row => (row.base === '甲' && row.code === 'A') || (row.base === '乙' && row.code === 'B')))
 })
 
 test('V5池外替换品的无效系数不污染入池SKU历史和需求，原始关系与异常仍可核对', () => {
@@ -2466,11 +2469,13 @@ test('V5池外替换品的无效系数不污染入池SKU历史和需求，原始
 
 test('V5产能和业务报告年度量只汇总入池基地SKU，池外同物料不扩入', () => {
   const sample = planInput()
-  const report = buildCapacityReport(sample, solveMpsPlan(sample), { rows: [
-    { month: '2026-12', base: '甲', code: 'A', quantity: 30 },
-    { month: '2026-12', base: '乙', code: 'A', quantity: 999 },
-    { month: '2026-12', base: '甲', code: 'OUT', quantity: 888 }
-  ] })
+  const report = buildCapacityReport(sample, solveMpsPlan(sample), {
+    rows: [
+      { month: '2026-12', base: '甲', code: 'A', quantity: 30 },
+      { month: '2026-12', base: '乙', code: 'A', quantity: 999 },
+      { month: '2026-12', base: '甲', code: 'OUT', quantity: 888 }
+    ]
+  })
   assert.equal(report.annualTotals.find(row => row.month === '2026-12' && row.base === '全国').demand.value, 3)
   assert.ok(report.productDetails.every(row => row.base === '甲' && ['A', 'B'].includes(row.code)))
 })
