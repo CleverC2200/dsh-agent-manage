@@ -50,7 +50,7 @@ test('既有生产入库在途和双向调拨逐列入账，未知库存移动�
         [535, 0, 0, 0, 0, 535]
       ]
     )
-    const unknown = structuredClone(sample)
+    const unknown = globalThis.structuredClone(sample)
     unknown.inventoryMovements[0].inTransitInbound = null
     const failed = calculate(unknown).rows
     assert.ok(

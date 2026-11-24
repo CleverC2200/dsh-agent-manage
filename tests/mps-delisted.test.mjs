@@ -162,7 +162,7 @@ test('下市品退出提报与历史分母，两个有效SKU承接全部需求�
   assert.equal(result.rows[1].reportLayers.categoryQuantity, 50)
   assert.equal(result.rows[1].historyLayers.categoryQuantity, 60)
 
-  const missingDelistedBase = structuredClone(sample)
+  const missingDelistedBase = globalThis.structuredClone(sample)
   missingDelistedBase.report[0].base = ''
   assert.deepEqual(demands(computeMpsWorkflow(missingDelistedBase).rows.slice(0, 3)), [0, 42.5, 57.5])
 

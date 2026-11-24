@@ -29,7 +29,7 @@ const december = input => computeMpsWorkflow(input).rows.filter(row => row.month
 
 test('最近三已结束月确认零发货只归零历史份额，物料组最大合格SKU承接同层差额', () => {
   const input = sample()
-  const raw = structuredClone(input)
+  const raw = globalThis.structuredClone(input)
   const rows = december(input)
   const [a, b, c] = rows
   assert.deepEqual(

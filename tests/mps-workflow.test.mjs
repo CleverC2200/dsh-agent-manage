@@ -2440,7 +2440,7 @@ test('V5池外替换品的无效系数不污染入池SKU历史和需求，原始
   sample.report = sample.report.map(row => ({ ...row, quantity: 50 }))
   sample.products[0].historyCode = 'OUT'
   sample.history.push({ month: sample.context.month, base: '甲', code: 'OUT', quantity: 9000 })
-  const raw = structuredClone(sample.history)
+  const raw = globalThis.structuredClone(sample.history)
   for (const factor of [1, null, -1, Infinity]) {
     sample.products[0].historyFactor = factor
     const result = computeMpsWorkflow(sample)
