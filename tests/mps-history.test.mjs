@@ -6,7 +6,8 @@ const sample = () => ({
   context: { id: 'history-v1', name: '历史核对', month: '2026-12' },
   products: [
     { base: '甲', code: 'A', name: 'A', category: '点心', group: '包点', series: '系列', historyCode: 'OLD', historyFactor: 2 },
-    { base: '甲', code: 'B', name: 'B', category: '点心', group: '包点', series: '系列' }
+    { base: '甲', code: 'B', name: 'B', category: '点心', group: '包点', series: '系列' },
+    { base: '甲', code: 'OLD', name: 'OLD', category: '历史参考', group: '历史参考', series: '系列' }
   ],
   categoryDemand: [{ month: '2026-12', category: '点心', quantity: 120 }],
   report: [
@@ -72,9 +73,9 @@ test('缺失或失败月份先报来源异常，不能用补0分类新品，最�
   input.history = []
   const row = computeMpsWorkflow(input).rows[0]
   assert.equal(row.historyQuantity, 0)
-  assert.equal(row.historyShare, null)
+  assert.equal(row.historyShare, 0)
   assert.equal(row.demand, null)
-  assert.match(row.missing.historyShare.join('；'), /合计为0/)
+  assert.match(row.missing.historyShare.join('；'), /没有合格/)
 })
 
 test('未来评估只使用实际已结束月份，月度来源无记录可确认零但部分读取仍待核', () => {

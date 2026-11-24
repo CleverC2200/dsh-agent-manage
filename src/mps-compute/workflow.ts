@@ -7,7 +7,7 @@ import {
   type MpsInventoryTargetResult,
   type MpsInventoryVersion
 } from './inventory-targets.ts'
-import { historyClassification, type MpsHistoryAudit, type MpsHistoryPeriod } from './history.ts'
+import { applyHistoryZeroShares, historyClassification, type MpsHistoryAudit, type MpsHistoryPeriod } from './history.ts'
 import { historicalPool, mpsPoolExceptions } from './pool-exceptions.ts'
 import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
 import { applyReportFallback, type MpsReportRatio } from './split-fallback.ts'
@@ -276,7 +276,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const reportIndex = groupBy(input.report, periodKey)
   const historyPool = historicalPool(input.products)
   const historyIndex = groupBy(input.history.filter(historyPool.includes), periodKey)
-  const classifyHistory = historyClassification(input.context.month, input.historyPeriods, input.historyAsOfMonth)
+  const classifyHistory = historyClassification(input.context.month, input.historyPeriods ?? [], input.historyAsOfMonth, historyPool.includes)
   const coefficientKey = (row: Pick<MpsProduct, 'base' | 'code' | 'historyCode'>, source: 'report' | 'history' = 'report') =>
     periodKey({ ...row, code: source === 'history' ? row.historyCode || row.code : row.code, month: input.context.month })
   const hasCoefficient = (product: MpsProduct, source: 'report' | 'history') => source === 'history' || reportIndex.has(coefficientKey(product))
@@ -343,6 +343,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const catalogByCode = groupBy(input.products, row => row.code)
   const excludedSources: (MpsQuantityRow & { source: 'report' | 'history'; reason: string })[] = []
   const unassignedReportCategories = new Set<string>()
+  const unassignedActiveReportCategories = new Set<string>()
   const unmatchedReportCategories = new Set<string>()
   const month = input.context.month
   const productDomain = monthlyProductIndexes.get(month)
@@ -351,14 +352,18 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     for (const fact of input[source]) {
       if (fact.month !== month) continue
       const id = key(fact)
-      if (source === 'history' ? historyPool.includes(fact) && historyDomain?.has(id) : productDomain?.has(id) || historyDomain?.has(id)) continue
+      if (source === 'history' ? historyPool.includes(fact) && historyDomain?.has(id) : productDomain?.has(id)) continue
       excludedSources.push({ ...fact, source, reason: !fact.base ? '源记录缺基地' : '物料编码未对应当前产品明细或指定基地' })
       if (source === 'history') continue
       const categories = new Set((catalogByCode.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
       const category = categories.size === 1 ? [...categories][0] : categories.size === 0 ? (fact.category ?? '') : ''
       unmatchedReportCategories.add(category)
       if (!fact.base && fact.quantity !== 0) {
-        for (const product of productsByMonth.get(month) ?? []) if (product.code === fact.code) unassignedReportCategories.add(product.category)
+        for (const product of productsByMonth.get(month) ?? []) {
+          if (product.code !== fact.code) continue
+          unassignedReportCategories.add(product.category)
+          if (!delistedIndex.has(key(product))) unassignedActiveReportCategories.add(product.category)
+        }
       }
     }
   }
@@ -419,8 +424,9 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         : product.historyCode && product.historyCode !== product.code
           ? null
           : historyOwnQuantity
-      const historyFactor = product.historyCode ? (product.historyFactor === undefined ? 1 : product.historyFactor) : 1
-      const validHistoryFactor = !product.historyCode || product.historyCode === product.code || (finite(historyFactor) && historyFactor >= 0)
+      const replacement = Boolean(product.historyCode && product.historyCode !== product.code && historyPool.includes({ ...product, code: product.historyCode }))
+      const historyFactor = replacement ? (product.historyFactor === undefined ? 1 : product.historyFactor) : 1
+      const validHistoryFactor = !replacement || (finite(historyFactor) && historyFactor >= 0)
       const historyMissing = [
         ...(!ownHistory.length ? ['缺上一财年自身发货数量，计算用值补0'] : []),
         ...(product.historyCode && product.historyCode !== product.code && !replacementHistory.length ? ['缺上一财年替换品发货数量，计算用值补0'] : []),
@@ -573,9 +579,12 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       }
     })
   )
-  for (const category of categoryRows) {
-    const group = rows.filter(row => row.month === category.month && row.category === category.category)
-    if (!group.length) continue
+  const splitCategory = (
+    category: (typeof categoryRows)[number],
+    group: MpsWorkflowRow[],
+    options: { unassignedReport: boolean; reportRatios: MpsReportRatio[]; adjustmentIssues: string[] }
+  ) => {
+    if (!group.length) return
     const materialGroups = groupBy(group, row => row.group)
     const skuGroups = new Map([...materialGroups].map(([name, entries]) => [name, groupBy(entries, row => row.code)]))
     const duplicate = group.some(row => conflictingProducts.has(key(row)) || conflictingProducts.has(key({ ...row, base: '' })))
@@ -588,7 +597,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const total = quantity(entries.map(row => ({ quantity: row[field] })))
       const issues = [
         ...input.sourceIssues[source],
-        ...(source === 'report' && (unassignedReportCategories.has(category.category) || unassignedReportCategories.has('')) ? ['当前产品的源数量缺基地，范围内分母不可确认'] : []),
+        ...(source === 'report' && options.unassignedReport ? ['当前产品的源数量缺基地，范围内分母不可确认'] : []),
         ...(identityMissing ? ['缺基地、物料组或产品分类，拆分范围不完整'] : []),
         ...(duplicate ? ['同基地SKU产品分类、替换关系或系数冲突'] : []),
         ...(total === null ? ['同大类明细数量不完整'] : [])
@@ -630,8 +639,8 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         }
       }
     }
-    if (!duplicate && !identityMissing && !input.sourceIssues.report.length && !unassignedReportCategories.has(category.category) && !unassignedReportCategories.has(''))
-      applyReportFallback(group, input.reportRatios ?? [])
+    if (!duplicate && !identityMissing && !input.sourceIssues.report.length && !options.unassignedReport) applyReportFallback(group, options.reportRatios)
+    applyHistoryZeroShares(materialGroups.values(), !input.historySourceIssues?.length && (input.historySourceStatus === undefined || input.historySourceStatus === 'ready'))
     for (const row of group) {
       if (zeroReportCategory) {
         row.reportShare = 0
@@ -639,7 +648,13 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       }
       row.splitBasis = zeroReportCategory ? 'history-only-zero-report' : 'report-history-average'
       row.missing.share = [...new Set([...row.missing.reportShare, ...row.missing.historyShare])]
-      row.systemShare = zeroReportCategory ? row.historyShare : row.reportShare !== null && row.historyShare !== null ? (row.reportShare + row.historyShare) / 2 : null
+      row.systemShare = row.missing.share.length
+        ? null
+        : zeroReportCategory
+          ? row.historyShare
+          : row.reportShare !== null && row.historyShare !== null
+            ? (row.reportShare + row.historyShare) / 2
+            : null
       row.share = row.systemShare
       row.groupShare = zeroReportCategory
         ? row.historyLayers.groupShare
@@ -651,10 +666,15 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     }
     for (const materialGroup of materialGroups.values()) {
       const codes = [...groupBy(materialGroup, row => row.code).entries()]
-      const ranked = codes.map(([code, entries]) => ({ code, value: quantity(entries.map(row => ({ quantity: row.historyQuantity }))) }))
+      const ranked = codes
+        .map(([code, entries]) => ({
+          code,
+          value: quantity(entries.filter(row => !row.delisted && !row.historyAudit.shareZeroed).map(row => ({ quantity: row.historyQuantity })))
+        }))
+        .filter(row => row.value !== null && row.value > 0)
       const complete = ranked.every(row => row.value !== null) && materialGroup.every(row => row.historyShare !== null)
       const top = complete ? ranked.sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || a.code.localeCompare(b.code, 'en'))[0] : undefined
-      const fallback = materialGroup.filter(row => row.code === top?.code)
+      const fallback = materialGroup.filter(row => row.code === top?.code && !row.delisted && !row.historyAudit.shareZeroed)
       fallback.forEach(row => {
         row.fallback = true
       })
@@ -680,7 +700,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         candidates.forEach((row, index) => {
           row.share = weightTotal === 0 ? 0 : (Math.max(0, residual) * (weights[index] ?? 0)) / weightTotal
         })
-      } else if (edits.length && !valid) adjustmentIssues.push(`${category.month} ${materialGroup[0]?.group} 占比调整拒绝：来源不完整、重复或会产生负托底`)
+      } else if (edits.length && !valid) options.adjustmentIssues.push(`${category.month} ${materialGroup[0]?.group} 占比调整拒绝：来源不完整、重复或会产生负托底`)
     }
     for (const row of group) {
       row.missing.demand = category.quantity === 0 ? [] : [...category.missing, ...row.missing.share]
@@ -692,15 +712,48 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const last = group.findLast(row => row.fallback && row.share !== 0) ?? group.findLast(row => row.share !== 0) ?? group[group.length - 1]
       last.demand = safe(category.quantity - group.filter(row => row !== last).reduce((sum, row) => sum + (row.demand ?? 0), 0))
     }
-    applyQuantityEdits(category, group)
+  }
+  for (const category of categoryRows) {
+    const members = rows.filter(row => row.month === category.month && row.category === category.category)
+    if (!members.length) continue
+    const delisted = members.filter(row => row.delisted)
+    if (delisted.length && category.month === input.context.month) {
+      const referenceRows = members.map(row => ({ ...row, missing: { ...row.missing } }))
+      splitCategory(category, referenceRows, {
+        unassignedReport: unassignedReportCategories.has(category.category) || unassignedReportCategories.has(''),
+        reportRatios: input.reportRatios ?? [],
+        adjustmentIssues: []
+      })
+      const references = new Map(referenceRows.map(row => [row.id, row.demand]))
+      for (const row of delisted) row.shipmentReference = references.get(row.id) ?? null
+    }
+    splitCategory(
+      category,
+      members.filter(row => !row.delisted),
+      {
+        unassignedReport: unassignedActiveReportCategories.has(category.category) || unassignedActiveReportCategories.has(''),
+        reportRatios: delisted.length ? [] : (input.reportRatios ?? []),
+        adjustmentIssues
+      }
+    )
+    for (const row of delisted) {
+      row.reportShare = 0
+      row.historyShare = 0
+      row.systemShare = 0
+      row.share = 0
+      row.demand = 0
+      row.systemDemand = 0
+      row.missing.demand = []
+    }
+    applyQuantityEdits(category, members)
   }
   const referenceRows = rows
     .filter(row => row.month === months[2])
     .map(row => {
       const category = categoryRows.find(category => category.month === months[3] && category.category === row.category)
       const systemDemand =
-        category?.systemQuantity === 0 ? 0 : category?.systemQuantity != null && row.systemShare !== null ? safe(category.systemQuantity * row.systemShare) : null
-      const demand = category?.quantity === 0 ? 0 : category?.quantity != null && row.share !== null ? safe(category.quantity * row.share) : null
+        row.delisted || category?.systemQuantity === 0 ? 0 : category?.systemQuantity != null && row.systemShare !== null ? safe(category.systemQuantity * row.systemShare) : null
+      const demand = row.delisted || category?.quantity === 0 ? 0 : category?.quantity != null && row.share !== null ? safe(category.quantity * row.share) : null
       return {
         ...row,
         id: JSON.stringify([months[3], row.base, row.code]),
@@ -720,7 +773,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     applyQuantityEdits(category, group)
   }
   for (const row of [...rows, ...referenceRows]) {
-    row.shipmentReference = row.demand
+    if (!row.delisted || row.quantityAdjusted || row.month !== input.context.month) row.shipmentReference = row.demand
     if (!row.delisted) continue
     row.systemDemand = 0
     row.automaticDemandStopped = !(row.quantityAdjusted && row.demand !== null && row.demand > 0)
@@ -740,7 +793,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     if (!category.adjusted) continue
     const group = [...rows, ...referenceRows].filter(row => row.month === category.month && row.category === category.category)
     for (const row of group) {
-      row.share = category.quantity === null || row.demand === null ? null : category.quantity === 0 ? 0 : row.demand / category.quantity
+      row.share = row.automaticDemandStopped ? 0 : category.quantity === null || row.demand === null ? null : category.quantity === 0 ? 0 : row.demand / category.quantity
       const members = group.filter(member => member.group === row.group)
       const groupTotal = quantity(members.map(member => ({ quantity: member.demand })))
       row.groupShare = category.quantity === null || groupTotal === null ? null : category.quantity === 0 ? 0 : groupTotal / category.quantity

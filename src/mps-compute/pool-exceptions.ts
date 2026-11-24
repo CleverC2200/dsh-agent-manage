@@ -20,7 +20,7 @@ export function historicalPool(products: MpsProduct[]) {
   return {
     domain,
     references,
-    includes: (row: Pick<MpsProduct, 'base' | 'code'>) => domain.has(key(row)) || references.get(key(row))?.size === 1
+    includes: (row: Pick<MpsProduct, 'base' | 'code'>) => domain.has(key(row))
   }
 }
 
@@ -29,7 +29,7 @@ export function mpsPoolExceptions(input: Pick<MpsWorkflowInput, 'context' | 'pro
   const records: MpsPoolException[] = []
   const append = (row: MpsQuantityRow, source: PoolSource) => {
     const id = key(row)
-    if (row.month !== input.context.month || (source === 'history' ? pool.includes(row) : pool.domain.has(id) || pool.references.has(id))) return
+    if (row.month !== input.context.month || (source === 'history' ? pool.includes(row) : pool.domain.has(id))) return
     const hasKey = Boolean(row.base && row.code)
     const historyShipment = source === 'history' && row.quantity !== null && row.quantity !== 0
     const kind: PoolKind = !hasKey ? 'other' : source === 'report' ? 'report' : historyShipment ? 'history' : 'other'

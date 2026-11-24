@@ -49,7 +49,8 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
   const odmCodes = new Set([...(input.odmProductCodes ?? []), ...(input.odmSupplies ?? []).map(row => row.code), ...(input.odmConflicts ?? []).map(row => row.code)])
   const zero = { value: 0, known: 0, missing: 0 }
   const referenceMonth = annual?.referenceMonth ?? input.context.month
-  const annualRows = (annual?.rows ?? []).filter(row => row.base !== '全国')
+  const productPairs = new Set(input.products.map(row => JSON.stringify([row.base, row.code])))
+  const annualRows = (annual?.rows ?? []).filter(row => productPairs.has(JSON.stringify([row.base, row.code])))
   const fiscalMonths = capacityFiscalMonths(referenceMonth)
   const months = [...new Set([...fiscalMonths, referenceMonth, ...Array.from({ length: 4 }, (_, index) => offset(input.context.month, index))])].sort()
   const weightIndex = new Map<string, NonNullable<MpsPlanInput['unitWeights']>>()
@@ -95,13 +96,6 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
     categories.add(product.category)
     categoryByPair.set(JSON.stringify([product.base, product.code]), categories)
   }
-  const productPairs = new Set(input.products.map(row => JSON.stringify([row.base, row.code])))
-  for (const row of annualRows)
-    if (!productPairs.has(JSON.stringify([row.base, row.code])) && row.category) {
-      const categories = categoryByPair.get(JSON.stringify([row.base, row.code])) ?? new Set<string>()
-      categories.add(row.category)
-      categoryByPair.set(JSON.stringify([row.base, row.code]), categories)
-    }
   const candidateIndex = new Map<string, typeof candidates>()
   const categoryResources = new Map<string, typeof candidates>()
   for (const row of candidates) {
@@ -368,8 +362,8 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
     annualSource: {
       table: 'ai_db.agents_dim_demand_annual_mi',
       records: annual?.rows.length ?? 0,
-      aggregateRows: (annual?.rows ?? []).length - annualRows.length,
-      excludedRows: annual?.excludedRows ?? 0,
+      aggregateRows: (annual?.rows ?? []).filter(row => row.base === '全国').length,
+      excludedRows: (annual?.excludedRows ?? 0) + (annual?.rows ?? []).filter(row => row.base !== '全国' && !productPairs.has(JSON.stringify([row.base, row.code]))).length,
       unmappedCount: annual?.unmapped?.length ?? 0,
       unmappedPreview: annual?.unmapped?.slice(0, 25) ?? [],
       error: [annual?.error, annual?.weightError].filter(Boolean).join('；') || (annual ? '' : '全年年度SKU需求尚未读取')
