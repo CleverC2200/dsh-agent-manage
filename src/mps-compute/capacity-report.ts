@@ -96,12 +96,6 @@ export function buildCapacityReport(input: MpsPlanInput, plan: ReturnType<typeof
     categories.add(product.category)
     categoryByPair.set(JSON.stringify([product.base, product.code]), categories)
   }
-  for (const row of annualRows)
-    if (!productPairs.has(JSON.stringify([row.base, row.code])) && row.category) {
-      const categories = categoryByPair.get(JSON.stringify([row.base, row.code])) ?? new Set<string>()
-      categories.add(row.category)
-      categoryByPair.set(JSON.stringify([row.base, row.code]), categories)
-    }
   const candidateIndex = new Map<string, typeof candidates>()
   const categoryResources = new Map<string, typeof candidates>()
   for (const row of candidates) {
