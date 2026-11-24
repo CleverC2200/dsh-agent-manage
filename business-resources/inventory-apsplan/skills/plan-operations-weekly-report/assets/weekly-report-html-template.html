@@ -225,9 +225,14 @@
     .summary-card p { margin: 0; color: var(--text); font-size: 12px; }
 
     .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
-    table { width: 100%; border-collapse: collapse; min-width: 900px; font-size: 10px; color: var(--text); }
-    th { height: 38px; padding: 0 14px; text-align: left; color: #747b86; background: var(--soft); border-bottom: 1px solid var(--line); font-size: 9px; font-weight: 800; white-space: nowrap; }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; font-size: 12px; color: #434c59; }
+    th { height: 38px; padding: 0 14px; text-align: left; color: #59616d; background: var(--soft); border-bottom: 1px solid var(--line); font-size: 11px; font-weight: 800; white-space: nowrap; }
     td { height: 44px; padding: 8px 14px; border-bottom: 1px solid var(--divider); vertical-align: middle; }
+    table .status { font-size: 10px; }
+    .drill-toggle { margin-left: 8px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: #59616d; cursor: pointer; font-size: 12px; }
+    .drill-content { padding: 12px; color: #434c59; background: var(--subtle); }
+    .drill-content p { margin: 0 0 8px; }
+    .drill-content summary { cursor: pointer; }
     tbody tr:last-child td { border-bottom: 0; }
     tbody tr:hover { background: var(--hover-bg); }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -300,7 +305,7 @@
       .kpi { min-height: 150px; padding: 10px; }
       .kpi-value { font-size: 20px; }
       .issue { break-inside: avoid; }
-      table { font-size: 8.5pt; }
+      table { font-size: 10pt; }
       th, td { padding: 6px; }
     }
   </style>
@@ -571,6 +576,7 @@
     </div>
   </div>
 
+  <script type="application/json" id="weekly-report-drill-data">{"entries":{}}</script>
   <script>
     const filters = [...document.querySelectorAll('.filter')];
     const kpis = [...document.querySelectorAll('.kpi')];
@@ -591,13 +597,64 @@
       riskOnly = !riskOnly;
       riskButton.textContent = riskOnly ? '显示全部对象' : '仅看风险';
       document.querySelectorAll('#base tbody tr, #director tbody tr, #category tbody tr').forEach(row => {
-        if (!row.dataset.statusRow) return;
+        if (row.closest('.drill-content') || !row.dataset.statusRow) return;
         row.classList.toggle('hidden-by-filter', false);
       });
       document.querySelectorAll('#base tbody tr:not([data-status-row]), #director tbody tr:not([data-status-row]), #category tbody tr:not([data-status-row])').forEach(row => {
+        if (row.closest('.drill-content')) return;
         row.classList.toggle('hidden-by-filter', riskOnly);
       });
     });
+
+
+    const drillEntries = JSON.parse(document.getElementById('weekly-report-drill-data').textContent).entries;
+    const drillText = (tag, value) => { const node = document.createElement(tag); node.textContent = value == null ? '—' : String(value); return node; };
+    const renderDrill = (entry, host) => {
+      host.append(drillText('p', entry.scope || '范围说明待补充'));
+      host.append(drillText('p', entry.evidence || '来源、查询时间及完整性待补充'));
+      if (!entry.rows?.length) { host.append(drillText('p', entry.missingReason || '未取得对应SKU或业务明细，无法下钻；不代表没有业务记录。')); return; }
+      const columns = entry.level === 'sku' ? [
+        {key: 'skuCode', label: 'SKU编码'}, {key: 'skuName', label: 'SKU名称'},
+        ...(entry.columns || []).filter(col => !['skuCode', 'skuName'].includes(col.key))
+      ] : (entry.columns || []);
+      if (entry.level === 'sku') host.append(drillText('p', 'SKU明细：' + entry.rows.length + '条；' + (entry.coverage || '完整性待核验')));
+      const wrap = document.createElement('div'); wrap.className = 'table-wrap';
+      const table = document.createElement('table'), head = document.createElement('thead'), hr = document.createElement('tr'), body = document.createElement('tbody');
+      for (const col of columns) hr.append(drillText('th', col.label));
+      head.append(hr);
+      for (const item of entry.rows) {
+        const row = document.createElement('tr');
+        for (const col of columns) row.append(drillText('td', item.values?.[col.key]));
+        body.append(row);
+        if (item.detail) {
+          const child = document.createElement('tr'), cell = document.createElement('td'), disclosure = document.createElement('details');
+          cell.colSpan = Math.max(1, columns.length); disclosure.append(drillText('summary', item.detail.label || (item.detail.level === 'sku' ? '下钻到 SKU' : '展开底层明细')));
+          const content = document.createElement('div'); content.className = 'drill-content'; renderDrill(item.detail, content);
+          disclosure.append(content); cell.append(disclosure); child.append(cell); body.append(child);
+        }
+      }
+      table.append(head, body); wrap.append(table); host.append(wrap);
+      if (entry.terminalReason) host.append(drillText('p', entry.terminalReason));
+    };
+    const drillPairs = [];
+    document.querySelectorAll('.section:not(#actions) .table-wrap > table').forEach((table, ti) => {
+      [...table.tBodies[0]?.rows || []].forEach((row, ri) => {
+        if (!row.cells.length || row.hasAttribute('data-no-drill')) return;
+        const key = row.dataset.drillKey || 'table-' + (ti + 1) + '-row-' + (ri + 1);
+        row.dataset.drillKey = key;
+        const detailRow = document.createElement('tr'), cell = document.createElement('td'), host = document.createElement('div');
+        detailRow.hidden = true; cell.colSpan = row.cells.length; host.className = 'drill-content';
+        host.id = 'weekly-drill-' + ti + '-' + ri;
+        renderDrill(drillEntries[key] || {}, host); cell.append(host); detailRow.append(cell); row.after(detailRow);
+        const skuDrill = ['base', 'director', 'category'].includes(table.closest('.section')?.id);
+        const expandLabel = drillEntries[key]?.label || (skuDrill ? '下钻到 SKU / 底层明细' : '展开底层明细');
+        const button = drillText('button', expandLabel); button.type = 'button'; button.className = 'drill-toggle';
+        button.setAttribute('aria-expanded', 'false'); button.setAttribute('aria-controls', host.id);
+        button.addEventListener('click', () => { detailRow.hidden = !detailRow.hidden; button.setAttribute('aria-expanded', String(!detailRow.hidden)); button.textContent = detailRow.hidden ? expandLabel : '收起明细'; });
+        row.cells[0].append(button); drillPairs.push([row, detailRow]);
+      });
+    });
+    riskButton.addEventListener('click', () => drillPairs.forEach(([row, detail]) => detail.classList.toggle('hidden-by-filter', row.classList.contains('hidden-by-filter'))));
 
     const links = [...document.querySelectorAll('.side a')];
     const sections = links.map(link => document.querySelector(link.getAttribute('href'))).filter(Boolean);

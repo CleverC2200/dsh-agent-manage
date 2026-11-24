@@ -12,7 +12,7 @@ description: 按固定管理结构生成计划运营周度管理报告。适用�
 - 开始取数或设计表格前，读取 [references/data-contract.md](references/data-contract.md)，确认期间、比较窗口、指标基础量和维度字段。
 - 生成正文前，读取 [references/report-structure.md](references/report-structure.md)，严格使用报告的五段式结构和表格字段。
 - 需要编写结论、原因或改善措施时，读取 [references/analysis-and-writing-rules.md](references/analysis-and-writing-rules.md)，避免把相关性、历史案例或行动计划写成已验证事实。
-- 生成 HTML 报告时，读取 [references/html-output-template.md](references/html-output-template.md)，复制并填充 [assets/weekly-report-html-template.html](assets/weekly-report-html-template.html)，不得从零重建另一套版式。
+- 生成 HTML 报告时，读取 [references/html-output-template.md](references/html-output-template.md)，复制并填充 [assets/weekly-report-html-template.html](assets/weekly-report-html-template.html)，不得从零重建另一套版式。第05模块“改善措施：执行情况与长期规划”不提供下钻。第01—04模块的列表尽可能下钻至当轮能获取到的最底层业务明细：包括 SKU、订单行、库存批次或源记录；SKU 不是固定终点。有真实关联数据时继续逐层展开，没有数据时说明停止原因；列表支持汇总行展开/收起明细，按该引用中的数据结构绑定真实下钻数据；保留周期、筛选、口径和来源，缺少明细时说明缺口。
 
 参考报告只用于提取结构、信息层级和呈现方式。参考报告中的数值、基地表现、人员责任、问题原因和改善动作均属于历史样例，不得自动进入新报告。
 
@@ -38,6 +38,10 @@ description: 按固定管理结构生成计划运营周度管理报告。适用�
 
 缺少比较窗口时展示 `—` 并说明缺失，不将不同截止进度的数据强行比较。
 
+## 默认执行入口
+
+先读 [references/fixed-pipeline.md](references/fixed-pipeline.md)。每个模型本轮 inspect 一次，复用已确认版本的口径，仅对缺失口径查知识库。填写 query-config.json 和 report-seed.json 后，调用专用工具 `plan_operations_weekly_run`，参数 inputDirectory 为当前工作区相对目录。正式业务查询由该工具按计划执行；无需提前探查数值、阅读程序源码、手抄响应、派子 Agent 或编写 setup/check/patch 脚本。工具返回报告路径与质量结果。有当期数据后需补写分析时，只更新报告输入中的结论和行动证据，在既有原始响应上重建。
+
 ## 工作流
 
 ### 1. 锁定报告范围
@@ -52,7 +56,7 @@ description: 按固定管理结构生成计划运营周度管理报告。适用�
 
 ### 3. 分层取数
 
-先查询全国总体，再依次查询基地、应责总监和品项：
+先按 fixed-pipeline 生成一次查询计划；先完成全国及维度汇总，再执行所需的下钻明细。同模型查询按计划分批，独立批次有限并发：
 
 1. 月度累计当前值、上期值、去年同期值；
 2. 本周值、上周值、去年同周值；
@@ -97,7 +101,7 @@ description: 按固定管理结构生成计划运营周度管理报告。适用�
 
 ### 7. 生成和校验报告
 
-严格按 [references/report-structure.md](references/report-structure.md) 生成五段式报告。默认交付基于 [assets/weekly-report-html-template.html](assets/weekly-report-html-template.html) 的单文件 HTML；用户明确要求时可同时生成 Markdown、DOCX 或 PDF。HTML 必须遵守 [references/html-output-template.md](references/html-output-template.md) 的替换和验收规则。生成 PDF 时必须渲染逐页检查表格、换页、字体和颜色标识。
+严格按 [references/report-structure.md](references/report-structure.md) 生成五段式报告。默认调用 `scripts/generate-report.cjs`，从统一 report-data.json 填充 [assets/weekly-report-html-template.html](assets/weekly-report-html-template.html)，交付单文件 HTML；用户明确要求时可同时生成 Markdown、DOCX 或 PDF。HTML 必须遵守 [references/html-output-template.md](references/html-output-template.md) 的替换和验收规则。生成 PDF 时必须渲染逐页检查表格、换页、字体和颜色标识。
 
 交付前确认：
 
