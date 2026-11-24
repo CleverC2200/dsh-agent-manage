@@ -16,6 +16,7 @@ test('自身及替换品按同基地同财年合计历史，原始发货不改�
   const sample = input()
   sample.products[0].historyCode = 'OLD'
   sample.products[1].historyCode = 'A'
+  sample.products.push({ ...sample.products[0], code: 'OLD', historyCode: undefined, category: '历史参考' }, { ...sample.products[0], base: '乙', historyCode: undefined, category: '历史参考' })
   sample.history.push({ month: '2026-12', base: '甲', code: 'OLD', quantity: 100 }, { month: '2026-12', base: '乙', code: 'OLD', quantity: 999 })
   sample.history.push({ month: '2026-12', base: '乙', code: 'A', quantity: 40 })
   const raw = globalThis.structuredClone(sample.history)
@@ -1508,13 +1509,13 @@ test('缺基地历史仅进入异常清单，正常需求不受影响', () => {
   assert.ok(computeMpsWorkflow(sample).excludedSources.some(row => row.reason === '源记录缺基地'))
 })
 
-test('池外老品在同基地对应多个SKU时只进入历史异常，唯一替换仍参与拆分', () => {
+test('池外老品无论引用数量都退出拆分，保留多SKU引用异常', () => {
   const sample = input()
   const month = sample.context.month
   sample.products[0].historyCode = 'OLD'
   const peer = { ...sample.products[0], code: 'C', name: 'C' }
   sample.history.push({ month, base: peer.base, code: 'OLD', quantity: 20 })
-  assert.equal(computeMpsWorkflow(sample).rows[0].historyReferenceCalculationQuantity, 20)
+  assert.equal(computeMpsWorkflow(sample).rows[0].historyReferenceCalculationQuantity, 0)
   sample.products.push(peer)
   sample.history.push({ month, base: peer.base, code: 'C', quantity: 10 })
   sample.report.push({ month, base: peer.base, code: 'C', quantity: 10 })
@@ -2020,6 +2021,7 @@ test('库存数量版本在期间内一致，周转天数对缺源单品及空�
 
 test('自身历史加替换品按系数参与各层占比，零系数不抹掉自身历史', () => {
   const sample = input()
+  sample.products.push({ ...sample.products[0], code: 'OLD', category: '历史参考' })
   sample.products[0].historyCode = 'OLD'
   sample.products[0].historyFactor = 2
   sample.history.push({ month: sample.context.month, base: '甲', code: 'OLD', quantity: 100 })
@@ -2179,6 +2181,7 @@ test('未使用成型机的实际业务按隧道产能求解，不生成成型�
 
 test('当前SKU与替换品同基地历史共同构成历史，不覆盖自身、不跨基地或递归', () => {
   const sample = input()
+  sample.products.push({ ...sample.products[0], code: 'REPLACEMENT', category: '历史参考' })
   sample.products[0].historyCode = 'REPLACEMENT'
   sample.products[0].historyFactor = 2
   sample.history.push({ month: sample.context.month, base: '甲', code: 'REPLACEMENT', quantity: 100 })
@@ -2258,7 +2261,7 @@ test('产品清单中被引用的替换SKU仍参与计算，重复清单不扩�
   assert.match(conflict.rows[0].missing.demand.join(''), /冲突/)
 })
 
-test('池外三类保留来源，替换专用SKU免报，总清单按基地SKU去重且不阻断正常需求', () => {
+test('池外三类保留来源及池外替换SKU，总清单按基地SKU去重且不阻断正常需求', () => {
   const sample = input()
   sample.products[0].historyCode = 'OLD'
   sample.history.push(
@@ -2273,23 +2276,24 @@ test('池外三类保留来源，替换专用SKU免报，总清单按基地SKU�
   assert.deepEqual(
     result.poolExceptions.history.map(row => [row.base, row.code]),
     [
+      ['甲', 'OLD'],
       ['甲', 'OUT'],
       ['乙', 'OLD']
     ]
   )
   assert.deepEqual(
     result.poolExceptions.report.map(row => row.code),
-    ['OUT']
+    ['OLD', 'OUT']
   )
   assert.deepEqual(
     result.poolExceptions.other.map(row => row.code),
     ['ZERO', 'STOCK']
   )
   assert.ok(result.poolExceptions.other.every(row => row.reason))
-  assert.equal(result.poolExceptions.total.length, 4)
+  assert.equal(result.poolExceptions.total.length, 5)
   assert.equal(
     result.excludedSources.some(row => row.base === '甲' && row.code === 'OLD'),
-    false
+    true
   )
   const outside = result.poolExceptions.total.find(row => row.base === '甲' && row.code === 'OUT')
   assert.deepEqual(outside.sources, ['history', 'report'])
@@ -2297,7 +2301,7 @@ test('池外三类保留来源，替换专用SKU免报，总清单按基地SKU�
     outside.records.map(row => row.quantity),
     [5, 8]
   )
-  assert.ok(Math.abs(result.rows.find(row => row.code === 'A').demand - 58) < 1e-10)
+  assert.ok(Math.abs(result.rows.find(row => row.code === 'A').demand - 54) < 1e-10)
   assert.equal(
     result.rows.some(row => ['OUT', 'STOCK', 'OLD'].includes(row.code)),
     false
@@ -2403,6 +2407,7 @@ test('池外报告使用独立源记录，并按基地SKU识别替换关系和�
   assert.deepEqual(
     poolExceptions.history.map(({ base, code }) => [base, code]),
     [
+      ['甲', 'OLD'],
       ['乙', 'OLD'],
       ['甲', 'OUT']
     ]
@@ -2413,7 +2418,28 @@ test('池外报告使用独立源记录，并按基地SKU识别替换关系和�
   )
   const out = poolExceptions.total.find(({ base, code }) => base === '甲' && code === 'OUT')
   assert.deepEqual(out.sources, ['history', 'report'])
-  assert.equal(poolExceptions.total.length, 3)
+  assert.equal(poolExceptions.total.length, 4)
   assert.match(poolExceptions.other[0].reason, /缺基地或SKU/)
   assert.equal(rows.find(({ code }) => code === 'A').historyQuantity, 60)
+})
+
+test('V5只使用入池基地SKU的历史，池外替换品不进入需求或排产', () => {
+  const sample = input()
+  sample.products[0].historyCode = 'OLD'
+  sample.history.push({ month: '2026-12', base: '甲', code: 'OLD', quantity: 100 }, { month: '2026-12', base: '乙', code: 'A', quantity: 999 })
+  const result = computeMpsWorkflow(sample)
+  const row = result.rows.find(row => row.base === '甲' && row.code === 'A')
+  assert.equal(row.historyQuantity, 60)
+  assert.ok(result.rows.every(row => row.base === '甲' && row.code === 'A' || row.base === '乙' && row.code === 'B'))
+})
+
+test('V5产能和业务报告年度量只汇总入池基地SKU，池外同物料不扩入', () => {
+  const sample = planInput()
+  const report = buildCapacityReport(sample, solveMpsPlan(sample), { rows: [
+    { month: '2026-12', base: '甲', code: 'A', quantity: 30 },
+    { month: '2026-12', base: '乙', code: 'A', quantity: 999 },
+    { month: '2026-12', base: '甲', code: 'OUT', quantity: 888 }
+  ] })
+  assert.equal(report.annualTotals.find(row => row.month === '2026-12' && row.base === '全国').demand.value, 3)
+  assert.ok(report.productDetails.every(row => row.base === '甲' && ['A', 'B'].includes(row.code)))
 })

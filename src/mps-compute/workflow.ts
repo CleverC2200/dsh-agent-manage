@@ -352,7 +352,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     for (const fact of input[source]) {
       if (fact.month !== month) continue
       const id = key(fact)
-      if (source === 'history' ? historyPool.includes(fact) && historyDomain?.has(id) : productDomain?.has(id) || historyDomain?.has(id)) continue
+      if (source === 'history' ? historyPool.includes(fact) && historyDomain?.has(id) : productDomain?.has(id)) continue
       excludedSources.push({ ...fact, source, reason: !fact.base ? '源记录缺基地' : '物料编码未对应当前产品明细或指定基地' })
       if (source === 'history') continue
       const categories = new Set((catalogByCode.get(fact.code) ?? []).map(product => product.category).filter(Boolean))
