@@ -7,7 +7,7 @@ import {
   type MpsInventoryTargetResult,
   type MpsInventoryVersion
 } from './inventory-targets.ts'
-import { historyClassification, type MpsHistoryAudit, type MpsHistoryPeriod } from './history.ts'
+import { applyHistoryZeroShares, historyClassification, type MpsHistoryAudit, type MpsHistoryPeriod } from './history.ts'
 import { historicalPool, mpsPoolExceptions } from './pool-exceptions.ts'
 import { adjustedQuantities, type MpsQuantityAdjustment } from './quantity-adjustments.ts'
 import { applyReportFallback, type MpsReportRatio } from './split-fallback.ts'
@@ -276,7 +276,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
   const reportIndex = groupBy(input.report, periodKey)
   const historyPool = historicalPool(input.products)
   const historyIndex = groupBy(input.history.filter(historyPool.includes), periodKey)
-  const classifyHistory = historyClassification(input.context.month, input.historyPeriods, input.historyAsOfMonth)
+  const classifyHistory = historyClassification(input.context.month, input.historyPeriods ?? [], input.historyAsOfMonth, historyPool.includes)
   const coefficientKey = (row: Pick<MpsProduct, 'base' | 'code' | 'historyCode'>, source: 'report' | 'history' = 'report') =>
     periodKey({ ...row, code: source === 'history' ? row.historyCode || row.code : row.code, month: input.context.month })
   const hasCoefficient = (product: MpsProduct, source: 'report' | 'history') => source === 'history' || reportIndex.has(coefficientKey(product))
@@ -639,6 +639,7 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       }
     }
     if (!duplicate && !identityMissing && !input.sourceIssues.report.length && !options.unassignedReport) applyReportFallback(group, options.reportRatios)
+    applyHistoryZeroShares(materialGroups.values(), !input.historySourceIssues?.length && (input.historySourceStatus === undefined || input.historySourceStatus === 'ready'))
     for (const row of group) {
       if (zeroReportCategory) {
         row.reportShare = 0
@@ -646,7 +647,13 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       }
       row.splitBasis = zeroReportCategory ? 'history-only-zero-report' : 'report-history-average'
       row.missing.share = [...new Set([...row.missing.reportShare, ...row.missing.historyShare])]
-      row.systemShare = zeroReportCategory ? row.historyShare : row.reportShare !== null && row.historyShare !== null ? (row.reportShare + row.historyShare) / 2 : null
+      row.systemShare = row.missing.share.length
+        ? null
+        : zeroReportCategory
+          ? row.historyShare
+          : row.reportShare !== null && row.historyShare !== null
+            ? (row.reportShare + row.historyShare) / 2
+            : null
       row.share = row.systemShare
       row.groupShare = zeroReportCategory
         ? row.historyLayers.groupShare
@@ -658,10 +665,15 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
     }
     for (const materialGroup of materialGroups.values()) {
       const codes = [...groupBy(materialGroup, row => row.code).entries()]
-      const ranked = codes.map(([code, entries]) => ({ code, value: quantity(entries.map(row => ({ quantity: row.historyQuantity }))) }))
+      const ranked = codes
+        .map(([code, entries]) => ({
+          code,
+          value: quantity(entries.filter(row => !row.delisted && !row.historyAudit.shareZeroed).map(row => ({ quantity: row.historyQuantity })))
+        }))
+        .filter(row => row.value !== null && row.value > 0)
       const complete = ranked.every(row => row.value !== null) && materialGroup.every(row => row.historyShare !== null)
       const top = complete ? ranked.sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || a.code.localeCompare(b.code, 'en'))[0] : undefined
-      const fallback = materialGroup.filter(row => row.code === top?.code)
+      const fallback = materialGroup.filter(row => row.code === top?.code && !row.delisted && !row.historyAudit.shareZeroed)
       fallback.forEach(row => {
         row.fallback = true
       })
