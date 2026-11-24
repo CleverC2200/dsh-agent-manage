@@ -2433,6 +2433,37 @@ test('V5只使用入池基地SKU的历史，池外替换品不进入需求或排
   assert.ok(result.rows.every(row => row.base === '甲' && row.code === 'A' || row.base === '乙' && row.code === 'B'))
 })
 
+test('V5池外替换品的无效系数不污染入池SKU历史和需求，原始关系与异常仍可核对', () => {
+  const sample = input()
+  for (const source of ['products', 'report', 'history']) sample[source] = sample[source].map(row => ({ ...row, base: '甲' }))
+  sample.categoryDemand[0].quantity = 100
+  sample.report = sample.report.map(row => ({ ...row, quantity: 50 }))
+  sample.products[0].historyCode = 'OUT'
+  sample.history.push({ month: sample.context.month, base: '甲', code: 'OUT', quantity: 9000 })
+  const raw = structuredClone(sample.history)
+  for (const factor of [1, null, -1, Infinity]) {
+    sample.products[0].historyFactor = factor
+    const result = computeMpsWorkflow(sample)
+    const rows = result.rows.filter(row => row.month === sample.context.month)
+    assert.deepEqual(
+      rows.map(row => [row.code, row.historyQuantity, row.demand, row.historyReferenceRows]),
+      [
+        ['A', 60, 55, 0],
+        ['B', 40, 45, 0]
+      ]
+    )
+    assert.equal(rows[0].historyCode, 'OUT')
+    assert.equal(rows[0].historyFactor, factor)
+    assert.equal(rows[0].historyReferenceQuantity, null)
+    assert.ok(rows[0].historyAudit.reasons.some(reason => reason.includes('缺上一财年替换品发货数量')))
+    assert.deepEqual(
+      result.poolExceptions.history.map(({ code, quantity }) => [code, quantity]),
+      [['OUT', 9000]]
+    )
+    assert.deepEqual(sample.history, raw)
+  }
+})
+
 test('V5产能和业务报告年度量只汇总入池基地SKU，池外同物料不扩入', () => {
   const sample = planInput()
   const report = buildCapacityReport(sample, solveMpsPlan(sample), { rows: [

@@ -424,8 +424,9 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
         : product.historyCode && product.historyCode !== product.code
           ? null
           : historyOwnQuantity
-      const historyFactor = product.historyCode ? (product.historyFactor === undefined ? 1 : product.historyFactor) : 1
-      const validHistoryFactor = !product.historyCode || product.historyCode === product.code || (finite(historyFactor) && historyFactor >= 0)
+      const replacement = Boolean(product.historyCode && product.historyCode !== product.code && historyPool.includes({ ...product, code: product.historyCode }))
+      const historyFactor = replacement ? (product.historyFactor === undefined ? 1 : product.historyFactor) : 1
+      const validHistoryFactor = !replacement || (finite(historyFactor) && historyFactor >= 0)
       const historyMissing = [
         ...(!ownHistory.length ? ['缺上一财年自身发货数量，计算用值补0'] : []),
         ...(product.historyCode && product.historyCode !== product.code && !replacementHistory.length ? ['缺上一财年替换品发货数量，计算用值补0'] : []),
