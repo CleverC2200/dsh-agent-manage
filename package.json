@@ -177,7 +177,7 @@
     "js-yaml": "4.3.2",
     "smol-toml": "^1.8.0",
     "yaml": "^2.7.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "link:../../official-latest-standard/vendor/cordis",

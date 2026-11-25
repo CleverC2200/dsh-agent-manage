@@ -32,7 +32,10 @@
     {
       "path": "business-resources/aps-client-profile/SOURCE.json",
       "root": "business-resources/inventory-apsplan",
-      "adapted": ["skills/order-satisfaction-analysis/runtime-package.json"]
+      "adapted": [
+        "skills/order-satisfaction-analysis/runtime-package.json",
+        "skills/plan-operations-weekly-report/assets/weekly-report-html-template.html"
+      ]
     }
   ]
 }
