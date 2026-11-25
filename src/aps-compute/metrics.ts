@@ -195,16 +195,38 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
     budget = get('sales-budget')
   const income = !zero && missing(finance, 'invalid') ? null : aggregate(finance, 'actual')
   const months = (rows: Row[]) => new Set(rows.map(r => r.month)).size === expectedMonths
-  const financeOk = months(finance) && months(budget)
-  const monthlyBudgetRates = monthlyRows(finance).map(financeRows => {
-    const month = String(financeRows[0]?.month ?? ''),
-      budgetRows = budget.filter(row => String(row.month ?? '') === month)
-    const actual = !zero && missing(financeRows, 'invalid') ? null : aggregate(financeRows, 'actual'),
+  const annualBudget = data.granularity === 'year'
+  const monthOf = (row: Row) => {
+    const month = String(row.month ?? '')
+    return annualBudget ? month.replaceAll('-', '').slice(0, 6) : month
+  }
+  const firstMonth = Number(data.start.slice(0, 4)) * 12 + Number(data.start.slice(5, 7)) - 1
+  const budgetMonths = annualBudget
+    ? Array.from({ length: expectedMonths }, (_, offset) => {
+        const index = firstMonth + offset
+        return String(Math.floor(index / 12)) + String((index % 12) + 1).padStart(2, '0')
+      })
+    : monthlyRows(finance).map(rows => monthOf(rows[0]))
+  const missingBudgetMonths: string[] = [],
+    missingIncomeMonths: string[] = []
+  const monthlyBudgetRates = budgetMonths.flatMap(month => {
+    const financeRows = finance.filter(row => monthOf(row) === month),
+      budgetRows = budget.filter(row => monthOf(row) === month)
+    const actual = (!zero && missing(financeRows, 'invalid')) || (annualBudget && !financeRows.some(row => finite(row.actual))) ? null : aggregate(financeRows, 'actual'),
       target = !zero && missing(budgetRows, 'invalid') ? null : aggregate(budgetRows, 'budget')
-    return actual !== null && target !== null && target > 0 ? (actual / target) * 100 : null
+    const label = `${Number(month.slice(4, 6))}月`
+    if (target === null || target <= 0) {
+      missingBudgetMonths.push(label)
+      return []
+    }
+    if (actual === null) {
+      missingIncomeMonths.push(label)
+      return []
+    }
+    return [(actual / target) * 100]
   })
   const budgetAchievement =
-    financeOk && monthlyBudgetRates.length === expectedMonths && monthlyBudgetRates.every(finite)
+    monthlyBudgetRates.length && (annualBudget || (months(finance) && months(budget) && monthlyBudgetRates.length === expectedMonths))
       ? monthlyBudgetRates.reduce((total, value) => total + value, 0) / monthlyBudgetRates.length
       : null
   put('未税销售额', income !== null && months(finance) ? income / 10000 : null, '万元', '财务未税本币收入；按源更新时间的月度累计金额')
@@ -213,9 +235,20 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
     budgetAchievement,
     '%',
     finance.some(row => row.source_basis === 'MONTHLY_BUDGET_UNTAXED_INCOME')
-      ? '客户SKU月度预算与实际发货日未税本币收入分别汇总；月度为完整未税收入 ÷ 完整月度预算，年度按月度达成率平均。公司范围、同月截止快照；不分配至未确认基地和销售组织，缺失值不补零。匹配范围观察不参与完整指标、健康判断和跨期比较'
-      : '月度为未税本币销售额 ÷ 同月份、同组织完整月度预算 × 100%；年度按月度达成率取平均。仅支持完整历史月份或今天截止的月/年，日周及历史月中不计算'
+      ? '客户SKU月度预算与实际发货日未税本币收入分别汇总；月度为完整未税收入 ÷ 完整月度预算，年度只平均有有效预算和实绩的月份。公司范围、同月截止快照；不分配至未确认基地和销售组织，缺失值不补零。匹配范围观察不参与完整指标、健康判断和跨期比较'
+      : '月度为未税本币销售额 ÷ 同月份、同组织完整月度预算 × 100%；年度只平均有有效预算和实绩的月份。仅支持完整历史月份或今天截止的月/年，日周及历史月中不计算'
   )
+  if (
+    annualBudget &&
+    monthlyBudgetRates.length < expectedMonths &&
+    ['finance', 'sales-budget'].every(id => data.sections.some(section => section.id === id && ['ready', 'empty'].includes(section.status)))
+  ) {
+    result['销售预算达成率'].detail = [
+      ...(monthlyBudgetRates.length ? [`按 ${monthlyBudgetRates.length} 个月计算`] : []),
+      ...(missingBudgetMonths.length ? [`缺有效预算月份：${missingBudgetMonths.join('、')}`] : []),
+      ...(missingIncomeMonths.length ? [`缺销售实绩月份：${missingIncomeMonths.join('、')}`] : [])
+    ].join('。')
+  }
   const production = data.sections.find(section => section.id === 'production')
   const productionMetric = productionOutputMetric(production?.status === 'ready' ? production.rows : [], data.missingValuePolicy)
   put('生产计划达成率', productionMetric.value, '%', productionMetric.note)
@@ -245,10 +278,16 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
       客户计划量: '所选业务期间计划数量合计',
       客户实际发货量: '所选业务期间实际发货数量合计',
       未税销售额: '所选月份未税收入合计',
-      销售预算达成率: '月度未税收入合计 ÷ 月度预算合计；年度按月度达成率平均，不按客户SKU交集缩小范围',
+      销售预算达成率: '月度未税收入合计 ÷ 月度预算合计；年度只平均有有效预算和实绩的月份，不按客户SKU交集缩小范围',
       可发货天数: '基地可用库存合计 ÷ 计划日均需求合计'
     }
-    for (const metric of Object.values(result)) metric.note = (formulas[metric.name] ?? metric.note) + '；缺失数值按0计算，保留已有数值；分母为0时不计算比例，查询失败不补0'
+    for (const metric of Object.values(result)) {
+      const missingPolicy =
+        annualBudget && metric.name === '销售预算达成率'
+          ? '；缺失月份不计入平均，保留已记录的零实绩；单月内保留已有数值，查询失败不补0'
+          : '；缺失数值按0计算，保留已有数值；分母为0时不计算比例，查询失败不补0'
+      metric.note = (formulas[metric.name] ?? metric.note) + missingPolicy
+    }
   }
   if (demandFallback) {
     const detail = `基地月初计划已逐基地核对一致；实际发货 ${(demandFallback.actual / 10000).toFixed(2)} 万箱 ÷ 计划表纠偏需求 ${(demandFallback.adjusted / 10000).toFixed(2)} 万箱。仅用于公司／基地月度达成率，不用于逐SKU准确率。`

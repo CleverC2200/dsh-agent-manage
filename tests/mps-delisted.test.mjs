@@ -131,7 +131,46 @@ test('下市基地SKU也不为其他基地自动新增生产，其他基地的�
   const result = solveMpsPlan(sample)
   assert.equal(result.allocations.length, 0)
   assert.ok(result.rows.filter(row => row.base === '乙').every(row => row.planMissing.some(reason => /供应基地SKU已下市/.test(reason))))
-  assert.ok(result.rows.filter(row => row.base === '乙').every(row => row.demand === 50))
+  assert.ok(result.rows.filter(row => row.base === '乙').every(row => row.demand === 100))
+  assert.equal(result.rows.find(row => row.base === '甲' && row.month === '2026-11').expectedShipment, 50)
+})
+
+test('下市品退出提报与历史分母，两个有效SKU承接全部需求和第四月参考', () => {
+  const sample = input()
+  sample.products.push({ ...sample.products[0], code: 'B', name: '有效B' }, { ...sample.products[0], code: 'C', name: '有效C' })
+  sample.report = [
+    ['A', 50],
+    ['B', 30],
+    ['C', 20]
+  ].map(([code, quantity]) => ({ month: '2026-11', base: '甲', code, quantity }))
+  sample.history = [
+    ['A', 40],
+    ['B', 15],
+    ['C', 45]
+  ].map(([code, quantity]) => ({ month: '2026-11', base: '甲', code, quantity }))
+  sample.categoryDemand.forEach(row => {
+    row.quantity = 100
+  })
+  const demands = rows => rows.map(row => Number(row.demand?.toFixed(6)))
+  const result = computeMpsWorkflow(sample)
+  for (const month of ['2026-11', '2026-12', '2027-01', '2027-02']) {
+    const rows = [...result.rows, ...result.referenceRows].filter(row => row.month === month)
+    assert.deepEqual(demands(rows), [0, 42.5, 57.5])
+    assert.equal(result.categoryRows.find(row => row.month === month).quantity, 100)
+  }
+  assert.equal(result.rows[0].expectedShipment, 45)
+  assert.equal(result.rows[1].reportLayers.categoryQuantity, 50)
+  assert.equal(result.rows[1].historyLayers.categoryQuantity, 60)
+
+  const missingDelistedBase = globalThis.structuredClone(sample)
+  missingDelistedBase.report[0].base = ''
+  assert.deepEqual(demands(computeMpsWorkflow(missingDelistedBase).rows.slice(0, 3)), [0, 42.5, 57.5])
+
+  sample.adjustments = { quantities: [{ kind: 'base-sku', month: '2026-11', category: '点心', base: '甲', group: '组', code: 'A', quantity: 8 }] }
+  const adjusted = computeMpsWorkflow(sample)
+  assert.deepEqual(demands(adjusted.rows.slice(0, 3)), [8, 42.5, 57.5])
+  assert.equal(adjusted.categoryRows[0].quantity, 108)
+  assert.equal(adjusted.rows[0].expectedShipment, 8)
 })
 
 test('后续自然月用库存来源日均2而非当月发货参考10推导日均', () => {
