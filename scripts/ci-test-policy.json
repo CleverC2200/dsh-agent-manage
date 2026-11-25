@@ -91,7 +91,7 @@
     },
     {
       "repo": "dsh-agent-manage",
-      "pattern": "^(?:cordis\\.patch\\.yml|package\\.json|pnpm-lock\\.yaml|tsconfig[^/]*|vitest\\.config\\.ts|\\.github/workflows/quality\\.yml|scripts/(?:prepare-official-sdk\\.mjs|sdk-artifact-cache\\.mjs|preset-test-lanes\\.mjs|check-preset-capabilities\\.mjs|run-quality-ci\\.mjs|ci-test-policy\\.json|quality-peer-baseline\\.json))$",
+      "pattern": "^(?:cordis\\.patch\\.yml|package\\.json|pnpm-(?:lock|workspace)\\.yaml|tsconfig[^/]*|vitest\\.config\\.ts|\\.github/workflows/quality\\.yml|scripts/(?:prepare-official-sdk\\.mjs|sdk-artifact-cache\\.mjs|preset-test-lanes\\.mjs|check-preset-capabilities\\.mjs|run-quality-ci\\.mjs|ci-test-policy\\.json|quality-peer-baseline\\.json))$",
       "tests": [
         "tests/standard-preset*.test.ts",
         "tests/skill-preset*.test.ts",
@@ -114,7 +114,7 @@
     },
     {
       "repo": "dsh-agent-manage",
-      "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|tsconfig|vitest)",
+      "pattern": "^(?:package\\.json|pnpm-(?:lock|workspace)\\.yaml|tsconfig|vitest)",
       "tests": ["tests/agent-mcp.test.ts", "tests/routes.test.ts"],
       "exclusive": true
     },
@@ -252,7 +252,7 @@
     },
     {
       "repo": "dsh-agent-manage",
-      "pattern": "^(?:package\\.json|pnpm-lock\\.yaml|scripts/(?:generate-plugin-package-version|normalize-client-banner)\\.mjs|src/(?:index|client/index|plugin-package-version)\\.ts)$",
+      "pattern": "^(?:package\\.json|pnpm-(?:lock|workspace)\\.yaml|scripts/(?:generate-plugin-package-version|normalize-client-banner)\\.mjs|src/(?:index|client/index|plugin-package-version)\\.ts)$",
       "tests": ["tests/plugin-package-version.test.mjs"]
     },
     {
