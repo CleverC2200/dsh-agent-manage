@@ -2,7 +2,7 @@
 
 ## 模板定位
 
-HTML 周报必须以 [../assets/weekly-report-html-template.html](../assets/weekly-report-html-template.html) 为样式和交互母版。默认由 `scripts/generate-report.cjs` 读取母版并从统一 JSON 填充，详见 [fixed-pipeline.md](fixed-pipeline.md)；不要临时编写渲染脚本或逐段 edit HTML，也不要修改 Skill 内的母版。
+HTML 周报必须以 [../assets/weekly-report-html-template.html](../assets/weekly-report-html-template.html) 为样式和交互母版。生成报告时复制模板到交付目录，再填充本期内容；不要直接修改 Skill 内的母版，也不要另建一套不一致的页面结构。
 
 模板负责固定以下内容：
 
@@ -38,7 +38,7 @@ HTML 周报必须以 [../assets/weekly-report-html-template.html](../assets/week
 
 HTML 模板遵循工作台既有视觉规范，生成时不得另建深蓝、亮蓝或近似红主题，也不要覆盖母版中的 Token：
 
-- 字体栈固定为 `"Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif`；正文 `12px`，模块标题 `18px`，指标主值 `23px`，表头 `11px`，表格正文 `12px`。
+- 字体栈固定为 `"Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif`；正文 `12px`，模块标题 `18px`，指标主值 `23px`，表头 `9px`，表格正文 `10px`。
 - 页面、内容面、文字和边框分别使用 `#f7f8fa`、`#ffffff`、`#20232a / #555d68 / #858c96`、`#e3e6ea`；品牌色使用 `#df1732`，Hover 使用 `#fffafb / #efabb4 / #df1732`。
 - 风险状态必须使用统一语义色：健康/达标 `#168e58 / #eaf7ef`，预警 `#956900 / #fff4d9`，严重/未达 `#c8112a / #ffe9ec`。状态文字与颜色必须同时出现，通用 Hover 不得覆盖状态色。
 - 面板和卡片圆角 `10px`，按钮 `8px`，状态胶囊 `999px`；普通卡片阴影 `0 2px 10px #20273308`。普通面板、KPI 和摘要卡不得增加粗品牌色或状态色顶边/侧边。
@@ -55,25 +55,3 @@ HTML 模板遵循工作台既有视觉规范，生成时不得另建深蓝、亮
 - 行动台账包含对应问题、状态、责任角色、时间和验收证据；
 - HTML、CSS 和 JavaScript 语法有效，页面可本地打开，筛选和打印按钮可用；
 - 文件名包含报告周期，避免覆盖不同周次的报告。
-
-## 列表阅读与下钻
-
-- 列表表头使用 `11px / #59616d`，正文 `12px / #434c59`，表内状态字号 `10px`；打印表格正文为 `10pt`。深灰色仅用于普通文字，风险、达成及行动状态保留原语义色。
-- 第01—04模块的汇总行提供“展开明细 / 收起明细”按钮。为行设置稳定唯一的 `data-drill-key`，在 `weekly-report-drill-data` JSON 的 `entries` 中用同一键填充数据。自动行号只供空白模板预览，正式报告不可依赖易变行序绑定数据。
-- 每项明细使用 `{scope, evidence, columns:[{key,label}], rows:[{values:{字段:值}, detail:下一层同结构}], missingReason, terminalReason, label}`。scope 写明周期、截止、对象和继承筛选；evidence 写来源、查询时间、分页完整性。所有 JSON 字符串的 `<` 编码为 `\u003c`，避免 HTML script 边界注入。
-- 支持基地→品项/SKU、应责总监→责任对象/SKU、品项→SKU，再到已授权且实际取得的订单行或库存批次；不适用的层级跳过，不拼造关联。第05模块的改善措施、执行情况、长期规划及下周重点仅作静态展示，不添加任何下钻按钮或明细展开行。
-- 下钻不改变月度/周度期间、单位、口径和筛选；比例用明细分子分母重算，不相加比例。记录去重键，说明汇总差异、缺页及未覆盖范围。
-- 明细必须在报告生成前通过当轮授权来源取得并嵌入单文件。无授权、查询失败、明细缺失时填 missingReason，不以汇总行或演示值伪造明细。
-- 验证展开/收起、嵌套层级、仅看风险与下钻联动、键盘操作及窄屏横向滚动。
-
-### SKU 层绑定
-
-基地、应责总监和品项的月度及周度列表按钮统一为“下钻到 SKU”。SKU 层设置 `level: "sku"`，每个 `rows[].values` 必须提供 `skuCode`、`skuName`；模板固定将这两列置于最前。`columns` 继续定义当轮已核实的指标、基础量、单位和比较值，不重复声明这两列。`coverage` 写明全量/部分、记录数及分页完整性；`scope` 和 `evidence` 沿用原合同。中间层通过 `rows[].detail` 绑定 SKU 层，不能用只展开汇总数字代替 SKU 明细。没有明细时填 `missingReason`，保留真实限制。
-
-### 下钻范围与终点
-
-- 第05模块（`#actions`）全部列表明确排除下钻，包括改善执行与长期机制表。不得仅因行存在或有证据就给该模块添加按钮。
-- 第01—04模块按实际数据关联下钻，能取得 SKU 下的订单行、库存批次或业务源记录时继续展开；不得仅做到 SKU 就停止。各层用 `rows[].detail` 绑定真实子记录，`label` 标注“查看订单行”“查看库存批次”等实际明细类型。
-- 最底层展示来源记录唯一标识、SKU编码/名称、业务日期、基础量、单位及指标相关证据（仅输出来源实际提供的字段）。每层说明范围、来源、查询时间和分页完整性；`terminalReason` 说明“已到源记录级”或具体的数据/权限限制。
-- 不要求不存在的中间层；没有可靠关联键时停止，不把同一SKU不同范围的记录强行关联。明细为部分数据时明确标识，不声称已穿透全量。
-- 第05模块无下钻和其余模块多层下钻必须分别进行浏览器验收。

@@ -2,7 +2,6 @@ import { AgentSources } from './runtime/agent-sources.js'
 import { mountAgentSourceRoutes } from './runtime/agent-source-routes.js'
 
 import { createForecastTool } from './runtime/forecast-compute.js'
-import { weeklyReportTool } from './runtime/weekly-report-tool.js'
 import { mountSkillReferenceReader } from './runtime/skill-reference.js'
 import { isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -131,7 +130,6 @@ export async function apply(ctx: Context, config: Config = Config({})): Promise<
   await catalog.load()
   ctx.inject(['tools', 'fs'], toolHost => {
     mountSkillReferenceReader(toolHost)
-    toolHost.effect(() => toolHost.tools.register(weeklyReportTool(toolHost)))
     toolHost.effect(() => toolHost.tools.register(createForecastTool(toolHost.skills)))
   })
   ctx.inject(['agentPresets', 'connection', 'tools', 'agents'], async host => {
