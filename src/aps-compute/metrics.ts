@@ -212,10 +212,7 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
   const monthlyBudgetRates = budgetMonths.flatMap(month => {
     const financeRows = finance.filter(row => monthOf(row) === month),
       budgetRows = budget.filter(row => monthOf(row) === month)
-    const actual =
-        (!zero && missing(financeRows, 'invalid')) || (annualBudget && !financeRows.some(row => finite(row.actual)))
-          ? null
-          : aggregate(financeRows, 'actual'),
+    const actual = (!zero && missing(financeRows, 'invalid')) || (annualBudget && !financeRows.some(row => finite(row.actual))) ? null : aggregate(financeRows, 'actual'),
       target = !zero && missing(budgetRows, 'invalid') ? null : aggregate(budgetRows, 'budget')
     const label = `${Number(month.slice(4, 6))}月`
     if (target === null || target <= 0) {
@@ -229,8 +226,7 @@ export function deriveMetrics(data: MetricData): Record<string, Metric> {
     return [(actual / target) * 100]
   })
   const budgetAchievement =
-    monthlyBudgetRates.length &&
-    (annualBudget || (months(finance) && months(budget) && monthlyBudgetRates.length === expectedMonths))
+    monthlyBudgetRates.length && (annualBudget || (months(finance) && months(budget) && monthlyBudgetRates.length === expectedMonths))
       ? monthlyBudgetRates.reduce((total, value) => total + value, 0) / monthlyBudgetRates.length
       : null
   put('未税销售额', income !== null && months(finance) ? income / 10000 : null, '万元', '财务未税本币收入；按源更新时间的月度累计金额')
