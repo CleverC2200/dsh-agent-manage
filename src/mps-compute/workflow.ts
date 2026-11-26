@@ -105,6 +105,7 @@ export interface MpsWorkflowInput {
   inventoryTargetVersion?: MpsInventoryVersion
   inventoryTargetPriority?: Exclude<MpsInventoryVersion, 'auto'>[]
   requireSourceTurnoverDays?: boolean
+  missingTurnoverDaysAsZero?: boolean
   inventoryTargetIssues?: string[]
   productMonths?: Pick<MpsQuantityRow, 'month' | 'base' | 'code'>[]
   scopeCoverage?: 'national' | 'in-scope'
@@ -166,7 +167,7 @@ export interface MpsWorkflowRow extends MpsProduct {
   inventoryIssues: MpsInventoryIssue[]
   inventoryTarget: MpsInventoryTargetResult
   turnoverPolicy: MpsTurnoverPolicy
-  safetyDaysSource: 'target-turnover-days' | 'manual-turnover-days' | 'base-policy' | 'rule' | 'missing'
+  safetyDaysSource: 'target-turnover-days' | 'manual-turnover-days' | 'missing-turnover-days-zero' | 'base-policy' | 'rule' | 'missing'
   evaluation: 'unconstrained'
   nextMonthDemand: MpsQuantity
   nextMonth: string
@@ -466,7 +467,14 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
       const turnover = turnoverPolicy(product)
       const manual = manualTurnoverIndex.get(key(product)) ?? []
       const manualDays = manual.length === 1 && finite(manual[0].days) && manual[0].days >= 0 ? manual[0].days : null
-      const policyDays = turnover.sourceDays ?? manualDays ?? (input.requireSourceTurnoverDays ? null : baseSafetyDays)
+      const maintainedDays = turnover.sourceDays ?? manualDays
+      const defaultToZero =
+        maintainedDays === null &&
+        input.requireSourceTurnoverDays &&
+        input.missingTurnoverDaysAsZero &&
+        turnover.attempts.length > 0 &&
+        turnover.attempts.every(({ status }) => status === 'missing-record' || status === 'missing-days')
+      const policyDays = maintainedDays ?? (defaultToZero ? 0 : input.requireSourceTurnoverDays ? null : baseSafetyDays)
       const safetyDays = input.requireSourceTurnoverDays && policyDays === null ? null : ruleSafetyDays(policyDays, { ...product, month }, resolvedRules.rules)
       const safetyDaysSource =
         safetyDays !== policyDays
@@ -475,9 +483,11 @@ export function computeMpsWorkflow(input: MpsWorkflowInput) {
             ? 'target-turnover-days'
             : manualDays !== null
               ? 'manual-turnover-days'
-              : !input.requireSourceTurnoverDays && baseSafetyDays !== null
-                ? 'base-policy'
-                : 'missing'
+              : defaultToZero
+                ? 'missing-turnover-days-zero'
+                : !input.requireSourceTurnoverDays && baseSafetyDays !== null
+                  ? 'base-policy'
+                  : 'missing'
       const delisted = delistedIndex.get(key(product))
       const validDaily = delisted?.dailyShipment != null && finite(delisted.dailyShipment) && delisted.dailyShipment >= 0
       const capacities = (capacityIndex.get(key(product)) ?? []).map(row => ({ ...row, missing: [...row.missing] }))
