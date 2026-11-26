@@ -242,7 +242,7 @@ test('周转天数待补原因可定位到缺记录、缺字段、版本、冲�
     sourceRows: 1
   }
   assert.match(inventoryTurnoverIndex([], ['2026-12'], '月初')(product).missing.join('；'), /2026-12.*月初.*缺目标记录/)
-  assert.match(inventoryTurnoverIndex([{ ...source, finalTurnoverDays: null }], ['2026-12'])(product).missing.join('；'), /最终目标周转天数字段为空或无效/)
+  assert.match(inventoryTurnoverIndex([{ ...source, finalTurnoverDays: null }], ['2026-12'])(product).missing.join('；'), /最终目标周转天数字段为空/)
   assert.match(inventoryTurnoverIndex([{ ...source, finalTurnoverDays: 10 }], ['2026-12'], '纠偏')(product).missing.join('；'), /缺选定版本纠偏/)
   assert.match(inventoryTurnoverIndex([{ ...source, finalTurnoverDays: null, conflictFields: ['finalTurnoverDays'] }], ['2026-12'])(product).missing.join('；'), /冲突/)
   assert.match(inventoryTurnoverIndex([], ['2026-12'], 'auto', ['目标接口超时'])(product).missing.join('；'), /来源读取失败.*目标接口超时/)
@@ -303,6 +303,49 @@ test('缺周转天数保留待补，人工补充和有效源值参与重新计�
       .rows.filter(row => row.base === '甲')
       .every(row => row.safetyDays === 22 && row.safetyDaysSource === 'target-turnover-days')
   )
+})
+
+test('周转天数缺值默认按零计算，保留源缺项并让人工天数覆盖默认值', () => {
+  const sample = input()
+  sample.requireSourceTurnoverDays = true
+  sample.missingTurnoverDaysAsZero = true
+  sample.inventoryTargets = [{ month: '2026-12', base: '甲', code: 'A', version: '月初', finalTarget: 100, dailyDemand: 10, finalTurnoverDays: null, sourceRows: 1 }]
+  for (const result of [computeMpsWorkflow(sample), solveMpsPlan(sample)]) {
+    assert.ok(result.rows.length > 0)
+    for (const row of result.rows) {
+      assert.equal(row.turnoverPolicy.sourceDays, null)
+      assert.ok(row.turnoverPolicy.missing.length > 0)
+      assert.equal(row.safetyDays, 0)
+      assert.equal(row.safetyDaysSource, 'missing-turnover-days-zero')
+      assert.equal(row.targetInventory, 0)
+    }
+  }
+  sample.constraints.turnoverDays = [{ base: '甲', code: 'A', days: 15 }]
+  const manual = computeMpsWorkflow(sample).rows.find(row => row.base === '甲' && row.code === 'A')
+  assert.equal(manual.safetyDays, 15)
+  assert.equal(manual.safetyDaysSource, 'manual-turnover-days')
+  sample.inventoryTargets[0].finalTurnoverDays = 0
+  const source = computeMpsWorkflow(sample).rows.find(row => row.base === '甲' && row.code === 'A')
+  assert.equal(source.safetyDays, 0)
+  assert.equal(source.safetyDaysSource, 'target-turnover-days')
+})
+
+test('周转缺值默认值不用于无效源值、冲突或读取失败', () => {
+  const sample = input()
+  sample.requireSourceTurnoverDays = true
+  sample.missingTurnoverDaysAsZero = true
+  const source = { month: '2026-12', base: '甲', code: 'A', version: '月初', finalTarget: 100, dailyDemand: 10, sourceRows: 1 }
+  for (const [row, issues, expected] of [
+    [{ ...source, finalTurnoverDays: -1 }, [], /无效/],
+    [{ ...source, finalTurnoverDays: null, conflictFields: ['finalTurnoverDays'] }, [], /冲突/],
+    [{ ...source, finalTurnoverDays: null }, ['接口超时'], /读取失败/]
+  ]) {
+    const result = computeMpsWorkflow({ ...sample, inventoryTargets: [row], inventoryTargetIssues: issues })
+    const pending = result.rows.find(row => row.base === '甲' && row.code === 'A')
+    assert.equal(pending.safetyDays, null)
+    assert.equal(pending.targetInventory, null)
+    assert.match(pending.turnoverPolicy.missing.join('；'), expected)
+  }
 })
 
 test('要求源周转天数时缺项不套基地天数，人工补充后重新纳入计算', () => {

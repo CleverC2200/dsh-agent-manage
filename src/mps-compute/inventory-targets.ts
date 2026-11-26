@@ -112,7 +112,7 @@ export function inventoryTargetIndex(
 
 export interface MpsTurnoverAttempt {
   version: string
-  status: 'valid' | 'missing-record' | 'invalid-days' | 'conflict' | 'read-failed'
+  status: 'valid' | 'missing-record' | 'missing-days' | 'invalid-days' | 'conflict' | 'read-failed'
   reason: string
 }
 export interface MpsTurnoverPolicy {
@@ -160,9 +160,11 @@ export function inventoryTurnoverIndex(
           ? 'missing-record'
           : rows.length > 1 || !Number.isSafeInteger(row.sourceRows) || row.sourceRows <= 0 || row.conflictFields?.includes('finalTurnoverDays')
             ? 'conflict'
-            : valid(row.finalTurnoverDays ?? null)
-              ? 'valid'
-              : 'invalid-days'
+            : row.finalTurnoverDays == null
+              ? 'missing-days'
+              : valid(row.finalTurnoverDays)
+                ? 'valid'
+                : 'invalid-days'
       const prefix = `${sourceMonth ?? '所选来源月'} ${candidate}`
       const reason =
         status === 'read-failed'
@@ -171,9 +173,11 @@ export function inventoryTurnoverIndex(
             ? `${prefix}缺目标记录（缺选定版本${candidate}），请核对或人工补充`
             : status === 'conflict'
               ? `${prefix}同基地同SKU的最终目标周转天数冲突，请核对或人工补充`
-              : status === 'invalid-days'
-                ? `${prefix}最终目标周转天数字段为空或无效，请核对或人工补充`
-                : ''
+              : status === 'missing-days'
+                ? `${prefix}最终目标周转天数字段为空，请核对或人工补充`
+                : status === 'invalid-days'
+                  ? `${prefix}最终目标周转天数无效，请核对或人工补充`
+                  : ''
       policy.attempts.push({ version: candidate, status, reason })
       if (status === 'valid') {
         policy.sourceDays = row.finalTurnoverDays ?? null

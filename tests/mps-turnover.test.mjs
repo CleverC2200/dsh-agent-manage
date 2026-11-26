@@ -26,7 +26,7 @@ test('同批基地SKU分别采用首选或次选，首选有效零不回退，�
   assert.equal(fallback.sourceVersion, '滚动')
   assert.match(fallback.fallbackReason, /月初.*缺目标记录/)
   assert.equal(read({ base: '甲', code: 'B' }).sourceDays, 15)
-  assert.match(read({ base: '甲', code: 'B' }).fallbackReason, /月初.*为空或无效/)
+  assert.match(read({ base: '甲', code: 'B' }).fallbackReason, /月初.*字段为空/)
   assert.equal(read({ base: '甲', code: 'C' }).sourceDays, 0)
   assert.equal(read({ base: '甲', code: 'C' }).sourceVersion, '月初')
 })
@@ -41,7 +41,7 @@ test('无效首选逐键回退，冲突和读取失败保留待核，不静默�
     assert.equal(missing.sourceDays, null)
     assert.deepEqual(
       missing.attempts.map(attempt => attempt.status),
-      ['invalid-days', 'invalid-days']
+      [invalid === null ? 'missing-days' : 'invalid-days', 'missing-days']
     )
     assert.match(missing.missing.join('；'), /月初.*滚动/)
   }
