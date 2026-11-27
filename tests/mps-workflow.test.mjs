@@ -45,18 +45,41 @@ test('部分需求缺失保留已知负荷和逐SKU原因，不把已知负荷�
   assert.ok(report.demandIssues.some(issue => issue.month === '2026-12' && issue.code === 'B' && issue.kind === '缺拆分依据'))
 })
 
-test('年度全国只汇总基地明细，零数量无需件吨系数，缺量仍保留缺项', () => {
+test('年度需求无值按零参与利用率，仍能区分需补件吨系数和读取失败', () => {
   const sample = planInput()
-  const report = buildCapacityReport(sample, solveMpsPlan(sample), {
+  sample.unitWeights = sample.unitWeights.filter(row => row.code !== 'B')
+  sample.productionDays.push({ base: '甲', month: '2026-11', days: 1 })
+  const plan = solveMpsPlan(sample)
+  const report = buildCapacityReport(sample, plan, {
+    referenceMonth: '2026-11',
     rows: [
-      { month: '2026-12', base: '甲', code: 'A', quantity: 30 },
-      { month: '2026-12', base: '甲', code: 'ZERO', quantity: 0 },
-      { month: '2026-12', base: '全国', code: 'A', quantity: 999 }
+      { month: '2026-11', base: '甲', code: 'A', quantity: 30 },
+      { month: '2026-11', base: '甲', code: 'B', quantity: null },
+      { month: '2026-11', base: '全国', code: 'A', quantity: 999 },
+      { month: '2026-10', base: '甲', code: 'A', quantity: -1 },
+      { month: '2026-12', base: '甲', code: 'B', quantity: 10 }
     ]
   })
-  assert.equal(report.annualTotals.find(row => row.month === '2026-12' && row.base === '全国').demand.value, 3)
-  assert.equal(report.annualIssues.length, 0)
+  const annual = (month, base = '甲') => report.annualTotals.find(row => row.month === month && row.base === base)
+  assert.deepEqual(annual('2026-11', '全国').demand, { value: 3, known: 3, missing: 0 })
+  assert.equal(annual('2026-11').load, 0.6)
+  assert.equal(annual('2026-10').demand.value, 0)
+  assert.equal(annual('2026-09').demand.value, 0)
+  assert.equal(annual('2026-12').demand.value, null)
+  assert.equal(annual('2026-12').demand.missing, 1)
+  assert.equal(report.productDetails.find(row => row.month === '2026-11' && row.code === 'B').demandTons, 0)
+  assert.deepEqual(
+    report.annualIssues.map(row => [row.code, row.months[0], row.defaultedDemand]),
+    [
+      ['B', '2026-11', true],
+      ['A', '2026-10', true],
+      ['B', '2026-12', false]
+    ]
+  )
   assert.equal(report.annualSource.aggregateRows, 1)
+  const unread = buildCapacityReport(sample, plan, { rows: [], error: '读取失败' })
+  assert.equal(unread.annualTotals.find(row => row.month === '2026-11' && row.base === '甲').demand.value, null)
+  assert.equal(unread.annualSource.error, '读取失败')
 })
 
 test('零需求无需件吨系数即可计入零吨，未知需求仍不可计入', () => {
